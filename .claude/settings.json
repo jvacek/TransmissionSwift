@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(swift build*)",
+      "Bash(swift test*)",
+      "Bash(swift format*)",
+      "Bash(swift package*)",
+
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch)",
+
+      "Bash(xcodebuild -list*)",
+      "Bash(xcodebuild -showsdks*)",
+
+      "Bash(prek run*)",
+      "Bash(prek install)",
+
+      "Bash(brew list*)",
+
+      "mcp__xcode-tools__BuildProject",
+      "mcp__xcode-tools__DocumentationSearch",
+      "mcp__xcode-tools__ExecuteSnippet",
+      "mcp__xcode-tools__GetBuildLog",
+      "mcp__xcode-tools__GetTestList",
+      "mcp__xcode-tools__RenderPreview",
+      "mcp__xcode-tools__RunAllTests",
+      "mcp__xcode-tools__RunSomeTests",
+      "mcp__xcode-tools__XcodeGlob",
+      "mcp__xcode-tools__XcodeGrep",
+      "mcp__xcode-tools__XcodeLS",
+      "mcp__xcode-tools__XcodeListNavigatorIssues",
+      "mcp__xcode-tools__XcodeMV",
+      "mcp__xcode-tools__XcodeMakeDir",
+      "mcp__xcode-tools__XcodeRead",
+      "mcp__xcode-tools__XcodeRefreshCodeIssuesInFile",
+      "mcp__xcode-tools__XcodeUpdate",
+      "mcp__xcode-tools__XcodeWrite"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_response.filePath // .tool_input.file_path' | { read -r f; [[ \"$f\" == *.swift ]] && swift format --in-place \"$f\"; } 2>/dev/null || true",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
