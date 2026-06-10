@@ -10,15 +10,19 @@ import TransmissionCore
 
 struct ContentView: View {
     @Environment(ServerProfileStore.self) private var profileStore
+    let mockMode: Bool
 
     var body: some View {
-        Group {
-            if let profile = profileStore.profiles.first {
-                ServerStatusView(profile: profile)
-            } else {
-                AddServerForm()
-            }
+        if mockMode {
+            MainWindow()
+        } else if let profile = profileStore.profiles.first {
+            // The real-RPC path lands in slice 7. Until then this stays at the
+            // single-profile connectivity check from the first slice.
+            ServerStatusView(profile: profile)
+                .frame(minWidth: 420, minHeight: 320)
+        } else {
+            AddServerForm()
+                .frame(minWidth: 420, minHeight: 320)
         }
-        .frame(minWidth: 420, minHeight: 320)
     }
 }

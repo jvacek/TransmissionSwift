@@ -53,4 +53,31 @@ final class TransmissionSwiftUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(connected.waitForExistence(timeout: 10), "Expected the daemon version to render")
     }
+
+    /// `--mock-data` shows the S1 main window backed by `MockFixtures`.
+    /// 10 torrents → sidebar's All Torrents row carries value "10" and the
+    /// status bar reports the same count.
+    @MainActor
+    func testMockDataMainWindow() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--mock-data", "--ephemeral-profiles"]
+        app.launch()
+
+        // SwiftUI's NavigationSplitView + toolbar takes ~3s after launch to
+        // wire its accessibility tree. 10s gives headroom.
+        let allTorrents = app.staticTexts["sidebar.status.all"]
+        XCTAssertTrue(
+            allTorrents.waitForExistence(timeout: 10),
+            "Expected the sidebar's 'All Torrents' row to render")
+        XCTAssertEqual(allTorrents.value as? String, "10")
+
+        let downloading = app.staticTexts["sidebar.status.downloading"]
+        XCTAssertTrue(downloading.waitForExistence(timeout: 5))
+        XCTAssertEqual(downloading.value as? String, "3")
+
+        let table = app.outlines["torrents.table"]
+        XCTAssertTrue(
+            table.waitForExistence(timeout: 5),
+            "Expected the torrent table to render")
+    }
 }

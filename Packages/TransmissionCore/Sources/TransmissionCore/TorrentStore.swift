@@ -1,0 +1,78 @@
+import Foundation
+import Observation
+
+/// The single source of truth the UI binds to. Wraps a `TorrentService`,
+/// owns selection / search / filter / inspector state, and derives the
+/// sidebar facets and visible-row set.
+///
+/// Views read this from the environment. View models stay thin.
+@MainActor
+@Observable
+public final class TorrentStore {
+    public private(set) var torrents: [Torrent] = []
+    public private(set) var connection: ConnectionState = .connecting
+    public private(set) var isAlternativeSpeedEnabled: Bool = false
+
+    public var selectedFilter: SidebarFilter = .status(.all)
+    public var selectedTorrentIDs: Set<Torrent.ID> = []
+    public var searchQuery: String = ""
+    public var inspectorVisible: Bool = true
+    public var inspectorTab: InspectorTab = .general
+
+    public var facets: FilterFacets { FilterFacets(torrents: torrents) }
+
+    public var visibleTorrents: [Torrent] {
+        torrents.filtered(by: selectedFilter).searched(searchQuery)
+    }
+
+    public var selectedTorrents: [Torrent] {
+        torrents.filter { selectedTorrentIDs.contains($0.id) }
+    }
+
+    private let service: any TorrentService
+    private var streamTask: Task<Void, Never>?
+
+    public init(service: any TorrentService) {
+        self.service = service
+        startStream()
+    }
+
+    private func startStream() {
+        streamTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let stream = await self.service.torrentsStream()
+            for await snapshot in stream {
+                self.torrents = snapshot
+                if case .connected = self.connection {
+                } else {
+                    self.connection = .connected
+                }
+            }
+        }
+    }
+
+    // MARK: - Actions
+
+    public func start(_ ids: [Torrent.ID]) async {
+        try? await service.start(ids)
+    }
+
+    public func stop(_ ids: [Torrent.ID]) async {
+        try? await service.stop(ids)
+    }
+
+    public func remove(_ ids: [Torrent.ID], deleteLocalData: Bool = false) async {
+        try? await service.remove(ids, deleteLocalData: deleteLocalData)
+        selectedTorrentIDs.subtract(ids)
+    }
+
+    public func verify(_ ids: [Torrent.ID]) async {
+        try? await service.verify(ids)
+    }
+
+    public func toggleAlternativeSpeed() async {
+        let newValue = !isAlternativeSpeedEnabled
+        try? await service.setAlternativeSpeedEnabled(newValue)
+        isAlternativeSpeedEnabled = newValue
+    }
+}
