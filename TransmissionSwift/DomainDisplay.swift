@@ -29,6 +29,56 @@ extension TorrentStatus {
     }
 }
 
+extension TorrentPriority {
+    var displayLabel: String {
+        switch self {
+        case .low: return "Low"
+        case .normal: return "Normal"
+        case .high: return "High"
+        }
+    }
+}
+
+extension TrackerState {
+    var displayLabel: String {
+        switch self {
+        case .working: return "Working"
+        case .idle: return "Idle"
+        case .error: return "Error"
+        }
+    }
+
+    var displayColor: Color {
+        switch self {
+        case .working: return .green
+        case .idle: return .secondary
+        case .error: return .red
+        }
+    }
+}
+
+extension InspectorTab {
+    var displayLabel: String {
+        switch self {
+        case .general: return "General"
+        case .files: return "Files"
+        case .peers: return "Peers"
+        case .trackers: return "Trackers"
+        case .options: return "Options"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .general: return "info.circle"
+        case .files: return "folder"
+        case .peers: return "person.2"
+        case .trackers: return "antenna.radiowaves.left.and.right"
+        case .options: return "slider.horizontal.3"
+        }
+    }
+}
+
 extension TorrentStatusFilter {
     var displayLabel: String {
         switch self {

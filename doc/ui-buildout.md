@@ -89,19 +89,21 @@ Each slice is one PR-sized chunk. Tick boxes track progress.
 
 **Notes:** SwiftUI's toolbar buttons drop their `.accessibilityIdentifier` somewhere between the SwiftUI tree and AppKit's NSToolbar — toolbar items aren't reliably addressable by identifier in XCUITest. Sidebar rows surface theirs as `staticText`s, so we hang the test off those.
 
-### Slice 2 — Inspector tabs (~1 day)
+### Slice 2 — Inspector tabs ✅
 
-Renders against the current selection (or first torrent if multi-select).
+Renders against the current selection (or first torrent if multi-select — header notes "First of N selected").
 
-- [ ] `InspectorHeader`: status dot + name (truncating) + subtitle "{size} · {state} · added {relative date}".
-- [ ] `TabView` with five tabs:
-  - **General** — `Grid` of `LabeledContent`: progress bar + %, State, Down, Up, Time left, Ratio, Peers ("X connected of Y · Z seeds"); a separate "Details" section: Size, Pieces, Added, Location (monospaced), Label, Priority, Tracker, Hash (monospaced truncated).
-  - **Files** — `Table` over `torrent.files`: Wanted (Toggle), Name (`doc` icon + monospaced), Size, Progress bar+%, Priority (`Picker` High/Normal/Low/Skip). Wired to `service.setFiles(...)`.
-  - **Peers** — `Table`: Address (country chip + IP), Client, Flags (mono), %, Down, Up.
-  - **Trackers** — `ForEach` grouped by tier; each tracker is a bordered card with status dot, host (mono), status line, seeds/leech/downloads.
-  - **Options** — `Form(.grouped)`: Honor global limits, per-torrent down/up Toggle+Stepper+"KB/s", Seeding ratio/idle stops, Max peers. `Stepper` + `TextField` pairs.
-- [ ] Selection changes refresh inspector content instantly (driven by `TorrentStore`).
-- [ ] XCUITest: select torrent #5, open inspector, switch tabs, assert key values render.
+- [x] `InspectorHeader`: status dot + name (truncating) + subtitle "{size} · {state} · added {relative date}".
+- [x] Five tabs — a segmented icon `Picker` (Xcode-inspector idiom) rather than a literal `TabView`, per the "HIG over 1:1 design" direction:
+  - **General** — `LabeledContent` KV rows: progress bar + %, "X of Y · A of B pieces" caption, State (tinted capsule badge), Down, Up, Time left, Ratio, Peers; "Details" section: Size, Pieces, Added, Location (mono), Label, Priority, Tracker, Hash (mono, middle-truncated, text-selectable). Error message surfaces as a red label when present.
+  - **Files** — `Table` over `torrent.files`: Wanted (checkbox Toggle), Name (`doc` icon + mono), Size, Progress bar+%, Priority (`Picker` High/Normal/Low/Skip — Skip = `wanted: false`). Wired to `store.setFilesWanted` / `store.setFilePriority`.
+  - **Peers** — `Table`: Address (country chip + mono IP), Client, Flags (mono), %, Down, Up. `ContentUnavailableView` overlay when no peers.
+  - **Trackers** — tier-grouped `GroupBox` cards: state dot, host (mono), status line (red on error), seeds/leechers/downloads (monochrome — colour stays on the state dot).
+  - **Options** — `Form(.grouped)` with progressive disclosure (detail rows appear when their toggle is on): honor global limits, down/up limits (TextField+Stepper+"KB/s"), seed-ratio / idle stops, max peers. Edits a local draft, pushes whole `TorrentOptions` through `store.setOptions` on change.
+- [x] Selection changes refresh inspector content instantly; tab content is re-keyed by `.id(torrent.id)` so drafts/scroll reset per torrent but survive 1s polling snapshots.
+- [x] XCUITest `testInspectorTabs`: selects torrent #5 (Debian), walks all five tabs, asserts key content in each. Segments are addressable as radio buttons (NSSegmentedControl AX).
+
+**Validation:** `swift test --package-path Packages/TransmissionCore` 20/20 · `BuildProject` green · both XCUITests pass · `swift format lint --strict` clean.
 
 ### Slice 3 — Add Torrent sheet (S2, ~½ day)
 
@@ -186,13 +188,23 @@ Landed after the slice was first marked done. All built + UI test passes.
   - If the second pass still doesn't kill it, escalation path is dropping NSProgressIndicator entirely and rolling a custom bar from `Capsule()` overlays — `Capsule` frame changes don't animate without an explicit animation context, so it would be guaranteed snappy.
 - **Better framing for the filter-change UX.** Instead of suppressing cell-content animation, the *right* mental model is: animate **row inserts/deletes** (which macOS Table already does on its own via NSTableView diffing) and keep cell content snap. Like Mail / Finder. That's why the `.transaction` approach above is the correct one in spirit — the row animation happens naturally underneath; we just need to stop the cell content from fighting it.
 
+### Slice 2 notes (2026-06-11)
+
+- **Service surface grew after all** (the earlier "UI scaffolding only" note was optimistic — the Files/Options tabs are interactive). `TorrentService` gained `setFilesWanted`, `setFilePriority`, `setOptions`; `TorrentStore` mirrors them as actions; `MockTorrentService` mutates + broadcasts. 3 new core tests (20 total).
+- **New domain type `TorrentOptions`** on `Torrent.options` — Bool+value pairs (`downloadLimited` + `downloadLimitKBps`, `seedRatioLimited` + `seedRatioLimit`, …). Deliberately collapses Transmission's tri-state seed-limit modes (global/single/unlimited) to the two the UI exposes; slice 7 maps the Bools to `seedRatioMode` 0/1.
+- **Tabs are a segmented icon `Picker`, not `TabView`** — matches the Xcode/Finder inspector idiom and avoids TabView's content chrome fighting edge-to-edge `Table`s in Files/Peers.
+- **Options tab state flow:** local `@State` draft seeded from `torrent.options` in `init`, whole struct pushed via `onChange`. The `.id(torrent.id)` re-key in `InspectorView` is what resets the draft on selection change — without it `@State` survives and shows the previous torrent's values.
+- **New app-target files** (filesystem-synced, no pbxproj edits): `InspectorGeneralTab/FilesTab/PeersTab/TrackersTab/OptionsTab.swift`; `InspectorView.swift` rewritten.
+- **XCUITest learning:** SwiftUI's segmented picker segments *are* addressable — they surface as `radioButtons` keyed by each segment's `accessibilityLabel` (set on the `Image` options). Toolbar buttons remain unaddressable per slice 1's note, but the inspector defaults to visible so the test never needs the toolbar toggle.
+
 ### Picking up from a new session
 
-- **Slice 2 is up next** — five-tab inspector (General / Files / Peers / Trackers / Options). All the data needed is already on the `Torrent` domain type from slice 0; the Debian fixture (id 5) has rich files/peers/trackers, the others have stubs. UI scaffolding only — no service changes.
-- **Verify before starting Slice 2:**
-  - Confirm the latest `ProgressBar` `.transaction { $0.animation = nil }` actually kills the bar lerp on filter switch. If not, drop to the custom `Capsule()` bar.
-  - Confirm the inspector placement now reads correctly (no more search-field weirdness, no glass-creep).
-  - Confirm horizontal bounce is gone with `axes: .horizontal`.
+- **Slice 3 is up next** — Add Torrent sheet (S2): segmented file/magnet picker, destination/label/priority fields, files table, footer with `.glassProminent` CTA. Needs a new `add(...)` on `TorrentService` + mock insert behaviour, and the `.dropDestination` entry point on the main window.
+- **Still awaiting visual verification by Jonas** (carried from slice 1 — agent can't eyeball these):
+  - `ProgressBar` `.transaction { $0.animation = nil }` killing the bar lerp on filter switch. Escalation: custom `Capsule()` bar.
+  - Inspector placement (no search-field weirdness, no glass-creep) — now more visible with the slice 2 tabs in.
+  - Horizontal bounce gone with `axes: .horizontal`.
+  - New: the five inspector tabs at the 280–322pt widths — Files/Peers tables may want column tweaks once seen on a real display.
 - **Open polish items** that aren't blocking but worth doing soon:
   - Decide on the status-bar turtle button — keep or drop?
   - Decide on persisting sort order across launches (slice 5 / `@AppStorage`).

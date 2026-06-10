@@ -1,0 +1,105 @@
+import SwiftUI
+import TransmissionCore
+
+/// Key-value overview of the selected torrent: transfer state up top,
+/// immutable details below.
+struct InspectorGeneralTab: View {
+    let torrent: Torrent
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                transferSection
+                detailsSection
+            }
+            .padding(12)
+        }
+    }
+
+    private var transferSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Transfer")
+                .font(.headline)
+
+            ProgressBar(value: torrent.progress, status: torrent.status)
+
+            Text(progressCaption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if let error = torrent.errorMessage {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
+            VStack(spacing: 6) {
+                LabeledContent("State") { statusBadge }
+                row("Download", torrent.downloadSpeed.formattedSpeed)
+                row("Upload", torrent.uploadSpeed.formattedSpeed)
+                row("Time left", torrent.status == .downloading ? torrent.eta.formattedETA : "—")
+                row("Ratio", torrent.ratio.formatted(.number.precision(.fractionLength(2))))
+                row("Peers", peersSummary)
+            }
+            .padding(.top, 4)
+        }
+    }
+
+    private var detailsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Details")
+                .font(.headline)
+
+            VStack(spacing: 6) {
+                row("Size", torrent.size.formattedSize)
+                row(
+                    "Pieces",
+                    "\(torrent.pieces.formatted()) × \(torrent.pieceSize.formattedSize)")
+                row("Added", torrent.addedAt.formatted(date: .abbreviated, time: .shortened))
+                row("Location", torrent.downloadFolder, monospaced: true)
+                row("Label", torrent.label ?? "—")
+                row("Priority", torrent.priority.displayLabel)
+                row("Tracker", torrent.primaryTracker)
+                row("Hash", torrent.hash, monospaced: true)
+            }
+        }
+    }
+
+    private var statusBadge: some View {
+        Text(torrent.status.displayLabel)
+            .font(.caption.weight(.medium))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .foregroundStyle(torrent.status.displayColor)
+            .background(torrent.status.displayColor.opacity(0.14), in: Capsule())
+    }
+
+    private var progressCaption: String {
+        let downloaded = Int64(Double(torrent.size) * torrent.progress)
+        return "\(downloaded.formattedSize) of \(torrent.size.formattedSize)"
+            + " · \(torrent.havePieces.formatted()) of \(torrent.pieces.formatted()) pieces"
+    }
+
+    private var peersSummary: String {
+        "\(torrent.connectedPeerCount) connected of \(torrent.availablePeerCount)"
+            + " · \(torrent.seedCount) seeds"
+    }
+
+    private func row(_ label: String, _ value: String, monospaced: Bool = false) -> some View {
+        LabeledContent(label) {
+            Text(value)
+                .font(monospaced ? .callout.monospaced() : .callout)
+                .monospacedDigit()
+                .multilineTextAlignment(.trailing)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+        }
+        .font(.callout)
+    }
+}
+
+#Preview {
+    InspectorGeneralTab(torrent: Torrent.samples[4])
+        .frame(width: 322, height: 640)
+}

@@ -25,6 +25,19 @@ public protocol TorrentService: Sendable {
     func remove(_ ids: [Torrent.ID], deleteLocalData: Bool) async throws
     func verify(_ ids: [Torrent.ID]) async throws
 
+    /// Per-file selection. Maps to `torrent-set` `files-wanted` /
+    /// `files-unwanted`.
+    func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool) async throws
+
+    /// Per-file bandwidth priority. Maps to `torrent-set`
+    /// `priority-high` / `priority-normal` / `priority-low`.
+    func setFilePriority(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], priority: TorrentPriority)
+        async throws
+
+    /// Whole-struct replace of a torrent's transfer options. Maps to one
+    /// `torrent-set` call carrying the changed limit fields.
+    func setOptions(_ id: Torrent.ID, options: TorrentOptions) async throws
+
     /// Session-wide alt-speed (turtle) toggle. Reads/writes `session-set`'s
     /// `alt-speed-enabled` field.
     func setAlternativeSpeedEnabled(_ enabled: Bool) async throws

@@ -80,4 +80,58 @@ final class TransmissionSwiftUITests: XCTestCase {
             table.waitForExistence(timeout: 5),
             "Expected the torrent table to render")
     }
+
+    /// Slice 2: select the Debian fixture (rich files/peers/trackers), then
+    /// walk all five inspector tabs and assert each renders its key content.
+    @MainActor
+    func testInspectorTabs() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--mock-data", "--ephemeral-profiles"]
+        app.launch()
+
+        let table = app.outlines["torrents.table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 10))
+
+        let debianRow = table.staticTexts["Debian 12.6 — netinst (multi-arch) collection"]
+        XCTAssertTrue(debianRow.waitForExistence(timeout: 5))
+        debianRow.click()
+
+        // General is the default tab.
+        XCTAssertTrue(
+            app.staticTexts["Transfer"].waitForExistence(timeout: 5),
+            "Expected the General tab's Transfer section")
+        XCTAssertTrue(app.staticTexts["Time left"].exists)
+
+        selectInspectorTab(app, "Files")
+        XCTAssertTrue(
+            app.staticTexts["debian-12.6.0-amd64-netinst.iso"].waitForExistence(timeout: 5),
+            "Expected the Files tab to list the Debian payload")
+
+        selectInspectorTab(app, "Peers")
+        XCTAssertTrue(
+            app.staticTexts["94.142.241.111"].waitForExistence(timeout: 5),
+            "Expected the Peers tab to list the NL peer")
+
+        selectInspectorTab(app, "Trackers")
+        XCTAssertTrue(
+            app.staticTexts["open.tracker.cl"].waitForExistence(timeout: 5),
+            "Expected the Trackers tab to show the tier-2 tracker")
+
+        selectInspectorTab(app, "Options")
+        XCTAssertTrue(
+            app.staticTexts["Bandwidth"].waitForExistence(timeout: 5),
+            "Expected the Options tab's Bandwidth section")
+    }
+
+    /// The inspector's segmented tab control. NSSegmentedControl exposes its
+    /// segments as radio buttons in the AX tree; fall back to plain buttons
+    /// in case the representation shifts between macOS releases.
+    private func selectInspectorTab(_ app: XCUIApplication, _ label: String) {
+        let radio = app.radioButtons[label]
+        if radio.waitForExistence(timeout: 2) {
+            radio.click()
+            return
+        }
+        app.buttons[label].firstMatch.click()
+    }
 }

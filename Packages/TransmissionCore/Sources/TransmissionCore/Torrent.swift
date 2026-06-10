@@ -27,6 +27,7 @@ public struct Torrent: Identifiable, Hashable, Sendable {
     public var havePieces: Int
     public var queuePosition: Int?
     public var errorMessage: String?
+    public var options: TorrentOptions
     public var files: [TorrentFile]
     public var peers: [Peer]
     public var trackers: [Tracker]
@@ -55,6 +56,7 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         havePieces: Int,
         queuePosition: Int? = nil,
         errorMessage: String? = nil,
+        options: TorrentOptions = TorrentOptions(),
         files: [TorrentFile] = [],
         peers: [Peer] = [],
         trackers: [Tracker] = []
@@ -82,6 +84,7 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         self.havePieces = havePieces
         self.queuePosition = queuePosition
         self.errorMessage = errorMessage
+        self.options = options
         self.files = files
         self.peers = peers
         self.trackers = trackers

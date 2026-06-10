@@ -70,6 +70,20 @@ public final class TorrentStore {
         try? await service.verify(ids)
     }
 
+    public func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool) async {
+        try? await service.setFilesWanted(id, fileIDs: fileIDs, wanted: wanted)
+    }
+
+    public func setFilePriority(
+        _ id: Torrent.ID, fileIDs: [TorrentFile.ID], priority: TorrentPriority
+    ) async {
+        try? await service.setFilePriority(id, fileIDs: fileIDs, priority: priority)
+    }
+
+    public func setOptions(_ id: Torrent.ID, options: TorrentOptions) async {
+        try? await service.setOptions(id, options: options)
+    }
+
     public func toggleAlternativeSpeed() async {
         let newValue = !isAlternativeSpeedEnabled
         try? await service.setAlternativeSpeedEnabled(newValue)

@@ -114,6 +114,36 @@ public actor MockTorrentService: TorrentService {
         broadcast()
     }
 
+    public func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool)
+        async throws
+    {
+        guard let index = state.firstIndex(where: { $0.id == id }) else { return }
+        let set = Set(fileIDs)
+        for fileIndex in state[index].files.indices
+        where set.contains(state[index].files[fileIndex].id) {
+            state[index].files[fileIndex].wanted = wanted
+        }
+        broadcast()
+    }
+
+    public func setFilePriority(
+        _ id: Torrent.ID, fileIDs: [TorrentFile.ID], priority: TorrentPriority
+    ) async throws {
+        guard let index = state.firstIndex(where: { $0.id == id }) else { return }
+        let set = Set(fileIDs)
+        for fileIndex in state[index].files.indices
+        where set.contains(state[index].files[fileIndex].id) {
+            state[index].files[fileIndex].priority = priority
+        }
+        broadcast()
+    }
+
+    public func setOptions(_ id: Torrent.ID, options: TorrentOptions) async throws {
+        guard let index = state.firstIndex(where: { $0.id == id }) else { return }
+        state[index].options = options
+        broadcast()
+    }
+
     public func setAlternativeSpeedEnabled(_ enabled: Bool) async throws {
         altSpeed = enabled
     }

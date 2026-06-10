@@ -1,33 +1,40 @@
 import SwiftUI
 import TransmissionCore
 
-/// Slice-1 placeholder. The five-tab inspector lands in slice 2.
+/// Right-pane inspector — header, icon-segmented tab bar, and one of five
+/// tab bodies. Renders the first selected torrent; selection changes flow in
+/// through `TorrentStore` so content refreshes instantly.
 struct InspectorView: View {
     @Environment(TorrentStore.self) private var store
 
     var body: some View {
+        @Bindable var store = store
+
         if let torrent = store.selectedTorrents.first {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top, spacing: 8) {
-                    StatusDot(status: torrent.status, size: 10)
-                        .padding(.top, 6)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(torrent.name)
-                            .font(.headline)
-                            .lineLimit(2)
-                        Text("\(torrent.size.formattedSize) · \(torrent.status.displayLabel)")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
+            VStack(spacing: 0) {
+                InspectorHeader(torrent: torrent, selectionCount: store.selectedTorrents.count)
+
+                Picker("Inspector Tab", selection: $store.inspectorTab) {
+                    ForEach(InspectorTab.allCases, id: \.self) { tab in
+                        Image(systemName: tab.systemImage)
+                            .accessibilityLabel(tab.displayLabel)
+                            .tag(tab)
                     }
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .padding(.horizontal, 12)
+                .padding(.bottom, 10)
+                .accessibilityIdentifier("inspector.tabs")
+
                 Divider()
-                Text("Inspector tabs land in slice 2.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
+
+                tabContent(for: torrent)
+                    // Re-key per torrent: scroll positions and the Options
+                    // tab's draft state reset on selection change, but stay
+                    // put across 1s polling snapshots.
+                    .id(torrent.id)
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .topLeading)
         } else {
             ContentUnavailableView(
                 "No Selection",
@@ -36,4 +43,62 @@ struct InspectorView: View {
             )
         }
     }
+
+    @ViewBuilder
+    private func tabContent(for torrent: Torrent) -> some View {
+        switch store.inspectorTab {
+        case .general: InspectorGeneralTab(torrent: torrent)
+        case .files: InspectorFilesTab(torrent: torrent)
+        case .peers: InspectorPeersTab(torrent: torrent)
+        case .trackers: InspectorTrackersTab(torrent: torrent)
+        case .options: InspectorOptionsTab(torrent: torrent)
+        }
+    }
+}
+
+private struct InspectorHeader: View {
+    let torrent: Torrent
+    let selectionCount: Int
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            StatusDot(status: torrent.status, size: 10)
+                .padding(.top, 5)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(torrent.name)
+                    .font(.headline)
+                    .lineLimit(2)
+                Text(subtitle)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                if selectionCount > 1 {
+                    Text("First of \(selectionCount) selected")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    private var subtitle: String {
+        let added = torrent.addedAt.formatted(.relative(presentation: .named))
+        return "\(torrent.size.formattedSize) · \(torrent.status.displayLabel) · added \(added)"
+    }
+}
+
+#Preview("Selected") {
+    let service = MockTorrentService()
+    let store = TorrentStore(service: service)
+    return InspectorView()
+        .environment(store)
+        .frame(width: 322, height: 600)
+        .task { store.selectedTorrentIDs = [5] }
+}
+
+#Preview("Empty") {
+    InspectorView()
+        .environment(TorrentStore(service: MockTorrentService(initial: [])))
+        .frame(width: 322, height: 600)
 }

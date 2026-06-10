@@ -150,6 +150,12 @@ public enum MockFixtures {
                 pieceSize: 512 * kiB,
                 havePieces: 5112,
                 queuePosition: 2,
+                options: TorrentOptions(
+                    downloadLimited: true,
+                    downloadLimitKBps: 2000,
+                    seedRatioLimited: true,
+                    seedRatioLimit: 2.0
+                ),
                 files: debianFiles(),
                 peers: debianPeers(),
                 trackers: debianTrackers()

@@ -137,6 +137,45 @@ struct MockTorrentServiceTests {
         try await service.setAlternativeSpeedEnabled(true)
         #expect(await service.isAlternativeSpeedEnabled() == true)
     }
+
+    @Test("setFilesWanted flips only the targeted files")
+    func filesWanted() async throws {
+        let service = MockTorrentService()
+        let before = try await service.torrents().first { $0.id == 5 }!
+        #expect(before.files.count > 2)
+        let target = before.files[0].id
+
+        try await service.setFilesWanted(5, fileIDs: [target], wanted: false)
+        let after = try await service.torrents().first { $0.id == 5 }!
+        #expect(after.files.first { $0.id == target }?.wanted == false)
+        for file in after.files where file.id != target {
+            let unchanged = before.files.first { $0.id == file.id }!
+            #expect(file.wanted == unchanged.wanted)
+        }
+    }
+
+    @Test("setFilePriority updates only the targeted files")
+    func filePriority() async throws {
+        let service = MockTorrentService()
+        let before = try await service.torrents().first { $0.id == 5 }!
+        let target = before.files.first { $0.priority == .normal }!.id
+
+        try await service.setFilePriority(5, fileIDs: [target], priority: .high)
+        let after = try await service.torrents().first { $0.id == 5 }!
+        #expect(after.files.first { $0.id == target }?.priority == .high)
+    }
+
+    @Test("setOptions replaces the torrent's options")
+    func options() async throws {
+        let service = MockTorrentService()
+        var options = try await service.torrents().first { $0.id == 1 }!.options
+        options.uploadLimited = true
+        options.uploadLimitKBps = 750
+
+        try await service.setOptions(1, options: options)
+        let after = try await service.torrents().first { $0.id == 1 }!
+        #expect(after.options == options)
+    }
 }
 
 @Suite("TorrentStore")
