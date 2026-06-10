@@ -49,6 +49,7 @@ TransmissionSwift/                          ← Xcode project root
 ### Wire protocol notes worth knowing
 
 - Transmission's RPC is **JSON-RPC-ish over HTTP**. One endpoint, request body has `{ "method": "...", "arguments": {...}, "tag": N }`.
+- **Two protocols exist since Transmission 4.1**: the legacy bespoke envelope above (kebab-case keys) and a JSON-RPC 2.0 variant (snake_case). The legacy protocol is deprecated upstream but supported by **every** daemon version; JSON-RPC 2.0 only by ≥ 4.1. **We speak the legacy protocol** for maximum reach (the transgui model). Both specs are cached under `reference/`. Revisit when pre-4.1 daemons stop mattering.
 - **Session-ID handshake:** the first request gets rejected with **HTTP 409** and an `X-Transmission-Session-Id` response header. Subsequent requests must echo it. If the server restarts, the ID changes and a single 409 is expected — the client must transparently retry once.
 - **Auth:** HTTP Basic.
 - **No push.** Polling-only.
@@ -126,3 +127,8 @@ What we persist locally — the daemon owns everything else.
 | 2026-06-10 | Multi-server first-class; switcher in UI | Active |
 | 2026-06-10 | Keychain for passwords, JSON file for profiles | Active |
 | 2026-06-10 | Drop SwiftData scaffolding from the default template | Active |
+| 2026-06-10 | Speak the legacy RPC protocol, not 4.1's JSON-RPC 2.0 — works against every daemon version | Active |
+| 2026-06-10 | ATS exception `NSAllowsArbitraryLoads` — users connect to arbitrary LAN daemons over plain HTTP | Active |
+| 2026-06-10 | App sandbox kept, with `com.apple.security.network.client` entitlement | Active |
+| 2026-06-10 | warnings-as-errors enforced via CI flags, not Package.swift (conflicts with Xcode's `-suppress-warnings` for package deps) | Active |
+| 2026-06-10 | E2E golden-path XCUITest, opt-in via `TEST_RUNNER_TRANSMISSION_E2E=1` (needs a live local daemon) | Active |

@@ -10,34 +10,47 @@ import XCTest
 final class TransmissionSwiftUITests: XCTestCase {
 
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-    }
-
+    /// Golden path: add a server profile, test the connection, see the
+    /// daemon's version. Needs a live daemon, so it is opt-in:
+    ///
+    ///     TEST_RUNNER_TRANSMISSION_E2E=1 xcodebuild test ...
+    ///
+    /// with `transmission-daemon` running on localhost:9091, auth dev/devpass.
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testAddServerAndTestConnection() throws {
+        try XCTSkipUnless(
+            ProcessInfo.processInfo.environment["TRANSMISSION_E2E"] == "1",
+            "Set TEST_RUNNER_TRANSMISSION_E2E=1 and run a local transmission-daemon to enable")
+
         let app = XCUIApplication()
+        app.launchArguments = ["--ephemeral-profiles"]
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
-    }
+        // Host defaults to localhost and port to 9091; only credentials needed.
+        let username = app.textFields["addServer.username"]
+        XCTAssertTrue(username.waitForExistence(timeout: 5))
+        username.click()
+        username.typeText("dev")
 
-    @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
-        }
+        let password = app.secureTextFields["addServer.password"]
+        password.click()
+        password.typeText("devpass")
+
+        app.buttons["addServer.save"].click()
+
+        let testButton = app.buttons["server.testConnection"]
+        XCTAssertTrue(testButton.waitForExistence(timeout: 5))
+        testButton.click()
+
+        // SwiftUI surfaces the Label's text as the element's value, not its label.
+        let connected = app.staticTexts.matching(
+            NSPredicate(
+                format: "label BEGINSWITH %@ OR value BEGINSWITH %@",
+                "Connected to Transmission", "Connected to Transmission")
+        ).firstMatch
+        XCTAssertTrue(connected.waitForExistence(timeout: 10), "Expected the daemon version to render")
     }
 }

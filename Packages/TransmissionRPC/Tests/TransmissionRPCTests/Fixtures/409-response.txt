@@ -1,0 +1,13 @@
+HTTP/1.1 409 Conflict
+Server: Transmission
+X-Frame-Options: SAMEORIGIN
+Content-Security-Policy: frame-ancestors 'self'
+Access-Control-Allow-Origin: *
+X-Transmission-Session-Id: Zf6PO27o2Qg96is0qVOfiHhWIPW4LSpFSDtAldE5jhus6eKY
+X-Transmission-Rpc-Version: 6.0.1
+Access-Control-Expose-Headers: X-Transmission-Session-Id, X-Transmission-Rpc-Version
+Date: Wed, 10 Jun 2026 19:24:40 GMT
+Content-Length: 581
+Content-Type: text/html; charset=ISO-8859-1
+
+<h1>409: Conflict</h1><p>Your request had an invalid session_id header.</p><p>To fix this, follow these steps:<ol><li> When reading a response, get its X-Transmission-Session-Id header and remember it<li> Add the updated header to your outgoing requests<li> When you get this 409 error message, resend your request with the updated header</ol></p><p>This requirement has been added to help prevent <a href="https://en.wikipedia.org/wiki/Cross-site_request_forgery">CSRF</a> attacks.</p><p><code>X-Transmission-Session-Id: Zf6PO27o2Qg96is0qVOfiHhWIPW4LSpFSDtAldE5jhus6eKY</code></p>

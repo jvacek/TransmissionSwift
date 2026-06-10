@@ -31,6 +31,9 @@ DerivedData/
 # Note: do NOT ignore Packages/ — we use it for local Swift packages.
 # (Package.resolved is intentionally committed for the app target.)
 
+# Local reference cache — upstream docs/sources, re-fetchable (see reference/README.md)
+reference/
+
 # Editor / tools
 *.swp
 *.swo

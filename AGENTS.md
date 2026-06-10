@@ -64,10 +64,17 @@ App target  ──depends on──>  TransmissionCore  ──depends on──>  
 
 If you need to add a dependency that crosses these boundaries the wrong direction, stop and propose a refactor instead.
 
+## Local reference material & dev daemon
+
+- `reference/` (gitignored) caches the upstream RPC specs — both the legacy protocol (4.0.6, **the one we implement**) and the JSON-RPC 2.0 protocol (4.1+). See `reference/README.md` to re-fetch.
+- Local dev daemon: `transmission-daemon -g ~/.transmission-dev -t -u dev -v devpass -p 9091 -w /tmp/transmission-dev-downloads` (installed via `brew install transmission-cli`).
+- RPC test fixtures in `Packages/TransmissionRPC/Tests/TransmissionRPCTests/Fixtures/` were captured from a real daemon with `curl` — recapture rather than hand-edit when the protocol surface grows.
+- Opt-in E2E UI test (needs the daemon above): `TEST_RUNNER_TRANSMISSION_E2E=1 xcodebuild test -project TransmissionSwift.xcodeproj -scheme TransmissionSwift -only-testing:TransmissionSwiftUITests`.
+
 ## Working efficiently in this repo
 
 - **Adding files to a Swift package**: just create the file under `Sources/<package>/`. SPM picks it up automatically — no project file edits.
-- **Adding files to the app target**: requires editing `TransmissionSwift.xcodeproj/project.pbxproj`, which is fragile. Prefer adding code to a package instead. If it absolutely must live in the app target, prep the file on disk and ask the human to drag it into Xcode.
+- **Adding files to the app target**: the project uses filesystem-synchronized groups (Xcode 16+ format), so new files under `TransmissionSwift/` are picked up from disk automatically — no pbxproj edits needed for sources. Structural pbxproj edits (linking packages, entitlements) are manageable; keep them small and build immediately after.
 - **Multiplatform-friendliness**: even though we're macOS-only, avoid `import AppKit` outside the app target. Keeps the door open to iOS later.
 
 ## Pre-commit / DX

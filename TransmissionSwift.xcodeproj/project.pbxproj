@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		FE1C71C52FD9E5AC009C9EED /* TransmissionRPC in Frameworks */ = {isa = PBXBuildFile; productRef = FE1C71C32FD9E5AC009C9EED /* TransmissionRPC */; };
+		FE1C71C62FD9E5AC009C9EED /* TransmissionCore in Frameworks */ = {isa = PBXBuildFile; productRef = FE1C71C42FD9E5AC009C9EED /* TransmissionCore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		FE1C719D2FD9E5AA009C9EED /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -29,9 +34,22 @@
 		FE1C71A62FD9E5AB009C9EED /* TransmissionSwiftUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TransmissionSwiftUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		FE1C71C72FD9E5AC009C9EED /* Exceptions for "TransmissionSwift" folder in "TransmissionSwift" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = FE1C718C2FD9E5A9009C9EED /* TransmissionSwift */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		FE1C718F2FD9E5A9009C9EED /* TransmissionSwift */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				FE1C71C72FD9E5AC009C9EED /* Exceptions for "TransmissionSwift" folder in "TransmissionSwift" target */,
+			);
 			path = TransmissionSwift;
 			sourceTree = "<group>";
 		};
@@ -52,6 +70,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FE1C71C52FD9E5AC009C9EED /* TransmissionRPC in Frameworks */,
+				FE1C71C62FD9E5AC009C9EED /* TransmissionCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +132,8 @@
 			);
 			name = TransmissionSwift;
 			packageProductDependencies = (
+				FE1C71C32FD9E5AC009C9EED /* TransmissionRPC */,
+				FE1C71C42FD9E5AC009C9EED /* TransmissionCore */,
 			);
 			productName = TransmissionSwift;
 			productReference = FE1C718D2FD9E5A9009C9EED /* TransmissionSwift.app */;
@@ -195,6 +217,10 @@
 			);
 			mainGroup = FE1C71842FD9E5A9009C9EED;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				FE1C71C12FD9E5AC009C9EED /* XCLocalSwiftPackageReference "Packages/TransmissionRPC" */,
+				FE1C71C22FD9E5AC009C9EED /* XCLocalSwiftPackageReference "Packages/TransmissionCore" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = FE1C718E2FD9E5A9009C9EED /* Products */;
 			projectDirPath = "";
@@ -396,9 +422,11 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TransmissionSwift/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -426,9 +454,11 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TransmissionSwift/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -563,6 +593,28 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		FE1C71C12FD9E5AC009C9EED /* XCLocalSwiftPackageReference "Packages/TransmissionRPC" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/TransmissionRPC;
+		};
+		FE1C71C22FD9E5AC009C9EED /* XCLocalSwiftPackageReference "Packages/TransmissionCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/TransmissionCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		FE1C71C32FD9E5AC009C9EED /* TransmissionRPC */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TransmissionRPC;
+		};
+		FE1C71C42FD9E5AC009C9EED /* TransmissionCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TransmissionCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = FE1C71852FD9E5A9009C9EED /* Project object */;
 }
