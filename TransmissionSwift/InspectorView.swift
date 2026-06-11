@@ -35,6 +35,10 @@ struct InspectorView: View {
                     // put across 1s polling snapshots.
                     .id(torrent.id)
             }
+            // Fetch rich inspector data whenever the selected torrent changes.
+            .task(id: torrent.id) {
+                await store.fetchInspectorDetail(for: torrent.id)
+            }
         } else {
             ContentUnavailableView(
                 "No Selection",
@@ -46,11 +50,16 @@ struct InspectorView: View {
 
     @ViewBuilder
     private func tabContent(for torrent: Torrent) -> some View {
+        // For tabs that need rich per-file/peer/tracker data, use the separately-
+        // fetched inspectorDetail when it matches the current torrent. The main
+        // list poll only carries list fields, so those arrays would otherwise
+        // always be empty.
+        let detail = store.inspectorDetail?.id == torrent.id ? store.inspectorDetail! : torrent
         switch store.inspectorTab {
         case .general: InspectorGeneralTab(torrent: torrent)
-        case .files: InspectorFilesTab(torrent: torrent)
-        case .peers: InspectorPeersTab(torrent: torrent)
-        case .trackers: InspectorTrackersTab(torrent: torrent)
+        case .files: InspectorFilesTab(torrent: detail)
+        case .peers: InspectorPeersTab(torrent: detail)
+        case .trackers: InspectorTrackersTab(torrent: detail)
         case .options: InspectorOptionsTab(torrent: torrent)
         }
     }

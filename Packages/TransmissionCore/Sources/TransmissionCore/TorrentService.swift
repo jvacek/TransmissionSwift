@@ -60,6 +60,13 @@ public protocol TorrentService: Sendable {
         priority: TorrentPriority,
         startWhenAdded: Bool
     ) async throws
+
+    /// Fetch a single torrent with both list fields and inspector fields
+    /// (files, fileStats, peers, trackerStats). The returned `Torrent` has
+    /// fully-populated `files`, `peers`, and `trackers` arrays. Used by
+    /// `TorrentStore` to back the inspector detail pane without merging rich
+    /// data into the main list (which gets wiped every poll).
+    func inspectorData(for id: Torrent.ID) async throws -> Torrent
 }
 
 extension TorrentService {

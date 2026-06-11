@@ -150,6 +150,14 @@ public actor MockTorrentService: TorrentService {
 
     public func isAlternativeSpeedEnabled() async -> Bool { altSpeed }
 
+    public func inspectorData(for id: Torrent.ID) async throws -> Torrent {
+        guard let torrent = state.first(where: { $0.id == id }) else {
+            struct NotFound: Error {}
+            throw NotFound()
+        }
+        return torrent
+    }
+
     public func add(
         fileURL: URL?,
         magnetURL: String?,

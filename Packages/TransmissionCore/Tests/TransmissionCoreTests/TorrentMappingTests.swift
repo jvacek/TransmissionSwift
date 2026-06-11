@@ -246,6 +246,230 @@ struct PeersFromTests {
     }
 }
 
+// MARK: - TorrentFile mapping
+
+@Suite("TorrentMapping — TorrentFile")
+struct TorrentFileMappingTests {
+    @Test("priority -1 maps to .low")
+    func priorityLow() {
+        let f = TorrentFile(
+            file: WireFile(name: "a.mkv", length: 1000, bytesCompleted: 0),
+            stat: WireFileStat(bytesCompleted: 0, wanted: true, priority: -1),
+            index: 0
+        )
+        #expect(f.priority == .low)
+    }
+
+    @Test("priority 1 maps to .high")
+    func priorityHigh() {
+        let f = TorrentFile(
+            file: WireFile(name: "a.mkv", length: 1000, bytesCompleted: 0),
+            stat: WireFileStat(bytesCompleted: 0, wanted: true, priority: 1),
+            index: 0
+        )
+        #expect(f.priority == .high)
+    }
+
+    @Test("wanted false maps to false")
+    func wantedFalse() {
+        let f = TorrentFile(
+            file: WireFile(name: "a.mkv", length: 1000, bytesCompleted: 0),
+            stat: WireFileStat(bytesCompleted: 0, wanted: false, priority: 0),
+            index: 0
+        )
+        #expect(f.wanted == false)
+    }
+
+    @Test("progress calculated from bytesCompleted / length")
+    func progressCalculation() {
+        let f = TorrentFile(
+            file: WireFile(name: "a.mkv", length: 1000, bytesCompleted: 500),
+            stat: WireFileStat(bytesCompleted: 500, wanted: true, priority: 0),
+            index: 0
+        )
+        #expect(abs(f.progress - 0.5) < 0.001)
+    }
+
+    @Test("zero length yields progress 0 (no division by zero)")
+    func zeroLength() {
+        let f = TorrentFile(
+            file: WireFile(name: "a.mkv", length: 0, bytesCompleted: 0),
+            stat: WireFileStat(bytesCompleted: 0, wanted: true, priority: 0),
+            index: 0
+        )
+        #expect(f.progress == 0)
+    }
+
+    @Test("index becomes file id")
+    func idFromIndex() {
+        let f = TorrentFile(
+            file: WireFile(name: "a.mkv", length: 100, bytesCompleted: 0),
+            stat: WireFileStat(bytesCompleted: 0, wanted: true, priority: 0),
+            index: 7
+        )
+        #expect(f.id == 7)
+    }
+}
+
+// MARK: - Peer mapping
+
+@Suite("TorrentMapping — Peer")
+struct PeerMappingTests {
+    private func makePeer() -> Peer {
+        Peer(
+            wire: WirePeer(
+                address: "192.168.1.1",
+                clientName: "qBittorrent 4.6",
+                flagStr: "uD",
+                progress: 0.75,
+                rateToClient: 1_048_576,
+                rateToPeer: 262_144
+            ))
+    }
+
+    @Test("rateToClient becomes downloadSpeed")
+    func downloadSpeed() { #expect(makePeer().downloadSpeed == 1_048_576) }
+
+    @Test("rateToPeer becomes uploadSpeed")
+    func uploadSpeed() { #expect(makePeer().uploadSpeed == 262_144) }
+
+    @Test("address becomes ipAddress")
+    func ipAddress() { #expect(makePeer().ipAddress == "192.168.1.1") }
+
+    @Test("countryCode is nil (no GeoIP)")
+    func noCountryCode() { #expect(makePeer().countryCode == nil) }
+}
+
+// MARK: - Tracker mapping
+
+@Suite("TorrentMapping — Tracker (TrackerState)")
+struct TrackerMappingTests {
+    private func makeStat(
+        hasAnnounced: Bool = false,
+        lastAnnounceSucceeded: Bool = false,
+        lastAnnounceResult: String = "",
+        lastAnnounceTime: Int64 = 0,
+        announceState: Int = 1,
+        isBackup: Bool = false
+    ) -> WireTrackerStat {
+        WireTrackerStat(
+            id: 1, tier: 0, host: "tracker.example.com",
+            lastAnnounceResult: lastAnnounceResult,
+            lastAnnounceTime: lastAnnounceTime,
+            lastAnnounceSucceeded: lastAnnounceSucceeded,
+            hasAnnounced: hasAnnounced,
+            announceState: announceState,
+            seederCount: 10, leecherCount: 5, downloadCount: 100,
+            isBackup: isBackup
+        )
+    }
+
+    @Test("hasAnnounced && !lastAnnounceSucceeded → .error")
+    func announcedAndFailed() {
+        let t = Tracker(
+            stat: makeStat(hasAnnounced: true, lastAnnounceSucceeded: false, lastAnnounceResult: "Connection timed out")
+        )
+        #expect(t.state == .error)
+        #expect(t.statusMessage == "Connection timed out")
+    }
+
+    @Test("empty lastAnnounceResult falls back to generic error message")
+    func emptyErrorResult() {
+        let t = Tracker(stat: makeStat(hasAnnounced: true, lastAnnounceSucceeded: false, lastAnnounceResult: ""))
+        #expect(t.state == .error)
+        #expect(t.statusMessage == "Announce failed")
+    }
+
+    @Test("lastAnnounceSucceeded → .working")
+    func lastSucceeded() {
+        let t = Tracker(stat: makeStat(lastAnnounceSucceeded: true, lastAnnounceTime: 1_000_000))
+        #expect(t.state == .working)
+    }
+
+    @Test("announceState == 3 (actively announcing) → .working")
+    func activelyAnnouncing() {
+        let t = Tracker(stat: makeStat(announceState: 3))
+        #expect(t.state == .working)
+    }
+
+    @Test("never announced → .idle with 'Not yet announced' message")
+    func neverAnnounced() {
+        let t = Tracker(stat: makeStat(hasAnnounced: false))
+        #expect(t.state == .idle)
+        #expect(t.statusMessage == "Not yet announced")
+    }
+
+    @Test("announced previously but waiting → .idle with 'Waiting' message")
+    func waitingAfterAnnounce() {
+        let t = Tracker(stat: makeStat(hasAnnounced: true, lastAnnounceSucceeded: true, announceState: 1))
+        // announceState==1 is waiting, but lastAnnounceSucceeded makes it .working
+        #expect(t.state == .working)
+    }
+
+    @Test("seederCount and leecherCount are forwarded")
+    func seedAndLeechCounts() {
+        let t = Tracker(stat: makeStat())
+        #expect(t.seedCount == 10)
+        #expect(t.leechCount == 5)
+        #expect(t.downloadCount == 100)
+    }
+}
+
+// MARK: - Torrent inspector field mapping
+
+@Suite("TorrentMapping — inspector fields")
+struct TorrentInspectorMappingTests {
+    @Test("files and fileStats are mapped when counts match")
+    func filesAndStats() {
+        var wire = makeWire()
+        wire.files = [WireFile(name: "a.mkv", length: 1000, bytesCompleted: 500)]
+        wire.fileStats = [WireFileStat(bytesCompleted: 500, wanted: true, priority: 0)]
+        let t = Torrent(wire: wire)
+        #expect(t.files.count == 1)
+        #expect(t.files[0].name == "a.mkv")
+        #expect(abs(t.files[0].progress - 0.5) < 0.001)
+    }
+
+    @Test("mismatched files/fileStats count yields empty array")
+    func mismatchedCounts() {
+        var wire = makeWire()
+        wire.files = [WireFile(name: "a.mkv", length: 1000, bytesCompleted: 0)]
+        wire.fileStats = []
+        let t = Torrent(wire: wire)
+        #expect(t.files.isEmpty)
+    }
+
+    @Test("peers are mapped when present")
+    func peersPresent() {
+        var wire = makeWire()
+        wire.peers = [
+            WirePeer(
+                address: "1.2.3.4", clientName: "uTorrent", flagStr: "U", progress: 0.5, rateToClient: 0, rateToPeer: 0)
+        ]
+        let t = Torrent(wire: wire)
+        #expect(t.peers.count == 1)
+        #expect(t.peers[0].ipAddress == "1.2.3.4")
+    }
+
+    @Test("trackerStats override tracker stubs when present")
+    func trackerStatsOverrideStubs() {
+        var wire = makeWire(trackers: [
+            WireTrackerStub(announce: "https://stub.example.com/announce", sitename: "StubTracker", tier: 0)
+        ])
+        wire.trackerStats = [
+            WireTrackerStat(
+                id: 1, tier: 0, host: "rich.example.com",
+                lastAnnounceResult: "", lastAnnounceTime: 0,
+                lastAnnounceSucceeded: true, hasAnnounced: true,
+                announceState: 1, seederCount: 5, leecherCount: 2,
+                downloadCount: 50, isBackup: false)
+        ]
+        let t = Torrent(wire: wire)
+        #expect(t.trackers.first?.host == "rich.example.com")
+        #expect(t.trackers.first?.seedCount == 5)
+    }
+}
+
 // MARK: - RPCTorrentService stream lifecycle
 
 @Suite("RPCTorrentService — stream lifecycle")
@@ -263,6 +487,16 @@ struct RPCTorrentServiceTests {
             callCount += 1
             return TorrentGetResponse(torrents: [])
         }
+
+        func torrentAction(_ method: String, ids: [Int]) async throws(TransmissionError) {}
+        func torrentRemove(ids: [Int], deleteLocalData: Bool) async throws(TransmissionError) {}
+        func torrentSet(_ args: TorrentSetArguments) async throws(TransmissionError) {}
+        func torrentAdd(_ args: TorrentAddArguments) async throws(TransmissionError)
+            -> TorrentAddResponse
+        {
+            TorrentAddResponse(torrentAdded: nil, torrentDuplicate: nil)
+        }
+        func sessionSet(_ args: SessionSetArguments) async throws(TransmissionError) {}
     }
 
     @Test("cancelling the consumer for-await stops the poll loop")

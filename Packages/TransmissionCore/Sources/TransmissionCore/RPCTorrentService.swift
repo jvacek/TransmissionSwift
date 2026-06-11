@@ -134,6 +134,15 @@ public actor RPCTorrentService: TorrentService {
         cachedSession?.altSpeedEnabled ?? false
     }
 
+    public func inspectorData(for id: Torrent.ID) async throws -> Torrent {
+        let fields = TorrentGetResponse.listFields + TorrentGetResponse.inspectorFields
+        let resp = try await client.torrentGet(fields: fields, ids: [id])
+        guard let wire = resp.torrents.first else {
+            throw TransmissionError.serverError("No torrent returned for id \(id)")
+        }
+        return Torrent(wire: wire)
+    }
+
     public func add(
         fileURL: URL?,
         magnetURL: String?,

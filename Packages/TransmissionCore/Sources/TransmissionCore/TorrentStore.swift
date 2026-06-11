@@ -1,6 +1,9 @@
 import Foundation
+import OSLog
 import Observation
 import TransmissionRPC
+
+private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category: "inspector")
 
 /// Surfaced to the UI when a user-initiated action fails. Identifiable so it
 /// can drive SwiftUI `.alert(item:)` directly.
@@ -42,6 +45,11 @@ public final class TorrentStore {
     public var lastActionError: ActionError?
     /// Free space (bytes) on the daemon's download directory. Nil until the first poll completes.
     public private(set) var freeSpace: Int64? = nil
+
+    /// Torrent fetched with full inspector fields for the selected torrent.
+    /// Nil when no torrent is selected or before the first inspector fetch.
+    /// Does NOT get wiped by the main list poll — updated only by `fetchInspectorDetail`.
+    public private(set) var inspectorDetail: Torrent?
 
     public var selectedFilter: SidebarFilter = .status(.all)
     public var selectedTorrentIDs: Set<Torrent.ID> = []
@@ -198,6 +206,25 @@ public final class TorrentStore {
             )
         } catch {
             recordError(error)
+        }
+    }
+
+    /// Fetch inspector-level detail (files, peers, trackerStats) for a single
+    /// torrent and store it in `inspectorDetail`. Clears stale detail first if
+    /// the ID changed. Silently swallows errors — the tabs fall back to showing
+    /// empty arrays if the fetch fails.
+    public func fetchInspectorDetail(for id: Torrent.ID) async {
+        if inspectorDetail?.id != id {
+            inspectorDetail = nil
+        }
+        do {
+            let detail = try await service.inspectorData(for: id)
+            logger.debug(
+                "Inspector fetch succeeded for id \(id): \(detail.files.count) files, \(detail.peers.count) peers, \(detail.trackers.count) trackers"
+            )
+            inspectorDetail = detail
+        } catch {
+            logger.error("Inspector fetch failed for id \(id): \(error)")
         }
     }
 
