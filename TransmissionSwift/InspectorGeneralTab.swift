@@ -13,6 +13,7 @@ struct InspectorGeneralTab: View {
                 detailsSection
             }
             .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -33,14 +34,23 @@ struct InspectorGeneralTab: View {
                     .foregroundStyle(.red)
             }
 
-            VStack(spacing: 6) {
-                LabeledContent("State") { statusBadge }
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
+                GridRow {
+                    Text("State")
+                        .foregroundStyle(.secondary)
+                        .gridColumnAlignment(.trailing)
+                    statusBadge
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 row("Download", torrent.downloadSpeed.formattedSpeed)
                 row("Upload", torrent.uploadSpeed.formattedSpeed)
-                row("Time left", torrent.status == .downloading ? torrent.eta.formattedETA : "—")
+                row(
+                    "Time left",
+                    torrent.status == .downloading ? torrent.eta.formattedETA : "—")
                 row("Ratio", torrent.ratio.formatted(.number.precision(.fractionLength(2))))
                 row("Peers", peersSummary)
             }
+            .font(.callout)
             .padding(.top, 4)
         }
     }
@@ -50,7 +60,7 @@ struct InspectorGeneralTab: View {
             Text("Details")
                 .font(.headline)
 
-            VStack(spacing: 6) {
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
                 row("Size", torrent.size.formattedSize)
                 row(
                     "Pieces",
@@ -62,6 +72,7 @@ struct InspectorGeneralTab: View {
                 row("Tracker", torrent.primaryTracker)
                 row("Hash", torrent.hash, monospaced: true)
             }
+            .font(.callout)
         }
     }
 
@@ -86,16 +97,18 @@ struct InspectorGeneralTab: View {
     }
 
     private func row(_ label: String, _ value: String, monospaced: Bool = false) -> some View {
-        LabeledContent(label) {
+        GridRow {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .gridColumnAlignment(.trailing)
             Text(value)
                 .font(monospaced ? .callout.monospaced() : .callout)
                 .monospacedDigit()
-                .multilineTextAlignment(.trailing)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .font(.callout)
     }
 }
 
