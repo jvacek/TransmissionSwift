@@ -26,7 +26,10 @@ struct ContentView: View {
 
     @MainActor
     private func connectToProfile(_ profile: ServerProfile) {
-        guard let rpcURL = profile.rpcURL else { return }
+        guard let rpcURL = profile.rpcURL else {
+            torrentStore.connection = .disconnected(reason: "Invalid server URL")
+            return
+        }
         var credentials: Credentials?
         if let username = profile.username, !username.isEmpty {
             let password = (try? keychain.password(for: profile.id)) ?? ""
