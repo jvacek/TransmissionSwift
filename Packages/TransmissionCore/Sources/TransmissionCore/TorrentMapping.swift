@@ -23,7 +23,9 @@ extension Torrent {
         let queuePosition: Int? = wire.queuePosition >= 0 ? wire.queuePosition : nil
 
         let errorMessage: String? =
-            (wire.error >= 2 && !wire.errorString.isEmpty) ? wire.errorString : nil
+            wire.error >= 2
+            ? (wire.errorString.isEmpty ? "Error \(wire.error)" : wire.errorString)
+            : nil
 
         let primaryTracker: String
         if let stub = wire.trackers?.first {

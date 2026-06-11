@@ -66,6 +66,24 @@ struct StatusMappingTests {
         #expect(t3.status == .error)
     }
 
+    @Test("error >= 2 with non-empty errorString uses errorString")
+    func errorMessageFromString() {
+        let t = Torrent(wire: makeWire(error: 2, errorString: "Disk full"))
+        #expect(t.errorMessage == "Disk full")
+    }
+
+    @Test("error >= 2 with empty errorString falls back to generic message")
+    func errorMessageFallback() {
+        let t = Torrent(wire: makeWire(error: 3, errorString: ""))
+        #expect(t.errorMessage == "Error 3")
+    }
+
+    @Test("error < 2 yields nil errorMessage")
+    func noErrorMessage() {
+        #expect(Torrent(wire: makeWire(error: 0)).errorMessage == nil)
+        #expect(Torrent(wire: makeWire(error: 1, errorString: "warning")).errorMessage == nil)
+    }
+
     @Test("error == 1 (tracker warning) does not override status")
     func trackerWarningIsNotError() {
         let downloading = Torrent(wire: makeWire(status: 4, error: 1))
