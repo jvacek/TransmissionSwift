@@ -6,12 +6,28 @@ import TransmissionCore
 /// in the content layer, not the navigation layer. (LG: glass is for chrome.)
 struct StatusBarView: View {
     @Environment(TorrentStore.self) private var store
+    @Environment(ServerProfileStore.self) private var profileStore
 
     var body: some View {
         HStack(spacing: 14) {
-            leftCluster
-            Spacer(minLength: 8)
-            rightCluster
+            switch store.connection {
+            case .connecting:
+                let name = profileStore.activeProfile?.label ?? "server"
+                Text("Connecting to \(name)…")
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                Spacer(minLength: 8)
+            case .disconnected:
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                Text("Disconnected")
+                    .foregroundStyle(.red)
+                Spacer(minLength: 8)
+            case .connected:
+                leftCluster
+                Spacer(minLength: 8)
+                rightCluster
+            }
         }
         .font(.callout)
         .padding(.horizontal, 12)

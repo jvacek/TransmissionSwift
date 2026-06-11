@@ -5,6 +5,7 @@
 //  Created by Jonas Vacek on 10/06/2026.
 //
 
+import AppKit
 import SwiftUI
 import TransmissionCore
 
@@ -48,6 +49,41 @@ struct TransmissionSwiftApp: App {
             ContentView(mockMode: mockMode)
                 .environment(profileStore)
                 .environment(torrentStore)
+        }
+        .commands {
+            CommandMenu("Server") {
+                if profileStore.profiles.isEmpty {
+                    Text("No servers configured")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(Array(profileStore.profiles.enumerated()), id: \.element.id) {
+                        index, profile in
+                        Toggle(
+                            isOn: Binding(
+                                get: { profileStore.activeProfile?.id == profile.id },
+                                set: { on in if on { try? profileStore.setActive(profile.id) } }
+                            )
+                        ) {
+                            Text(profile.label)
+                        }
+                        .keyboardShortcut(
+                            index < 9
+                                ? KeyEquivalent(Character(String(index + 1))) : KeyEquivalent("0"),
+                            modifiers: .command
+                        )
+                    }
+                }
+                Divider()
+                Button("Server Settings…") {
+                    UserDefaults.standard.set(4, forKey: "prefsPendingNavTab")
+                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                }
+            }
+        }
+
+        Settings {
+            PreferencesView()
+                .environment(profileStore)
         }
     }
 }

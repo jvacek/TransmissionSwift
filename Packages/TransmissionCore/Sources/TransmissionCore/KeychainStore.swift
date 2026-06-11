@@ -22,6 +22,13 @@ public struct KeychainStore: Sendable {
         ]
     }
 
+    /// Returns `true` if a password entry exists for this profile without
+    /// reading the secret data. No decryption occurs, so no permission prompt
+    /// is triggered.
+    public func hasPassword(for profileID: UUID) -> Bool {
+        SecItemCopyMatching(baseQuery(for: profileID) as CFDictionary, nil) == errSecSuccess
+    }
+
     public func password(for profileID: UUID) throws(KeychainError) -> String? {
         var query = baseQuery(for: profileID)
         query[kSecReturnData as String] = true

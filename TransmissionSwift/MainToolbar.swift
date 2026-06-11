@@ -5,21 +5,27 @@ import TransmissionCore
 /// between groups — the macOS 26 Liquid Glass convention. No coloured buttons:
 /// all action items stay monochrome; status colour appears only in rows and
 /// the status bar.
+///
+/// The server switcher lives in `MainWindow` (as a separate `.toolbar` item)
+/// rather than here because `ToolbarContent` structs have more limited
+/// `DynamicProperty` support than `View`, and mixing `@Environment` access for
+/// two different stores breaks `@ToolbarContentBuilder` conditional inference.
 struct MainToolbar: ToolbarContent {
     @Environment(TorrentStore.self) private var store
+    var mockMode: Bool = false
 
     var body: some ToolbarContent {
         // Group 1 — Add
         ToolbarItem(placement: .primaryAction) {
             Button("Add", systemImage: "plus") {
-                // Sheet lands in slice 3.
+                store.openAddSheet()
             }
             .help("Add torrent file")
             .accessibilityIdentifier("toolbar.add")
         }
         ToolbarItem(placement: .primaryAction) {
             Button("Add Magnet", systemImage: "link") {
-                // Sheet lands in slice 3.
+                store.openAddSheet(magnetMode: true)
             }
             .help("Add magnet link")
             .accessibilityIdentifier("toolbar.addMagnet")
@@ -76,6 +82,27 @@ struct MainToolbar: ToolbarContent {
             }
             .help("Toggle inspector")
             .accessibilityIdentifier("toolbar.inspector")
+        }
+
+        // Debug menu — only visible with --mock-data
+        if mockMode {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button("Simulate: Connecting") {
+                        store.simulateConnection(.connecting)
+                    }
+                    Button("Simulate: Disconnected") {
+                        store.simulateConnection(.disconnected(reason: "Connection timed out"))
+                    }
+                    Button("Simulate: Connected") {
+                        store.simulateConnection(.connected)
+                    }
+                } label: {
+                    Label("Debug", systemImage: "ant.fill")
+                }
+                .help("Debug: simulate connection states")
+                .accessibilityIdentifier("toolbar.debug")
+            }
         }
     }
 }

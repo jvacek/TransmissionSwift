@@ -14,8 +14,8 @@ struct ContentView: View {
 
     var body: some View {
         if mockMode {
-            MainWindow()
-        } else if let profile = profileStore.profiles.first {
+            MainWindow(mockMode: mockMode)
+        } else if let profile = profileStore.activeProfile {
             // The real-RPC path lands in slice 7. Until then this stays at the
             // single-profile connectivity check from the first slice.
             ServerStatusView(profile: profile)
