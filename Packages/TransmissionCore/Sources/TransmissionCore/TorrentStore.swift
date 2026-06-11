@@ -91,6 +91,19 @@ public final class TorrentStore {
         connect(service: service)
     }
 
+    /// Suspend polling while the app is in the background. Cancels the stream
+    /// and free-space tasks without changing the connection state.
+    public func pausePolling() {
+        streamTask?.cancel()
+        freeSpaceTask?.cancel()
+    }
+
+    /// Resume polling after returning to the foreground. Restarts the stream
+    /// from scratch, which also re-fetches free space and alt-speed state.
+    public func resumePolling() {
+        startStream()
+    }
+
     /// Swap the backing service and restart the poll stream. Used when the
     /// active server profile changes at runtime (first-run or server switching).
     public func connect(service: any TorrentService) {

@@ -196,7 +196,6 @@ public actor URLSessionTransmissionClient: TransmissionClient {
         logger.debug(
             "← HTTP \(httpResponse.statusCode) (\(data.count) bytes) from \(self.rpcURL.absoluteString, privacy: .public)"
         )
-        logger.debug("← body: \(Self.snippet(data), privacy: .public)")
         return (data, httpResponse)
     }
 

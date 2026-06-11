@@ -5,22 +5,32 @@ import TransmissionRPC
 struct ContentView: View {
     @Environment(ServerProfileStore.self) private var profileStore
     @Environment(TorrentStore.self) private var torrentStore
+    @Environment(\.scenePhase) private var scenePhase
     let mockMode: Bool
 
     private let keychain = KeychainStore()
 
     var body: some View {
-        if mockMode {
-            MainWindow(mockMode: mockMode)
-        } else if profileStore.activeProfile != nil {
-            MainWindow(mockMode: false)
-                .task(id: profileStore.activeProfile?.id) {
-                    guard let profile = profileStore.activeProfile else { return }
-                    await connectToProfile(profile)
-                }
-        } else {
-            AddServerForm()
-                .frame(minWidth: 420, minHeight: 320)
+        Group {
+            if mockMode {
+                MainWindow(mockMode: mockMode)
+            } else if profileStore.activeProfile != nil {
+                MainWindow(mockMode: false)
+                    .task(id: profileStore.activeProfile?.id) {
+                        guard let profile = profileStore.activeProfile else { return }
+                        await connectToProfile(profile)
+                    }
+            } else {
+                AddServerForm()
+                    .frame(minWidth: 420, minHeight: 320)
+            }
+        }
+        .onChange(of: scenePhase) { _, new in
+            if new == .background {
+                torrentStore.pausePolling()
+            } else if new == .active {
+                torrentStore.resumePolling()
+            }
         }
     }
 
