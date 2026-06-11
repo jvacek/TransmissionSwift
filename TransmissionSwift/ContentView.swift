@@ -9,6 +9,8 @@ struct ContentView: View {
     let mockMode: Bool
 
     private let keychain = KeychainStore()
+    @State private var hasAppeared = false
+    @State private var connectedProfileID: ServerProfile.ID?
 
     var body: some View {
         Group {
@@ -26,16 +28,25 @@ struct ContentView: View {
             }
         }
         .onChange(of: scenePhase) { _, new in
-            if new == .background {
+            if new == .background || new == .inactive {
                 torrentStore.pausePolling()
             } else if new == .active {
                 torrentStore.resumePolling()
             }
         }
+        .onDisappear { torrentStore.pausePolling() }
+        .onAppear {
+            if hasAppeared { torrentStore.resumePolling() }
+            hasAppeared = true
+        }
     }
 
     @MainActor
     private func connectToProfile(_ profile: ServerProfile) async {
+        // Window was closed and reopened while already connected to this same
+        // profile — onAppear's resumePolling() already restarted the stream.
+        if case .connected = torrentStore.connection, connectedProfileID == profile.id { return }
+
         guard let rpcURL = profile.rpcURL else {
             torrentStore.setConnectionFailed(reason: "Invalid server URL")
             return
@@ -56,5 +67,6 @@ struct ContentView: View {
         let client = URLSessionTransmissionClient(rpcURL: rpcURL, credentials: credentials)
         let service = RPCTorrentService(client: client)
         torrentStore.connect(service: service)
+        connectedProfileID = profile.id
     }
 }
