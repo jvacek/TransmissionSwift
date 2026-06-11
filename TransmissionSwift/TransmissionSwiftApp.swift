@@ -47,7 +47,7 @@ struct TransmissionSwiftApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        Window("TransmissionSwift", id: "main") {
             ContentView(mockMode: mockMode)
                 .environment(profileStore)
                 .environment(torrentStore)
