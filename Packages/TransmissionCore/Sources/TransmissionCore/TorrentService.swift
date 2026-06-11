@@ -9,6 +9,13 @@ import Foundation
 /// UI off the wire-protocol shapes and lets us ship the full app skin without
 /// extending the RPC surface beyond `session-get`.
 public protocol TorrentService: Sendable {
+    /// Whether mutation actions (start, stop, remove, add, etc.) are wired up.
+    /// False in RPCTorrentService until slice 7b; true in MockTorrentService.
+    var supportsActions: Bool { get }
+
+    /// Free space (bytes) on the daemon's download directory, or nil if unknown.
+    func freeSpace() async -> Int64?
+
     /// Initial snapshot. The store calls this once on startup before
     /// subscribing to the live stream.
     func torrents() async throws -> [Torrent]
@@ -53,4 +60,9 @@ public protocol TorrentService: Sendable {
         priority: TorrentPriority,
         startWhenAdded: Bool
     ) async throws
+}
+
+extension TorrentService {
+    public var supportsActions: Bool { true }
+    public func freeSpace() async -> Int64? { nil }
 }

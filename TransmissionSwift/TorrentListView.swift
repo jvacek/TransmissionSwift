@@ -73,20 +73,25 @@ struct TorrentListView: View {
         Button("Resume", systemImage: "play.fill") {
             Task { await store.start(idArray) }
         }
+        .disabled(!store.actionsEnabled)
         Button("Pause", systemImage: "pause.fill") {
             Task { await store.stop(idArray) }
         }
+        .disabled(!store.actionsEnabled)
         Divider()
         Button("Verify Local Data", systemImage: "checkmark.shield") {
             Task { await store.verify(idArray) }
         }
+        .disabled(!store.actionsEnabled)
         Divider()
         Button("Remove…", systemImage: "trash", role: .destructive) {
             Task { await store.remove(idArray) }
         }
+        .disabled(!store.actionsEnabled)
         Button("Remove and Delete Data…", systemImage: "trash.fill", role: .destructive) {
             Task { await store.remove(idArray, deleteLocalData: true) }
         }
+        .disabled(!store.actionsEnabled)
     }
 }
 

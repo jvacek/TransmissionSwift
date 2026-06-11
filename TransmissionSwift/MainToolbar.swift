@@ -20,6 +20,7 @@ struct MainToolbar: ToolbarContent {
             Button("Add", systemImage: "plus") {
                 store.openAddSheet()
             }
+            .disabled(!store.actionsEnabled)
             .help("Add torrent file")
             .accessibilityIdentifier("toolbar.add")
         }
@@ -27,6 +28,7 @@ struct MainToolbar: ToolbarContent {
             Button("Add Magnet", systemImage: "link") {
                 store.openAddSheet(magnetMode: true)
             }
+            .disabled(!store.actionsEnabled)
             .help("Add magnet link")
             .accessibilityIdentifier("toolbar.addMagnet")
         }
@@ -38,7 +40,7 @@ struct MainToolbar: ToolbarContent {
             Button("Resume", systemImage: "play.fill") {
                 Task { await store.start(Array(store.selectedTorrentIDs)) }
             }
-            .disabled(store.selectedTorrentIDs.isEmpty)
+            .disabled(!store.actionsEnabled || store.selectedTorrentIDs.isEmpty)
             .help("Resume selected torrents")
             .accessibilityIdentifier("toolbar.resume")
         }
@@ -46,7 +48,7 @@ struct MainToolbar: ToolbarContent {
             Button("Pause", systemImage: "pause.fill") {
                 Task { await store.stop(Array(store.selectedTorrentIDs)) }
             }
-            .disabled(store.selectedTorrentIDs.isEmpty)
+            .disabled(!store.actionsEnabled || store.selectedTorrentIDs.isEmpty)
             .help("Pause selected torrents")
             .accessibilityIdentifier("toolbar.pause")
         }
@@ -54,7 +56,7 @@ struct MainToolbar: ToolbarContent {
             Button("Remove", systemImage: "trash", role: .destructive) {
                 Task { await store.remove(Array(store.selectedTorrentIDs)) }
             }
-            .disabled(store.selectedTorrentIDs.isEmpty)
+            .disabled(!store.actionsEnabled || store.selectedTorrentIDs.isEmpty)
             .help("Remove selected torrents")
             .accessibilityIdentifier("toolbar.remove")
         }
@@ -71,6 +73,7 @@ struct MainToolbar: ToolbarContent {
                     systemImage: store.isAlternativeSpeedEnabled ? "tortoise.fill" : "tortoise"
                 )
             }
+            .disabled(!store.actionsEnabled)
             .help("Alternative speed limits")
             .accessibilityIdentifier("toolbar.altSpeed")
         }

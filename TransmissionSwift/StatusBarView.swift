@@ -45,6 +45,7 @@ struct StatusBarView: View {
                 Image(systemName: store.isAlternativeSpeedEnabled ? "tortoise.fill" : "tortoise")
             }
             .buttonStyle(.borderless)
+            .disabled(!store.actionsEnabled)
             .help("Alternative speed limits")
 
             Text("\(store.torrents.count) torrents · \(activeCount) active")
@@ -62,9 +63,11 @@ struct StatusBarView: View {
             Label(totalUp.formattedSpeed, systemImage: "arrow.up")
                 .foregroundStyle(.green)
                 .monospacedDigit()
-            Divider().frame(height: 14)
-            Label("412 GB free", systemImage: "internaldrive")
-                .foregroundStyle(.secondary)
+            if let freeSpace = store.freeSpace {
+                Divider().frame(height: 14)
+                Label(freeSpace.formattedSize + " free", systemImage: "internaldrive")
+                    .foregroundStyle(.secondary)
+            }
             Text("Ratio \(overallRatio, format: .number.precision(.fractionLength(2)))")
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
