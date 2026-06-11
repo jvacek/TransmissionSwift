@@ -34,10 +34,11 @@ struct StatusBarView: View {
                 rightCluster
             }
         }
+        .lineLimit(1)
+        .truncationMode(.tail)
         .font(.callout)
         .padding(.horizontal, 12)
-        .padding(.vertical, 4)
-        .frame(maxWidth: .infinity, minHeight: 28)
+        .frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28)
         .background(.regularMaterial)
         .overlay(alignment: .top) { Divider() }
     }

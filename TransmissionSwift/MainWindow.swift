@@ -1,26 +1,92 @@
 import SwiftUI
 import TransmissionCore
 
-/// The main window — sidebar · torrent list · optional inspector, with a
-/// grouped toolbar on top and a status bar attached to the bottom safe area.
-///
-/// `.inspector` is attached to the outer `NavigationSplitView` (not the
-/// detail) so it sits as a peer pane to the split view. That keeps the
-/// toolbar's search field anchored to the detail's column and stops the
-/// inspector pane from creeping under the toolbar's Liquid Glass.
+private enum Layout {
+    static let sidebarMin: CGFloat = 180
+    static let sidebarIdeal: CGFloat = 212
+    static let contentMin: CGFloat = 400
+    static let inspectorMin: CGFloat = 280
+    static let inspectorIdeal: CGFloat = 322
+    static let inspectorAbsMax: CGFloat = 1200
+    static let windowMin: CGFloat = 1060
+}
+
 struct MainWindow: View {
     @Environment(TorrentStore.self) private var store
     @Environment(ServerProfileStore.self) private var profileStore
     @Environment(\.openSettings) private var openSettings
     @AppStorage("prefsPendingNavTab") private var pendingNavTab: Int = -1
+    @AppStorage("inspectorWidth") private var storedInspectorWidth: Double = Double(Layout.inspectorIdeal)
+    @State private var windowWidth: CGFloat = Layout.windowMin
     var mockMode: Bool = false
+
+    /// Inspector width clamped to whatever space is actually available.
+    /// Shrinks automatically when the window narrows; never below inspectorMin.
+    private var inspectorWidth: CGFloat {
+        let available = windowWidth - Layout.sidebarMin - Layout.contentMin
+        let cap = max(Layout.inspectorMin, min(Layout.inspectorAbsMax, available))
+        return min(CGFloat(storedInspectorWidth), cap)
+    }
 
     var body: some View {
         @Bindable var store = store
 
-        NavigationSplitView {
+        HStack(spacing: 0) {
+            splitView
+            if store.inspectorVisible {
+                InspectorResizeHandle(
+                    storedWidth: $storedInspectorWidth,
+                    clampedWidth: inspectorWidth,
+                    min: Layout.inspectorMin,
+                    max: min(Layout.inspectorAbsMax, windowWidth - Layout.sidebarMin - Layout.contentMin)
+                )
+                InspectorView()
+                    .frame(width: inspectorWidth)
+                    .frame(maxHeight: .infinity)
+            }
+        }
+        .frame(minWidth: Layout.windowMin, minHeight: 600)
+        .onGeometryChange(for: CGFloat.self) {
+            $0.size.width
+        } action: {
+            windowWidth = $0
+        }
+        .sheet(isPresented: $store.showAddTorrent) {
+            AddTorrentSheet(
+                isPresented: $store.showAddTorrent,
+                initialMagnetMode: store.addTorrentStartInMagnetMode,
+                prefilledURL: store.addTorrentPrefilledURL
+            )
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first else { return false }
+            let accepted = url.pathExtension == "torrent" || url.scheme == "magnet"
+            if accepted {
+                store.openAddSheet(magnetMode: url.scheme == "magnet", prefilledURL: url)
+            }
+            return accepted
+        }
+        .alert(
+            store.lastActionError?.title ?? "Action Failed",
+            isPresented: Binding(
+                get: { store.lastActionError != nil },
+                set: { if !$0 { store.lastActionError = nil } }
+            ),
+            presenting: store.lastActionError
+        ) { _ in
+            Button("OK", role: .cancel) { store.lastActionError = nil }
+        } message: { error in
+            Text(error.localizedDescription)
+        }
+    }
+
+    // MARK: - Split view
+
+    private var splitView: some View {
+        @Bindable var store = store
+        return NavigationSplitView {
             SidebarView()
-                .navigationSplitViewColumnWidth(min: 180, ideal: 212)
+                .navigationSplitViewColumnWidth(min: Layout.sidebarMin, ideal: Layout.sidebarIdeal)
         } detail: {
             listPane
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -40,26 +106,7 @@ struct MainWindow: View {
                     MainToolbar(mockMode: mockMode)
                 }
         }
-        .inspector(isPresented: $store.inspectorVisible) {
-            InspectorView()
-                .inspectorColumnWidth(min: 280, ideal: 322)
-        }
-        .frame(minWidth: 1060, minHeight: 600)
-        .sheet(isPresented: $store.showAddTorrent) {
-            AddTorrentSheet(
-                isPresented: $store.showAddTorrent,
-                initialMagnetMode: store.addTorrentStartInMagnetMode,
-                prefilledURL: store.addTorrentPrefilledURL
-            )
-        }
-        .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first else { return false }
-            let accepted = url.pathExtension == "torrent" || url.scheme == "magnet"
-            if accepted {
-                store.openAddSheet(magnetMode: url.scheme == "magnet", prefilledURL: url)
-            }
-            return accepted
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Server switcher
@@ -184,5 +231,41 @@ struct MainWindow: View {
                 .buttonStyle(.glassProminent)
             Button("Add Magnet Link…") { store.openAddSheet(magnetMode: true) }
         }
+    }
+}
+
+// MARK: - Inspector resize handle
+
+private struct InspectorResizeHandle: View {
+    @Binding var storedWidth: Double
+    let clampedWidth: CGFloat
+    let min: CGFloat
+    let max: CGFloat
+
+    @GestureState private var dragStartWidth: CGFloat? = nil
+
+    var body: some View {
+        Color.clear
+            .frame(width: 8)
+            .overlay(
+                Rectangle()
+                    .fill(Color(nsColor: .separatorColor))
+                    .frame(width: 1)
+            )
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                    .updating($dragStartWidth) { _, state, _ in
+                        if state == nil { state = clampedWidth }
+                    }
+                    .onChanged { value in
+                        let start = dragStartWidth ?? clampedWidth
+                        let proposed = start - value.translation.width
+                        storedWidth = Double(Swift.max(min, Swift.min(max, proposed)))
+                    }
+            )
+            .onHover { inside in
+                if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+            }
     }
 }
