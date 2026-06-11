@@ -51,6 +51,29 @@ public actor URLSessionTransmissionClient: TransmissionClient {
         try await send(method: "torrent-get", arguments: TorrentGetArguments(fields: fields, ids: ids))
     }
 
+    public func torrentAction(_ method: String, ids: [Int]) async throws(TransmissionError) {
+        try await sendAction(method: method, arguments: TorrentIDArguments(ids: ids))
+    }
+
+    public func torrentRemove(ids: [Int], deleteLocalData: Bool) async throws(TransmissionError) {
+        try await sendAction(
+            method: "torrent-remove",
+            arguments: TorrentRemoveArguments(ids: ids, deleteLocalData: deleteLocalData)
+        )
+    }
+
+    public func torrentSet(_ args: TorrentSetArguments) async throws(TransmissionError) {
+        try await sendAction(method: "torrent-set", arguments: args)
+    }
+
+    public func torrentAdd(_ args: TorrentAddArguments) async throws(TransmissionError) -> TorrentAddResponse {
+        try await send(method: "torrent-add", arguments: args)
+    }
+
+    public func sessionSet(_ args: SessionSetArguments) async throws(TransmissionError) {
+        try await sendAction(method: "session-set", arguments: args)
+    }
+
     // MARK: - Request plumbing
 
     private struct RPCRequest<Arguments: Encodable>: Encodable {
@@ -68,6 +91,15 @@ public actor URLSessionTransmissionClient: TransmissionClient {
     }
 
     private struct EmptyArguments: Encodable {}
+    private struct VoidReply: Decodable {}
+
+    /// Sends a mutation RPC that returns no useful arguments — only checks for "success".
+    private func sendAction<Arguments: Encodable>(
+        method: String,
+        arguments: Arguments
+    ) async throws(TransmissionError) {
+        let _: VoidReply = try await send(method: method, arguments: arguments)
+    }
 
     private func send<Arguments: Encodable, Reply: Decodable>(
         method: String,
