@@ -41,3 +41,10 @@ extension TimeInterval {
 extension Optional where Wrapped == TimeInterval {
     var formattedETA: String { self?.formattedETA ?? "—" }
 }
+
+extension Date {
+    /// Compact date label for list columns: "Jun 10, 2026".
+    var formattedDate: String {
+        self.formatted(date: .abbreviated, time: .omitted)
+    }
+}

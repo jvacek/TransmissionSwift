@@ -22,7 +22,7 @@ struct ProgressBar: View {
             Text("\(Int(value * 100))%")
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
-                .frame(width: 36, alignment: .trailing)
+                .frame(width: 40, alignment: .trailing)
         }
         .transaction { $0.animation = nil }
     }

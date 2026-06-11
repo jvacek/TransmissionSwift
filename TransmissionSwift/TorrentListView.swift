@@ -34,31 +34,51 @@ struct TorrentListView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .width(74)
+            .width(min: 54, ideal: 74)
             TableColumn("Progress", value: \.progress) { torrent in
                 ProgressBar(value: torrent.progress, status: torrent.status)
             }
-            .width(130)
+            .width(min: 80, ideal: 130)
             TableColumn("Down", value: \.downloadSpeed) { torrent in
                 Text(torrent.downloadSpeed.formattedSpeed)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .width(78)
+            .width(min: 60, ideal: 78)
             TableColumn("ETA", value: \.etaSortKey) { torrent in
                 Text(torrent.eta.formattedETA)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .width(66)
+            .width(min: 52, ideal: 66)
+            TableColumn("Added", value: \.addedAt) { torrent in
+                Text(torrent.addedAt.formattedDate)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 72, ideal: 100)
+            TableColumn("Tracker", value: \.primaryTracker) { torrent in
+                Text(torrent.primaryTracker.isEmpty ? "—" : torrent.primaryTracker)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundStyle(.secondary)
+            }
+            .width(min: 80, ideal: 120)
         }
         // Default axes for this modifier is .vertical only, so the previous
         // pass left horizontal at its (bouncy) default. Vertical stays
         // automatic — the user wants that bounce to persist when the list
         // overflows the window.
         .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        // Changing the sort rebuilds the table instead of diffing it. A re-sort
+        // moves nearly every row, and NSTableView applies that as per-row moves
+        // — quadratic, and a multi-second beachball at a few hundred rows. A
+        // rebuild is a plain reload of the visible rows. Selection lives in the
+        // store, so it survives the identity change.
+        .id(sortOrder)
         .contextMenu(forSelectionType: Torrent.ID.self) { ids in
             contextMenu(for: ids.isEmpty ? store.selectedTorrentIDs : ids)
         } primaryAction: { _ in
