@@ -6,11 +6,9 @@ import TransmissionCore
 struct TorrentListView: View {
     @Environment(TorrentStore.self) private var store
 
-    /// In-memory sort. Persisting "last sort" across launches is a slice 4+
-    /// concern (`@AppStorage`); for now we keep it on the view.
-    @State private var sortOrder: [KeyPathComparator<Torrent>] = [
-        KeyPathComparator(\.name)
-    ]
+    @AppStorage("sortKeyPath") private var sortKeyPath: String = "name"
+    @AppStorage("sortAscending") private var sortAscending: Bool = true
+    @State private var sortOrder: [KeyPathComparator<Torrent>] = [KeyPathComparator(\.name)]
 
     private var rows: [Torrent] {
         store.visibleTorrents.sorted(using: sortOrder)
@@ -85,6 +83,38 @@ struct TorrentListView: View {
             store.inspectorVisible = true
         }
         .accessibilityIdentifier("torrents.table")
+        .onAppear {
+            sortOrder = [makeComparator(keyPath: sortKeyPath, ascending: sortAscending)]
+        }
+        .onChange(of: sortOrder) { _, new in
+            guard let first = new.first else { return }
+            sortKeyPath = keyPathName(first)
+            sortAscending = first.order == .forward
+        }
+    }
+
+    private func makeComparator(keyPath: String, ascending: Bool) -> KeyPathComparator<Torrent> {
+        let order: SortOrder = ascending ? .forward : .reverse
+        switch keyPath {
+        case "size": return KeyPathComparator(\.size, order: order)
+        case "progress": return KeyPathComparator(\.progress, order: order)
+        case "downloadSpeed": return KeyPathComparator(\.downloadSpeed, order: order)
+        case "eta": return KeyPathComparator(\.etaSortKey, order: order)
+        case "addedAt": return KeyPathComparator(\.addedAt, order: order)
+        case "tracker": return KeyPathComparator(\.primaryTracker, order: order)
+        default: return KeyPathComparator(\.name, order: order)
+        }
+    }
+
+    private func keyPathName(_ comparator: KeyPathComparator<Torrent>) -> String {
+        let o = comparator.order
+        if comparator == KeyPathComparator(\.size, order: o) { return "size" }
+        if comparator == KeyPathComparator(\.progress, order: o) { return "progress" }
+        if comparator == KeyPathComparator(\.downloadSpeed, order: o) { return "downloadSpeed" }
+        if comparator == KeyPathComparator(\.etaSortKey, order: o) { return "eta" }
+        if comparator == KeyPathComparator(\.addedAt, order: o) { return "addedAt" }
+        if comparator == KeyPathComparator(\.primaryTracker, order: o) { return "tracker" }
+        return "name"
     }
 
     @ViewBuilder
