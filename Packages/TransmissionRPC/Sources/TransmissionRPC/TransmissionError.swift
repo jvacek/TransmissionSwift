@@ -11,6 +11,9 @@ public enum TransmissionError: Error, Sendable, Equatable {
     /// string, an unexpected HTTP status, or a 409 that persisted after
     /// refreshing the session ID.
     case serverError(String)
+    /// `torrent-add` returned a `torrent-duplicate` result — the torrent is
+    /// already present on the daemon. The associated value is the torrent name.
+    case torrentDuplicate(name: String)
 }
 
 extension TransmissionError: LocalizedError {
@@ -24,6 +27,8 @@ extension TransmissionError: LocalizedError {
             return "Could not read the server's response: \(detail)"
         case .serverError(let message):
             return "The server reported an error: \(message)"
+        case .torrentDuplicate(let name):
+            return "\u{201C}\(name)\u{201D} is already in your list."
         }
     }
 }

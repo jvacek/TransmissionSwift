@@ -11,23 +11,28 @@ public struct SessionInfo: Decodable, Sendable, Equatable {
     public let rpcVersionMinimum: Int
     /// Free bytes on the download directory's volume. Absent on very old daemons.
     public let downloadDirFreeSpace: Int64?
+    /// Whether the alternative (turtle) speed limits are currently active.
+    public let altSpeedEnabled: Bool
 
     enum CodingKeys: String, CodingKey {
         case version
         case rpcVersion = "rpc-version"
         case rpcVersionMinimum = "rpc-version-minimum"
         case downloadDirFreeSpace = "download-dir-free-space"
+        case altSpeedEnabled = "alt-speed-enabled"
     }
 
     public init(
         version: String,
         rpcVersion: Int,
         rpcVersionMinimum: Int,
-        downloadDirFreeSpace: Int64? = nil
+        downloadDirFreeSpace: Int64? = nil,
+        altSpeedEnabled: Bool = false
     ) {
         self.version = version
         self.rpcVersion = rpcVersion
         self.rpcVersionMinimum = rpcVersionMinimum
         self.downloadDirFreeSpace = downloadDirFreeSpace
+        self.altSpeedEnabled = altSpeedEnabled
     }
 }

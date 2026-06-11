@@ -1,5 +1,31 @@
 import Foundation
 import Observation
+import TransmissionRPC
+
+/// Surfaced to the UI when a user-initiated action fails. Identifiable so it
+/// can drive SwiftUI `.alert(item:)` directly.
+public enum ActionError: Error, Identifiable, Sendable {
+    case failed(message: String)
+    /// The torrent was already present on the daemon. The associated value is
+    /// the torrent's name, for use in the alert message.
+    case torrentDuplicate(name: String)
+
+    public var id: String { localizedDescription }
+
+    public var localizedDescription: String {
+        switch self {
+        case .failed(let message): return message
+        case .torrentDuplicate(let name): return "\u{201C}\(name)\u{201D} is already in your list."
+        }
+    }
+
+    public var title: String {
+        switch self {
+        case .failed: return "Action Failed"
+        case .torrentDuplicate: return "Already in List"
+        }
+    }
+}
 
 /// The single source of truth the UI binds to. Wraps a `TorrentService`,
 /// owns selection / search / filter / inspector state, and derives the
@@ -12,8 +38,8 @@ public final class TorrentStore {
     public private(set) var torrents: [Torrent] = []
     public private(set) var connection: ConnectionState = .connecting
     public private(set) var isAlternativeSpeedEnabled: Bool = false
-    /// True when the backing service supports mutation actions (mock mode or once 7b lands).
-    public private(set) var actionsEnabled: Bool = true
+    /// Non-nil when a user action failed. Cleared by the view when the alert is dismissed.
+    public var lastActionError: ActionError?
     /// Free space (bytes) on the daemon's download directory. Nil until the first poll completes.
     public private(set) var freeSpace: Int64? = nil
 
@@ -37,6 +63,9 @@ public final class TorrentStore {
     public var selectedTorrents: [Torrent] {
         torrents.filter { selectedTorrentIDs.contains($0.id) }
     }
+
+    /// True when the backing service supports mutation actions.
+    public private(set) var actionsEnabled: Bool = true
 
     private var service: any TorrentService
     private var streamTask: Task<Void, Never>?
@@ -69,7 +98,11 @@ public final class TorrentStore {
             guard let self, !Task.isCancelled else { return }
             let stream = await capturedService.torrentsStream()
             guard !Task.isCancelled else { return }
+            // freeSpace() also warms the session cache in RPCTorrentService.
             self.freeSpace = await capturedService.freeSpace()
+            // Sync alt-speed state from the now-warm cache — avoids showing the
+            // wrong turtle toggle state if alt speed was enabled before launch.
+            self.isAlternativeSpeedEnabled = await capturedService.isAlternativeSpeedEnabled()
             guard !Task.isCancelled else { return }
             self.startFreeSpacePoll()
             for await snapshot in stream {
@@ -100,40 +133,44 @@ public final class TorrentStore {
     // MARK: - Actions
 
     public func start(_ ids: [Torrent.ID]) async {
-        try? await service.start(ids)
+        do { try await service.start(ids) } catch { recordError(error) }
     }
 
     public func stop(_ ids: [Torrent.ID]) async {
-        try? await service.stop(ids)
+        do { try await service.stop(ids) } catch { recordError(error) }
     }
 
     public func remove(_ ids: [Torrent.ID], deleteLocalData: Bool = false) async {
-        try? await service.remove(ids, deleteLocalData: deleteLocalData)
+        do { try await service.remove(ids, deleteLocalData: deleteLocalData) } catch { recordError(error) }
         selectedTorrentIDs.subtract(ids)
     }
 
     public func verify(_ ids: [Torrent.ID]) async {
-        try? await service.verify(ids)
+        do { try await service.verify(ids) } catch { recordError(error) }
     }
 
     public func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool) async {
-        try? await service.setFilesWanted(id, fileIDs: fileIDs, wanted: wanted)
+        do { try await service.setFilesWanted(id, fileIDs: fileIDs, wanted: wanted) } catch { recordError(error) }
     }
 
     public func setFilePriority(
         _ id: Torrent.ID, fileIDs: [TorrentFile.ID], priority: TorrentPriority
     ) async {
-        try? await service.setFilePriority(id, fileIDs: fileIDs, priority: priority)
+        do { try await service.setFilePriority(id, fileIDs: fileIDs, priority: priority) } catch { recordError(error) }
     }
 
     public func setOptions(_ id: Torrent.ID, options: TorrentOptions) async {
-        try? await service.setOptions(id, options: options)
+        do { try await service.setOptions(id, options: options) } catch { recordError(error) }
     }
 
     public func toggleAlternativeSpeed() async {
         let newValue = !isAlternativeSpeedEnabled
-        try? await service.setAlternativeSpeedEnabled(newValue)
-        isAlternativeSpeedEnabled = newValue
+        do {
+            try await service.setAlternativeSpeedEnabled(newValue)
+            isAlternativeSpeedEnabled = newValue
+        } catch {
+            recordError(error)
+        }
     }
 
     public func openAddSheet(magnetMode: Bool = false, prefilledURL: URL? = nil) {
@@ -150,14 +187,18 @@ public final class TorrentStore {
         priority: TorrentPriority,
         startWhenAdded: Bool
     ) async {
-        try? await service.add(
-            fileURL: fileURL,
-            magnetURL: magnetURL,
-            destination: destination,
-            label: label,
-            priority: priority,
-            startWhenAdded: startWhenAdded
-        )
+        do {
+            try await service.add(
+                fileURL: fileURL,
+                magnetURL: magnetURL,
+                destination: destination,
+                label: label,
+                priority: priority,
+                startWhenAdded: startWhenAdded
+            )
+        } catch {
+            recordError(error)
+        }
     }
 
     public func refreshFreeSpace() async {
@@ -182,5 +223,15 @@ public final class TorrentStore {
     /// Override the connection state — used by the debug menu (slice 6).
     public func simulateConnection(_ state: ConnectionState) {
         connection = state
+    }
+
+    // MARK: - Private helpers
+
+    private func recordError(_ error: any Error) {
+        if case .torrentDuplicate(let name) = error as? TransmissionError {
+            lastActionError = .torrentDuplicate(name: name)
+        } else {
+            lastActionError = .failed(message: error.localizedDescription)
+        }
     }
 }

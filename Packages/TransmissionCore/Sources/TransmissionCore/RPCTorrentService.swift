@@ -10,6 +10,12 @@ public actor RPCTorrentService: TorrentService {
     private var continuation: AsyncStream<[Torrent]>.Continuation?
     private var pollTask: Task<Void, Never>?
 
+    /// Cached result from the most recent `session-get`. Updated by `freeSpace()`
+    /// which is called on connect and periodically thereafter. Used for:
+    ///   - `isAlternativeSpeedEnabled()` — avoids an extra RPC on every read
+    ///   - `add()` — gates the `labels` argument on rpcVersion >= 17
+    private var cachedSession: SessionInfo?
+
     public init(
         client: any TransmissionClient,
         pollingInterval: @escaping @Sendable () -> TimeInterval = {
@@ -33,10 +39,14 @@ public actor RPCTorrentService: TorrentService {
         return stream
     }
 
-    public nonisolated var supportsActions: Bool { false }
-
+    /// Fetches free space and caches the full `SessionInfo` as a side effect.
+    /// Called on connect and on a longer interval from `TorrentStore` — this
+    /// is the only place `cachedSession` is refreshed, so the cache is as
+    /// fresh as the caller's polling cadence.
     public func freeSpace() async -> Int64? {
-        try? await client.sessionGet().downloadDirFreeSpace
+        let session = try? await client.sessionGet()
+        cachedSession = session
+        return session?.downloadDirFreeSpace
     }
 
     public func torrents() async throws -> [Torrent] {
@@ -56,33 +66,74 @@ public actor RPCTorrentService: TorrentService {
         continuation?.finish()
     }
 
-    // MARK: - Stubs (wired in 7b)
+    // MARK: - Actions
 
-    private var notImplemented: TransmissionError {
-        .serverError("action methods not yet wired")
+    public func start(_ ids: [Torrent.ID]) async throws {
+        try await client.torrentAction("torrent-start", ids: ids)
     }
 
-    public func start(_ ids: [Torrent.ID]) async throws { throw notImplemented }
-    public func stop(_ ids: [Torrent.ID]) async throws { throw notImplemented }
+    public func stop(_ ids: [Torrent.ID]) async throws {
+        try await client.torrentAction("torrent-stop", ids: ids)
+    }
+
     public func remove(_ ids: [Torrent.ID], deleteLocalData: Bool) async throws {
-        throw notImplemented
+        try await client.torrentRemove(ids: ids, deleteLocalData: deleteLocalData)
     }
-    public func verify(_ ids: [Torrent.ID]) async throws { throw notImplemented }
+
+    public func verify(_ ids: [Torrent.ID]) async throws {
+        try await client.torrentAction("torrent-verify", ids: ids)
+    }
+
     public func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool)
         async throws
     {
-        throw notImplemented
+        // An empty array means "all files" on the wire — skip rather than clobber.
+        guard !fileIDs.isEmpty else { return }
+        var args = TorrentSetArguments(ids: [id])
+        if wanted {
+            args.filesWanted = fileIDs
+        } else {
+            args.filesUnwanted = fileIDs
+        }
+        try await client.torrentSet(args)
     }
+
     public func setFilePriority(
         _ id: Torrent.ID, fileIDs: [TorrentFile.ID], priority: TorrentPriority
     ) async throws {
-        throw notImplemented
+        guard !fileIDs.isEmpty else { return }
+        var args = TorrentSetArguments(ids: [id])
+        switch priority {
+        case .low: args.priorityLow = fileIDs
+        case .normal: args.priorityNormal = fileIDs
+        case .high: args.priorityHigh = fileIDs
+        }
+        try await client.torrentSet(args)
     }
+
     public func setOptions(_ id: Torrent.ID, options: TorrentOptions) async throws {
-        throw notImplemented
+        var args = TorrentSetArguments(ids: [id])
+        args.downloadLimited = options.downloadLimited
+        args.downloadLimit = options.downloadLimitKBps
+        args.uploadLimited = options.uploadLimited
+        args.uploadLimit = options.uploadLimitKBps
+        args.honorsSessionLimits = options.honorsSessionLimits
+        args.seedRatioLimit = options.seedRatioLimit
+        args.seedRatioMode = options.seedRatioLimited ? 1 : 0
+        args.seedIdleLimit = options.seedIdleMinutes
+        args.seedIdleMode = options.seedIdleLimited ? 1 : 0
+        args.peerLimit = options.peerLimit
+        try await client.torrentSet(args)
     }
-    public func setAlternativeSpeedEnabled(_ enabled: Bool) async throws { throw notImplemented }
-    public func isAlternativeSpeedEnabled() async -> Bool { false }
+
+    public func setAlternativeSpeedEnabled(_ enabled: Bool) async throws {
+        try await client.sessionSet(SessionSetArguments(altSpeedEnabled: enabled))
+    }
+
+    public func isAlternativeSpeedEnabled() async -> Bool {
+        cachedSession?.altSpeedEnabled ?? false
+    }
+
     public func add(
         fileURL: URL?,
         magnetURL: String?,
@@ -91,6 +142,47 @@ public actor RPCTorrentService: TorrentService {
         priority: TorrentPriority,
         startWhenAdded: Bool
     ) async throws {
-        throw notImplemented
+        let filename: String?
+        let metainfo: String?
+
+        if let magnetURL {
+            filename = magnetURL
+            metainfo = nil
+        } else if let fileURL {
+            let data = try Data(contentsOf: fileURL)
+            metainfo = data.base64EncodedString()
+            filename = nil
+        } else {
+            filename = nil
+            metainfo = nil
+        }
+
+        let bandwidthPriority: Int
+        switch priority {
+        case .low: bandwidthPriority = -1
+        case .normal: bandwidthPriority = 0
+        case .high: bandwidthPriority = 1
+        }
+
+        let labels: [String]?
+        if let label, !label.isEmpty, (cachedSession?.rpcVersion ?? 0) >= 17 {
+            labels = [label]
+        } else {
+            labels = nil
+        }
+
+        let args = TorrentAddArguments(
+            filename: filename,
+            metainfo: metainfo,
+            downloadDir: destination.isEmpty ? nil : destination,
+            paused: !startWhenAdded,
+            bandwidthPriority: bandwidthPriority,
+            labels: labels
+        )
+        let response = try await client.torrentAdd(args)
+        if let dup = response.torrentDuplicate {
+            throw TransmissionError.torrentDuplicate(name: dup.name)
+        }
+        // Success: don't insert a stub — the next poll tick will surface the new torrent.
     }
 }
