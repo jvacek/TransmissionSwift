@@ -40,6 +40,7 @@ public final class TorrentStore {
 
     private var service: any TorrentService
     private var streamTask: Task<Void, Never>?
+    private var freeSpaceTask: Task<Void, Never>?
 
     public init(service: any TorrentService) {
         self.service = service
@@ -51,6 +52,7 @@ public final class TorrentStore {
     /// active server profile changes at runtime (first-run or server switching).
     public func connect(service: any TorrentService) {
         streamTask?.cancel()
+        freeSpaceTask?.cancel()
         self.service = service
         actionsEnabled = service.supportsActions
         connection = .connecting
@@ -64,12 +66,27 @@ public final class TorrentStore {
             guard let self else { return }
             let stream = await self.service.torrentsStream()
             self.freeSpace = await self.service.freeSpace()
+            self.startFreeSpacePoll()
             for await snapshot in stream {
                 self.torrents = snapshot
                 if case .connected = self.connection {
                 } else {
                     self.connection = .connected
                 }
+            }
+        }
+    }
+
+    private func startFreeSpacePoll() {
+        freeSpaceTask?.cancel()
+        freeSpaceTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                let v = UserDefaults.standard.double(forKey: "freeSpaceIntervalSeconds")
+                let interval = v > 0 ? v : 60.0
+                try? await Task.sleep(for: .seconds(interval))
+                guard !Task.isCancelled else { break }
+                self.freeSpace = await self.service.freeSpace()
             }
         }
     }
@@ -135,6 +152,14 @@ public final class TorrentStore {
             priority: priority,
             startWhenAdded: startWhenAdded
         )
+    }
+
+    public func refreshFreeSpace() async {
+        freeSpace = await service.freeSpace()
+    }
+
+    public func setConnectionFailed(reason: String) {
+        connection = .disconnected(reason: reason)
     }
 
     /// Override the connection state — used by the debug menu (slice 6).

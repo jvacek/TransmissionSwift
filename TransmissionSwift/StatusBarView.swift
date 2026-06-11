@@ -65,8 +65,14 @@ struct StatusBarView: View {
                 .monospacedDigit()
             if let freeSpace = store.freeSpace {
                 Divider().frame(height: 14)
-                Label(freeSpace.formattedSize + " free", systemImage: "internaldrive")
-                    .foregroundStyle(.secondary)
+                Button {
+                    Task { await store.refreshFreeSpace() }
+                } label: {
+                    Label(freeSpace.formattedSize + " free", systemImage: "internaldrive")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help("Click to refresh free space")
             }
             Text("Ratio \(overallRatio, format: .number.precision(.fractionLength(2)))")
                 .foregroundStyle(.secondary)

@@ -51,6 +51,7 @@ private struct GeneralPrefsPane: View {
     @AppStorage("confirmRemove") private var confirmRemove = true
     @AppStorage("downloadFolder") private var downloadFolder = "~/Downloads"
     @AppStorage("pollingIntervalSeconds") private var pollingInterval: Double = 5.0
+    @AppStorage("freeSpaceIntervalSeconds") private var freeSpaceInterval: Double = 60.0
 
     var body: some View {
         Form {
@@ -69,6 +70,16 @@ private struct GeneralPrefsPane: View {
                         TextField("", value: $pollingInterval, format: .number)
                             .frame(width: 52)
                         Stepper("", value: $pollingInterval, in: 1...60, step: 1)
+                            .labelsHidden()
+                        Text("seconds")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                LabeledContent("Free space interval") {
+                    HStack {
+                        TextField("", value: $freeSpaceInterval, format: .number)
+                            .frame(width: 52)
+                        Stepper("", value: $freeSpaceInterval, in: 10...3600, step: 10)
                             .labelsHidden()
                         Text("seconds")
                             .foregroundStyle(.secondary)

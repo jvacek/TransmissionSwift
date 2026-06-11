@@ -27,7 +27,7 @@ struct ContentView: View {
     @MainActor
     private func connectToProfile(_ profile: ServerProfile) {
         guard let rpcURL = profile.rpcURL else {
-            torrentStore.connection = .disconnected(reason: "Invalid server URL")
+            torrentStore.setConnectionFailed(reason: "Invalid server URL")
             return
         }
         var credentials: Credentials?
