@@ -1,5 +1,6 @@
 import SwiftUI
 import TransmissionCore
+import TransmissionRPC
 
 /// The five-pane Preferences window, registered as a `Settings` scene.
 ///
@@ -49,6 +50,7 @@ private struct GeneralPrefsPane: View {
     @AppStorage("badgeAppIcon") private var badgeAppIcon = true
     @AppStorage("confirmRemove") private var confirmRemove = true
     @AppStorage("downloadFolder") private var downloadFolder = "~/Downloads"
+    @AppStorage("pollingIntervalSeconds") private var pollingInterval: Double = 5.0
 
     var body: some View {
         Form {
@@ -60,6 +62,18 @@ private struct GeneralPrefsPane: View {
                         .truncationMode(.middle)
                 }
                 Toggle("Show dialog before adding a torrent", isOn: $showAddDialog)
+            }
+            Section("Connection") {
+                LabeledContent("Refresh interval") {
+                    HStack {
+                        TextField("", value: $pollingInterval, format: .number)
+                            .frame(width: 52)
+                        Stepper("", value: $pollingInterval, in: 1...60, step: 1)
+                            .labelsHidden()
+                        Text("seconds")
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
             Section("Application") {
                 Toggle("Badge app icon with active count", isOn: $badgeAppIcon)
@@ -438,7 +452,9 @@ struct ServerProfileForm: View {
     @State private var password: String = ""
     @State private var hasStoredPassword: Bool = false
     @State private var useHTTPS: Bool = false
+    @State private var isTesting = false
     @State private var testResultMessage: String?
+    @State private var testResultIsFailure = false
     @State private var saveError: String?
 
     private let keychain = KeychainStore()
@@ -476,16 +492,17 @@ struct ServerProfileForm: View {
             Divider()
             HStack(spacing: 8) {
                 Button("Test Connection") {
-                    testResultMessage = "Connecting…"
-                    Task {
-                        try? await Task.sleep(for: .seconds(1))
-                        testResultMessage = "⚠ Live test not available in mock mode"
-                    }
+                    Task { await runConnectionTest() }
+                }
+                .disabled(isTesting || host.isEmpty)
+                if isTesting {
+                    ProgressView()
+                        .controlSize(.small)
                 }
                 if let msg = testResultMessage {
                     Text(msg)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(testResultIsFailure ? AnyShapeStyle(.red) : AnyShapeStyle(.green))
                 } else if let err = saveError {
                     Text(err)
                         .font(.caption)
@@ -504,6 +521,48 @@ struct ServerProfileForm: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background(.regularMaterial)
+        }
+    }
+
+    private func runConnectionTest() async {
+        isTesting = true
+        testResultMessage = nil
+        defer { isTesting = false }
+
+        var components = URLComponents()
+        components.scheme = useHTTPS ? "https" : "http"
+        components.host = host
+        components.port = port
+        components.path = rpcPath.hasPrefix("/") ? rpcPath : "/" + rpcPath
+        guard let rpcURL = components.url else {
+            testResultIsFailure = true
+            testResultMessage = "Invalid URL"
+            return
+        }
+
+        var credentials: Credentials?
+        if !username.isEmpty {
+            let pwd: String
+            if !password.isEmpty {
+                pwd = password
+            } else if case .edit(let profile) = mode {
+                pwd = (try? keychain.password(for: profile.id)) ?? ""
+            } else {
+                pwd = ""
+            }
+            if !pwd.isEmpty {
+                credentials = Credentials(username: username, password: pwd)
+            }
+        }
+
+        let client = URLSessionTransmissionClient(rpcURL: rpcURL, credentials: credentials)
+        do {
+            let info = try await client.sessionGet()
+            testResultIsFailure = false
+            testResultMessage = "Connected · Transmission \(info.version) (RPC \(info.rpcVersion))"
+        } catch {
+            testResultIsFailure = true
+            testResultMessage = error.localizedDescription
         }
     }
 

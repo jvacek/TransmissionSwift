@@ -16,6 +16,8 @@ struct TransmissionSwiftApp: App {
     private let mockMode: Bool
 
     init() {
+        UserDefaults.standard.register(defaults: ["pollingIntervalSeconds": 5.0])
+
         let args = CommandLine.arguments
         self.mockMode = args.contains("--mock-data")
 
