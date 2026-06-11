@@ -101,7 +101,9 @@ struct MainWindow: View {
     private var listPane: some View {
         switch store.connection {
         case .connecting:
-            connectingPlaceholder
+            connectingPlaceholder(message: "Connecting to \(profileStore.activeProfile?.label ?? "server")…")
+        case .awaitingKeychain:
+            connectingPlaceholder(message: "Waiting for keychain access…")
         case .disconnected(let reason):
             disconnectedView(reason: reason)
         case .connected:
@@ -126,9 +128,8 @@ struct MainWindow: View {
         }
     }
 
-    private var connectingPlaceholder: some View {
-        let serverName = profileStore.activeProfile?.label ?? "server"
-        return TorrentListView()
+    private func connectingPlaceholder(message: String) -> some View {
+        TorrentListView()
             .overlay {
                 ZStack {
                     Rectangle()
@@ -136,7 +137,7 @@ struct MainWindow: View {
                     VStack(spacing: 16) {
                         ProgressView()
                             .scaleEffect(1.2)
-                        Text("Connecting to \(serverName)…")
+                        Text(message)
                             .font(.headline)
                         Button("Cancel") {
                             store.simulateConnection(.disconnected(reason: "Cancelled by user"))

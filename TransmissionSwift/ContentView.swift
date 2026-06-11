@@ -16,7 +16,7 @@ struct ContentView: View {
             MainWindow(mockMode: false)
                 .task(id: profileStore.activeProfile?.id) {
                     guard let profile = profileStore.activeProfile else { return }
-                    connectToProfile(profile)
+                    await connectToProfile(profile)
                 }
         } else {
             AddServerForm()
@@ -25,14 +25,22 @@ struct ContentView: View {
     }
 
     @MainActor
-    private func connectToProfile(_ profile: ServerProfile) {
+    private func connectToProfile(_ profile: ServerProfile) async {
         guard let rpcURL = profile.rpcURL else {
             torrentStore.setConnectionFailed(reason: "Invalid server URL")
             return
         }
         var credentials: Credentials?
         if let username = profile.username, !username.isEmpty {
-            let password = (try? keychain.password(for: profile.id)) ?? ""
+            // Cancel the mock stream and show "waiting for keychain" before
+            // the macOS dialog blocks — prevents the mock from racing back.
+            torrentStore.beginKeychainWait()
+            let profileID = profile.id
+            let kc = keychain
+            let password = await Task.detached(priority: .userInitiated) {
+                (try? kc.password(for: profileID)) ?? ""
+            }.value
+            guard !Task.isCancelled else { return }
             credentials = Credentials(username: username, password: password)
         }
         let client = URLSessionTransmissionClient(rpcURL: rpcURL, credentials: credentials)

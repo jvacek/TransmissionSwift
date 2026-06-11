@@ -17,6 +17,11 @@ struct StatusBarView: View {
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                 Spacer(minLength: 8)
+            case .awaitingKeychain:
+                Text("Waiting for keychain access…")
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                Spacer(minLength: 8)
             case .disconnected:
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)

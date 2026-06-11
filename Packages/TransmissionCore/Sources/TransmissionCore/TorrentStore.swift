@@ -62,10 +62,15 @@ public final class TorrentStore {
     }
 
     private func startStream() {
+        // Capture the service now so a cancelled task can't accidentally call
+        // methods on whatever service connect() installs while it's running.
+        let capturedService = service
         streamTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            let stream = await self.service.torrentsStream()
-            self.freeSpace = await self.service.freeSpace()
+            guard let self, !Task.isCancelled else { return }
+            let stream = await capturedService.torrentsStream()
+            guard !Task.isCancelled else { return }
+            self.freeSpace = await capturedService.freeSpace()
+            guard !Task.isCancelled else { return }
             self.startFreeSpacePoll()
             for await snapshot in stream {
                 self.torrents = snapshot
@@ -79,6 +84,7 @@ public final class TorrentStore {
 
     private func startFreeSpacePoll() {
         freeSpaceTask?.cancel()
+        let capturedService = service
         freeSpaceTask = Task { @MainActor [weak self] in
             guard let self else { return }
             while !Task.isCancelled {
@@ -86,7 +92,7 @@ public final class TorrentStore {
                 let interval = v > 0 ? v : 60.0
                 try? await Task.sleep(for: .seconds(interval))
                 guard !Task.isCancelled else { break }
-                self.freeSpace = await self.service.freeSpace()
+                self.freeSpace = await capturedService.freeSpace()
             }
         }
     }
@@ -160,6 +166,17 @@ public final class TorrentStore {
 
     public func setConnectionFailed(reason: String) {
         connection = .disconnected(reason: reason)
+    }
+
+    /// Cancel any in-flight stream and mark the connection as waiting for
+    /// keychain access. Called before the blocking macOS keychain dialog so
+    /// the existing mock stream can't race back and overwrite the state.
+    public func beginKeychainWait() {
+        streamTask?.cancel()
+        freeSpaceTask?.cancel()
+        connection = .awaitingKeychain
+        torrents = []
+        freeSpace = nil
     }
 
     /// Override the connection state — used by the debug menu (slice 6).

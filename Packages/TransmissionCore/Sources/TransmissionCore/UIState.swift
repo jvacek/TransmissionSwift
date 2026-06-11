@@ -4,6 +4,8 @@ import Foundation
 /// surfaces in the main window per `doc/ui-buildout.md` slice 6.
 public enum ConnectionState: Sendable, Equatable {
     case connecting
+    /// Waiting for the macOS keychain access dialog before connecting.
+    case awaitingKeychain
     case connected
     case disconnected(reason: String)
 }
