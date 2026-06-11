@@ -4,4 +4,5 @@
 /// implementation, so tests can substitute a fake client.
 public protocol TransmissionClient: Sendable {
     func sessionGet() async throws(TransmissionError) -> SessionInfo
+    func torrentGet(fields: [String], ids: [Int]?) async throws(TransmissionError) -> TorrentGetResponse
 }
