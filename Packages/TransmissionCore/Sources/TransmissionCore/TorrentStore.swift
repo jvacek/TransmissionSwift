@@ -12,6 +12,10 @@ public final class TorrentStore {
     public private(set) var torrents: [Torrent] = []
     public private(set) var connection: ConnectionState = .connecting
     public private(set) var isAlternativeSpeedEnabled: Bool = false
+    /// True when the backing service supports mutation actions (mock mode or once 7b lands).
+    public private(set) var actionsEnabled: Bool = true
+    /// Free space (bytes) on the daemon's download directory. Nil until the first poll completes.
+    public private(set) var freeSpace: Int64? = nil
 
     public var selectedFilter: SidebarFilter = .status(.all)
     public var selectedTorrentIDs: Set<Torrent.ID> = []
@@ -34,11 +38,24 @@ public final class TorrentStore {
         torrents.filter { selectedTorrentIDs.contains($0.id) }
     }
 
-    private let service: any TorrentService
+    private var service: any TorrentService
     private var streamTask: Task<Void, Never>?
 
     public init(service: any TorrentService) {
         self.service = service
+        self.actionsEnabled = service.supportsActions
+        startStream()
+    }
+
+    /// Swap the backing service and restart the poll stream. Used when the
+    /// active server profile changes at runtime (first-run or server switching).
+    public func connect(service: any TorrentService) {
+        streamTask?.cancel()
+        self.service = service
+        actionsEnabled = service.supportsActions
+        connection = .connecting
+        freeSpace = nil
+        torrents = []
         startStream()
     }
 
@@ -48,6 +65,7 @@ public final class TorrentStore {
             let stream = await self.service.torrentsStream()
             for await snapshot in stream {
                 self.torrents = snapshot
+                self.freeSpace = await self.service.freeSpace()
                 if case .connected = self.connection {
                 } else {
                     self.connection = .connected

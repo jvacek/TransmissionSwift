@@ -22,7 +22,7 @@ let package = Package(
         ),
         .testTarget(
             name: "TransmissionCoreTests",
-            dependencies: ["TransmissionCore"],
+            dependencies: ["TransmissionCore", "TransmissionRPC"],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
