@@ -508,7 +508,7 @@ struct RPCTorrentServiceTests {
         var iterator = stream.makeAsyncIterator()
 
         // Consume one emission so we know the loop started.
-        _ = await iterator.next()
+        _ = try await iterator.next()
         let countAfterOne = await stub.callCount
         #expect(countAfterOne >= 1)
 

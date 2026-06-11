@@ -24,7 +24,7 @@ public protocol TorrentService: Sendable {
     /// computed by the UI off the previous value. Unicast: only the store
     /// subscribes. `async` because creating the stream may need to cross into
     /// the service's actor to install the continuation.
-    func torrentsStream() async -> AsyncStream<[Torrent]>
+    func torrentsStream() async -> AsyncThrowingStream<[Torrent], Error>
 
     func start(_ ids: [Torrent.ID]) async throws
     func stop(_ ids: [Torrent.ID]) async throws

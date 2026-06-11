@@ -7,8 +7,9 @@ private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category:
 public actor RPCTorrentService: TorrentService {
     private let client: any TransmissionClient
     private let pollingInterval: @Sendable () -> TimeInterval
-    private var continuation: AsyncStream<[Torrent]>.Continuation?
+    private var continuation: AsyncThrowingStream<[Torrent], Error>.Continuation?
     private var pollTask: Task<Void, Never>?
+    private var consecutiveFailures = 0
 
     /// Cached result from the most recent `session-get`. Updated by `freeSpace()`
     /// which is called on connect and periodically thereafter. Used for:
@@ -27,10 +28,11 @@ public actor RPCTorrentService: TorrentService {
         self.pollingInterval = pollingInterval
     }
 
-    public func torrentsStream() async -> AsyncStream<[Torrent]> {
+    public func torrentsStream() async -> AsyncThrowingStream<[Torrent], Error> {
         // Unicast: cancel any existing poll loop before handing back a new stream.
         pollTask?.cancel()
-        let (stream, cont) = AsyncStream<[Torrent]>.makeStream()
+        consecutiveFailures = 0
+        let (stream, cont) = AsyncThrowingStream<[Torrent], Error>.makeStream()
         self.continuation = cont
         let task = Task { await self.runPollLoop() }
         self.pollTask = task
@@ -57,13 +59,36 @@ public actor RPCTorrentService: TorrentService {
     private func runPollLoop() async {
         while !Task.isCancelled {
             do {
-                continuation?.yield(try await torrents())
+                let snapshot = try await torrents()
+                consecutiveFailures = 0
+                continuation?.yield(snapshot)
             } catch {
                 logger.error("Poll error: \(error)")
+                let txError = error as? TransmissionError
+                if let txError, isFatal(txError) {
+                    continuation?.finish(throwing: txError)
+                    return
+                }
+                consecutiveFailures += 1
+                if consecutiveFailures >= 3 {
+                    continuation?.finish(throwing: error)
+                    return
+                }
             }
             try? await Task.sleep(for: .seconds(max(1, pollingInterval())))
         }
         continuation?.finish()
+    }
+
+    private func isFatal(_ error: TransmissionError) -> Bool {
+        switch error {
+        case .unauthorized:
+            return true
+        case .network(let urlError):
+            return urlError.code == .badURL || urlError.code == .unsupportedURL
+        default:
+            return false
+        }
     }
 
     // MARK: - Actions

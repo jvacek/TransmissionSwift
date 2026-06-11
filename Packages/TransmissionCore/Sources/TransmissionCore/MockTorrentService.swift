@@ -9,7 +9,7 @@ import Foundation
 /// instantiate it directly and choose whether to `startTicking()`.
 public actor MockTorrentService: TorrentService {
     private var state: [Torrent]
-    private var continuation: AsyncStream<[Torrent]>.Continuation?
+    private var continuation: AsyncThrowingStream<[Torrent], Error>.Continuation?
     private var altSpeed = false
     private var tickTask: Task<Void, Never>?
 
@@ -71,8 +71,8 @@ public actor MockTorrentService: TorrentService {
 
     public func torrents() async throws -> [Torrent] { state }
 
-    public func torrentsStream() -> AsyncStream<[Torrent]> {
-        let (stream, cont) = AsyncStream<[Torrent]>.makeStream()
+    public func torrentsStream() -> AsyncThrowingStream<[Torrent], Error> {
+        let (stream, cont) = AsyncThrowingStream<[Torrent], Error>.makeStream()
         self.continuation = cont
         cont.yield(state)
         return stream

@@ -85,6 +85,12 @@ public final class TorrentStore {
         startStream()
     }
 
+    /// Restart the poll stream using the current service. Called by the
+    /// "Reconnect" button after a disconnection.
+    public func reconnect() {
+        connect(service: service)
+    }
+
     /// Swap the backing service and restart the poll stream. Used when the
     /// active server profile changes at runtime (first-run or server switching).
     public func connect(service: any TorrentService) {
@@ -113,12 +119,17 @@ public final class TorrentStore {
             self.isAlternativeSpeedEnabled = await capturedService.isAlternativeSpeedEnabled()
             guard !Task.isCancelled else { return }
             self.startFreeSpacePoll()
-            for await snapshot in stream {
-                self.torrents = snapshot
-                if case .connected = self.connection {
-                } else {
-                    self.connection = .connected
+            do {
+                for try await snapshot in stream {
+                    self.torrents = snapshot
+                    if case .connected = self.connection {
+                    } else {
+                        self.connection = .connected
+                    }
                 }
+            } catch {
+                guard !Task.isCancelled else { return }
+                self.connection = .disconnected(reason: error.localizedDescription)
             }
         }
     }

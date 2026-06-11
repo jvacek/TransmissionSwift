@@ -211,7 +211,7 @@ struct MainWindow: View {
             Text("Could not connect to \(address).\n\(reason)")
         } actions: {
             Button("Reconnect") {
-                store.simulateConnection(.connecting)
+                store.reconnect()
             }
             .buttonStyle(.glassProminent)
             Button("Server Settings…") {
