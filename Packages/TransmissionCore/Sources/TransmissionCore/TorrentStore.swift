@@ -63,9 +63,9 @@ public final class TorrentStore {
         streamTask = Task { @MainActor [weak self] in
             guard let self else { return }
             let stream = await self.service.torrentsStream()
+            self.freeSpace = await self.service.freeSpace()
             for await snapshot in stream {
                 self.torrents = snapshot
-                self.freeSpace = await self.service.freeSpace()
                 if case .connected = self.connection {
                 } else {
                     self.connection = .connected
