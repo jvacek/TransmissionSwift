@@ -149,4 +149,51 @@ public actor MockTorrentService: TorrentService {
     }
 
     public func isAlternativeSpeedEnabled() async -> Bool { altSpeed }
+
+    public func add(
+        fileURL: URL?,
+        magnetURL: String?,
+        destination: String,
+        label: String?,
+        priority: TorrentPriority,
+        startWhenAdded: Bool
+    ) async throws {
+        let name: String
+        if let url = fileURL {
+            name = url.deletingPathExtension().lastPathComponent
+        } else if let magnet = magnetURL {
+            let params = magnet.dropFirst("magnet:?".count).components(separatedBy: "&")
+            let raw = params.first(where: { $0.hasPrefix("dn=") })
+                .flatMap { $0.dropFirst(3).removingPercentEncoding }
+            name = raw ?? "New Torrent"
+        } else {
+            name = "New Torrent"
+        }
+        let newID = (state.map(\.id).max() ?? 0) + 1
+        let torrent = Torrent(
+            id: newID,
+            name: name,
+            hash: String(format: "%040x", newID),
+            size: 1_073_741_824,
+            status: startWhenAdded ? .downloading : .paused,
+            progress: 0,
+            downloadSpeed: startWhenAdded ? 2_097_152 : 0,
+            uploadSpeed: 0,
+            connectedPeerCount: startWhenAdded ? 12 : 0,
+            availablePeerCount: startWhenAdded ? 24 : 0,
+            seedCount: startWhenAdded ? 8 : 0,
+            eta: startWhenAdded ? 512 : nil,
+            ratio: 0,
+            primaryTracker: "tracker.example.com",
+            downloadFolder: destination,
+            addedAt: Date(),
+            label: label.flatMap { $0.isEmpty ? nil : $0 },
+            priority: priority,
+            pieces: 2048,
+            pieceSize: 512 * 1024,
+            havePieces: 0
+        )
+        state.append(torrent)
+        broadcast()
+    }
 }

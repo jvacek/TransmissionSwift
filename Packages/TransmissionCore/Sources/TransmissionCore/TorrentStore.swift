@@ -19,6 +19,11 @@ public final class TorrentStore {
     public var inspectorVisible: Bool = true
     public var inspectorTab: InspectorTab = .general
 
+    // Add-torrent sheet
+    public var showAddTorrent: Bool = false
+    public var addTorrentStartInMagnetMode: Bool = false
+    public var addTorrentPrefilledURL: URL? = nil
+
     public var facets: FilterFacets { FilterFacets(torrents: torrents) }
 
     public var visibleTorrents: [Torrent] {
@@ -88,5 +93,34 @@ public final class TorrentStore {
         let newValue = !isAlternativeSpeedEnabled
         try? await service.setAlternativeSpeedEnabled(newValue)
         isAlternativeSpeedEnabled = newValue
+    }
+
+    public func openAddSheet(magnetMode: Bool = false, prefilledURL: URL? = nil) {
+        addTorrentStartInMagnetMode = magnetMode
+        addTorrentPrefilledURL = prefilledURL
+        showAddTorrent = true
+    }
+
+    public func add(
+        fileURL: URL?,
+        magnetURL: String?,
+        destination: String,
+        label: String?,
+        priority: TorrentPriority,
+        startWhenAdded: Bool
+    ) async {
+        try? await service.add(
+            fileURL: fileURL,
+            magnetURL: magnetURL,
+            destination: destination,
+            label: label,
+            priority: priority,
+            startWhenAdded: startWhenAdded
+        )
+    }
+
+    /// Override the connection state — used by the debug menu (slice 6).
+    public func simulateConnection(_ state: ConnectionState) {
+        connection = state
     }
 }

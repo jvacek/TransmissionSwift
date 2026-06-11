@@ -42,4 +42,15 @@ public protocol TorrentService: Sendable {
     /// `alt-speed-enabled` field.
     func setAlternativeSpeedEnabled(_ enabled: Bool) async throws
     func isAlternativeSpeedEnabled() async -> Bool
+
+    /// Add a new torrent. Exactly one of `fileURL` / `magnetURL` should be
+    /// non-nil. Maps to `torrent-add` in slice 7.
+    func add(
+        fileURL: URL?,
+        magnetURL: String?,
+        destination: String,
+        label: String?,
+        priority: TorrentPriority,
+        startWhenAdded: Bool
+    ) async throws
 }
