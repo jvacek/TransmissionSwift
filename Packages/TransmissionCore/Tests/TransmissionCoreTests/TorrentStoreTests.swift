@@ -243,3 +243,97 @@ struct TorrentStoreTests {
         #expect(store.visibleTorrents.first?.name.contains("Debian") == true)
     }
 }
+
+@Suite("Sorting Performance")
+struct SortingPerformanceTests {
+    /// Generate N torrents by duplicating and varying fixture data.
+    private func generateLargeTorrentSet(count: Int) -> [Torrent] {
+        let base = MockFixtures.torrents()
+        var result: [Torrent] = []
+        result.reserveCapacity(count)
+
+        for i in 0..<count {
+            let baseTorrent = base[i % base.count]
+            let varied = Torrent(
+                id: i,
+                name: "\(baseTorrent.name) #\(i)",
+                hash: String(format: "%040x", i),
+                size: baseTorrent.size + Int64(i * 1000),
+                status: baseTorrent.status,
+                progress: Double.random(in: 0...1),
+                downloadSpeed: baseTorrent.downloadSpeed,
+                uploadSpeed: baseTorrent.uploadSpeed,
+                connectedPeerCount: baseTorrent.connectedPeerCount,
+                availablePeerCount: baseTorrent.availablePeerCount,
+                seedCount: baseTorrent.seedCount,
+                eta: baseTorrent.eta,
+                ratio: baseTorrent.ratio,
+                primaryTracker: baseTorrent.primaryTracker,
+                downloadFolder: baseTorrent.downloadFolder,
+                addedAt: baseTorrent.addedAt,
+                label: baseTorrent.label,
+                priority: baseTorrent.priority,
+                pieces: baseTorrent.pieces,
+                pieceSize: baseTorrent.pieceSize,
+                havePieces: baseTorrent.havePieces,
+                files: baseTorrent.files,
+                peers: baseTorrent.peers,
+                trackers: baseTorrent.trackers
+            )
+            result.append(varied)
+        }
+        return result
+    }
+
+    @Test("Sorting 1000 items by name completes in reasonable time")
+    @MainActor
+    func sortPerformanceByName() {
+        let torrents = generateLargeTorrentSet(count: 1000)
+        let startTime = Date()
+
+        let sorted = torrents.sorted { a, b in a.name < b.name }
+
+        let elapsedMs = Date().timeIntervalSince(startTime) * 1000
+        #expect(elapsedMs < 500, "Sorting 1000 torrents by name took \(Int(elapsedMs))ms")
+        #expect(sorted.count == 1000)
+    }
+
+    @Test("Sorting 1000 items by date completes in reasonable time")
+    @MainActor
+    func sortPerformanceByDate() {
+        let torrents = generateLargeTorrentSet(count: 1000)
+        let startTime = Date()
+
+        let sorted = torrents.sorted { a, b in a.addedAt > b.addedAt }
+
+        let elapsedMs = Date().timeIntervalSince(startTime) * 1000
+        #expect(elapsedMs < 500, "Sorting 1000 torrents by date took \(Int(elapsedMs))ms")
+        #expect(sorted.count == 1000)
+    }
+
+    @Test("Sorting 1000 items by tracker completes in reasonable time")
+    @MainActor
+    func sortPerformanceByTracker() {
+        let torrents = generateLargeTorrentSet(count: 1000)
+        let startTime = Date()
+
+        let sorted = torrents.sorted { a, b in a.primaryTracker < b.primaryTracker }
+
+        let elapsedMs = Date().timeIntervalSince(startTime) * 1000
+        #expect(elapsedMs < 500, "Sorting 1000 torrents by tracker took \(Int(elapsedMs))ms")
+        #expect(sorted.count == 1000)
+    }
+
+    @Test("Filtering to large subset completes in reasonable time")
+    @MainActor
+    func filterPerformance() {
+        let torrents = generateLargeTorrentSet(count: 1000)
+        let startTime = Date()
+
+        let filtered = torrents.filter { $0.status == .downloading || $0.status == .seeding }
+
+        let elapsedMs = Date().timeIntervalSince(startTime) * 1000
+        #expect(elapsedMs < 100, "Filtering 1000 torrents took \(Int(elapsedMs))ms")
+        #expect(filtered.count > 0)
+    }
+}
