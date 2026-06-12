@@ -16,15 +16,16 @@ struct ContentView: View {
         Group {
             if mockMode {
                 MainWindow(mockMode: mockMode)
-            } else if profileStore.activeProfile != nil {
+            } else {
+                // Always render the main window — when no profile exists it shows
+                // a "No Servers" empty state pointing at Settings, so onboarding
+                // lives in one window instead of a separate page. The connect task
+                // no-ops until a profile is added (id flips from nil to a UUID).
                 MainWindow(mockMode: false)
                     .task(id: profileStore.activeProfile?.id) {
                         guard let profile = profileStore.activeProfile else { return }
                         await connectToProfile(profile)
                     }
-            } else {
-                AddServerForm()
-                    .frame(minWidth: 420, minHeight: 320)
             }
         }
         .onChange(of: scenePhase) { _, new in

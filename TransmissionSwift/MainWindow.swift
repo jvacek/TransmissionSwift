@@ -20,6 +20,12 @@ struct MainWindow: View {
     @State private var windowWidth: CGFloat = Layout.windowMin
     var mockMode: Bool = false
 
+    /// No profile configured (and not running on mock data) — the window shows
+    /// the "No Servers" onboarding empty state instead of torrent content.
+    private var hasNoServer: Bool {
+        !mockMode && profileStore.activeProfile == nil
+    }
+
     /// Inspector width clamped to whatever space is actually available.
     /// Shrinks automatically when the window narrows; never below inspectorMin.
     private var inspectorWidth: CGFloat {
@@ -92,7 +98,11 @@ struct MainWindow: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .navigationTitle(profileStore.activeProfile?.label ?? "Transmission")
                 .safeAreaInset(edge: .bottom, spacing: 0) {
-                    StatusBarView()
+                    // No connection exists in the no-server state, so the status
+                    // bar's counts/connection text would be misleading — hide it.
+                    if !hasNoServer {
+                        StatusBarView()
+                    }
                 }
                 .searchable(
                     text: $store.searchQuery,
@@ -146,31 +156,38 @@ struct MainWindow: View {
 
     @ViewBuilder
     private var listPane: some View {
-        switch store.connection {
-        case .connecting:
-            connectingPlaceholder(message: "Connecting to \(profileStore.activeProfile?.label ?? "server")…")
-        case .awaitingKeychain:
-            connectingPlaceholder(message: "Waiting for keychain access…")
-        case .disconnected(let reason):
-            disconnectedView(reason: reason)
-        case .connected:
-            if !store.searchQuery.isEmpty && store.visibleTorrents.isEmpty {
-                ContentUnavailableView.search(text: store.searchQuery)
-                    .overlay(alignment: .bottom) {
-                        HStack(spacing: 8) {
-                            Button("Clear Search") { store.searchQuery = "" }
-                            Button("Reset Filters") {
-                                store.searchQuery = ""
-                                store.selectedFilter = .status(.all)
+        if hasNoServer {
+            // No server configured yet — must precede the connection switch because
+            // the pre-connect store is backed by an empty mock that reports
+            // `.connected`, which would otherwise show "No Torrents Yet".
+            noServersView
+        } else {
+            switch store.connection {
+            case .connecting:
+                connectingPlaceholder(message: "Connecting to \(profileStore.activeProfile?.label ?? "server")…")
+            case .awaitingKeychain:
+                connectingPlaceholder(message: "Waiting for keychain access…")
+            case .disconnected(let reason):
+                disconnectedView(reason: reason)
+            case .connected:
+                if !store.searchQuery.isEmpty && store.visibleTorrents.isEmpty {
+                    ContentUnavailableView.search(text: store.searchQuery)
+                        .overlay(alignment: .bottom) {
+                            HStack(spacing: 8) {
+                                Button("Clear Search") { store.searchQuery = "" }
+                                Button("Reset Filters") {
+                                    store.searchQuery = ""
+                                    store.selectedFilter = .status(.all)
+                                }
                             }
+                            .buttonStyle(.borderless)
+                            .padding(.bottom, 48)
                         }
-                        .buttonStyle(.borderless)
-                        .padding(.bottom, 48)
-                    }
-            } else if store.torrents.isEmpty {
-                noTorrentsView
-            } else {
-                TorrentListView()
+                } else if store.torrents.isEmpty {
+                    noTorrentsView
+                } else {
+                    TorrentListView()
+                }
             }
         }
     }
@@ -232,6 +249,20 @@ struct MainWindow: View {
             Button("Add Magnet Link…") { store.openAddSheet(magnetMode: true) }
         }
     }
+
+    private var noServersView: some View {
+        ContentUnavailableView {
+            Label("No Servers", systemImage: "server.rack")
+        } description: {
+            Text("Add a Transmission server in Settings to connect and start managing torrents.")
+        } actions: {
+            Button("Add Server…") {
+                pendingNavTab = 4
+                openSettings()
+            }
+            .buttonStyle(.glassProminent)
+        }
+    }
 }
 
 // MARK: - Inspector resize handle
@@ -268,4 +299,14 @@ private struct InspectorResizeHandle: View {
                 if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
             }
     }
+}
+
+#Preview("No Servers") {
+    let emptyProfiles = ServerProfileStore(
+        fileURL: URL.temporaryDirectory.appending(path: "preview-no-servers.json")
+    )
+    MainWindow(mockMode: false)
+        .environment(TorrentStore(service: MockTorrentService(initial: [])))
+        .environment(emptyProfiles)
+        .frame(width: 1100, height: 640)
 }
