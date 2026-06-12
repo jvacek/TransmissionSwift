@@ -1,11 +1,28 @@
 {
   "fill" : {
-    "automatic-gradient" : "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+    "linear-gradient" : [
+      "extended-srgb:0.00000,0.53333,1.00000,1.00000",
+      "extended-srgb:0.38039,0.33333,0.96078,1.00000"
+    ],
+    "orientation" : {
+      "start" : {
+        "x" : 0.5,
+        "y" : 0
+      },
+      "stop" : {
+        "x" : 0.5,
+        "y" : 0.7
+      }
+    }
   },
   "groups" : [
     {
+      "blur-material" : null,
       "layers" : [
         {
+          "fill" : {
+            "solid" : "extended-gray:1.00000,1.00000"
+          },
           "image-name" : "slice7.svg",
           "name" : "slice7",
           "position" : {
@@ -50,19 +67,38 @@
       }
     },
     {
+      "blur-material" : null,
       "layers" : [
         {
+          "blend-mode-specializations" : [
+            {
+              "appearance" : "tinted",
+              "value" : "darken"
+            }
+          ],
+          "fill" : {
+            "solid" : "extended-gray:0.50000,1.00000"
+          },
           "image-name" : "slice3.svg",
           "name" : "slice3",
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
-              -280,
+              -290,
               -280
             ]
           }
         },
         {
+          "blend-mode-specializations" : [
+            {
+              "appearance" : "tinted",
+              "value" : "normal"
+            }
+          ],
+          "fill" : {
+            "solid" : "extended-gray:0.50000,1.00000"
+          },
           "image-name" : "slice2.svg",
           "name" : "slice2",
           "position" : {
@@ -79,7 +115,7 @@
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
-              170,
+              180,
               -280
             ]
           }
@@ -90,7 +126,7 @@
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
-              -170,
+              -180,
               -280
             ]
           }
