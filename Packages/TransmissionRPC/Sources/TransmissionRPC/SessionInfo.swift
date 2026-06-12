@@ -13,6 +13,8 @@ public struct SessionInfo: Decodable, Sendable, Equatable {
     public let downloadDirFreeSpace: Int64?
     /// Whether the alternative (turtle) speed limits are currently active.
     public let altSpeedEnabled: Bool
+    /// Default download directory on the daemon host.
+    public let downloadDir: String?
 
     enum CodingKeys: String, CodingKey {
         case version
@@ -20,6 +22,7 @@ public struct SessionInfo: Decodable, Sendable, Equatable {
         case rpcVersionMinimum = "rpc-version-minimum"
         case downloadDirFreeSpace = "download-dir-free-space"
         case altSpeedEnabled = "alt-speed-enabled"
+        case downloadDir = "download-dir"
     }
 
     public init(
@@ -27,12 +30,14 @@ public struct SessionInfo: Decodable, Sendable, Equatable {
         rpcVersion: Int,
         rpcVersionMinimum: Int,
         downloadDirFreeSpace: Int64? = nil,
-        altSpeedEnabled: Bool = false
+        altSpeedEnabled: Bool = false,
+        downloadDir: String? = nil
     ) {
         self.version = version
         self.rpcVersion = rpcVersion
         self.rpcVersionMinimum = rpcVersionMinimum
         self.downloadDirFreeSpace = downloadDirFreeSpace
         self.altSpeedEnabled = altSpeedEnabled
+        self.downloadDir = downloadDir
     }
 }

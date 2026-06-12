@@ -45,6 +45,8 @@ public final class TorrentStore {
     public var lastActionError: ActionError?
     /// Free space (bytes) on the daemon's download directory. Nil until the first poll completes.
     public private(set) var freeSpace: Int64? = nil
+    /// Default download directory on the daemon host. Nil until the first session-get completes.
+    public private(set) var downloadDirectory: String? = nil
 
     /// Torrent fetched with full inspector fields for the selected torrent.
     /// Nil when no torrent is selected or before the first inspector fetch.
@@ -113,6 +115,7 @@ public final class TorrentStore {
         actionsEnabled = service.supportsActions
         connection = .connecting
         freeSpace = nil
+        downloadDirectory = nil
         torrents = []
         startStream()
     }
@@ -127,6 +130,7 @@ public final class TorrentStore {
             guard !Task.isCancelled else { return }
             // freeSpace() also warms the session cache in RPCTorrentService.
             self.freeSpace = await capturedService.freeSpace()
+            self.downloadDirectory = await capturedService.downloadDirectory()
             // Sync alt-speed state from the now-warm cache — avoids showing the
             // wrong turtle toggle state if alt speed was enabled before launch.
             self.isAlternativeSpeedEnabled = await capturedService.isAlternativeSpeedEnabled()

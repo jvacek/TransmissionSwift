@@ -51,6 +51,10 @@ public actor RPCTorrentService: TorrentService {
         return session?.downloadDirFreeSpace
     }
 
+    public func downloadDirectory() async -> String? {
+        cachedSession?.downloadDir
+    }
+
     public func torrents() async throws -> [Torrent] {
         let resp = try await client.torrentGet(fields: TorrentGetResponse.listFields, ids: nil)
         return resp.torrents.map { Torrent(wire: $0) }
@@ -183,6 +187,11 @@ public actor RPCTorrentService: TorrentService {
             filename = magnetURL
             metainfo = nil
         } else if let fileURL {
+            // URLs from SwiftUI's `.fileImporter` are security-scoped; reading
+            // them without claiming access fails with NSFileReadNoPermissionError
+            // ("you don't have permission to view it"), even outside the sandbox.
+            let scoped = fileURL.startAccessingSecurityScopedResource()
+            defer { if scoped { fileURL.stopAccessingSecurityScopedResource() } }
             let data = try Data(contentsOf: fileURL)
             metainfo = data.base64EncodedString()
             filename = nil
@@ -217,6 +226,11 @@ public actor RPCTorrentService: TorrentService {
         if let dup = response.torrentDuplicate {
             throw TransmissionError.torrentDuplicate(name: dup.name)
         }
-        // Success: don't insert a stub — the next poll tick will surface the new torrent.
+        // Success: surface the new torrent immediately instead of waiting for the
+        // next poll tick. Best-effort — a failed refresh is harmless since the
+        // poll loop will pick it up shortly.
+        if let snapshot = try? await torrents() {
+            continuation?.yield(snapshot)
+        }
     }
 }

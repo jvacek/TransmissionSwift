@@ -16,6 +16,11 @@ public protocol TorrentService: Sendable {
     /// Free space (bytes) on the daemon's download directory, or nil if unknown.
     func freeSpace() async -> Int64?
 
+    /// Default download directory on the daemon host, or nil if unknown. Must be
+    /// a protocol requirement (not extension-only) so calls through `any
+    /// TorrentService` dynamically dispatch to the concrete override.
+    func downloadDirectory() async -> String?
+
     /// Initial snapshot. The store calls this once on startup before
     /// subscribing to the live stream.
     func torrents() async throws -> [Torrent]
@@ -72,4 +77,5 @@ public protocol TorrentService: Sendable {
 extension TorrentService {
     public var supportsActions: Bool { true }
     public func freeSpace() async -> Int64? { nil }
+    public func downloadDirectory() async -> String? { nil }
 }

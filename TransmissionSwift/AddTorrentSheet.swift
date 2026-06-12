@@ -2,8 +2,9 @@ import SwiftUI
 import TransmissionCore
 import UniformTypeIdentifiers
 
-/// Sheet presented from the main window — covers file-based and magnet-link
-/// add flows behind a single segmented control.
+/// Sheet presented from the main window — the mutually-exclusive file vs.
+/// magnet source lives in a `TabView`; the shared options (destination, label,
+/// priority, start) sit in a separate card below.
 struct AddTorrentSheet: View {
     @Environment(TorrentStore.self) private var store
     @Binding var isPresented: Bool
@@ -12,22 +13,23 @@ struct AddTorrentSheet: View {
     var prefilledURL: URL? = nil
 
     enum InputMode: Hashable { case file, magnet }
+    private enum Field: Hashable { case magnet, destination, label }
 
+    @FocusState private var focusedField: Field?
     @State private var mode: InputMode = .file
     @State private var fileURL: URL?
     @State private var magnetString: String = ""
-    @State private var destination: String = "~/Downloads"
+    @State private var destination: String = ""
     @State private var labelText: String = ""
     @State private var priority: TorrentPriority = .normal
     @State private var startWhenAdded: Bool = true
-    @State private var verifyLocalData: Bool = false
     @State private var showFileImporter: Bool = false
     @State private var isAdding: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
-            formSection
-            filesPlaceholder
+            sourceTabs
+            optionsForm
             footerBar
         }
         .frame(width: 560)
@@ -40,6 +42,9 @@ struct AddTorrentSheet: View {
             }
         }
         .onAppear {
+            if destination.isEmpty {
+                destination = store.downloadDirectory ?? ""
+            }
             mode = initialMagnetMode ? .magnet : .file
             if let url = prefilledURL {
                 if url.scheme == "magnet" {
@@ -50,98 +55,90 @@ struct AddTorrentSheet: View {
                     fileURL = url
                 }
             }
+            // Explicit focus so macOS doesn't auto-focus (and select-all) the
+            // Destination field. In magnet mode, focus the input so a paste lands
+            // immediately; in file mode, leave focus unset.
+            focusedField = mode == .magnet ? .magnet : nil
+        }
+        .onChange(of: mode) { _, newMode in
+            focusedField = newMode == .magnet ? .magnet : nil
         }
     }
 
     // MARK: - Sections
 
-    private var formSection: some View {
+    /// File vs. magnet — the only mutually-exclusive choice — as real tabs.
+    private var sourceTabs: some View {
+        TabView(selection: $mode) {
+            fileTab
+                .tag(InputMode.file)
+                .tabItem { Text("File") }
+            magnetTab
+                .tag(InputMode.magnet)
+                .tabItem { Text("Magnet Link") }
+        }
+        .frame(height: 96)
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+    }
+
+    private var fileTab: some View {
+        HStack {
+            if let url = fileURL {
+                Label(url.lastPathComponent, systemImage: "doc.fill")
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text("No file selected")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            Button("Choose…") { showFileImporter = true }
+        }
+        .padding()
+    }
+
+    private var magnetTab: some View {
+        VStack {
+            TextField("magnet:?xt=urn:btih:…", text: $magnetString)
+                .textFieldStyle(.roundedBorder)
+                .focused($focusedField, equals: .magnet)
+            Spacer(minLength: 0)
+        }
+        .padding()
+    }
+
+    /// Shared options that apply to either source.
+    private var optionsForm: some View {
         Form {
-            Section {
-                Picker("", selection: $mode) {
-                    Text("File").tag(InputMode.file)
-                    Text("Magnet Link").tag(InputMode.magnet)
+            LabeledContent("Destination") {
+                TextField("", text: $destination)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .focused($focusedField, equals: .destination)
+            }
+
+            TextField("Label (optional)", text: $labelText)
+                .focused($focusedField, equals: .label)
+
+            LabeledContent("Priority") {
+                Picker("Priority", selection: $priority) {
+                    Text("High").tag(TorrentPriority.high)
+                    Text("Normal").tag(TorrentPriority.normal)
+                    Text("Low").tag(TorrentPriority.low)
                 }
-                .pickerStyle(.segmented)
                 .labelsHidden()
+                .pickerStyle(.segmented)
             }
 
-            Section {
-                if mode == .file {
-                    HStack {
-                        if let url = fileURL {
-                            Label(url.lastPathComponent, systemImage: "doc.fill")
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        } else {
-                            Text("No file selected")
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        Button("Choose…") { showFileImporter = true }
-                    }
-                } else {
-                    TextField("magnet:?xt=urn:btih:…", text: $magnetString)
-                        .font(.monospaced(.body)())
-                }
-
-                LabeledContent("Destination") {
-                    Text(destination)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .foregroundStyle(.secondary)
-                }
-
-                LabeledContent("Label") {
-                    TextField("None", text: $labelText)
-                }
-
-                LabeledContent("Priority") {
-                    Picker("Priority", selection: $priority) {
-                        Text("High").tag(TorrentPriority.high)
-                        Text("Normal").tag(TorrentPriority.normal)
-                        Text("Low").tag(TorrentPriority.low)
-                    }
-                    .labelsHidden()
-                    .frame(maxWidth: 120)
-                }
-
-                Toggle("Start when added", isOn: $startWhenAdded)
-                Toggle("Verify local data", isOn: $verifyLocalData)
-            }
+            Toggle("Start when added", isOn: $startWhenAdded)
         }
         .formStyle(.grouped)
     }
 
-    private var filesPlaceholder: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Files")
-                    .font(.headline)
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
-
-            Divider()
-
-            ContentUnavailableView {
-                Label("No Preview Available", systemImage: "doc.questionmark")
-            } description: {
-                Text("Select a .torrent file to preview its contents.")
-            }
-            .frame(height: 120)
-        }
-    }
-
     private var footerBar: some View {
         HStack(spacing: 12) {
-            Text("Destination: \(destination)")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
             Spacer()
             Button("Cancel") {
                 isPresented = false
@@ -186,4 +183,14 @@ struct AddTorrentSheet: View {
 
 extension UTType {
     fileprivate static let torrentFile = UTType(filenameExtension: "torrent") ?? .data
+}
+
+#Preview("Add Torrent") {
+    AddTorrentSheet(isPresented: .constant(true))
+        .environment(TorrentStore(service: MockTorrentService()))
+}
+
+#Preview("Magnet") {
+    AddTorrentSheet(isPresented: .constant(true), initialMagnetMode: true)
+        .environment(TorrentStore(service: MockTorrentService()))
 }
