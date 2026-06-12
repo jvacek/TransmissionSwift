@@ -1,0 +1,122 @@
+{
+  "fill" : {
+    "automatic-gradient" : "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "slice7.svg",
+          "name" : "slice7",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              100
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "layers" : [
+        {
+          "image-name" : "slice6.svg",
+          "name" : "slice6",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              101
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "layers" : [
+        {
+          "image-name" : "slice3.svg",
+          "name" : "slice3",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              -280,
+              -280
+            ]
+          }
+        },
+        {
+          "image-name" : "slice2.svg",
+          "name" : "slice2",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              -160
+            ]
+          }
+        },
+        {
+          "image-name" : "slice4.svg",
+          "name" : "slice4",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              170,
+              -280
+            ]
+          }
+        },
+        {
+          "image-name" : "slice5.svg",
+          "name" : "slice5",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              -170,
+              -280
+            ]
+          }
+        }
+      ],
+      "position" : {
+        "scale" : 1,
+        "translation-in-points" : [
+          0,
+          0
+        ]
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
