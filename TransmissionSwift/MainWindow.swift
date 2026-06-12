@@ -4,6 +4,7 @@ import TransmissionCore
 private enum Layout {
     static let sidebarMin: CGFloat = 180
     static let sidebarIdeal: CGFloat = 212
+    static let sidebarMax: CGFloat = 600
     static let contentMin: CGFloat = 400
     static let inspectorMin: CGFloat = 280
     static let inspectorIdeal: CGFloat = 322
@@ -44,6 +45,7 @@ struct MainWindow: View {
                     storedWidth: $storedInspectorWidth,
                     clampedWidth: inspectorWidth,
                     min: Layout.inspectorMin,
+                    ideal: Layout.inspectorIdeal,
                     max: min(Layout.inspectorAbsMax, windowWidth - Layout.sidebarMin - Layout.contentMin)
                 )
                 InspectorView()
@@ -92,7 +94,8 @@ struct MainWindow: View {
         @Bindable var store = store
         return NavigationSplitView {
             SidebarView()
-                .navigationSplitViewColumnWidth(min: Layout.sidebarMin, ideal: Layout.sidebarIdeal)
+                .navigationSplitViewColumnWidth(
+                    min: Layout.sidebarMin, ideal: Layout.sidebarIdeal, max: Layout.sidebarMax)
         } detail: {
             listPane
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -271,6 +274,7 @@ private struct InspectorResizeHandle: View {
     @Binding var storedWidth: Double
     let clampedWidth: CGFloat
     let min: CGFloat
+    let ideal: CGFloat
     let max: CGFloat
 
     @GestureState private var dragStartWidth: CGFloat? = nil
@@ -284,6 +288,9 @@ private struct InspectorResizeHandle: View {
                     .frame(width: 1)
             )
             .contentShape(Rectangle())
+            .onTapGesture(count: 2) {
+                storedWidth = Double(ideal)
+            }
             .gesture(
                 DragGesture(minimumDistance: 1, coordinateSpace: .global)
                     .updating($dragStartWidth) { _, state, _ in
