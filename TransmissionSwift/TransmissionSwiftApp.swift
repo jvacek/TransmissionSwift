@@ -51,6 +51,17 @@ struct TransmissionSwiftApp: App {
             ContentView(mockMode: mockMode)
                 .environment(profileStore)
                 .environment(torrentStore)
+                .onOpenURL { url in
+                    // Fires for both magnet: links (CFBundleURLTypes) and
+                    // double-clicked / "Open With" .torrent files
+                    // (CFBundleDocumentTypes). Reuses the same add-sheet flow as
+                    // drag-and-drop in MainWindow.
+                    if url.scheme == "magnet" {
+                        torrentStore.openAddSheet(magnetMode: true, prefilledURL: url)
+                    } else if url.isFileURL {
+                        torrentStore.openAddSheet(prefilledURL: url)
+                    }
+                }
         }
         .commands {
             CommandMenu("Server") {
