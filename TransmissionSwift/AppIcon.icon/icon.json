@@ -29,7 +29,7 @@
             "scale" : 1,
             "translation-in-points" : [
               0,
-              100
+              75
             ]
           }
         }
@@ -85,7 +85,7 @@
             "scale" : 1,
             "translation-in-points" : [
               -290,
-              -280
+              -310
             ]
           }
         },
@@ -105,7 +105,7 @@
             "scale" : 1,
             "translation-in-points" : [
               0,
-              -160
+              -185
             ]
           }
         },
@@ -116,7 +116,7 @@
             "scale" : 1,
             "translation-in-points" : [
               180,
-              -280
+              -305
             ]
           }
         },
@@ -127,7 +127,7 @@
             "scale" : 1,
             "translation-in-points" : [
               -180,
-              -280
+              -305
             ]
           }
         }
