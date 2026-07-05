@@ -62,6 +62,8 @@ struct InspectorOptionsTab: View {
             }
         }
         .formStyle(.grouped)
+        // Option writes exist, but current option values are not fetched from RPC yet.
+        .disabled(true)
         .onChange(of: options) { _, newValue in
             Task { await store.setOptions(torrent.id, options: newValue) }
         }

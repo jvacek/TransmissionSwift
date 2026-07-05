@@ -15,6 +15,7 @@ struct InspectorFilesTab: View {
                     .toggleStyle(.checkbox)
                     .labelsHidden()
                     .accessibilityLabel("Download \(file.name)")
+                    .disabled(true)
             }
             .width(20)
 
@@ -51,6 +52,7 @@ struct InspectorFilesTab: View {
                 .labelsHidden()
                 .controlSize(.small)
                 .accessibilityLabel("Priority for \(file.name)")
+                .disabled(true)
             }
             .width(80)
         }
