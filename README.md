@@ -19,7 +19,13 @@ This app lets you connect to a remote Transmission instance over RPC.
 
 ## How to use it
 
-Currently you will need to open this project in XCode and build it manually there.
+- [Download latest unsigned prerelease](https://github.com/jvacek/TransmissionSwift/releases)
+- Find in your downloads, and unzip
+- Try to open the unsigned app (it will fail)
+- Follow [instructions here](https://github.com/jvacek/TransmissionSwift/releases) to bypass the verification
+- Open again
+
+Alternatively, you can open it in XCode and build it from there.
 
 ## What's being planned
 
