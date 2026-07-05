@@ -72,10 +72,9 @@ struct TorrentListView: View {
         // overflows the window.
         .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
         // Changing the sort rebuilds the table instead of diffing it. A re-sort
-        // moves nearly every row, and NSTableView applies that as per-row moves
-        // — quadratic, and a multi-second beachball at a few hundred rows. A
-        // rebuild is a plain reload of the visible rows. Selection lives in the
-        // store, so it survives the identity change.
+        // moves many/most rows, and NSTableView's diff/animate cycle becomes
+        // quadratic + memory-intensive. A rebuild reloads just visible rows
+        // quickly. Selection survives the identity change (lives in store).
         .id(sortOrder)
         .contextMenu(forSelectionType: Torrent.ID.self) { ids in
             contextMenu(for: ids.isEmpty ? store.selectedTorrentIDs : ids)
