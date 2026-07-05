@@ -1,0 +1,111 @@
+name: Pre-release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-prerelease:
+    name: Build macOS app pre-release
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify default branch
+        run: |
+          set -euo pipefail
+
+          if [ "$GITHUB_REF_NAME" != "main" ]; then
+            echo "Pre-releases are only published from main."
+            exit 1
+          fi
+
+      - name: Resolve release commit
+        run: |
+          set -euo pipefail
+
+          release_year="$(date -u +%Y)"
+          release_month="$(date -u +%m)"
+          release_day="$(date -u +%d)"
+          release_month="${release_month#0}"
+          release_day="${release_day#0}"
+
+          echo "RELEASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "RELEASE_DATE=${release_year}-$(date -u +%m)-$(date -u +%d)" >> "$GITHUB_ENV"
+          echo "RELEASE_BUILD_VERSION=${release_year}.${release_month}.${release_day}" >> "$GITHUB_ENV"
+
+      - name: Verify CI succeeded for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW: ci.yml
+        run: |
+          set -euo pipefail
+
+          conclusion="$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${GITHUB_REPOSITORY}/actions/workflows/${WORKFLOW}/runs?head_sha=${RELEASE_SHA}&event=push&status=success&per_page=1" \
+            --jq '.workflow_runs[0].conclusion // ""')"
+
+          if [ "$conclusion" != "success" ]; then
+            echo "CI has not succeeded for ${RELEASE_SHA}."
+            echo "Wait for the push CI run to pass, then manually start this workflow again."
+            exit 1
+          fi
+
+      - name: Install xcbeautify
+        run: brew install xcbeautify
+
+      - name: Build Release app
+        run: |
+          set -euo pipefail
+          set -o pipefail
+
+          xcodebuild \
+            -project TransmissionSwift.xcodeproj \
+            -scheme TransmissionSwift \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            CURRENT_PROJECT_VERSION="$RELEASE_BUILD_VERSION" \
+            build | xcbeautify --renderer github-actions
+
+      - name: Zip app bundle
+        run: |
+          set -euo pipefail
+
+          app_path="build/DerivedData/Build/Products/Release/TransmissionSwift.app"
+          short_sha="$(git rev-parse --short=12 HEAD)"
+          zip_path="build/TransmissionSwift-${RELEASE_DATE}-${short_sha}.zip"
+
+          if [ ! -d "$app_path" ]; then
+            echo "Expected app bundle not found at ${app_path}."
+            exit 1
+          fi
+
+          ditto -c -k --keepParent "$app_path" "$zip_path"
+          echo "ZIP_PATH=$zip_path" >> "$GITHUB_ENV"
+
+      - name: Create GitHub pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          short_sha="$(git rev-parse --short=12 HEAD)"
+          tag="prerelease-${RELEASE_DATE}-${short_sha}"
+
+          gh release create "$tag" \
+            "$ZIP_PATH#TransmissionSwift-${RELEASE_DATE}-${short_sha}.zip" \
+            --target "$RELEASE_SHA" \
+            --prerelease \
+            --title "Pre-release ${RELEASE_DATE} ${short_sha}" \
+            --notes "Automated macOS app pre-release for commit ${RELEASE_SHA}. App build version: ${RELEASE_BUILD_VERSION}."
