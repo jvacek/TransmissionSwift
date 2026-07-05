@@ -63,6 +63,7 @@ private struct GeneralPrefsPane: View {
                         .truncationMode(.middle)
                 }
                 Toggle("Show dialog before adding a torrent", isOn: $showAddDialog)
+                    .disabled(true)
             }
             Section("Connection") {
                 LabeledContent("Refresh interval") {
@@ -91,6 +92,7 @@ private struct GeneralPrefsPane: View {
                 Toggle("Start minimized", isOn: $startMinimized)
                 Toggle("Confirm before removing", isOn: $confirmRemove)
             }
+            .disabled(true)
         }
         .formStyle(.grouped)
         .frame(width: 480)
@@ -139,6 +141,7 @@ private struct SpeedPrefsPane: View {
                     }
                 }
             }
+            .disabled(true)
 
             Section {
                 Toggle("Enable turtle mode schedule", isOn: $turtleScheduleEnabled)
@@ -181,6 +184,7 @@ private struct SpeedPrefsPane: View {
             } header: {
                 Text("Turtle Schedule")
             }
+            .disabled(true)
         }
         .formStyle(.grouped)
         .frame(width: 480)
@@ -212,6 +216,7 @@ private struct NetworkPrefsPane: View {
                 Toggle("Pick random port on launch", isOn: $randomPort)
                 Toggle("Enable UPnP/NAT-PMP port forwarding", isOn: $portForwarding)
             }
+            .disabled(true)
             Section("Privacy") {
                 LabeledContent("Encryption") {
                     Picker("", selection: $encryption) {
@@ -228,11 +233,13 @@ private struct NetworkPrefsPane: View {
                         .font(.monospaced(.body)())
                 }
             }
+            .disabled(true)
             Section("Protocol") {
                 Toggle("Enable Peer Exchange (PEX)", isOn: $pexEnabled)
                 Toggle("Enable DHT", isOn: $dhtEnabled)
                 Toggle("Enable µTP", isOn: $utpEnabled)
             }
+            .disabled(true)
         }
         .formStyle(.grouped)
         .frame(width: 480)
@@ -274,6 +281,7 @@ private struct RemotePrefsPane: View {
                 )
                 .foregroundStyle(.secondary)
             }
+            .disabled(true)
         }
         .formStyle(.grouped)
         .frame(width: 480)
