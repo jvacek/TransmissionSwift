@@ -1,6 +1,6 @@
 # TransmissionSwift
 
-<img src="imgs/icon.png" width="256">
+<img src="imgs/icon.png" alt="logo" width="256">
 
 ## What is it
 
@@ -22,7 +22,8 @@ This app lets you connect to a remote Transmission instance over RPC.
 - [Download latest unsigned prerelease](https://github.com/jvacek/TransmissionSwift/releases)
 - Find in your downloads, and unzip
 - Try to open the unsigned app (it will fail)
-- Follow [instructions here](https://github.com/jvacek/TransmissionSwift/releases) to bypass the verification
+- Follow [instructions here](https://github.com/jvacek/TransmissionSwift/releases)
+to bypass the verification
 - Open again
 
 Alternatively, you can open it in XCode and build it from there.
@@ -33,12 +34,18 @@ Alternatively, you can open it in XCode and build it from there.
 
 ## What's being planned
 
-- Setting priorities for torrents and for files
-- Support tag colour coding
-- Path mapping
-- iCloud Sync servers
-- Separate polling loop for active torrents
-- Filter combination
-- iPhone Version
+1. Separate polling loop for active torrents
+1. Filter combination
+1. Setting priorities for torrents and for files
+1. Support tag colour coding
+1. Path mapping
+1. iCloud Sync servers
+1. iPhone Version
 
 ## Contributing
+
+I will prioritise reviewing any contributions that help overall stability,
+performance, and the above mentioned plans.
+
+Please familiarise yourself with the [architecture](ARCHITECTURE.md) and then
+feel free todo your thing.
