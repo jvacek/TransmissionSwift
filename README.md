@@ -1,7 +1,7 @@
 # TransmissionSwift
 
 <img src="imgs/icon.png" width="256">
-    
+
 ## What is it
 
 This app lets you connect to a remote Transmission instance over RPC.
