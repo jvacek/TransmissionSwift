@@ -109,7 +109,6 @@ What we persist locally — the daemon owns everything else.
 
 ## 9. Open questions (decide as they come up)
 
-- Where to put RPC method implementations as they grow — one big file vs. one file per method group (session / torrent / queue).
 - Whether to expose `URLSession` configuration (timeouts, proxies, certificate trust for self-signed daemons) in server profiles. Likely yes, eventually.
 - Optional offline torrent list cache (SwiftData) — defer until there's a real reason.
 
@@ -133,3 +132,4 @@ What we persist locally — the daemon owns everything else.
 | 2026-06-10 | warnings-as-errors enforced via CI flags, not Package.swift (conflicts with Xcode's `-suppress-warnings` for package deps) | Active |
 | 2026-06-10 | E2E golden-path XCUITest, opt-in via `TEST_RUNNER_TRANSMISSION_E2E=1` (needs a live local daemon) | Active |
 | 2026-06-11 | Mock-first UI buildout: views consume `protocol TorrentService` (TransmissionCore), built against `MockTorrentService` first; `RPCTorrentService` swaps in last with zero view changes. Plan + progress in `doc/ui-buildout.md` | Active |
+| 2026-06-0? | Split RPC client files per method group
