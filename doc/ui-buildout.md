@@ -105,51 +105,60 @@ Renders against the current selection (or first torrent if multi-select — head
 
 **Validation:** `swift test --package-path Packages/TransmissionCore` 20/20 · `BuildProject` green · both XCUITests pass · `swift format lint --strict` clean.
 
-### Slice 3 — Add Torrent sheet (S2, ~½ day)
+### Slice 3 — Add Torrent sheet (S2) ✅
 
-- [ ] `AddTorrentSheet` `.sheet` from main window. Width 560pt.
-- [ ] Segmented `Picker`: From file / From magnet.
-  - File path: `.fileImporter(allowedContentTypes: [.init(filenameExtension: "torrent")!])`.
+- [x] `AddTorrentSheet` `.sheet` from main window. Width 560pt.
+- [x] Segmented `Picker`: From file / From magnet.
+  - File path: `.fileImporter(allowedContentTypes: [.torrentFile])` with `UTType` fallback to `.data`.
   - Magnet: `TextField` validated against `magnet:?xt=urn:btih:` prefix.
-- [ ] `LabeledContent` fields: Destination (path + Choose…), Label (Picker), Priority (Picker).
-- [ ] Files Table (max 150pt scroll), header "Files · X of Y selected" with Select All / None links.
-- [ ] Toggles: "Start when added" (default on), "Verify local data".
-- [ ] Footer in `.regularMaterial`: "Total to download · **5.9 GB**" left, Cancel + "Add Torrent" `.glassProminent` right.
-- [ ] On submit: `await service.add(...)`; the mock service inserts a new fake torrent + tick progresses it.
-- [ ] Drag-drop entry: `.dropDestination(for: URL.self)` on the main window opens the sheet pre-filled.
+- [x] `LabeledContent` fields: Destination (read-only path — Choose… deferred to slice 7), Label (TextField), Priority (Picker).
+- [x] Files section: `ContentUnavailableView` placeholder — actual torrent parsing deferred to slice 7.
+- [x] Toggles: "Start when added" (default on), "Verify local data".
+- [x] Footer in `.regularMaterial`: destination path left, Cancel + "Add Torrent" `.glassProminent` right.
+- [x] On submit: `await store.add(...)`; mock inserts a new fake torrent, tick progresses it.
+- [x] Drag-drop entry: `.dropDestination(for: URL.self)` on the main window opens the sheet pre-filled.
+- [x] `TorrentService.add(...)` + `MockTorrentService` implementation + `TorrentStore` wrapper + sheet-state properties.
 
-### Slice 4 — Servers manager + switcher (S3, ~1 day)
+### Slice 4 — Servers manager + switcher (S3) ✅
 
-- [ ] **Refactor:** `ServerProfileStore` already exists and supports multiple profiles, but `ContentView` only shows the first one. Rework so the store carries an `activeProfileID` and views are scoped to it.
-- [ ] **S3b — Toolbar switcher** (replaces principal Menu placeholder from Slice 1): Menu titled "Switch Server" with rows = each profile (status dot + name + live "5 active · ↓ 21.4 MB/s" subtitle) + checkmark on active + "Manage Servers…" footer item.
-- [ ] **S3a — Connection manager** as a separate `Window` (registered in `TransmissionSwiftApp.body`) opened from "Manage Servers…". 900×580. `NavigationSplitView` master-detail. List on the left (`server.rack` + name + host:port + status dot, with add/remove footer). Detail = `Form` with Connection / Authentication / Options sections + "Test Connection" inline result.
-- [ ] Move the current `AddServerForm.swift` content into this window's detail-edit mode (replace its single-profile use).
-- [ ] Switching server tears down + restarts the polling task; meanwhile `ConnectionState = .connecting` (drives Slice 6's skeleton state).
+- [x] `ServerProfileStore.activeProfileID` persisted in JSON envelope (backward-compatible with old flat array).
+- [x] `activeProfile` computed property (falls back to first profile when no explicit ID set). `setActive(_:)` action.
+- [x] `ContentView` uses `profileStore.activeProfile` instead of `profiles.first`.
+- [x] `.toolbarTitleMenu` on the detail column's navigation title — lists all profiles with checkmark on active, "Manage Servers…" footer.
+- [x] `ServersManagerWindow` — `Window("Servers", id: "servers-manager")`, 900×580. `NavigationSplitView` with +/- footer, `ServerProfileDetailForm` handles both create and edit modes. "Test Connection" stub (live test in slice 7).
+- [x] `AddServerForm.swift` left unchanged — still serves the "no profiles" onboarding path.
+- [x] Switching server (via `.setActive`) updates the title menu immediately; full polling tear-down/restart deferred to slice 7.
 
-### Slice 5 — Preferences (S4, ~½ day)
+### Slice 5 — Preferences (S4) ✅
 
-- [ ] `Settings { TabView { … } }` scene with four panes: General (`gearshape`), Speed (`tortoise`), Network (`globe`), Remote (`server.rack`).
-- [ ] Each pane is a `Form(.grouped)` of `Section`s with the fields listed in the README §S4.
-- [ ] `@AppStorage` for app-side prefs (display, badge, show-add-dialog…). Session-side prefs (speed limits, port, encryption, blocklist) get a `SessionSettings` struct backed by mock today, by `session-set` later.
-- [ ] Day-of-week toggle row for turtle schedule: `HStack` of 7 `Toggle(isOn:).toggleStyle(.button)` with `.tint(.accentColor)`.
+- [x] `Settings { PreferencesView() }` scene in `TransmissionSwiftApp`.
+- [x] Four `TabView` panes: General (`gearshape`), Speed (`tortoise`), Network (`globe`), Remote (`server.rack`).
+- [x] All panes use `Form(.grouped)` + `@AppStorage` for app-side prefs.
+- [x] Turtle schedule: day-of-week bitmask row with 7 `.toggleStyle(.button)` buttons.
+- [x] Speed limit fields use `Stepper + TextField` shown conditionally when the limit toggle is on.
+- [x] Session-side prefs (speed limits, port, encryption, blocklist, remote) stored in `@AppStorage` — wired to `session-set` in slice 7.
 
-### Slice 6 — Empty / error states (S5, ~½ day)
+### Slice 6 — Empty / error states (S5) ✅
 
-- [ ] `ConnectionState` already exists in the store from Slice 0. Wire it into `MainWindow` so the *list pane* swaps to a `ContentUnavailableView` when appropriate, while sidebar/toolbar/statusbar stay rendered:
-  - **No torrents:** `ContentUnavailableView("No Torrents Yet", systemImage: "arrow.down.circle", description: …)` + primary "Add Torrent…" `.glassProminent` + secondary "Add Magnet Link…".
-  - **No search results:** `ContentUnavailableView.search(text: query)` variant + "Clear Search" / "Reset Filters" buttons.
-  - **Disconnected:** red `exclamationmark.triangle`, body refs host:port, primary "Reconnect" + "Server Settings…". Toolbar server chip + status bar turn red.
-  - **Connecting:** `Table` of 6 placeholder rows with `.redacted(reason: .placeholder)`; status bar reads "Connecting to {name}…".
-- [ ] Add a debug menu (only with `--mock-data`) to flip connection state, for screenshot/test purposes.
+- [x] `MainWindow.listPane` `@ViewBuilder` switches on `store.connection` + torrent/search state:
+  - **No torrents:** `ContentUnavailableView("No Torrents Yet", …)` + Add Torrent `.glassProminent` + Add Magnet.
+  - **No search results:** `ContentUnavailableView.search(text:)` + "Clear Search" / "Reset Filters" buttons.
+  - **Disconnected:** red `exclamationmark.triangle`, host:port, Reconnect `.glassProminent` + "Server Settings…".
+  - **Connecting:** 6 `.redacted(.placeholder)` skeleton rows + "Connecting to {name}…" overlay.
+- [x] `StatusBarView` switches on connection state: "Connecting to {name}…" or red "Disconnected" or normal stats.
+- [x] Debug menu in `MainToolbar` (only when `mockMode == true`): three buttons to flip connection state.
 
 ### Slice 7 — Wire real RPC (the actual backend)
 
 Only once Slices 0–6 land. No UI changes in this slice; only `TransmissionRPC` + `TransmissionCore`.
 
-- [ ] Extend `TransmissionClient` protocol with the methods Slice 0's `TorrentService` needs (torrent-get with explicit field list, torrent-add, torrent-set, torrent-start, torrent-stop, torrent-remove, free-space, session-set, session-get).
-- [ ] Add Codable request/response types per method (lots of fields; refer to `reference/rpc-spec-*.md`).
-- [ ] `RPCTorrentService` conforms to `TorrentService`, owns adaptive polling (5s when visible, paused when window is in background — `ScenePhase` from the environment passed in).
-- [ ] App boot: if `--mock-data` not set → use `RPCTorrentService` with the active profile.
+- [x] Extend `TransmissionClient` protocol with the methods Slice 0's `TorrentService` needs (torrent-get with explicit field list, torrent-add, torrent-set, torrent-start, torrent-stop, torrent-remove, free-space, session-set, session-get). *(7b)*
+- [x] Add Codable request/response types per method — `TorrentActions.swift`: `TorrentIDArguments`, `TorrentRemoveArguments`, `TorrentSetArguments`, `TorrentAddArguments`/`TorrentAddResponse`, `SessionSetArguments`. `SessionInfo.altSpeedEnabled`. `TransmissionError.torrentDuplicate`. *(7b)*
+- [x] `RPCTorrentService` conforms to `TorrentService` — all stubs wired, `supportsActions` now `true`, `SessionInfo` cached for alt-speed + rpc-version gating, `ActionError` propagated via `TorrentStore.lastActionError`. *(7b)*
+- [x] App boot: if `--mock-data` not set → use `RPCTorrentService` with the active profile. *(done in earlier session)*
+- [ ] Inspector live data (`torrent-get` inspector fields, `inspectorData(for:)` protocol method, `TorrentStore.inspectorDetail`, repoint Files/Peers/Trackers tabs). *(7c — in progress)*
+- [ ] Disconnection propagation — `AsyncThrowingStream`, transient-vs-fatal failure policy, reconnect. *(7d)*
+- [ ] Background polling pause via `ScenePhase` (verify macOS behaviour first). *(7e)*
 - [ ] Capture fresh fixtures from the live daemon (see `reference/README.md` for the recipe) for every new method.
 - [ ] Re-run the XCUITest suite against the real daemon (opt-in via the existing `TEST_RUNNER_TRANSMISSION_E2E=1` flag).
 
@@ -193,19 +202,40 @@ Landed after the slice was first marked done. All built + UI test passes.
 - **Service surface grew after all** (the earlier "UI scaffolding only" note was optimistic — the Files/Options tabs are interactive). `TorrentService` gained `setFilesWanted`, `setFilePriority`, `setOptions`; `TorrentStore` mirrors them as actions; `MockTorrentService` mutates + broadcasts. 3 new core tests (20 total).
 - **New domain type `TorrentOptions`** on `Torrent.options` — Bool+value pairs (`downloadLimited` + `downloadLimitKBps`, `seedRatioLimited` + `seedRatioLimit`, …). Deliberately collapses Transmission's tri-state seed-limit modes (global/single/unlimited) to the two the UI exposes; slice 7 maps the Bools to `seedRatioMode` 0/1.
 - **Tabs are a segmented icon `Picker`, not `TabView`** — matches the Xcode/Finder inspector idiom and avoids TabView's content chrome fighting edge-to-edge `Table`s in Files/Peers.
+
+### Sort beachball fix (2026-06-11)
+
+- **Symptom:** clicking a column header to *invert* an existing sort beachballed the app for minutes at a few hundred rows (reproduced at 800). Sorting itself was never slow — `sorted(using:)` over 800 torrents is microseconds.
+- **Cause:** an inverted sort means every row moves, and SwiftUI's `Table` (NSTableView-backed) applies that diff as per-row move operations — quadratic in row count.
+- **Fix:** `.id(sortOrder)` on the `Table` in `TorrentListView` — a sort change swaps in a fresh table (cheap reload of visible rows) instead of move-diffing. Selection survives (it lives in `TorrentStore`); scroll position resets to top on sort change, which matches Finder.
+- Two new sortable columns landed with this: **Added** (`\.addedAt`) and **Tracker** (`\.primaryTracker`); fixed column widths became `min`/`ideal`.
+- Debugging scaffolding from the hunt (FixtureTorrentService + `--fixture-data`, Codable on domain models, perf unit tests, a beachball XCUITest) was removed after verification; archived as a patch outside the repo if ever needed again.
 - **Options tab state flow:** local `@State` draft seeded from `torrent.options` in `init`, whole struct pushed via `onChange`. The `.id(torrent.id)` re-key in `InspectorView` is what resets the draft on selection change — without it `@State` survives and shows the previous torrent's values.
 - **New app-target files** (filesystem-synced, no pbxproj edits): `InspectorGeneralTab/FilesTab/PeersTab/TrackersTab/OptionsTab.swift`; `InspectorView.swift` rewritten.
 - **XCUITest learning:** SwiftUI's segmented picker segments *are* addressable — they surface as `radioButtons` keyed by each segment's `accessibilityLabel` (set on the `Image` options). Toolbar buttons remain unaddressable per slice 1's note, but the inspector defaults to visible so the test never needs the toolbar toggle.
 
 ### Picking up from a new session
 
-- **Slice 3 is up next** — Add Torrent sheet (S2): segmented file/magnet picker, destination/label/priority fields, files table, footer with `.glassProminent` CTA. Needs a new `add(...)` on `TorrentService` + mock insert behaviour, and the `.dropDestination` entry point on the main window.
-- **Still awaiting visual verification by Jonas** (carried from slice 1 — agent can't eyeball these):
+- **Slices 3–6 are done. Slice 7 sub-slices completed so far:**
+  - **7a fixes** — invalid URL → `.disconnected`, double poll collapsed, `errorMessage` fallback. All done (landed before this session).
+  - **7b** — Action methods fully wired (`torrent-start/stop/verify/remove`, `torrent-set`, `torrent-add`, `session-set`). `SessionInfo.altSpeedEnabled` added. `ActionError` + alert in MainWindow. `RPCTorrentService.supportsActions` is now `true`. Tests: fixture decode + encode tests for all new RPC types. ✅
+  - **7c** — Inspector live data. **In progress** — wire types added (`WireFile`, `WireFileStat`, `WirePeer`, `WireTrackerStat`), optional inspector fields on `WireTorrent` still TODO. Next: mapping extensions, `inspectorData(for:)` protocol method + implementations, `TorrentStore.inspectorDetail`, repoint inspector tabs.
+- **bgIsolation disabled** in `.claude/settings.json` — background sessions can now edit the main repo directly (takes effect after a session restart).
+- **Still awaiting visual verification by Jonas** (accumulated from slices 1–6 — agent can't eyeball):
   - `ProgressBar` `.transaction { $0.animation = nil }` killing the bar lerp on filter switch. Escalation: custom `Capsule()` bar.
-  - Inspector placement (no search-field weirdness, no glass-creep) — now more visible with the slice 2 tabs in.
+  - Inspector placement (no search-field weirdness, no glass-creep).
   - Horizontal bounce gone with `axes: .horizontal`.
-  - New: the five inspector tabs at the 280–322pt widths — Files/Peers tables may want column tweaks once seen on a real display.
-- **Open polish items** that aren't blocking but worth doing soon:
-  - Decide on the status-bar turtle button — keep or drop?
-  - Decide on persisting sort order across launches (slice 5 / `@AppStorage`).
-  - Filter-change row animations: see whether NSTableView's natural insert/delete animation is enough, or whether we want to wrap the filter binding in `withAnimation` for a more pronounced slide.
+  - Inspector tabs at 280–322pt — Files/Peers column widths may need tweaks.
+  - **New (slice 3):** Add Torrent sheet layout at 560pt — destination "Choose…" is disabled (stub), files table placeholder.
+  - **New (slice 4):** Server manager window (900×580) — profile list + edit form.
+  - **New (slice 5):** Preferences window — all four panes.
+  - **New (slice 6):** All four empty/error states via Debug menu (use `--mock-data` and flip states with the `ant.fill` toolbar button).
+- **Open polish items:**
+  - Slice 3: destination "Choose…" button (directory picker) — `fileImporter` for directories, defer to slice 7 or earlier.
+  - Slice 3: files table in Add sheet — real contents need `.torrent` parsing (slice 7 work).
+  - Slice 4: live stats subtitle in toolbar title menu (active count + speeds) — currently just profile name.
+  - Slice 4: AddServerForm onboarding flow could redirect to ServersManagerWindow instead of the inline form.
+  - Slice 5: Speed pane limits are `@AppStorage` only — wire to `session-set` in slice 7.
+  - Decide on status-bar turtle button — keep or drop (same action as toolbar alt-speed toggle)?
+  - Persist sort order across launches (`@AppStorage` in slice 5's General pane).
+  - Filter-change row animations.
