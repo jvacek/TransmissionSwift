@@ -27,12 +27,18 @@ This app lets you connect to a remote Transmission instance over RPC.
 
 Alternatively, you can open it in XCode and build it from there.
 
+## What doesn't work yet
+- Changing server settings from the settings page
+- Unselecting specific files for download
+
 ## What's being planned
 
-- Setting priorities
+- Setting priorities for torrents and for files
 - Support tag colour coding
 - Path mapping
 - iCloud Sync servers
 - Separate polling loop for active torrents
 - Filter combination
 - iPhone Version
+
+## Contributing
