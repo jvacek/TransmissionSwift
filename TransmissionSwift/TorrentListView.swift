@@ -11,7 +11,7 @@ struct TorrentListView: View {
     @State private var sortOrder: [KeyPathComparator<Torrent>] = [KeyPathComparator(\.name)]
 
     private var rows: [Torrent] {
-        store.visibleTorrents.sorted(using: sortOrder)
+        store.visibleTorrents
     }
 
     var body: some View {
@@ -76,6 +76,7 @@ struct TorrentListView: View {
         // quadratic + memory-intensive. A rebuild reloads just visible rows
         // quickly. Selection survives the identity change (lives in store).
         .id(sortOrder)
+        .id(store.listPresentationRevision)
         .contextMenu(forSelectionType: Torrent.ID.self) { ids in
             contextMenu(for: ids.isEmpty ? store.selectedTorrentIDs : ids)
         } primaryAction: { _ in
@@ -84,9 +85,11 @@ struct TorrentListView: View {
         .accessibilityIdentifier("torrents.table")
         .onAppear {
             sortOrder = [makeComparator(keyPath: sortKeyPath, ascending: sortAscending)]
+            store.setSortOrder(sortOrder)
         }
         .onChange(of: sortOrder) { _, new in
             guard let first = new.first else { return }
+            store.setSortOrder(new)
             sortKeyPath = keyPathName(first)
             sortAscending = first.order == .forward
         }
@@ -142,11 +145,4 @@ struct TorrentListView: View {
         }
         .disabled(!store.actionsEnabled)
     }
-}
-
-extension Torrent {
-    /// Sortable key for the ETA column. nil (paused/error/queued) and .infinity
-    /// (seeding forever) both sort to the bottom — there's no meaningful order
-    /// between them, so we collapse them to the same large value.
-    fileprivate var etaSortKey: TimeInterval { eta ?? .infinity }
 }

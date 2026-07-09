@@ -180,7 +180,7 @@ struct MainWindow: View {
                                 Button("Clear Search") { store.searchQuery = "" }
                                 Button("Reset Filters") {
                                     store.searchQuery = ""
-                                    store.selectedFilter = .status(.all)
+                                    store.resetFilters()
                                 }
                             }
                             .buttonStyle(.borderless)

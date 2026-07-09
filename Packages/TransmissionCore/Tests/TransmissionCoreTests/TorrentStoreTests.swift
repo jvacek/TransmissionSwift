@@ -51,15 +51,33 @@ struct TorrentFilteringTests {
     func sidebarFiltering() {
         let torrents = MockFixtures.torrents()
 
-        #expect(torrents.filtered(by: .status(.all)).count == torrents.count)
-        #expect(torrents.filtered(by: .status(.downloading)).count == 3)
-        #expect(torrents.filtered(by: .status(.paused)).count == 1)
-        #expect(torrents.filtered(by: .folder(name: "Linux ISOs")).count == 4)
+        #expect(torrents.filtered(by: TorrentFilterSelection(statuses: [.all])).count == torrents.count)
+        #expect(torrents.filtered(by: TorrentFilterSelection(statuses: [.downloading])).count == 3)
+        #expect(torrents.filtered(by: TorrentFilterSelection(statuses: [.paused])).count == 1)
+        #expect(torrents.filtered(by: TorrentFilterSelection(folders: ["Linux ISOs"])).count == 4)
         // "Linux" labels the three Linux ISOs (Ubuntu, Arch, Debian). The
         // JSX sidebar mock said "4" but its FILTERS list was hand-curated
         // and doesn't match its own torrent data — we trust the data.
-        #expect(torrents.filtered(by: .label(name: "Linux")).count == 3)
-        #expect(torrents.filtered(by: .tracker(host: "bt.archive.org")).count == 2)
+        #expect(torrents.filtered(by: TorrentFilterSelection(labels: ["Linux"])).count == 3)
+        #expect(torrents.filtered(by: TorrentFilterSelection(trackers: ["bt.archive.org"])).count == 2)
+    }
+
+    @Test("facet filters combine with AND semantics")
+    func combinedFiltering() {
+        let torrents = MockFixtures.torrents()
+        let filtered = torrents.filtered(
+            by: TorrentFilterSelection(
+                statuses: [.downloading],
+                trackers: ["bt.archive.org"],
+                folders: [],
+                labels: ["Linux"]
+            )
+        )
+
+        #expect(!filtered.isEmpty)
+        #expect(filtered.allSatisfy { $0.status == .downloading })
+        #expect(filtered.allSatisfy { $0.primaryTracker == "bt.archive.org" })
+        #expect(filtered.allSatisfy { $0.label == "Linux" })
     }
 
     @Test("search is case-insensitive substring on name; empty matches all")
@@ -237,10 +255,27 @@ struct TorrentStoreTests {
         let store = TorrentStore(service: service)
         await waitFor { !store.torrents.isEmpty }
 
-        store.selectedFilter = .status(.downloading)
+        store.setStatusFilter(.downloading)
         store.searchQuery = "debian"
         #expect(store.visibleTorrents.count == 1)
         #expect(store.visibleTorrents.first?.name.contains("Debian") == true)
+    }
+
+    @Test("store combines status, tracker, and label filters")
+    @MainActor
+    func combinedVisibility() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+
+        store.setStatusFilter(.downloading)
+        store.toggleTrackerFilter("bt.archive.org")
+        store.toggleLabelFilter("Linux")
+
+        #expect(!store.visibleTorrents.isEmpty)
+        #expect(store.visibleTorrents.allSatisfy { $0.status == .downloading })
+        #expect(store.visibleTorrents.allSatisfy { $0.primaryTracker == "bt.archive.org" })
+        #expect(store.visibleTorrents.allSatisfy { $0.label == "Linux" })
     }
 }
 

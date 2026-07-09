@@ -2,57 +2,112 @@ import SwiftUI
 import TransmissionCore
 
 /// Source-list sidebar — status filters, then dynamic tracker / folder / label
-/// rollups derived from the torrent set. Selection is a `SidebarFilter` driven
-/// off the store; `List(selection:)` wants an Optional binding, so we wrap.
+/// rollups derived from the torrent set. The store normalizes selection to one
+/// active row per section while allowing sections to combine.
 struct SidebarView: View {
     @Environment(TorrentStore.self) private var store
 
-    var body: some View {
-        let selectionBinding = Binding<SidebarFilter?>(
-            get: { store.selectedFilter },
-            set: { if let new = $0 { store.selectedFilter = new } }
-        )
+    @AppStorage("sidebar.section.expanded.status") private var isStatusExpanded = true
+    @AppStorage("sidebar.section.expanded.trackers") private var isTrackersExpanded = true
+    @AppStorage("sidebar.section.expanded.folders") private var isFoldersExpanded = true
+    @AppStorage("sidebar.section.expanded.labels") private var isLabelsExpanded = true
 
-        List(selection: selectionBinding) {
-            Section("Status") {
+    var body: some View {
+        List {
+            Section(isExpanded: $isStatusExpanded) {
                 ForEach(TorrentStatusFilter.allCases, id: \.self) { filter in
-                    Label(filter.displayLabel, systemImage: filter.systemImage)
-                        .badge(store.facets.statusCounts[filter] ?? 0)
-                        .tag(SidebarFilter.status(filter))
-                        .accessibilityIdentifier("sidebar.status.\(filter.rawValue)")
+                    SidebarFilterRow(
+                        label: filter.displayLabel,
+                        systemImage: filter.systemImage,
+                        count: store.facets.statusCounts[filter] ?? 0,
+                        isSelected: store.selectedSidebarFilters.contains(.status(filter))
+                    ) {
+                        store.setStatusFilter(filter)
+                    }
+                    .accessibilityIdentifier("sidebar.status.\(filter.rawValue)")
                 }
+            } header: {
+                Text("Status")
+                    .padding(.trailing, 16)
             }
 
             if !store.facets.trackers.isEmpty {
-                Section("Trackers") {
+                Section(isExpanded: $isTrackersExpanded) {
                     ForEach(store.facets.trackers) { entry in
-                        Label(entry.name, systemImage: "globe")
-                            .badge(entry.count)
-                            .tag(SidebarFilter.tracker(host: entry.name))
+                        SidebarFilterRow(
+                            label: entry.name,
+                            systemImage: "globe",
+                            count: entry.count,
+                            isSelected: store.selectedSidebarFilters.contains(.tracker(host: entry.name))
+                        ) {
+                            store.toggleTrackerFilter(entry.name)
+                        }
                     }
+                } header: {
+                    Text("Trackers")
+                        .padding(.trailing, 16)
                 }
             }
 
             if !store.facets.folders.isEmpty {
-                Section("Folders") {
+                Section(isExpanded: $isFoldersExpanded) {
                     ForEach(store.facets.folders) { entry in
-                        Label(entry.name, systemImage: "folder")
-                            .badge(entry.count)
-                            .tag(SidebarFilter.folder(name: entry.name))
+                        SidebarFilterRow(
+                            label: entry.name,
+                            systemImage: "folder",
+                            count: entry.count,
+                            isSelected: store.selectedSidebarFilters.contains(.folder(name: entry.name))
+                        ) {
+                            store.toggleFolderFilter(entry.name)
+                        }
                     }
+                } header: {
+                    Text("Folders")
+                        .padding(.trailing, 16)
                 }
             }
 
             if !store.facets.labels.isEmpty {
-                Section("Labels") {
+                Section(isExpanded: $isLabelsExpanded) {
                     ForEach(store.facets.labels) { entry in
-                        Label(entry.name, systemImage: "tag")
-                            .badge(entry.count)
-                            .tag(SidebarFilter.label(name: entry.name))
+                        SidebarFilterRow(
+                            label: entry.name,
+                            systemImage: "tag",
+                            count: entry.count,
+                            isSelected: store.selectedSidebarFilters.contains(.label(name: entry.name))
+                        ) {
+                            store.toggleLabelFilter(entry.name)
+                        }
                     }
+                } header: {
+                    Text("Labels")
+                        .padding(.trailing, 16)
                 }
             }
         }
         .listStyle(.sidebar)
+    }
+}
+
+private struct SidebarFilterRow: View {
+    let label: String
+    let systemImage: String
+    let count: Int
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Label(label, systemImage: systemImage)
+            .badge(count)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .background(Color.clear)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: action)
+            .listRowBackground(
+                isSelected
+                    ? Color.accentColor.opacity(0.15)
+                    : Color.clear
+            )
+            .listRowInsets(EdgeInsets())
     }
 }

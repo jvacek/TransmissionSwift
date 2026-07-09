@@ -1,11 +1,116 @@
 import Foundation
 
-/// What the sidebar has selected. Drives which torrents the main list shows.
+/// Sidebar row identity. The store keeps a set of these so separate sections
+/// can be selected together while still enforcing one selection per section.
 public enum SidebarFilter: Hashable, Sendable {
     case status(TorrentStatusFilter)
     case tracker(host: String)
     case folder(name: String)
     case label(name: String)
+}
+
+extension SidebarFilter {
+    public enum Group: Hashable, Sendable {
+        case status, tracker, folder, label
+    }
+
+    public var group: Group {
+        switch self {
+        case .status: return .status
+        case .tracker: return .tracker
+        case .folder: return .folder
+        case .label: return .label
+        }
+    }
+}
+
+/// Composable torrent filter state. Empty facet sets mean "match all" for that
+/// facet, so selecting a tracker and a label narrows with AND semantics.
+public struct TorrentFilterSelection: Hashable, Sendable {
+    public var statuses: Set<TorrentStatusFilter>
+    public var trackers: Set<String>
+    public var folders: Set<String>
+    public var labels: Set<String>
+
+    public init(
+        statuses: Set<TorrentStatusFilter> = [.all],
+        trackers: Set<String> = [],
+        folders: Set<String> = [],
+        labels: Set<String> = []
+    ) {
+        self.statuses = statuses
+        self.trackers = trackers
+        self.folders = folders
+        self.labels = labels
+    }
+
+    public init(sidebarFilters: Set<SidebarFilter>) {
+        self.init()
+        for filter in sidebarFilters {
+            switch filter {
+            case .status(let status):
+                setStatus(status)
+            case .tracker(let host):
+                trackers = [host]
+            case .folder(let name):
+                folders = [name]
+            case .label(let name):
+                labels = [name]
+            }
+        }
+    }
+
+    public var hasFacetFilters: Bool {
+        !trackers.isEmpty || !folders.isEmpty || !labels.isEmpty
+    }
+
+    public mutating func setStatus(_ status: TorrentStatusFilter) {
+        statuses = status == .all ? [.all] : [status]
+    }
+
+    public mutating func toggleTracker(_ host: String) {
+        toggle(host, in: &trackers)
+    }
+
+    public mutating func toggleFolder(_ name: String) {
+        toggle(name, in: &folders)
+    }
+
+    public mutating func toggleLabel(_ name: String) {
+        toggle(name, in: &labels)
+    }
+
+    public mutating func clearFacets() {
+        trackers = []
+        folders = []
+        labels = []
+    }
+
+    public mutating func reset() {
+        statuses = [.all]
+        clearFacets()
+    }
+
+    public func matches(_ torrent: Torrent) -> Bool {
+        matchesStatus(torrent)
+            && (trackers.isEmpty || trackers.contains(torrent.primaryTracker))
+            && (folders.isEmpty || folders.contains(torrent.downloadFolder))
+            && (labels.isEmpty || torrent.label.map(labels.contains) == true)
+    }
+
+    private func matchesStatus(_ torrent: Torrent) -> Bool {
+        statuses.isEmpty
+            || statuses.contains(.all)
+            || statuses.contains(where: { $0.matches(torrent) })
+    }
+
+    private func toggle(_ value: String, in values: inout Set<String>) {
+        if values.contains(value) {
+            values.remove(value)
+        } else {
+            values.insert(value)
+        }
+    }
 }
 
 /// The status-section rows in the sidebar. `.all` matches every torrent;
@@ -71,14 +176,9 @@ public struct FacetEntry: Identifiable, Hashable, Sendable {
 }
 
 extension Sequence where Element == Torrent {
-    /// Apply the sidebar filter to the sequence.
-    public func filtered(by filter: SidebarFilter) -> [Torrent] {
-        switch filter {
-        case .status(let bucket): return self.filter(bucket.matches)
-        case .tracker(let host): return self.filter { $0.primaryTracker == host }
-        case .folder(let name): return self.filter { $0.downloadFolder == name }
-        case .label(let name): return self.filter { $0.label == name }
-        }
+    /// Apply the sidebar filter state to the sequence.
+    public func filtered(by filter: TorrentFilterSelection) -> [Torrent] {
+        self.filter(filter.matches)
     }
 
     /// Case-insensitive substring match against the torrent name.
@@ -88,4 +188,10 @@ extension Sequence where Element == Torrent {
         guard !trimmed.isEmpty else { return Array(self) }
         return self.filter { $0.name.localizedCaseInsensitiveContains(trimmed) }
     }
+}
+
+extension Torrent {
+    /// Sortable key for the ETA column. nil (paused/error/queued) and .infinity
+    /// (seeding forever) both sort to the bottom.
+    public var etaSortKey: TimeInterval { eta ?? .infinity }
 }

@@ -38,7 +38,12 @@ public enum ActionError: Error, Identifiable, Sendable {
 @MainActor
 @Observable
 public final class TorrentStore {
-    public private(set) var torrents: [Torrent] = []
+    public private(set) var torrents: [Torrent] = [] {
+        didSet {
+            facets = FilterFacets(torrents: torrents)
+            rebuildVisibleTorrents(reloadTable: false)
+        }
+    }
     public private(set) var connection: ConnectionState = .connecting
     public private(set) var isAlternativeSpeedEnabled: Bool = false
     /// Non-nil when a user action failed. Cleared by the view when the alert is dismissed.
@@ -53,9 +58,16 @@ public final class TorrentStore {
     /// Does NOT get wiped by the main list poll — updated only by `fetchInspectorDetail`.
     public private(set) var inspectorDetail: Torrent?
 
-    public var selectedFilter: SidebarFilter = .status(.all)
+    public private(set) var selectedSidebarFilters: Set<SidebarFilter> = [.status(.all)]
+    public private(set) var filterSelection = TorrentFilterSelection()
     public var selectedTorrentIDs: Set<Torrent.ID> = []
-    public var searchQuery: String = ""
+    public var searchQuery: String = "" {
+        didSet {
+            if searchQuery != oldValue {
+                rebuildVisibleTorrents(reloadTable: true)
+            }
+        }
+    }
     public var inspectorVisible: Bool = true
     public var inspectorTab: InspectorTab = .general
 
@@ -64,11 +76,9 @@ public final class TorrentStore {
     public var addTorrentStartInMagnetMode: Bool = false
     public var addTorrentPrefilledURL: URL? = nil
 
-    public var facets: FilterFacets { FilterFacets(torrents: torrents) }
-
-    public var visibleTorrents: [Torrent] {
-        torrents.filtered(by: selectedFilter).searched(searchQuery)
-    }
+    public private(set) var facets = FilterFacets(torrents: [])
+    public private(set) var visibleTorrents: [Torrent] = []
+    public private(set) var listPresentationRevision = 0
 
     public var selectedTorrents: [Torrent] {
         torrents.filter { selectedTorrentIDs.contains($0.id) }
@@ -80,6 +90,7 @@ public final class TorrentStore {
     private var service: any TorrentService
     private var streamTask: Task<Void, Never>?
     private var freeSpaceTask: Task<Void, Never>?
+    private var sortOrder: [KeyPathComparator<Torrent>] = [KeyPathComparator(\.name)]
 
     public init(service: any TorrentService) {
         self.service = service
@@ -118,6 +129,56 @@ public final class TorrentStore {
         downloadDirectory = nil
         torrents = []
         startStream()
+    }
+
+    public func setStatusFilter(_ status: TorrentStatusFilter) {
+        if status != .all, selectedSidebarFilters.contains(.status(status)) {
+            setSidebarFilter(.status(.all))
+        } else {
+            setSidebarFilter(.status(status))
+        }
+    }
+
+    public func toggleTrackerFilter(_ host: String) {
+        toggleSidebarFilter(.tracker(host: host))
+    }
+
+    public func toggleFolderFilter(_ name: String) {
+        toggleSidebarFilter(.folder(name: name))
+    }
+
+    public func toggleLabelFilter(_ name: String) {
+        toggleSidebarFilter(.label(name: name))
+    }
+
+    public func resetFilters() {
+        setSidebarFilters([.status(.all)])
+    }
+
+    public func setSidebarFilter(_ filter: SidebarFilter) {
+        setSidebarFilters(normalizedSidebarFilters(selectedSidebarFilters.union([filter]), preferred: filter))
+    }
+
+    public func toggleSidebarFilter(_ filter: SidebarFilter) {
+        if selectedSidebarFilters.contains(filter), filter.group != .status {
+            setSidebarFilters(selectedSidebarFilters.subtracting([filter]))
+        } else {
+            setSidebarFilter(filter)
+        }
+    }
+
+    public func setSidebarFilters(_ filters: Set<SidebarFilter>) {
+        let next = normalizedSidebarFilters(filters)
+        guard next != selectedSidebarFilters else { return }
+        selectedSidebarFilters = next
+        filterSelection = TorrentFilterSelection(sidebarFilters: next)
+        rebuildVisibleTorrents(reloadTable: true)
+    }
+
+    public func setSortOrder(_ sortOrder: [KeyPathComparator<Torrent>]) {
+        guard self.sortOrder != sortOrder else { return }
+        self.sortOrder = sortOrder
+        rebuildVisibleTorrents(reloadTable: false)
     }
 
     private func startStream() {
@@ -164,6 +225,34 @@ public final class TorrentStore {
                 self.freeSpace = await capturedService.freeSpace()
             }
         }
+    }
+
+    private func rebuildVisibleTorrents(reloadTable: Bool) {
+        visibleTorrents =
+            torrents
+            .filtered(by: filterSelection)
+            .searched(searchQuery)
+            .sorted(using: sortOrder)
+        if reloadTable {
+            listPresentationRevision += 1
+        }
+    }
+
+    private func normalizedSidebarFilters(
+        _ filters: Set<SidebarFilter>,
+        preferred: SidebarFilter? = nil
+    ) -> Set<SidebarFilter> {
+        var byGroup: [SidebarFilter.Group: SidebarFilter] = [:]
+        for filter in filters {
+            byGroup[filter.group] = filter
+        }
+        if let preferred {
+            byGroup[preferred.group] = preferred
+        }
+        if byGroup[.status] == nil {
+            byGroup[.status] = .status(.all)
+        }
+        return Set(byGroup.values)
     }
 
     // MARK: - Actions
