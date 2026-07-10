@@ -14,6 +14,7 @@ This app lets you connect to a remote Transmission instance over RPC.
   - via .torrent files (drag+drop, or register handler for .torrent files)
   - magnets links via UI
 - Enable slow mode
+- Combining filters in the sidebar
 
 ![image](imgs/main.png)
 
@@ -35,11 +36,11 @@ Alternatively, you can open it in XCode and build it from there.
 ## What's being planned
 
 1. Separate polling loop for active torrents
-1. Filter combination
+1. Self updating
 1. Setting priorities for torrents and for files
 1. Support tag colour coding
 1. Path mapping
-1. iCloud Sync servers
+1. iCloud Sync for settings
 1. iPhone Version
 
 ## Contributing
