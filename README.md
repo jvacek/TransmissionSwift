@@ -16,6 +16,8 @@ This app lets you connect to a remote Transmission instance over RPC.
 - Enable slow mode
 - Combining filters in the sidebar
 
+It is written in Swift and SwiftUI, zipping down to a ~4MB app with minimal resource use.
+
 ![image](imgs/main.png)
 
 ## How to use it
