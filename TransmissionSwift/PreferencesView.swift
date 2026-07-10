@@ -52,6 +52,8 @@ private struct GeneralPrefsPane: View {
     @AppStorage("downloadFolder") private var downloadFolder = "~/Downloads"
     @AppStorage("pollingIntervalSeconds") private var pollingInterval: Double = 5.0
     @AppStorage("freeSpaceIntervalSeconds") private var freeSpaceInterval: Double = 60.0
+    @AppStorage("fetchTrackerFavicons") private var fetchFavicons = true
+    @Environment(FaviconStore.self) private var favicons
 
     var body: some View {
         Form {
@@ -86,6 +88,12 @@ private struct GeneralPrefsPane: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+            }
+            Section("Sidebar") {
+                Toggle("Fetch tracker favicons", isOn: $fetchFavicons)
+                    .onChange(of: fetchFavicons) { _, newValue in
+                        favicons.setEnabled(newValue)
+                    }
             }
             Section("Application") {
                 Toggle("Badge app icon with active count", isOn: $badgeAppIcon)

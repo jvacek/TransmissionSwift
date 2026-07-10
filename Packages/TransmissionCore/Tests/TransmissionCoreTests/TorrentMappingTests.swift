@@ -202,8 +202,9 @@ struct TrackerHostTests {
         let stub = WireTrackerStub(
             announce: "https://announce.example.com/announce", sitename: "ExampleTracker", tier: 0)
         let t = Torrent(wire: makeWire(trackers: [stub]))
-        #expect(t.primaryTracker == "ExampleTracker")
-        #expect(t.trackers.first?.host == "ExampleTracker")
+        // FQDN from announce URL is preferred over sitename
+        #expect(t.primaryTracker == "announce.example.com")
+        #expect(t.trackers.first?.host == "announce.example.com")
     }
 
     @Test("host parsed from announce when sitename is absent")
@@ -465,6 +466,7 @@ struct TorrentInspectorMappingTests {
                 downloadCount: 50, isBackup: false)
         ]
         let t = Torrent(wire: wire)
+        // stat.host is an FQDN, so it's used directly
         #expect(t.trackers.first?.host == "rich.example.com")
         #expect(t.trackers.first?.seedCount == 5)
     }

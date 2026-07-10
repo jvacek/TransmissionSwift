@@ -29,18 +29,106 @@ extension Torrent {
 
         let primaryTracker: String
         if let stub = wire.trackers?.first {
-            primaryTracker = stub.sitename ?? URL(string: stub.announce)?.host ?? stub.announce
+            // Prefer FQDN from announce URL over sitename (which may be a short name)
+            primaryTracker = URL(string: stub.announce)?.host ?? stub.sitename ?? stub.announce
         } else {
             primaryTracker = ""
         }
 
         // Use rich trackerStats when present (inspector poll); fall back to lightweight stubs.
         let resolvedTrackers: [Tracker]
-        if let stats = wire.trackerStats {
-            resolvedTrackers = stats.map { Tracker(stat: $0) }
+        if let stats = wire.trackerStats, let stubs = wire.trackers, !stubs.isEmpty {
+            // Match stats to stubs by tier to get the real announce URL hostname.
+            // Build a lookup: tier -> announce host from stubs.
+            var tierToHost: [Int: String] = [:]
+            for stub in stubs {
+                if tierToHost[stub.tier] == nil,
+                    let url = URL(string: stub.announce),
+                    let host = url.host
+                {
+                    tierToHost[stub.tier] = host
+                }
+            }
+            resolvedTrackers = stats.map { stat in
+                // Use stat.host if it's a valid FQDN; otherwise fall back to stub's announce host.
+                // stat.host from Transmission RPC is typically the full announce URL (e.g., "http://tracker.example.com:80/announce").
+                // Extract hostname from URL if possible.
+                let host: String
+                if let url = URL(string: stat.host), let urlHost = url.host {
+                    host = urlHost
+                } else if stat.host.contains(".") && !stat.host.allSatisfy({ $0.isNumber || $0 == "." || $0 == ":" }) {
+                    // Fallback: if it looks like an FQDN (has dots, not just numbers/dots/colons), use as-is
+                    host = stat.host
+                } else {
+                    host = tierToHost[stat.tier] ?? stat.host
+                }
+                return Tracker(
+                    tier: stat.tier,
+                    host: host,
+                    state: {
+                        if stat.hasAnnounced && !stat.lastAnnounceSucceeded { return TrackerState.error }
+                        if stat.lastAnnounceSucceeded || stat.announceState == 3 { return TrackerState.working }
+                        return TrackerState.idle
+                    }(),
+                    statusMessage: {
+                        if stat.hasAnnounced && !stat.lastAnnounceSucceeded {
+                            return stat.lastAnnounceResult.isEmpty ? "Announce failed" : stat.lastAnnounceResult
+                        } else if stat.lastAnnounceSucceeded || stat.announceState == 3 {
+                            if stat.lastAnnounceTime > 0 {
+                                let when = Date(timeIntervalSince1970: TimeInterval(stat.lastAnnounceTime))
+                                    .formatted(.relative(presentation: .named))
+                                return "Announced \(when)"
+                            }
+                            return "Working"
+                        } else {
+                            return stat.hasAnnounced ? "Waiting to announce" : "Not yet announced"
+                        }
+                    }(),
+                    seedCount: stat.seederCount,
+                    leechCount: stat.leecherCount,
+                    downloadCount: stat.downloadCount
+                )
+            }
+        } else if let stats = wire.trackerStats {
+            // Stats present but no stubs - try to extract host from stat.host
+            resolvedTrackers = stats.map { stat in
+                let host: String
+                if let url = URL(string: stat.host), let h = url.host {
+                    host = h
+                } else {
+                    host = stat.host
+                }
+                return Tracker(
+                    tier: stat.tier,
+                    host: host,
+                    state: {
+                        if stat.hasAnnounced && !stat.lastAnnounceSucceeded { return TrackerState.error }
+                        if stat.lastAnnounceSucceeded || stat.announceState == 3 { return TrackerState.working }
+                        return TrackerState.idle
+                    }(),
+                    statusMessage: {
+                        if stat.hasAnnounced && !stat.lastAnnounceSucceeded {
+                            return stat.lastAnnounceResult.isEmpty ? "Announce failed" : stat.lastAnnounceResult
+                        } else if stat.lastAnnounceSucceeded || stat.announceState == 3 {
+                            if stat.lastAnnounceTime > 0 {
+                                let when = Date(timeIntervalSince1970: TimeInterval(stat.lastAnnounceTime))
+                                    .formatted(.relative(presentation: .named))
+                                return "Announced \(when)"
+                            }
+                            return "Working"
+                        } else {
+                            return stat.hasAnnounced ? "Waiting to announce" : "Not yet announced"
+                        }
+                    }(),
+                    seedCount: stat.seederCount,
+                    leechCount: stat.leecherCount,
+                    downloadCount: stat.downloadCount
+                )
+            }
         } else {
             resolvedTrackers = (wire.trackers ?? []).map { stub in
-                let host = stub.sitename ?? URL(string: stub.announce)?.host ?? stub.announce
+                // Prefer FQDN from announce URL over sitename (which may be a short name like "flacsfor")
+                let host = URL(string: stub.announce)?.host ?? stub.sitename ?? stub.announce
                 return Tracker(
                     tier: stub.tier,
                     host: host,
@@ -168,9 +256,18 @@ extension Tracker {
             statusMessage = stat.hasAnnounced ? "Waiting to announce" : "Not yet announced"
         }
 
+        // stat.host contains the full announce URL (e.g., "http://tracker.example.com:80/announce").
+        // Extract just the hostname for favicon fetching and display.
+        let hostname: String
+        if let url = URL(string: stat.host), let host = url.host {
+            hostname = host
+        } else {
+            hostname = stat.host
+        }
+
         self.init(
             tier: stat.tier,
-            host: stat.host,
+            host: hostname,
             state: state,
             statusMessage: statusMessage,
             seedCount: stat.seederCount,

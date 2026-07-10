@@ -315,5 +315,6 @@ private struct InspectorResizeHandle: View {
     MainWindow(mockMode: false)
         .environment(TorrentStore(service: MockTorrentService(initial: [])))
         .environment(emptyProfiles)
+        .environment(FaviconStore())
         .frame(width: 1100, height: 640)
 }

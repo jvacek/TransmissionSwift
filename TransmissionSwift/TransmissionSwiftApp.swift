@@ -13,6 +13,7 @@ import TransmissionCore
 struct TransmissionSwiftApp: App {
     @State private var profileStore: ServerProfileStore
     @State private var torrentStore: TorrentStore
+    @State private var faviconStore = FaviconStore()
     private let mockMode: Bool
 
     init() {
@@ -51,6 +52,7 @@ struct TransmissionSwiftApp: App {
             ContentView(mockMode: mockMode)
                 .environment(profileStore)
                 .environment(torrentStore)
+                .environment(faviconStore)
                 .onOpenURL { url in
                     // Fires for both magnet: links (CFBundleURLTypes) and
                     // double-clicked / "Open With" .torrent files
@@ -97,6 +99,7 @@ struct TransmissionSwiftApp: App {
         Settings {
             PreferencesView()
                 .environment(profileStore)
+                .environment(faviconStore)
         }
     }
 }
