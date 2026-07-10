@@ -4,6 +4,7 @@ import Observation
 import TransmissionRPC
 
 private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category: "inspector")
+private let tablePreferencesSortKey = "tablePreferencesSort"
 
 /// Surfaced to the UI when a user-initiated action fails. Identifiable so it
 /// can drive SwiftUI `.alert(item:)` directly.
@@ -41,7 +42,7 @@ public final class TorrentStore {
     public private(set) var torrents: [Torrent] = [] {
         didSet {
             facets = FilterFacets(torrents: torrents, downloadDirectory: downloadDirectory)
-            rebuildVisibleTorrents(reloadTable: false)
+            rebuildVisibleTorrents()
         }
     }
     public private(set) var connection: ConnectionState = .connecting
@@ -64,7 +65,7 @@ public final class TorrentStore {
     public var searchQuery: String = "" {
         didSet {
             if searchQuery != oldValue {
-                rebuildVisibleTorrents(reloadTable: true)
+                rebuildVisibleTorrents()
             }
         }
     }
@@ -78,7 +79,27 @@ public final class TorrentStore {
 
     public private(set) var facets = FilterFacets(torrents: [])
     public private(set) var visibleTorrents: [Torrent] = []
-    public private(set) var listPresentationRevision = 0
+
+    // MARK: - Sort Preferences
+    public var tablePreferences: TablePreferences {
+        get {
+            guard let data = UserDefaults.standard.data(forKey: tablePreferencesSortKey),
+                let decoded = try? JSONDecoder().decode(TablePreferences.self, from: data)
+            else { return TablePreferences() }
+            return decoded
+        }
+        set {
+            guard let encoded = try? JSONEncoder().encode(newValue) else { return }
+            UserDefaults.standard.set(encoded, forKey: tablePreferencesSortKey)
+        }
+    }
+
+    public func updateSortOrder(column: TableColumn.ID, ascending: Bool) {
+        var prefs = tablePreferences
+        prefs.sortColumn = column
+        prefs.sortAscending = ascending
+        tablePreferences = prefs
+    }
 
     public var selectedTorrents: [Torrent] {
         torrents.filter { selectedTorrentIDs.contains($0.id) }
@@ -172,13 +193,22 @@ public final class TorrentStore {
         guard next != selectedSidebarFilters else { return }
         selectedSidebarFilters = next
         filterSelection = TorrentFilterSelection(sidebarFilters: next)
-        rebuildVisibleTorrents(reloadTable: true)
+        rebuildVisibleTorrents()
     }
 
     public func setSortOrder(_ sortOrder: [KeyPathComparator<Torrent>]) {
         guard self.sortOrder != sortOrder else { return }
         self.sortOrder = sortOrder
-        rebuildVisibleTorrents(reloadTable: false)
+        if let first = sortOrder.first {
+            updateSortOrder(column: keyPathColumn(first).rawValue, ascending: first.order == .forward)
+        }
+        rebuildVisibleTorrents()
+    }
+
+    private func keyPathColumn(_ comparator: KeyPathComparator<Torrent>) -> TableColumn {
+        TableColumn.allCases.first { column in
+            column.comparator(order: comparator.order) == comparator
+        } ?? .name
     }
 
     private func startStream() {
@@ -227,15 +257,12 @@ public final class TorrentStore {
         }
     }
 
-    private func rebuildVisibleTorrents(reloadTable: Bool) {
+    private func rebuildVisibleTorrents() {
         visibleTorrents =
             torrents
             .filtered(by: filterSelection, relativeTo: downloadDirectory)
             .searched(searchQuery)
             .sorted(using: sortOrder)
-        if reloadTable {
-            listPresentationRevision += 1
-        }
     }
 
     private func normalizedSidebarFilters(

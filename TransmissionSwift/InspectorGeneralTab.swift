@@ -42,11 +42,9 @@ struct InspectorGeneralTab: View {
                     statusBadge
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                row("Download", torrent.downloadSpeed.formattedSpeed)
-                row("Upload", torrent.uploadSpeed.formattedSpeed)
-                row(
-                    "Time left",
-                    torrent.status == .downloading ? torrent.eta.formattedETA : "—")
+                row("Download", ColumnFormatters.humanizedSpeed(torrent.downloadSpeed))
+                row("Upload", ColumnFormatters.humanizedSpeed(torrent.uploadSpeed))
+                row("Time left", ColumnFormatters.humanizedETA(torrent.eta, status: torrent.status))
                 row("Ratio", torrent.ratio.formatted(.number.precision(.fractionLength(2))))
                 row("Peers", peersSummary)
             }
@@ -61,10 +59,10 @@ struct InspectorGeneralTab: View {
                 .font(.headline)
 
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
-                row("Size", torrent.size.formattedSize)
+                row("Size", ColumnFormatters.humanizedSize(torrent.size))
                 row(
                     "Pieces",
-                    "\(torrent.pieces.formatted()) × \(torrent.pieceSize.formattedSize)")
+                    "\(torrent.pieces.formatted()) × \(ColumnFormatters.humanizedSize(torrent.pieceSize))")
                 row("Added", torrent.addedAt.formatted(date: .abbreviated, time: .shortened))
                 row("Location", torrent.downloadFolder, monospaced: true)
                 row("Label", torrent.label ?? "—")
@@ -87,7 +85,7 @@ struct InspectorGeneralTab: View {
 
     private var progressCaption: String {
         let downloaded = Int64(Double(torrent.size) * torrent.progress)
-        return "\(downloaded.formattedSize) of \(torrent.size.formattedSize)"
+        return "\(ColumnFormatters.humanizedSize(downloaded)) of \(ColumnFormatters.humanizedSize(torrent.size))"
             + " · \(torrent.havePieces.formatted()) of \(torrent.pieces.formatted()) pieces"
     }
 

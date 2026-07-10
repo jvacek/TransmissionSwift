@@ -63,10 +63,10 @@ struct StatusBarView: View {
 
     private var rightCluster: some View {
         HStack(spacing: 12) {
-            Label(totalDown.formattedSpeed, systemImage: "arrow.down")
+            Label(ColumnFormatters.humanizedSpeed(totalDown), systemImage: "arrow.down")
                 .foregroundStyle(.blue)
                 .monospacedDigit()
-            Label(totalUp.formattedSpeed, systemImage: "arrow.up")
+            Label(ColumnFormatters.humanizedSpeed(totalUp), systemImage: "arrow.up")
                 .foregroundStyle(.green)
                 .monospacedDigit()
             if let freeSpace = store.freeSpace {
@@ -74,7 +74,7 @@ struct StatusBarView: View {
                 Button {
                     Task { await store.refreshFreeSpace() }
                 } label: {
-                    Label(freeSpace.formattedSize + " free", systemImage: "internaldrive")
+                    Label(ColumnFormatters.humanizedSize(freeSpace) + " free", systemImage: "internaldrive")
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.borderless)

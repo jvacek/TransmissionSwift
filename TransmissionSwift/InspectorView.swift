@@ -93,7 +93,7 @@ private struct InspectorHeader: View {
 
     private var subtitle: String {
         let added = torrent.addedAt.formatted(.relative(presentation: .named))
-        return "\(torrent.size.formattedSize) · \(torrent.status.displayLabel) · added \(added)"
+        return "\(ColumnFormatters.humanizedSize(torrent.size)) · \(torrent.status.displayLabel) · added \(added)"
     }
 }
 

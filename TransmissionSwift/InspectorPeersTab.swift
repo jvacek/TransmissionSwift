@@ -45,14 +45,14 @@ struct InspectorPeersTab: View {
             .width(36)
 
             TableColumn("Down") { peer in
-                Text(peer.downloadSpeed.formattedSpeed)
+                Text(ColumnFormatters.humanizedSpeed(peer.downloadSpeed))
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .width(72)
 
             TableColumn("Up") { peer in
-                Text(peer.uploadSpeed.formattedSpeed)
+                Text(ColumnFormatters.humanizedSpeed(peer.uploadSpeed))
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }

@@ -32,7 +32,7 @@ struct InspectorFilesTab: View {
             .width(min: 120)
 
             TableColumn("Size") { file in
-                Text(file.size.formattedSize)
+                Text(ColumnFormatters.humanizedSize(file.size))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }

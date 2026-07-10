@@ -233,4 +233,13 @@ extension Torrent {
     /// Sortable key for the ETA column. nil (paused/error/queued) and .infinity
     /// (seeding forever) both sort to the bottom.
     public var etaSortKey: TimeInterval { eta ?? .infinity }
+
+    /// Sortable key for the Label column.
+    public var labelSortKey: String { label ?? "" }
+
+    /// Sortable key for the Error column.
+    public var errorMessageSortKey: String { errorMessage ?? "" }
+
+    /// Sortable key for the Queue column.
+    public var queuePositionSortKey: Int { queuePosition ?? Int.max }
 }
