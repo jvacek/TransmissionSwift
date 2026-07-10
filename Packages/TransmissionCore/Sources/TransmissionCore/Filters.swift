@@ -1,5 +1,34 @@
 import Foundation
 
+extension String {
+    /// Normalize a download-dir path for display and comparison: drop a single
+    /// trailing slash while preserving the root "/".
+    public var normalizedDownloadPath: String {
+        guard count > 1, last == "/" else { return self }
+        return String(dropLast())
+    }
+}
+
+/// Folder-filter identity. The `defaultFolderName` sentinel is the relative
+/// path (empty) produced for torrents sitting directly in the default download
+/// directory, and drives the sidebar's dedicated "Default Folder" row.
+public enum FolderFilter {
+    public static let defaultFolderName = ""
+}
+
+/// Return `folder` relative to `base`, or `folder` unchanged when it isn't
+/// nested under `base` or `base` is nil. Trailing slashes are normalized first.
+public func relativeDownloadFolder(_ folder: String, relativeTo base: String?) -> String {
+    let path = folder.normalizedDownloadPath
+    guard let base, !base.isEmpty else { return path }
+    let basePath = base.normalizedDownloadPath
+    if path == basePath { return FolderFilter.defaultFolderName }
+    if path.hasPrefix(basePath + "/") {
+        return String(path.dropFirst(basePath.count + 1))
+    }
+    return path
+}
+
 /// Sidebar row identity. The store keeps a set of these so separate sections
 /// can be selected together while still enforcing one selection per section.
 public enum SidebarFilter: Hashable, Sendable {
@@ -91,10 +120,11 @@ public struct TorrentFilterSelection: Hashable, Sendable {
         clearFacets()
     }
 
-    public func matches(_ torrent: Torrent) -> Bool {
+    public func matches(_ torrent: Torrent, relativeTo downloadDirectory: String? = nil) -> Bool {
         matchesStatus(torrent)
             && (trackers.isEmpty || trackers.contains(torrent.primaryTracker))
-            && (folders.isEmpty || folders.contains(torrent.downloadFolder))
+            && (folders.isEmpty
+                || folders.contains(relativeDownloadFolder(torrent.downloadFolder, relativeTo: downloadDirectory)))
             && (labels.isEmpty || torrent.label.map(labels.contains) == true)
     }
 
@@ -144,14 +174,14 @@ public struct FilterFacets: Sendable, Hashable {
     public var folders: [FacetEntry]
     public var labels: [FacetEntry]
 
-    public init(torrents: [Torrent]) {
+    public init(torrents: [Torrent], downloadDirectory: String? = nil) {
         var statuses: [TorrentStatusFilter: Int] = [:]
         for filter in TorrentStatusFilter.allCases {
             statuses[filter] = torrents.lazy.filter(filter.matches).count
         }
         self.statusCounts = statuses
         self.trackers = Self.entries(torrents.map(\.primaryTracker))
-        self.folders = Self.entries(torrents.map(\.downloadFolder))
+        self.folders = Self.folderEntries(torrents.map(\.downloadFolder), relativeTo: downloadDirectory)
         self.labels = Self.entries(torrents.compactMap(\.label))
     }
 
@@ -161,6 +191,15 @@ public struct FilterFacets: Sendable, Hashable {
             .sorted { lhs, rhs in
                 lhs.count != rhs.count ? lhs.count > rhs.count : lhs.name < rhs.name
             }
+    }
+
+    /// Folder rollup: paths are normalized and made relative to the default
+    /// download directory, then sorted alphabetically (the empty relative path
+    /// for torrents in the default directory sorts first).
+    private static func folderEntries(_ folders: [String], relativeTo base: String?) -> [FacetEntry] {
+        Dictionary(grouping: folders, by: { relativeDownloadFolder($0, relativeTo: base) })
+            .map { FacetEntry(name: $0.key, count: $0.value.count) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 }
 
@@ -177,8 +216,8 @@ public struct FacetEntry: Identifiable, Hashable, Sendable {
 
 extension Sequence where Element == Torrent {
     /// Apply the sidebar filter state to the sequence.
-    public func filtered(by filter: TorrentFilterSelection) -> [Torrent] {
-        self.filter(filter.matches)
+    public func filtered(by filter: TorrentFilterSelection, relativeTo downloadDirectory: String? = nil) -> [Torrent] {
+        self.filter { filter.matches($0, relativeTo: downloadDirectory) }
     }
 
     /// Case-insensitive substring match against the torrent name.

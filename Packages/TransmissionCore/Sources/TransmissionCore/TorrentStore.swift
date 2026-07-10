@@ -40,7 +40,7 @@ public enum ActionError: Error, Identifiable, Sendable {
 public final class TorrentStore {
     public private(set) var torrents: [Torrent] = [] {
         didSet {
-            facets = FilterFacets(torrents: torrents)
+            facets = FilterFacets(torrents: torrents, downloadDirectory: downloadDirectory)
             rebuildVisibleTorrents(reloadTable: false)
         }
     }
@@ -230,7 +230,7 @@ public final class TorrentStore {
     private func rebuildVisibleTorrents(reloadTable: Bool) {
         visibleTorrents =
             torrents
-            .filtered(by: filterSelection)
+            .filtered(by: filterSelection, relativeTo: downloadDirectory)
             .searched(searchQuery)
             .sorted(using: sortOrder)
         if reloadTable {

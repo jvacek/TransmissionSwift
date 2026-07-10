@@ -52,9 +52,10 @@ struct SidebarView: View {
             if !store.facets.folders.isEmpty {
                 Section(isExpanded: $isFoldersExpanded) {
                     ForEach(store.facets.folders) { entry in
+                        let isDefaultFolder = entry.name == FolderFilter.defaultFolderName
                         SidebarFilterRow(
-                            label: entry.name,
-                            systemImage: "folder",
+                            label: isDefaultFolder ? "Default Folder" : entry.name,
+                            systemImage: isDefaultFolder ? "folder.fill" : "folder",
                             count: entry.count,
                             isSelected: store.selectedSidebarFilters.contains(.folder(name: entry.name))
                         ) {

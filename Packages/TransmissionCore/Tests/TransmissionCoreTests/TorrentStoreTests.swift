@@ -37,11 +37,35 @@ struct FilterFacetsTests {
         #expect(Set(facets.trackers.map(\.name)) == trackerHosts)
     }
 
-    @Test("rollup entries are sorted by descending count then by name")
-    func sortOrder() {
+    @Test("folder rollup entries are sorted alphabetically")
+    func folderSortOrder() {
         let facets = FilterFacets(torrents: MockFixtures.torrents())
-        let counts = facets.folders.map(\.count)
-        #expect(counts == counts.sorted(by: >))
+        let names = facets.folders.map(\.name)
+        #expect(names == names.sorted { $0.localizedStandardCompare($1) == .orderedAscending })
+    }
+
+    @Test("folder rollup normalizes, relativizes, and adds a default-folder sentinel")
+    func folderRelativization() {
+        let base = "/Downloads"
+        var torrents = MockFixtures.torrents()
+        torrents[0].downloadFolder = "/Downloads/Movies/"
+        torrents[1].downloadFolder = "/Downloads/"
+        torrents[2].downloadFolder = "/Downloads/Music"
+        torrents[3].downloadFolder = "/Other/Stuff"
+
+        let facets = FilterFacets(torrents: torrents, downloadDirectory: base)
+        let names = facets.folders.map(\.name)
+
+        #expect(names.contains("Movies"))  // trailing slash stripped + relativized
+        #expect(names.contains("Music"))
+        #expect(names.contains(FolderFilter.defaultFolderName))  // sitting in base
+        #expect(names.contains("/Other/Stuff"))  // outside base kept absolute
+        #expect(names == names.sorted { $0.localizedStandardCompare($1) == .orderedAscending })
+
+        // The sentinel must match torrents whose folder equals the base.
+        let selection = TorrentFilterSelection(folders: [FolderFilter.defaultFolderName])
+        #expect(torrents.filtered(by: selection, relativeTo: base).contains { $0.id == torrents[1].id })
+        #expect(torrents.filtered(by: selection, relativeTo: base).count == 1)
     }
 }
 
