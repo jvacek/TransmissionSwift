@@ -68,7 +68,7 @@ struct TorrentFilteringTests {
         let filtered = torrents.filtered(
             by: TorrentFilterSelection(
                 statuses: [.downloading],
-                trackers: ["bt.archive.org"],
+                trackers: ["releases.ubuntu.com"],
                 folders: [],
                 labels: ["Linux"]
             )
@@ -76,7 +76,7 @@ struct TorrentFilteringTests {
 
         #expect(!filtered.isEmpty)
         #expect(filtered.allSatisfy { $0.status == .downloading })
-        #expect(filtered.allSatisfy { $0.primaryTracker == "bt.archive.org" })
+        #expect(filtered.allSatisfy { $0.primaryTracker == "releases.ubuntu.com" })
         #expect(filtered.allSatisfy { $0.label == "Linux" })
     }
 
@@ -269,12 +269,12 @@ struct TorrentStoreTests {
         await waitFor { !store.torrents.isEmpty }
 
         store.setStatusFilter(.downloading)
-        store.toggleTrackerFilter("bt.archive.org")
+        store.toggleTrackerFilter("releases.ubuntu.com")
         store.toggleLabelFilter("Linux")
 
         #expect(!store.visibleTorrents.isEmpty)
         #expect(store.visibleTorrents.allSatisfy { $0.status == .downloading })
-        #expect(store.visibleTorrents.allSatisfy { $0.primaryTracker == "bt.archive.org" })
+        #expect(store.visibleTorrents.allSatisfy { $0.primaryTracker == "releases.ubuntu.com" })
         #expect(store.visibleTorrents.allSatisfy { $0.label == "Linux" })
     }
 }
