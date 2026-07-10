@@ -35,6 +35,13 @@ swift format lint --strict --recursive .
 cd Packages/TransmissionRPC && swift test
 cd Packages/TransmissionCore && swift test
 
+# IMPORTANT: the default `swift` on this machine uses the Command Line Tools SDK,
+# which does NOT ship Swift Testing's `Testing` module. Plain `swift test` fails
+# with "no such module 'Testing'" even though the code is correct. Prefix every
+# package-test invocation with the full Xcode toolchain:
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+cd Packages/TransmissionCore && swift test
+
 # Build the macOS app target (slow; prefer the `xcode` MCP server's `BuildProject`).
 xcodebuild -project TransmissionSwift.xcodeproj -scheme TransmissionSwift build | xcbeautify
 
