@@ -10,9 +10,9 @@ final class UpdaterDelegate: NSObject, SPUUpdaterDelegate {
 
 final class UpdateService {
     let controller: SPUStandardUpdaterController
+    private let delegate = UpdaterDelegate()
 
     init() {
-        let delegate = UpdaterDelegate()
         controller = SPUStandardUpdaterController(
             startingUpdater: true,
             updaterDelegate: delegate,
