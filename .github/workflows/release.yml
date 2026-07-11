@@ -84,19 +84,21 @@ jobs:
                 event: 'push', branch: 'main', per_page: 50 }
             );
 
-            if (runs.length === 0) {
-              core.setFailed('No CI runs found for ${{ env.RELEASE_SHA }} on main. Wait for the push CI run to complete, then try again.');
+            const ciRuns = runs.filter(r => r.path === '.github/workflows/ci.yml');
+
+            if (ciRuns.length === 0) {
+              core.setFailed('No ci.yml runs found for ${{ env.RELEASE_SHA }} on main. Wait for the push CI run to complete, then try again.');
               return;
             }
 
-            const failed = runs.filter(r => r.conclusion !== 'success');
+            const failed = ciRuns.filter(r => r.conclusion !== 'success');
             if (failed.length > 0) {
               const names = failed.map(r => r.name).join(', ');
-              core.setFailed(`${failed.length} of ${runs.length} CI runs failed or pending for ${{ env.RELEASE_SHA }}: ${names}`);
+              core.setFailed(`${failed.length} of ${ciRuns.length} ci.yml runs failed or pending for ${{ env.RELEASE_SHA }}: ${names}`);
               return;
             }
 
-            core.info(`All ${runs.length} CI runs succeeded for ${{ env.RELEASE_SHA }}.`);
+            core.info(`All ${ciRuns.length} ci.yml runs succeeded for ${{ env.RELEASE_SHA }}.`);
 
       - name: Install xcbeautify
         run: brew install xcbeautify
