@@ -47,7 +47,40 @@ jobs:
       - name: Install xcbeautify
         run: brew install xcbeautify
 
-      - name: Build Release app
+      - name: Build arm64-only app
+        run: |
+          set -euo pipefail
+          set -o pipefail
+
+          xcodebuild \
+            -project TransmissionSwift.xcodeproj \
+            -scheme TransmissionSwift \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CURRENT_PROJECT_VERSION="$RELEASE_BUILD_VERSION" \
+            SWIFT_ACTIVE_COMPILATION_CONDITIONS=PRERELEASE \
+            build | xcbeautify --renderer github-actions
+
+      - name: Zip arm64 bundle
+        run: |
+          set -euo pipefail
+
+          app_path="build/DerivedData/Build/Products/Release/TransmissionSwift.app"
+          zip_path="build/TransmissionSwift-${RELEASE_DATE}-${SHORT_SHA}-arm64.zip"
+
+          if [ ! -d "$app_path" ]; then
+            echo "Expected arm64 app bundle not found at ${app_path}."
+            exit 1
+          fi
+
+          ditto -c -k --keepParent "$app_path" "$zip_path"
+          echo "ZIP_PATH_ARM64=$zip_path" >> "$GITHUB_ENV"
+
+      - name: Build universal app (reuses arm64 cache)
         run: |
           set -euo pipefail
           set -o pipefail
@@ -64,7 +97,7 @@ jobs:
             SWIFT_ACTIVE_COMPILATION_CONDITIONS=PRERELEASE \
             build | xcbeautify --renderer github-actions
 
-      - name: Zip app bundle
+      - name: Zip universal bundle
         run: |
           set -euo pipefail
 
@@ -85,10 +118,11 @@ jobs:
 
           curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/2.9.4/Sparkle-2.9.4.tar.xz" \
             -o /tmp/sparkle.tar.xz
-          tar xf /tmp/sparkle.tar.xz -C /tmp/
+          mkdir -p /tmp/sparkle
+          tar xf /tmp/sparkle.tar.xz --strip-components=1 -C /tmp/sparkle
           echo "/tmp/sparkle/bin" >> "$GITHUB_PATH"
 
-      - name: Sign zip and generate changelog
+      - name: Sign zips and generate changelog
         env:
           GH_TOKEN: ${{ github.token }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
@@ -96,13 +130,13 @@ jobs:
           set -euo pipefail
 
           tag="prerelease-${RELEASE_DATE}-${SHORT_SHA}"
-          zip_filename="TransmissionSwift-${RELEASE_DATE}-${SHORT_SHA}.zip"
-          download_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/${zip_filename}"
-          release_notes_url="https://jvacek.github.io/TransmissionSwift/release-notes-${tag}.md"
 
           mkdir -p build/appcast
 
-          # Sign the zip and capture signature + length
+          # --- Universal zip ---
+          zip_filename="TransmissionSwift-${RELEASE_DATE}-${SHORT_SHA}.zip"
+          download_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/${zip_filename}"
+
           sign_output=$(echo "$SPARKLE_PRIVATE_KEY" | sign_update \
             --ed-key-file - "$ZIP_PATH")
           signature=$(echo "$sign_output" | sed -n \
@@ -112,9 +146,28 @@ jobs:
 
           echo "SIGNATURE=$signature" >> "$GITHUB_ENV"
           echo "ED_LENGTH=$length" >> "$GITHUB_ENV"
-          echo "TAG=$tag" >> "$GITHUB_ENV"
           echo "ZIP_FILENAME=$zip_filename" >> "$GITHUB_ENV"
           echo "DOWNLOAD_URL=$download_url" >> "$GITHUB_ENV"
+
+          # --- Arm64-only zip ---
+          zip_filename_arm64="TransmissionSwift-${RELEASE_DATE}-${SHORT_SHA}-arm64.zip"
+          download_url_arm64="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/${zip_filename_arm64}"
+
+          sign_output_arm64=$(echo "$SPARKLE_PRIVATE_KEY" | sign_update \
+            --ed-key-file - "$ZIP_PATH_ARM64")
+          signature_arm64=$(echo "$sign_output_arm64" | sed -n \
+            's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
+          length_arm64=$(echo "$sign_output_arm64" | sed -n \
+            's/.*length="\([^"]*\)".*/\1/p')
+
+          echo "SIGNATURE_ARM64=$signature_arm64" >> "$GITHUB_ENV"
+          echo "ED_LENGTH_ARM64=$length_arm64" >> "$GITHUB_ENV"
+          echo "ZIP_FILENAME_ARM64=$zip_filename_arm64" >> "$GITHUB_ENV"
+          echo "DOWNLOAD_URL_ARM64=$download_url_arm64" >> "$GITHUB_ENV"
+
+          # --- Release notes ---
+          release_notes_url="https://jvacek.github.io/TransmissionSwift/release-notes-${tag}.md"
+          echo "TAG=$tag" >> "$GITHUB_ENV"
           echo "RELEASE_NOTES_URL=$release_notes_url" >> "$GITHUB_ENV"
 
           # Generate changelog from git log
@@ -142,6 +195,7 @@ jobs:
 
           gh release create "$TAG" \
             "$ZIP_PATH#$ZIP_FILENAME" \
+            "$ZIP_PATH_ARM64#$ZIP_FILENAME_ARM64" \
             --target "$RELEASE_SHA" \
             --prerelease \
             --title "$title" \
@@ -168,7 +222,10 @@ jobs:
             --signature "$SIGNATURE" \
             --length "$ED_LENGTH" \
             --release-notes-url "$RELEASE_NOTES_URL" \
-            --channel "beta"
+            --channel "beta" \
+            --download-url-arm64 "$DOWNLOAD_URL_ARM64" \
+            --signature-arm64 "$SIGNATURE_ARM64" \
+            --length-arm64 "$ED_LENGTH_ARM64"
 
       - name: Deploy appcast to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
