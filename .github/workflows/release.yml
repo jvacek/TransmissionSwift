@@ -41,6 +41,18 @@ jobs:
             exit 1
           fi
 
+      - name: Verify changelog
+        run: |
+          set -euo pipefail
+
+          changelog_path="changelog/${{ inputs.version }}.md"
+          if [ ! -f "$changelog_path" ]; then
+            echo "Changelog not found at ${changelog_path}."
+            echo "Create a file at changelog/${{ inputs.version }}.md with your release notes."
+            exit 1
+          fi
+          echo "CHANGELOG_PATH=$changelog_path" >> "$GITHUB_ENV"
+
       - name: Resolve release metadata
         env:
           VERSION: ${{ inputs.version }}
@@ -113,18 +125,6 @@ jobs:
 
           ditto -c -k --keepParent "$app_path" "$zip_path"
           echo "ZIP_PATH=$zip_path" >> "$GITHUB_ENV"
-
-      - name: Verify changelog
-        run: |
-          set -euo pipefail
-
-          changelog_path="changelog/${VERSION}.md"
-          if [ ! -f "$changelog_path" ]; then
-            echo "Changelog not found at ${changelog_path}."
-            echo "Create a file at changelog/${VERSION}.md with your release notes."
-            exit 1
-          fi
-          echo "CHANGELOG_PATH=$changelog_path" >> "$GITHUB_ENV"
 
       - name: Install Sparkle tools
         run: |
