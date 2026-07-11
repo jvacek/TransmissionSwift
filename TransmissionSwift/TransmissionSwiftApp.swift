@@ -71,11 +71,7 @@ struct TransmissionSwiftApp: App {
                 }
         }
         .commands {
-            CommandGroup(after: .appInfo) {
-                Button("Check for Updates…") {
-                    updateService.checkForUpdates(nil)
-                }
-            }
+            AboutCommands(updateService: updateService)
             CommandMenu("Server") {
                 if profileStore.profiles.isEmpty {
                     Text("No servers configured")
@@ -106,10 +102,34 @@ struct TransmissionSwiftApp: App {
             }
         }
 
+        Window("About TransmissionSwift", id: "about") {
+            AboutView()
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+
         Settings {
             PreferencesView()
                 .environment(profileStore)
                 .environment(faviconStore)
+        }
+    }
+}
+
+// MARK: - About commands
+
+private struct AboutCommands: Commands {
+    let updateService: UpdateService
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(replacing: .appInfo) {
+            Button("About TransmissionSwift") {
+                openWindow(id: "about")
+            }
+            Button("Check for Updates…") {
+                updateService.checkForUpdates(nil)
+            }
         }
     }
 }
