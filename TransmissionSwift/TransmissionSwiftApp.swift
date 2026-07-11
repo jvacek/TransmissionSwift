@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import Sparkle
 import SwiftUI
 import TransmissionCore
 
@@ -15,9 +16,13 @@ struct TransmissionSwiftApp: App {
     @State private var torrentStore: TorrentStore
     @State private var faviconStore = FaviconStore()
     private let mockMode: Bool
+    private let updateService = UpdateService()
 
     init() {
         UserDefaults.standard.register(defaults: ["pollingIntervalSeconds": 5.0])
+        #if PRERELEASE
+        UserDefaults.standard.register(defaults: ["includePrereleases": true])
+        #endif
 
         let args = CommandLine.arguments
         self.mockMode = args.contains("--mock-data")
@@ -66,6 +71,11 @@ struct TransmissionSwiftApp: App {
                 }
         }
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    updateService.checkForUpdates(nil)
+                }
+            }
             CommandMenu("Server") {
                 if profileStore.profiles.isEmpty {
                     Text("No servers configured")

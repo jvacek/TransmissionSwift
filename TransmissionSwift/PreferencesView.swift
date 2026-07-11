@@ -2,7 +2,7 @@ import SwiftUI
 import TransmissionCore
 import TransmissionRPC
 
-/// The five-pane Preferences window, registered as a `Settings` scene.
+/// The six-pane Preferences window, registered as a `Settings` scene.
 ///
 /// `pendingNavTab` is written by any "Server Settings…" call-site before
 /// invoking `openSettings()` / `showSettingsWindow:`. `onAppear` handles the
@@ -28,6 +28,9 @@ struct PreferencesView: View {
             ServersPrefsPane()
                 .tabItem { Label("Servers", systemImage: "server.rack") }
                 .tag(4)
+            UpdatesPrefsPane()
+                .tabItem { Label("Updates", systemImage: "arrow.down.circle") }
+                .tag(5)
         }
         .onAppear {
             guard pendingNavTab >= 0 else { return }
@@ -193,6 +196,24 @@ private struct SpeedPrefsPane: View {
                 Text("Turtle Schedule")
             }
             .disabled(true)
+        }
+        .formStyle(.grouped)
+        .frame(width: 480)
+    }
+}
+
+// MARK: - Updates
+
+private struct UpdatesPrefsPane: View {
+    @AppStorage("SUEnableAutomaticChecks") private var checkForUpdates = true
+    @AppStorage("includePrereleases") private var includePrereleases = false
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Check for updates on startup", isOn: $checkForUpdates)
+                Toggle("Include pre-release versions", isOn: $includePrereleases)
+            }
         }
         .formStyle(.grouped)
         .frame(width: 480)

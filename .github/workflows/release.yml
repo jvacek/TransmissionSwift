@@ -1,7 +1,16 @@
-name: Pre-release
+name: Stable Release
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.0.0)"
+        required: true
+        type: string
+      changelog:
+        description: "Release notes (Markdown). Used for both the Sparkle update window and the GitHub release body."
+        required: true
+        type: string
 
 permissions:
   actions: read
@@ -12,24 +21,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-prerelease:
-    name: Build macOS app pre-release
+  build-release:
+    name: Build stable release
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Verify default branch
         run: |
           set -euo pipefail
 
           if [ "$GITHUB_REF_NAME" != "main" ]; then
-            echo "Pre-releases are only published from main."
+            echo "Releases are only published from main."
             exit 1
           fi
 
-      - name: Resolve release commit
+      - name: Validate version
+        run: |
+          set -euo pipefail
+
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Version must be in semver format (e.g. 1.0.0)"
+            exit 1
+          fi
+
+      - name: Resolve release metadata
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
 
@@ -40,9 +58,10 @@ jobs:
           release_day="${release_day#0}"
 
           echo "RELEASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-          echo "SHORT_SHA=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
           echo "RELEASE_DATE=${release_year}-$(date -u +%m)-$(date -u +%d)" >> "$GITHUB_ENV"
           echo "RELEASE_BUILD_VERSION=${release_year}.${release_month}.${release_day}" >> "$GITHUB_ENV"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "TAG=v${VERSION}" >> "$GITHUB_ENV"
 
       - name: Verify CI succeeded for this commit
         env:
@@ -66,6 +85,8 @@ jobs:
         run: brew install xcbeautify
 
       - name: Build Release app
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
           set -o pipefail
@@ -79,7 +100,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             ONLY_ACTIVE_ARCH=NO \
             CURRENT_PROJECT_VERSION="$RELEASE_BUILD_VERSION" \
-            SWIFT_ACTIVE_COMPILATION_CONDITIONS=PRERELEASE \
+            MARKETING_VERSION="$VERSION" \
             build | xcbeautify --renderer github-actions
 
       - name: Zip app bundle
@@ -87,7 +108,7 @@ jobs:
           set -euo pipefail
 
           app_path="build/DerivedData/Build/Products/Release/TransmissionSwift.app"
-          zip_path="build/TransmissionSwift-${RELEASE_DATE}-${SHORT_SHA}.zip"
+          zip_path="build/TransmissionSwift-$TAG.zip"
 
           if [ ! -d "$app_path" ]; then
             echo "Expected app bundle not found at ${app_path}."
@@ -110,13 +131,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          VERSION: ${{ inputs.version }}
+          MANUAL_CHANGELOG: ${{ inputs.changelog }}
         run: |
           set -euo pipefail
 
-          tag="prerelease-${RELEASE_DATE}-${SHORT_SHA}"
-          zip_filename="TransmissionSwift-${RELEASE_DATE}-${SHORT_SHA}.zip"
-          download_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/${zip_filename}"
-          release_notes_url="https://jvacek.github.io/TransmissionSwift/release-notes-${tag}.md"
+          zip_filename="TransmissionSwift-$TAG.zip"
+          download_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${zip_filename}"
+          release_notes_url="https://jvacek.github.io/TransmissionSwift/release-notes-${TAG}.md"
 
           mkdir -p build/appcast
 
@@ -130,38 +152,29 @@ jobs:
 
           echo "SIGNATURE=$signature" >> "$GITHUB_ENV"
           echo "ED_LENGTH=$length" >> "$GITHUB_ENV"
-          echo "TAG=$tag" >> "$GITHUB_ENV"
           echo "ZIP_FILENAME=$zip_filename" >> "$GITHUB_ENV"
           echo "DOWNLOAD_URL=$download_url" >> "$GITHUB_ENV"
           echo "RELEASE_NOTES_URL=$release_notes_url" >> "$GITHUB_ENV"
 
-          # Generate changelog from git log
-          last_tag="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          # Write required manual changelog
           changelog_file="build/changelog.md"
-          if [ -n "$last_tag" ]; then
-            echo "# Changes since ${last_tag}" > "$changelog_file"
-            echo "" >> "$changelog_file"
-            git log "$last_tag..HEAD" --oneline --no-decorate >> "$changelog_file"
-          else
-            echo "# Initial pre-release" > "$changelog_file"
-          fi
+          printf '%s\n' "$MANUAL_CHANGELOG" > "$changelog_file"
 
           # Copy as release-notes-<tag>.md for gh-pages
-          cp "$changelog_file" "build/appcast/release-notes-${tag}.md"
+          cp "$changelog_file" "build/appcast/release-notes-${TAG}.md"
 
-      - name: Create GitHub pre-release
+      - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
           changelog_file="build/changelog.md"
-          title="Pre-release ${RELEASE_DATE} ${SHORT_SHA}"
+          title="TransmissionSwift ${VERSION}"
 
           gh release create "$TAG" \
             "$ZIP_PATH#$ZIP_FILENAME" \
             --target "$RELEASE_SHA" \
-            --prerelease \
             --title "$title" \
             --notes-file "$changelog_file"
 
@@ -174,19 +187,20 @@ jobs:
             -o build/appcast/appcast.xml || true
 
       - name: Update appcast
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
 
           python3 scripts/update_appcast.py \
             --appcast-path build/appcast/appcast.xml \
             --download-url "$DOWNLOAD_URL" \
-            --title "Pre-release ${RELEASE_DATE}" \
-            --short-version "0.1" \
+            --title "Version ${VERSION}" \
+            --short-version "$VERSION" \
             --build-version "$RELEASE_BUILD_VERSION" \
             --signature "$SIGNATURE" \
             --length "$ED_LENGTH" \
-            --release-notes-url "$RELEASE_NOTES_URL" \
-            --channel "beta"
+            --release-notes-url "$RELEASE_NOTES_URL"
 
       - name: Deploy appcast to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4

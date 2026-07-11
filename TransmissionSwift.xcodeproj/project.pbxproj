@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		FE1C71C52FD9E5AC009C9EED /* TransmissionRPC in Frameworks */ = {isa = PBXBuildFile; productRef = FE1C71C32FD9E5AC009C9EED /* TransmissionRPC */; };
 		FE1C71C62FD9E5AC009C9EED /* TransmissionCore in Frameworks */ = {isa = PBXBuildFile; productRef = FE1C71C42FD9E5AC009C9EED /* TransmissionCore */; };
+		FE1C71D22FD9E5AC009C9EEE /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = FE1C71D12FD9E5AC009C9EEE /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -72,6 +73,7 @@
 			files = (
 				FE1C71C52FD9E5AC009C9EED /* TransmissionRPC in Frameworks */,
 				FE1C71C62FD9E5AC009C9EED /* TransmissionCore in Frameworks */,
+				FE1C71D22FD9E5AC009C9EEE /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -134,6 +136,7 @@
 			packageProductDependencies = (
 				FE1C71C32FD9E5AC009C9EED /* TransmissionRPC */,
 				FE1C71C42FD9E5AC009C9EED /* TransmissionCore */,
+				FE1C71D12FD9E5AC009C9EEE /* Sparkle */,
 			);
 			productName = TransmissionSwift;
 			productReference = FE1C718D2FD9E5A9009C9EED /* TransmissionSwift.app */;
@@ -220,6 +223,7 @@
 			packageReferences = (
 				FE1C71C12FD9E5AC009C9EED /* XCLocalSwiftPackageReference "Packages/TransmissionRPC" */,
 				FE1C71C22FD9E5AC009C9EED /* XCLocalSwiftPackageReference "Packages/TransmissionCore" */,
+				FE1C71D02FD9E5AC009C9EEE /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = FE1C718E2FD9E5A9009C9EED /* Products */;
@@ -349,7 +353,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -408,7 +412,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
@@ -646,6 +650,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		FE1C71D02FD9E5AC009C9EEE /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.8.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		FE1C71C32FD9E5AC009C9EED /* TransmissionRPC */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -654,6 +669,11 @@
 		FE1C71C42FD9E5AC009C9EED /* TransmissionCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = TransmissionCore;
+		};
+		FE1C71D12FD9E5AC009C9EEE /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FE1C71D02FD9E5AC009C9EEE /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

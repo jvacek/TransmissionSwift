@@ -53,6 +53,13 @@
 			</dict>
 		</dict>
 	</array>
+	<!-- Sparkle auto-update settings -->
+	<key>SUFeedURL</key>
+	<string>https://jvacek.github.io/TransmissionSwift/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>yOx9DTZyOyDSed94L5kAT1cXbakXVwJGcCLXZEr/uQg=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
 	<!-- Handle magnet: links opened from a browser. Routed through the same
 	     .onOpenURL handler as .torrent files. -->
 	<key>CFBundleURLTypes</key>
