@@ -39,10 +39,14 @@ jobs:
           release_month="${release_month#0}"
           release_day="${release_day#0}"
 
+          # Append HHMMSS timestamp to support multiple prereleases per day.
+          # e.g. 2026.7.11.143022 — no external API needed, always unique.
+          RELEASE_BUILD_VERSION="${release_year}.${release_month}.${release_day}.$(date -u +%H%M%S)"
+
           echo "RELEASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
           echo "SHORT_SHA=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
           echo "RELEASE_DATE=${release_year}-$(date -u +%m)-$(date -u +%d)" >> "$GITHUB_ENV"
-          echo "RELEASE_BUILD_VERSION=${release_year}.${release_month}.${release_day}" >> "$GITHUB_ENV"
+          echo "RELEASE_BUILD_VERSION=${RELEASE_BUILD_VERSION}" >> "$GITHUB_ENV"
 
       - name: Install xcbeautify
         run: brew install xcbeautify
