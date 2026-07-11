@@ -7,10 +7,6 @@ on:
         description: "Release version (e.g. 1.0.0)"
         required: true
         type: string
-      changelog:
-        description: "Release notes (Markdown). Used for both the Sparkle update window and the GitHub release body."
-        required: true
-        type: string
 
 permissions:
   actions: read
@@ -118,6 +114,18 @@ jobs:
           ditto -c -k --keepParent "$app_path" "$zip_path"
           echo "ZIP_PATH=$zip_path" >> "$GITHUB_ENV"
 
+      - name: Verify changelog
+        run: |
+          set -euo pipefail
+
+          changelog_path="changelog/${VERSION}.md"
+          if [ ! -f "$changelog_path" ]; then
+            echo "Changelog not found at ${changelog_path}."
+            echo "Create a file at changelog/${VERSION}.md with your release notes."
+            exit 1
+          fi
+          echo "CHANGELOG_PATH=$changelog_path" >> "$GITHUB_ENV"
+
       - name: Install Sparkle tools
         run: |
           set -euo pipefail
@@ -132,7 +140,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
           VERSION: ${{ inputs.version }}
-          MANUAL_CHANGELOG: ${{ inputs.changelog }}
         run: |
           set -euo pipefail
 
@@ -156,12 +163,9 @@ jobs:
           echo "DOWNLOAD_URL=$download_url" >> "$GITHUB_ENV"
           echo "RELEASE_NOTES_URL=$release_notes_url" >> "$GITHUB_ENV"
 
-          # Write required manual changelog
-          changelog_file="build/changelog.md"
-          printf '%s\n' "$MANUAL_CHANGELOG" > "$changelog_file"
-
-          # Copy as release-notes-<tag>.md for gh-pages
-          cp "$changelog_file" "build/appcast/release-notes-${TAG}.md"
+          # Copy changelog to build for gh-pages and GitHub release
+          cp "$CHANGELOG_PATH" "build/appcast/release-notes-${TAG}.md"
+          cp "$CHANGELOG_PATH" "build/changelog.md"
 
       - name: Create GitHub release
         env:
