@@ -33,6 +33,8 @@ jobs:
           fi
 
       - name: Validate version
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
 
@@ -71,23 +73,30 @@ jobs:
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
           echo "TAG=v${VERSION}" >> "$GITHUB_ENV"
 
-      - name: Verify CI succeeded for this commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-          WORKFLOW: ci.yml
-        run: |
-          set -euo pipefail
+      - name: Verify all CI succeeded for this commit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runs = await github.paginate(
+              github.rest.actions.listWorkflowRunsForCommit,
+              { owner: context.repo.owner, repo: context.repo.repo,
+                commit_sha: '${{ env.RELEASE_SHA }}',
+                event: 'push', branch: 'main', per_page: 50 }
+            );
 
-          conclusion="$(gh api \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/${GITHUB_REPOSITORY}/actions/workflows/${WORKFLOW}/runs?head_sha=${RELEASE_SHA}&event=push&status=success&per_page=1" \
-            --jq '.workflow_runs[0].conclusion // ""')"
+            if (runs.length === 0) {
+              core.setFailed('No CI runs found for ${{ env.RELEASE_SHA }} on main. Wait for the push CI run to complete, then try again.');
+              return;
+            }
 
-          if [ "$conclusion" != "success" ]; then
-            echo "CI has not succeeded for ${RELEASE_SHA}."
-            echo "Wait for the push CI run to pass, then manually start this workflow again."
-            exit 1
-          fi
+            const failed = runs.filter(r => r.conclusion !== 'success');
+            if (failed.length > 0) {
+              const names = failed.map(r => r.name).join(', ');
+              core.setFailed(`${failed.length} of ${runs.length} CI runs failed or pending for ${{ env.RELEASE_SHA }}: ${names}`);
+              return;
+            }
+
+            core.info(`All ${runs.length} CI runs succeeded for ${{ env.RELEASE_SHA }}.`);
 
       - name: Install xcbeautify
         run: brew install xcbeautify
