@@ -15,6 +15,7 @@ This app lets you connect to a remote Transmission instance over RPC.
   - magnets links via UI
 - Enable slow mode
 - Combining filters in the sidebar
+- App self-updating via Sparkle
 
 It is written in Swift and SwiftUI, zipping down to a ~4MB app with minimal resource use.
 
@@ -38,7 +39,6 @@ Alternatively, you can open it in XCode and build it from there.
 ## What's being planned
 
 1. Separate polling loop for active torrents
-1. Self updating
 1. Setting priorities for torrents and for files
 1. Support tag colour coding
 1. Path mapping
