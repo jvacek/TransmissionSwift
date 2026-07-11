@@ -28,196 +28,11 @@ struct TorrentListView: View {
     var body: some View {
         @Bindable var store = store
 
-        let nameColumn =
-            TableColumn("Name", value: \Torrent.name) { torrent in
-                nameCell(torrent)
-            }
-            .width(min: 240, ideal: 400, max: 800)
-            .customizationID(TableColumn.name.rawValue)
-            .defaultVisibility(.visible)
-
-        let sizeColumn =
-            TableColumn("Size", value: \Torrent.size) { torrent in
-                sizeCell(torrent)
-            }
-            .width(min: 54, ideal: 74, max: 120)
-            .customizationID(TableColumn.size.rawValue)
-            .defaultVisibility(.visible)
-
-        let progressColumn =
-            TableColumn("Progress", value: \Torrent.progress) { torrent in
-                progressCell(torrent)
-            }
-            .width(min: 80, ideal: 130, max: 200)
-            .customizationID(TableColumn.progress.rawValue)
-            .defaultVisibility(.visible)
-
-        let downSpeedColumn =
-            TableColumn("\u{2193} Speed", value: \Torrent.downloadSpeed) { torrent in
-                downloadSpeedCell(torrent)
-            }
-            .width(min: 70, ideal: 95, max: 130)
-            .customizationID(TableColumn.downloadSpeed.rawValue)
-            .defaultVisibility(.visible)
-
-        let upSpeedColumn =
-            TableColumn("\u{2191} Speed", value: \Torrent.uploadSpeed) { torrent in
-                uploadSpeedCell(torrent)
-            }
-            .width(min: 70, ideal: 95, max: 130)
-            .customizationID(TableColumn.uploadSpeed.rawValue)
-            .defaultVisibility(.visible)
-
-        let etaColumn =
-            TableColumn("ETA", value: \Torrent.etaSortKey) { torrent in
-                etaCell(torrent)
-            }
-            .width(min: 52, ideal: 66, max: 100)
-            .customizationID(TableColumn.eta.rawValue)
-            .defaultVisibility(.visible)
-
-        let ratioColumn =
-            TableColumn("Ratio", value: \Torrent.ratio) { torrent in
-                ratioCell(torrent)
-            }
-            .width(min: 50, ideal: 60, max: 90)
-            .customizationID(TableColumn.ratio.rawValue)
-            .defaultVisibility(.visible)
-
-        let addedColumn =
-            TableColumn("Added", value: \Torrent.addedAt) { torrent in
-                addedCell(torrent)
-            }
-            .width(min: 72, ideal: 100, max: 150)
-            .customizationID(TableColumn.addedAt.rawValue)
-            .defaultVisibility(.visible)
-
-        let trackerColumn =
-            TableColumn("Tracker", value: \Torrent.primaryTracker) { torrent in
-                trackerCell(torrent)
-            }
-            .width(min: 80, ideal: 120, max: 200)
-            .customizationID(TableColumn.primaryTracker.rawValue)
-            .defaultVisibility(.visible)
-
-        let peersColumn =
-            TableColumn("Peers", value: \Torrent.connectedPeerCount) { torrent in
-                peersCell(torrent)
-            }
-            .width(min: 50, ideal: 65, max: 100)
-            .customizationID(TableColumn.connectedPeers.rawValue)
-            .defaultVisibility(.hidden)
-
-        let availColumn =
-            TableColumn("Available", value: \Torrent.availablePeerCount) { torrent in
-                availablePeersCell(torrent)
-            }
-            .width(min: 60, ideal: 80, max: 110)
-            .customizationID(TableColumn.availablePeers.rawValue)
-            .defaultVisibility(.hidden)
-
-        let seedsColumn =
-            TableColumn("Seeds", value: \Torrent.seedCount) { torrent in
-                seedsCell(torrent)
-            }
-            .width(min: 45, ideal: 60, max: 90)
-            .customizationID(TableColumn.seeds.rawValue)
-            .defaultVisibility(.hidden)
-
-        let statusColumn =
-            TableColumn("Status", value: \Torrent.status.rawValue) { torrent in
-                statusCell(torrent)
-            }
-            .width(min: 80, ideal: 100, max: 150)
-            .customizationID(TableColumn.status.rawValue)
-            .defaultVisibility(.hidden)
-
-        let labelColumn =
-            TableColumn("Label", value: \Torrent.labelSortKey) { torrent in
-                labelCell(torrent)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .width(min: 80, ideal: 120, max: 200)
-            .customizationID(TableColumn.label.rawValue)
-            .defaultVisibility(.hidden)
-
-        let priorityColumn =
-            TableColumn("Priority", value: \Torrent.priority.rawValue) { torrent in
-                priorityCell(torrent)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .width(min: 70, ideal: 90, max: 130)
-            .customizationID(TableColumn.priority.rawValue)
-            .defaultVisibility(.hidden)
-
-        let queueColumn =
-            TableColumn("Queue", value: \Torrent.queuePositionSortKey) { torrent in
-                queueCell(torrent)
-            }
-            .width(min: 50, ideal: 65, max: 100)
-            .customizationID(TableColumn.queuePosition.rawValue)
-            .defaultVisibility(.hidden)
-
-        let errorColumn =
-            TableColumn("Error", value: \Torrent.errorMessageSortKey) { torrent in
-                errorCell(torrent)
-            }
-            .width(min: 100, ideal: 200, max: 400)
-            .customizationID(TableColumn.errorMessage.rawValue)
-            .defaultVisibility(.hidden)
-
-        let piecesColumn =
-            TableColumn("Pieces", value: \Torrent.havePieces) { torrent in
-                piecesCell(torrent)
-            }
-            .width(min: 70, ideal: 90, max: 130)
-            .customizationID(TableColumn.pieces.rawValue)
-            .defaultVisibility(.hidden)
-
-        let folderColumn =
-            TableColumn("Folder", value: \Torrent.downloadFolder) { torrent in
-                folderCell(torrent)
-            }
-            .width(min: 120, ideal: 200, max: 400)
-            .customizationID(TableColumn.downloadFolder.rawValue)
-            .defaultVisibility(.hidden)
-
-        let hashColumn =
-            TableColumn("Hash", value: \Torrent.hash) { torrent in
-                hashCell(torrent)
-            }
-            .width(min: 100, ideal: 200, max: 400)
-            .customizationID(TableColumn.hash.rawValue)
-            .defaultVisibility(.hidden)
-
         return Table(
             rows, selection: $store.selectedTorrentIDs, sortOrder: $sortOrder,
             columnCustomization: $columnCustomization
         ) {
-            Group {
-                nameColumn
-                sizeColumn
-                progressColumn
-                downSpeedColumn
-                upSpeedColumn
-                etaColumn
-                ratioColumn
-                addedColumn
-                trackerColumn
-                peersColumn
-            }
-            Group {
-                availColumn
-                seedsColumn
-                statusColumn
-                labelColumn
-                priorityColumn
-                queueColumn
-                errorColumn
-                piecesColumn
-                folderColumn
-                hashColumn
-            }
+            allColumns()
         }
         .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
         .tableColumnHeaders(.automatic)
@@ -277,6 +92,157 @@ struct TorrentListView: View {
 }
 
 extension TorrentListView {
+    // MARK: - Column Definitions
+
+    @TableColumnBuilder<Torrent, KeyPathComparator<Torrent>>
+    private func allColumns() -> some TableColumnContent<Torrent, KeyPathComparator<Torrent>> {
+        Group {
+            TableColumn("Name", value: \Torrent.name) { torrent in
+                nameCell(torrent)
+            }
+            .width(min: 240, ideal: 400, max: 800)
+            .customizationID(TableColumn.name.rawValue)
+            .defaultVisibility(.visible)
+
+            TableColumn("Size", value: \Torrent.size) { torrent in
+                sizeCell(torrent)
+            }
+            .width(min: 54, ideal: 74, max: 120)
+            .customizationID(TableColumn.size.rawValue)
+            .defaultVisibility(.visible)
+
+            TableColumn("Progress", value: \Torrent.progress) { torrent in
+                progressCell(torrent)
+            }
+            .width(min: 80, ideal: 130, max: 200)
+            .customizationID(TableColumn.progress.rawValue)
+            .defaultVisibility(.visible)
+
+            TableColumn("\u{2193} Speed", value: \Torrent.downloadSpeed) { torrent in
+                downloadSpeedCell(torrent)
+            }
+            .width(min: 70, ideal: 95, max: 130)
+            .customizationID(TableColumn.downloadSpeed.rawValue)
+            .defaultVisibility(.visible)
+
+            TableColumn("\u{2191} Speed", value: \Torrent.uploadSpeed) { torrent in
+                uploadSpeedCell(torrent)
+            }
+            .width(min: 70, ideal: 95, max: 130)
+            .customizationID(TableColumn.uploadSpeed.rawValue)
+            .defaultVisibility(.visible)
+
+            TableColumn("ETA", value: \Torrent.etaSortKey) { torrent in
+                etaCell(torrent)
+            }
+            .width(min: 52, ideal: 66, max: 100)
+            .customizationID(TableColumn.eta.rawValue)
+            .defaultVisibility(.visible)
+
+            TableColumn("Ratio", value: \Torrent.ratio) { torrent in
+                ratioCell(torrent)
+            }
+            .width(min: 50, ideal: 60, max: 90)
+            .customizationID(TableColumn.ratio.rawValue)
+            .defaultVisibility(.visible)
+
+            TableColumn("Added", value: \Torrent.addedAt) { torrent in
+                addedCell(torrent)
+            }
+            .width(min: 72, ideal: 100, max: 150)
+            .customizationID(TableColumn.addedAt.rawValue)
+            .defaultVisibility(.visible)
+
+            TableColumn("Tracker", value: \Torrent.primaryTracker) { torrent in
+                trackerCell(torrent)
+            }
+            .width(min: 80, ideal: 120, max: 200)
+            .customizationID(TableColumn.primaryTracker.rawValue)
+            .defaultVisibility(.visible)
+
+            TableColumn("Peers", value: \Torrent.connectedPeerCount) { torrent in
+                peersCell(torrent)
+            }
+            .width(min: 50, ideal: 65, max: 100)
+            .customizationID(TableColumn.connectedPeers.rawValue)
+            .defaultVisibility(.hidden)
+        }
+
+        Group {
+            TableColumn("Available", value: \Torrent.availablePeerCount) { torrent in
+                availablePeersCell(torrent)
+            }
+            .width(min: 60, ideal: 80, max: 110)
+            .customizationID(TableColumn.availablePeers.rawValue)
+            .defaultVisibility(.hidden)
+
+            TableColumn("Seeds", value: \Torrent.seedCount) { torrent in
+                seedsCell(torrent)
+            }
+            .width(min: 45, ideal: 60, max: 90)
+            .customizationID(TableColumn.seeds.rawValue)
+            .defaultVisibility(.hidden)
+
+            TableColumn("Status", value: \Torrent.status.rawValue) { torrent in
+                statusCell(torrent)
+            }
+            .width(min: 80, ideal: 100, max: 150)
+            .customizationID(TableColumn.status.rawValue)
+            .defaultVisibility(.hidden)
+
+            TableColumn("Label", value: \Torrent.labelSortKey) { torrent in
+                labelCell(torrent)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .width(min: 80, ideal: 120, max: 200)
+            .customizationID(TableColumn.label.rawValue)
+            .defaultVisibility(.hidden)
+
+            TableColumn("Priority", value: \Torrent.priority.rawValue) { torrent in
+                priorityCell(torrent)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .width(min: 70, ideal: 90, max: 130)
+            .customizationID(TableColumn.priority.rawValue)
+            .defaultVisibility(.hidden)
+
+            TableColumn("Queue", value: \Torrent.queuePositionSortKey) { torrent in
+                queueCell(torrent)
+            }
+            .width(min: 50, ideal: 65, max: 100)
+            .customizationID(TableColumn.queuePosition.rawValue)
+            .defaultVisibility(.hidden)
+
+            TableColumn("Error", value: \Torrent.errorMessageSortKey) { torrent in
+                errorCell(torrent)
+            }
+            .width(min: 100, ideal: 200, max: 400)
+            .customizationID(TableColumn.errorMessage.rawValue)
+            .defaultVisibility(.hidden)
+
+            TableColumn("Pieces", value: \Torrent.havePieces) { torrent in
+                piecesCell(torrent)
+            }
+            .width(min: 70, ideal: 90, max: 130)
+            .customizationID(TableColumn.pieces.rawValue)
+            .defaultVisibility(.hidden)
+
+            TableColumn("Folder", value: \Torrent.downloadFolder) { torrent in
+                folderCell(torrent)
+            }
+            .width(min: 120, ideal: 200, max: 400)
+            .customizationID(TableColumn.downloadFolder.rawValue)
+            .defaultVisibility(.hidden)
+
+            TableColumn("Hash", value: \Torrent.hash) { torrent in
+                hashCell(torrent)
+            }
+            .width(min: 100, ideal: 200, max: 400)
+            .customizationID(TableColumn.hash.rawValue)
+            .defaultVisibility(.hidden)
+        }
+    }
+
     // MARK: - Table Cell Functions
 
     @ViewBuilder
