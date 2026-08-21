@@ -7,6 +7,8 @@ struct ContentView: View {
     @Environment(TorrentStore.self) private var torrentStore
     @Environment(\.scenePhase) private var scenePhase
     let mockMode: Bool
+    /// True when replaying a captured snapshot file (`--snapshot`).
+    let snapshotMode: Bool
 
     private let keychain = KeychainStore()
     @State private var hasAppeared = false
@@ -16,6 +18,10 @@ struct ContentView: View {
         Group {
             if mockMode {
                 MainWindow(mockMode: mockMode)
+            } else if snapshotMode {
+                // Replay: frozen, read-only state from the snapshot file. No
+                // connect task — the service is already the snapshot source.
+                MainWindow(mockMode: false)
             } else {
                 // Always render the main window — when no profile exists it shows
                 // a "No Servers" empty state pointing at Settings, so onboarding

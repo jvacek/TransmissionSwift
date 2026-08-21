@@ -376,6 +376,37 @@ public final class TorrentStore {
         freeSpace = await service.freeSpace()
     }
 
+    /// Capture an anonymized snapshot of the current daemon state and write it
+    /// to `url`. Runs the full pipeline: raw capture → scope (current filters
+    /// + torrent limit) → deterministic redaction → leak check → write.
+    /// Returns what was redacted and how many torrents made it in, for the
+    /// capture-complete alert.
+    public func captureSnapshot(
+        to url: URL,
+        options: SnapshotRedactionOptions = SnapshotRedactionOptions()
+    ) async throws -> SnapshotCaptureResult {
+        let raw = try await service.captureRawSnapshot()
+        let visibleOrder = options.respectFilters ? visibleTorrents.map(\.id) : nil
+        let scoped = SnapshotScope.apply(
+            to: raw.torrents, visibleOrder: visibleOrder, maxTorrents: options.maxTorrents
+        )
+        var scopedRaw = raw
+        scopedRaw.torrents = scoped
+        let redactor = SnapshotRedactor(options: options)
+        let (tree, summary) = try redactor.redact(scopedRaw)
+        try SnapshotLeakChecker.check(
+            tree,
+            namesKept: options.includeNames,
+            anonymizeTrackers: options.anonymizeTrackers
+        )
+        let data = try JSONSerialization.data(
+            withJSONObject: tree,
+            options: [.sortedKeys, .prettyPrinted]
+        )
+        try data.write(to: url, options: .atomic)
+        return SnapshotCaptureResult(summary: summary, torrentCount: scoped.count)
+    }
+
     public func setConnectionFailed(reason: String) {
         connection = .disconnected(reason: reason)
     }

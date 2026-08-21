@@ -31,6 +31,9 @@ struct PreferencesView: View {
             UpdatesPrefsPane()
                 .tabItem { Label("Updates", systemImage: "arrow.down.circle") }
                 .tag(5)
+            DeveloperPrefsPane()
+                .tabItem { Label("Developer", systemImage: "wrench.and.screwdriver") }
+                .tag(6)
         }
         .onAppear {
             guard pendingNavTab >= 0 else { return }

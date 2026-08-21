@@ -79,6 +79,36 @@ If you need to add a dependency that crosses these boundaries the wrong directio
 - RPC test fixtures in `Packages/TransmissionRPC/Tests/TransmissionRPCTests/Fixtures/` were captured from a real daemon with `curl` — recapture rather than hand-edit when the protocol surface grows.
 - Opt-in E2E UI test (needs the daemon above): `TEST_RUNNER_TRANSMISSION_E2E=1 xcodebuild test -project TransmissionSwift.xcodeproj -scheme TransmissionSwift -only-testing:TransmissionSwiftUITests`.
 
+## Snapshot capture & replay
+
+Reproduce a real-daemon bug without the server (see `doc/snapshot-replay.md` for
+design + redaction policy). The app captures the daemon's state into one
+anonymized JSON file, and replays it read-only — no daemon, no credentials.
+
+**Capture** (needs a live, connected server): Settings → **Developer** tab →
+**Capture Snapshot…** → save the JSON (e.g. to `~/Downloads`). It runs a
+redaction pass (names kept, trackers/IPs/paths/hashes/timestamps scrubbed) and
+a leak-check tripwire that refuses the file if anything identifying survives.
+
+**Replay**: launch the app with a path to the file:
+```bash
+open Build/Products/Debug/TransmissionSwift.app --args --snapshot ~/Downloads/snapshot-*.json
+```
+The app boots a read-only, frozen view of that state (actions disabled).
+
+Gotchas:
+- The sandbox blocks reading an arbitrary CLI path. The target grants **read**
+  access to `~/Downloads` via `ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readonly`,
+  so keep snapshots there for `--snapshot`.
+- `--snapshot` wins over `--mock-data`, and forces ephemeral profiles (the
+  synthetic "Snapshot — <name>" profile is never persisted to the real
+  `servers.json`).
+- If the file fails to decode, the app logs `Snapshot load failed: …` and falls
+  back to an empty list — check the console.
+- Implementation: `SnapshotTorrentService` (TransmissionCore) decodes through
+  the same `Torrent(wire:)` mapping as a live poll. Capture lives in
+  `TorrentStore.captureSnapshot` + `SnapshotRedactor` + `SnapshotLeakChecker`.
+
 ## Working efficiently in this repo
 
 - **Token economy** (sessions here default to a mid-tier model on purpose):

@@ -72,10 +72,19 @@ public protocol TorrentService: Sendable {
     /// `TorrentStore` to back the inspector detail pane without merging rich
     /// data into the main list (which gets wiped every poll).
     func inspectorData(for id: Torrent.ID) async throws -> Torrent
+
+    /// Fetch the full daemon state (session + every torrent with list and
+    /// inspector fields) as an unredacted wire-shaped snapshot. Only
+    /// `RPCTorrentService` implements this; mock / replay services throw
+    /// `SnapshotError.captureUnsupported`.
+    func captureRawSnapshot() async throws -> SnapshotFile
 }
 
 extension TorrentService {
     public var supportsActions: Bool { true }
     public func freeSpace() async -> Int64? { nil }
     public func downloadDirectory() async -> String? { nil }
+    public func captureRawSnapshot() async throws -> SnapshotFile {
+        throw SnapshotError.captureUnsupported
+    }
 }

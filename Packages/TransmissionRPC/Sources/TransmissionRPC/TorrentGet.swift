@@ -2,20 +2,20 @@ import Foundation
 
 // MARK: - Inspector wire types
 
-public struct WireFile: Decodable, Sendable {
+public struct WireFile: Codable, Sendable {
     public var name: String
     public var length: Int64
     public var bytesCompleted: Int64
 }
 
-public struct WireFileStat: Decodable, Sendable {
+public struct WireFileStat: Codable, Sendable {
     public var bytesCompleted: Int64
     public var wanted: Bool
     /// -1 = low, 0 = normal, 1 = high.
     public var priority: Int
 }
 
-public struct WirePeer: Decodable, Sendable {
+public struct WirePeer: Codable, Sendable {
     public var address: String
     public var clientName: String
     public var flagStr: String
@@ -26,7 +26,7 @@ public struct WirePeer: Decodable, Sendable {
     public var rateToPeer: Int64
 }
 
-public struct WireTrackerStat: Decodable, Sendable {
+public struct WireTrackerStat: Codable, Sendable {
     public var id: Int
     public var tier: Int
     public var host: String
@@ -44,7 +44,7 @@ public struct WireTrackerStat: Decodable, Sendable {
 
 // MARK: - Peers-from breakdown
 
-public struct WirePeersFrom: Decodable, Sendable {
+public struct WirePeersFrom: Codable, Sendable {
     public var fromCache: Int
     public var fromDht: Int
     public var fromIncoming: Int
@@ -58,14 +58,14 @@ public struct WirePeersFrom: Decodable, Sendable {
     }
 }
 
-public struct WireTrackerStub: Decodable, Sendable {
+public struct WireTrackerStub: Codable, Sendable {
     public var announce: String
     /// Added in Transmission 4.0.0 (rpc-version 17); falls back to host parsed from `announce`.
     public var sitename: String?
     public var tier: Int
 }
 
-public struct WireTorrent: Decodable, Sendable {
+public struct WireTorrent: Codable, Sendable {
     public var id: Int
     public var name: String
     public var hashString: String

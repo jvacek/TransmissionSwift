@@ -236,6 +236,28 @@ public actor RPCTorrentService: TorrentService {
         await refreshAfterMutation()
     }
 
+    // MARK: - Snapshot capture
+
+    public func captureRawSnapshot() async throws -> SnapshotFile {
+        // The union of list + inspector fields: the snapshot is wire-shaped, so
+        // replay decodes through the exact same path as a live poll.
+        let fields = TorrentGetResponse.listFields + TorrentGetResponse.inspectorFields
+        let response = try await client.torrentGet(fields: fields, ids: nil)
+        let session = try await client.sessionGet()
+        return SnapshotFile(
+            version: snapshotFormatVersion,
+            capturedAt: ISO8601DateFormatter().string(from: Date()),
+            source: SnapshotSourceInfo(
+                daemonVersion: session.version,
+                rpcVersion: session.rpcVersion,
+                redacted: false
+            ),
+            session: session,
+            torrents: response.torrents,
+            redactions: nil
+        )
+    }
+
     // MARK: - Post-mutation refresh
 
     /// After a mutation RPC succeeds, immediately re-fetch and yield a fresh
