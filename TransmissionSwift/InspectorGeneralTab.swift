@@ -29,9 +29,13 @@ struct InspectorGeneralTab: View {
                 .foregroundStyle(.secondary)
 
             if let error = torrent.errorMessage {
-                Label(error, systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(.red)
+                Label {
+                    LinkableText(text: error, color: .red)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle")
+                }
+                .font(.caption)
+                .foregroundStyle(.red)
             }
 
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
@@ -67,7 +71,7 @@ struct InspectorGeneralTab: View {
                 row("Location", torrent.downloadFolder, monospaced: true)
                 row("Label", torrent.label ?? "—")
                 row("Priority", torrent.priority.displayLabel)
-                row("Tracker", torrent.primaryTracker)
+                trackerRow
                 row("Hash", torrent.hash, monospaced: true)
             }
             .font(.callout)
@@ -92,6 +96,21 @@ struct InspectorGeneralTab: View {
     private var peersSummary: String {
         "\(torrent.connectedPeerCount) connected of \(torrent.availablePeerCount)"
             + " · \(torrent.seedCount) seeds"
+    }
+
+    private var trackerRow: some View {
+        GridRow {
+            Text("Tracker")
+                .foregroundStyle(.secondary)
+                .gridColumnAlignment(.trailing)
+            LinkableText(text: torrent.primaryTracker)
+                .font(.callout)
+                .monospacedDigit()
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     private func row(_ label: String, _ value: String, monospaced: Bool = false) -> some View {

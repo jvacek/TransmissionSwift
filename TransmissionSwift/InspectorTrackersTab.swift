@@ -50,9 +50,11 @@ private struct TrackerCard: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
-                Text(tracker.statusMessage)
-                    .font(.caption)
-                    .foregroundStyle(tracker.state == .error ? Color.red : Color.secondary)
+                LinkableText(
+                    text: tracker.statusMessage,
+                    color: tracker.state == .error ? Color.red : Color.secondary
+                )
+                .font(.caption)
                 Text(statsLine)
                     .font(.caption)
                     .monospacedDigit()
