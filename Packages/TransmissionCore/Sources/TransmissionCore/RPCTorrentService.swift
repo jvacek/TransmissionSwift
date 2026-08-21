@@ -99,18 +99,22 @@ public actor RPCTorrentService: TorrentService {
 
     public func start(_ ids: [Torrent.ID]) async throws {
         try await client.torrentAction("torrent-start", ids: ids)
+        await refreshAfterMutation()
     }
 
     public func stop(_ ids: [Torrent.ID]) async throws {
         try await client.torrentAction("torrent-stop", ids: ids)
+        await refreshAfterMutation()
     }
 
     public func remove(_ ids: [Torrent.ID], deleteLocalData: Bool) async throws {
         try await client.torrentRemove(ids: ids, deleteLocalData: deleteLocalData)
+        await refreshAfterMutation()
     }
 
     public func verify(_ ids: [Torrent.ID]) async throws {
         try await client.torrentAction("torrent-verify", ids: ids)
+        await refreshAfterMutation()
     }
 
     public func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool)
@@ -125,6 +129,7 @@ public actor RPCTorrentService: TorrentService {
             args.filesUnwanted = fileIDs
         }
         try await client.torrentSet(args)
+        await refreshAfterMutation()
     }
 
     public func setFilePriority(
@@ -138,6 +143,7 @@ public actor RPCTorrentService: TorrentService {
         case .high: args.priorityHigh = fileIDs
         }
         try await client.torrentSet(args)
+        await refreshAfterMutation()
     }
 
     public func setOptions(_ id: Torrent.ID, options: TorrentOptions) async throws {
@@ -153,6 +159,7 @@ public actor RPCTorrentService: TorrentService {
         args.seedIdleMode = options.seedIdleLimited ? 1 : 0
         args.peerLimit = options.peerLimit
         try await client.torrentSet(args)
+        await refreshAfterMutation()
     }
 
     public func setAlternativeSpeedEnabled(_ enabled: Bool) async throws {
@@ -226,9 +233,18 @@ public actor RPCTorrentService: TorrentService {
         if let dup = response.torrentDuplicate {
             throw TransmissionError.torrentDuplicate(name: dup.name)
         }
-        // Success: surface the new torrent immediately instead of waiting for the
-        // next poll tick. Best-effort — a failed refresh is harmless since the
-        // poll loop will pick it up shortly.
+        await refreshAfterMutation()
+    }
+
+    // MARK: - Post-mutation refresh
+
+    /// After a mutation RPC succeeds, immediately re-fetch and yield a fresh
+    /// snapshot so the UI reflects the change without waiting for the next poll
+    /// tick. Best-effort — a failed refresh is harmless because the poll loop
+    /// picks the change up shortly. The mutation RPCs return no state (spec
+    /// §3.1–3.4 "Response arguments: none"), so this second `torrent-get` is
+    /// unavoidable.
+    private func refreshAfterMutation() async {
         if let snapshot = try? await torrents() {
             continuation?.yield(snapshot)
         }

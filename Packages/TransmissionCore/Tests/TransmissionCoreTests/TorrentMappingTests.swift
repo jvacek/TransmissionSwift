@@ -518,4 +518,20 @@ struct RPCTorrentServiceTests {
         // Drop the iterator (no further .next() calls) to let the stream terminate.
         _ = iterator  // silence unused warning; ARC releases it when this scope exits
     }
+
+    @Test("a mutation triggers an immediate refresh snapshot")
+    func mutationRefreshesImmediately() async throws {
+        let stub = StubClient()
+        let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
+
+        let stream = await service.torrentsStream()
+        var iterator = stream.makeAsyncIterator()
+        _ = try await iterator.next()
+        let before = await stub.callCount
+
+        try await service.stop([1])
+
+        let after = await stub.callCount
+        #expect(after >= before + 1)
+    }
 }
