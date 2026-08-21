@@ -19,23 +19,6 @@ struct ContentView: View {
                 // Replay: frozen, read-only state from the snapshot file. No
                 // connect task — the service is already the snapshot source.
                 MainWindow()
-                    .task {
-                        // TEMP repro hook: deterministic small→big filter
-                        // change for hang profiling. Remove with the experiment.
-                        guard CommandLine.arguments.contains("--repro-filter-expand") else { return }
-                        if CommandLine.arguments.contains("--repro-start-small") {
-                            torrentStore.setStatusFilter(.downloading)
-                        }
-                        let deadline = Date().addingTimeInterval(10)
-                        while torrentStore.torrents.isEmpty && Date() < deadline {
-                            try? await Task.sleep(for: .milliseconds(100))
-                        }
-                        torrentStore.setStatusFilter(.downloading)
-                        try? await Task.sleep(for: .seconds(2))
-                        try? "#trigger".write(
-                            toFile: "/tmp/tswift-hook-trigger", atomically: true, encoding: .utf8)
-                        torrentStore.setStatusFilter(.all)
-                    }
             } else {
                 // Always render the main window — when no profile exists it shows
                 // a "No Servers" empty state pointing at Settings, so onboarding
