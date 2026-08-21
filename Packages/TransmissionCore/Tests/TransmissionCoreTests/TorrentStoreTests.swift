@@ -18,7 +18,7 @@ struct FilterFacetsTests {
         #expect(facets.statusCounts[.paused] == 1)
         #expect(facets.statusCounts[.checking] == 1)
         #expect(facets.statusCounts[.queued] == 1)
-        #expect(facets.statusCounts[.error] == 1)
+        #expect(facets.statusCounts[.error] == 2)
     }
 
     @Test("tracker / folder / label rollups are derived from the torrent list")

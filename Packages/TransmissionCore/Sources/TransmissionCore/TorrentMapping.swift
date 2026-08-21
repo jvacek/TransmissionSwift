@@ -3,7 +3,7 @@ import TransmissionRPC
 
 extension Torrent {
     public init(wire: WireTorrent) {
-        let status = Self.mapStatus(wireStatus: wire.status, error: wire.error, isFinished: wire.isFinished)
+        var status = Self.mapStatus(wireStatus: wire.status, error: wire.error, isFinished: wire.isFinished)
 
         let eta: TimeInterval? = wire.eta > 0 ? TimeInterval(wire.eta) : nil
 
@@ -22,7 +22,7 @@ extension Torrent {
 
         let queuePosition: Int? = wire.queuePosition >= 0 ? wire.queuePosition : nil
 
-        let errorMessage: String? =
+        var errorMessage: String? =
             wire.error >= 2
             ? (wire.errorString.isEmpty ? "Error \(wire.error)" : wire.errorString)
             : nil
@@ -138,6 +138,26 @@ extension Torrent {
                     leechCount: 0,
                     downloadCount: 0
                 )
+            }
+        }
+
+        // Transmission only raises the torrent-level `error` for hard failures
+        // (tracker rejection, local errors). A tracker that's merely unreachable
+        // leaves `error == 0` and gets retried silently — so when every tracker
+        // has announced and failed, treat the torrent itself as errored.
+        let allTrackersFailed =
+            !resolvedTrackers.isEmpty
+            && resolvedTrackers.allSatisfy { $0.state == .error }
+
+        if status == .downloading || status == .seeding, allTrackersFailed {
+            status = .error
+            if errorMessage == nil {
+                let reasons = Set(resolvedTrackers.compactMap(\.statusMessage).filter { !$0.isEmpty })
+                    .sorted()
+                errorMessage =
+                    reasons.isEmpty
+                    ? "All trackers failed"
+                    : "All trackers failed — \(reasons.joined(separator: " · "))"
             }
         }
 

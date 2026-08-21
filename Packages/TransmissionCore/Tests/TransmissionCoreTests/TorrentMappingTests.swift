@@ -17,7 +17,8 @@ private func makeWire(
     pieceSize: Int64 = 1024,
     haveValid: Int64 = 0,
     queuePosition: Int = 0,
-    trackers: [WireTrackerStub]? = nil
+    trackers: [WireTrackerStub]? = nil,
+    trackerStats: [WireTrackerStat]? = nil
 ) -> WireTorrent {
     WireTorrent(
         id: 1,
@@ -48,7 +49,8 @@ private func makeWire(
         pieceSize: pieceSize,
         haveValid: haveValid,
         queuePosition: queuePosition,
-        trackers: trackers
+        trackers: trackers,
+        trackerStats: trackerStats
     )
 }
 
@@ -116,6 +118,117 @@ struct StatusMappingTests {
 
     @Test("status 6 maps to .seeding")
     func status6() { #expect(Torrent(wire: makeWire(status: 6)).status == .seeding) }
+}
+
+// MARK: - Tracker-failure → error status
+
+@Suite("TorrentMapping — tracker failure promotes to error")
+struct TrackerFailureStatusTests {
+    private func stat(
+        host: String = "tracker.example.com",
+        succeeded: Bool = false,
+        result: String = "Connection timed out"
+    ) -> WireTrackerStat {
+        WireTrackerStat(
+            id: 1, tier: 0, host: host,
+            lastAnnounceResult: result, lastAnnounceTime: 0,
+            lastAnnounceSucceeded: succeeded, hasAnnounced: true,
+            announceState: 1, seederCount: 0, leecherCount: 0,
+            downloadCount: 0, isBackup: false)
+    }
+
+    private func stub(host: String) -> WireTrackerStub {
+        WireTrackerStub(announce: "https://\(host)/announce", sitename: host, tier: 0)
+    }
+
+    @Test("seeding torrent with all trackers failed → .error")
+    func seedingAllFailed() {
+        var wire = makeWire(
+            status: 6,
+            trackers: [stub(host: "a.example.com"), stub(host: "b.example.com")],
+            trackerStats: [
+                stat(host: "a.example.com"),
+                stat(host: "b.example.com"),
+            ]
+        )
+        let t = Torrent(wire: wire)
+        #expect(t.status == .error)
+        #expect(t.errorMessage == "All trackers failed — Connection timed out")
+    }
+
+    @Test("downloading torrent with all trackers failed → .error")
+    func downloadingAllFailed() {
+        var wire = makeWire(
+            status: 4, trackers: [stub(host: "a.example.com")], trackerStats: [stat(host: "a.example.com")])
+        #expect(Torrent(wire: wire).status == .error)
+    }
+
+    @Test("mixed working + failed trackers keeps original status")
+    func mixedTrackers() {
+        var wire = makeWire(
+            status: 6,
+            trackers: [stub(host: "a.example.com"), stub(host: "b.example.com")],
+            trackerStats: [
+                stat(host: "a.example.com", succeeded: true),
+                stat(host: "b.example.com"),
+            ]
+        )
+        #expect(Torrent(wire: wire).status == .seeding)
+    }
+
+    @Test("one failed + one never-announced keeps original status")
+    func oneFailedOneIdle() {
+        var wire = makeWire(status: 6, trackers: [stub(host: "a.example.com"), stub(host: "b.example.com")])
+        wire.trackerStats = [
+            stat(host: "a.example.com"),
+            WireTrackerStat(
+                id: 2, tier: 0, host: "b.example.com",
+                lastAnnounceResult: "", lastAnnounceTime: 0,
+                lastAnnounceSucceeded: false, hasAnnounced: false,
+                announceState: 1, seederCount: 0, leecherCount: 0,
+                downloadCount: 0, isBackup: false),
+        ]
+        #expect(Torrent(wire: wire).status == .seeding)
+    }
+
+    @Test("empty trackers keeps original status")
+    func noTrackers() {
+        var wire = makeWire(status: 6)
+        wire.trackers = []
+        wire.trackerStats = []
+        #expect(Torrent(wire: wire).status == .seeding)
+    }
+
+    @Test("paused torrent with all trackers failed stays paused")
+    func pausedNotPromoted() {
+        var wire = makeWire(
+            status: 0, trackers: [stub(host: "a.example.com")], trackerStats: [stat(host: "a.example.com")])
+        #expect(Torrent(wire: wire).status == .paused)
+    }
+
+    @Test("torrent-level error still wins and uses errorString")
+    func hardErrorStillWins() {
+        var wire = makeWire(
+            status: 6, error: 2, errorString: "unregistered torrent",
+            trackers: [stub(host: "a.example.com")],
+            trackerStats: [stat(host: "a.example.com")]
+        )
+        let t = Torrent(wire: wire)
+        #expect(t.status == .error)
+        #expect(t.errorMessage == "unregistered torrent")
+    }
+
+    @Test("empty tracker result falls back to 'Announce failed' in the message")
+    func emptyResultFallsBack() {
+        var wire = makeWire(
+            status: 4,
+            trackers: [stub(host: "a.example.com")],
+            trackerStats: [stat(host: "a.example.com", result: "")]
+        )
+        let t = Torrent(wire: wire)
+        #expect(t.status == .error)
+        #expect(t.errorMessage == "All trackers failed — Announce failed")
+    }
 }
 
 // MARK: - ETA mapping

@@ -123,7 +123,7 @@ extension TorrentGetResponse {
         "downloadDir", "addedDate",
         "labels", "bandwidthPriority",
         "pieceCount", "pieceSize", "haveValid",
-        "queuePosition", "trackers",
+        "queuePosition", "trackers", "trackerStats",
     ]
 
     /// Extra fields fetched for the inspector — only requested for the selected

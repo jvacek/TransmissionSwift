@@ -292,6 +292,41 @@ public enum MockFixtures {
                 peers: [],
                 trackers: stubTrackers(primary: "bt.archive.org")
             ),
+            // A complete torrent whose trackers have all failed — the real
+            // mapping derives `.error` from `trackerStats`, so the mock carries
+            // the resulting status + message directly.
+            Torrent(
+                id: 11,
+                name: "Fedora Workstation 42 — Live ISO",
+                hash: "1f0c4d3b2e1a9876fedc54321089abcdef000011",
+                size: Int64(2.1 * Double(giB)),
+                status: .error,
+                progress: 1,
+                connectedPeerCount: 0,
+                availablePeerCount: 0,
+                seedCount: 0,
+                eta: nil,
+                ratio: 2.1,
+                primaryTracker: "tracker.fedoraproject.org",
+                downloadFolder: "Software",
+                addedAt: ago(days: 9),
+                priority: .normal,
+                pieces: 4200,
+                pieceSize: 512 * kiB,
+                havePieces: 4200,
+                errorMessage: "All trackers failed — Connection timed out",
+                files: stubFile(
+                    named: "Fedora-Workstation-Live-x86_64-42.iso", size: Int64(2.1 * Double(giB)), progress: 1),
+                peers: [],
+                trackers: [
+                    Tracker(
+                        tier: 0, host: "tracker.fedoraproject.org", state: .error,
+                        statusMessage: "Connection timed out", seedCount: 0, leechCount: 0, downloadCount: 0),
+                    Tracker(
+                        tier: 1, host: "tracker.fedoraproject.net", state: .error,
+                        statusMessage: "Connection timed out", seedCount: 0, leechCount: 0, downloadCount: 0),
+                ]
+            ),
         ]
     }
 
