@@ -12,7 +12,6 @@ import TransmissionCore
 /// two different stores breaks `@ToolbarContentBuilder` conditional inference.
 struct MainToolbar: ToolbarContent {
     @Environment(TorrentStore.self) private var store
-    var mockMode: Bool = false
 
     var body: some ToolbarContent {
         // Group 1 — Add
@@ -85,27 +84,6 @@ struct MainToolbar: ToolbarContent {
             }
             .help("Toggle inspector")
             .accessibilityIdentifier("toolbar.inspector")
-        }
-
-        // Debug menu — only visible with --mock-data
-        if mockMode {
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Button("Simulate: Connecting") {
-                        store.simulateConnection(.connecting)
-                    }
-                    Button("Simulate: Disconnected") {
-                        store.simulateConnection(.disconnected(reason: "Connection timed out"))
-                    }
-                    Button("Simulate: Connected") {
-                        store.simulateConnection(.connected)
-                    }
-                } label: {
-                    Label("Debug", systemImage: "ant.fill")
-                }
-                .help("Debug: simulate connection states")
-                .accessibilityIdentifier("toolbar.debug")
-            }
         }
     }
 }

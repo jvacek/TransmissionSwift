@@ -5,7 +5,7 @@ import Foundation
 /// "tick" that advances downloading torrents toward completion so the UI looks
 /// live.
 ///
-/// Used by the `--mock-data` launch path and by SwiftUI previews. Tests
+/// Used by SwiftUI previews and as the empty no-server placeholder. Tests
 /// instantiate it directly and choose whether to `startTicking()`.
 public actor MockTorrentService: TorrentService {
     private var state: [Torrent]

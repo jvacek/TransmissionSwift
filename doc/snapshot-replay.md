@@ -39,7 +39,7 @@ The UI already depends on `protocol TorrentService`, never on RPC directly:
 
 | Implementation | Used by |
 |---|---|
-| `MockTorrentService` | previews + `--mock-data` |
+| `MockTorrentService` | previews + empty no-server placeholder |
 | `RPCTorrentService` | live daemon (slice 7) |
 | **`SnapshotTorrentService` (new)** | `--snapshot <path>` — decodes the file, frozen, no network |
 
@@ -177,9 +177,8 @@ button surfaces the "not supported" error — capture is a live-connection featu
 ## Replay in the app
 
 Launch flag: `--snapshot <path>`, parsed in `TransmissionSwiftApp.init`
-alongside the existing `--mock-data` / `--ephemeral-profiles`:
+alongside `--ephemeral-profiles`:
 
-- `--snapshot` wins over `--mock-data`.
 - Boots `SnapshotTorrentService(fileURL:)` into the existing `TorrentStore`.
 - Seeds a synthetic in-memory `ServerProfile` ("Snapshot — <filename>") so the
   toolbar title menu / status bar have something sensible; never persisted.
@@ -241,8 +240,8 @@ scene, button disabled until connected. Replay landed same day:
   `downloadDirectory` / `isAlternativeSpeedEnabled` from the stored session,
   `supportsActions == false`. Mutations throw `SnapshotError.replayReadOnly`.
 - `--snapshot <path>` (also `--snapshot=<path>`) in `TransmissionSwiftApp.init`:
-  wins over `--mock-data`, forces ephemeral profiles, seeds a synthetic
-  in-memory `ServerProfile` ("Snapshot — <filename>") so the toolbar title /
+  forces ephemeral profiles, seeds a synthetic in-memory `ServerProfile`
+  ("Snapshot — <filename>") so the toolbar title /
   status bar have a label, and boots `SnapshotTorrentService` into the store.
   `ContentView` routes to `MainWindow` like mock mode but skips the connect task.
   If the file fails to decode, it logs "Snapshot load failed" and falls back to
@@ -277,8 +276,9 @@ during slice B — end-to-end without ever touching the real server. Done: a rea
 - **No-daemon XCUITest.** The one unimplemented piece: a UI test that boots
   `--snapshot <fixture>` and asserts the torrent list renders. Needs a small
   committed fixture (an anonymized capture, or a hand-trimmed one) referenced
-  via `#filePath` — no resource bundling. Then `--mock-data`'s runtime role can
-  be revisited (it stays for previews + unit tests; see earlier review notes).
+  via `#filePath` — no resource bundling. The `--mock-data` launch flag was
+  removed (superseded by `--snapshot`); `MockTorrentService` remains for
+  previews and unit tests.
 - **Headless capture.** An optional `--snapshot-capture --out <path>` launch arg
   (same pipeline, active saved profile, then exit) would let scripts / agents
   capture without touching the GUI — distributed with the app for free, no

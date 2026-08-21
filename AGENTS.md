@@ -100,9 +100,8 @@ Gotchas:
 - The sandbox blocks reading an arbitrary CLI path. The target grants **read**
   access to `~/Downloads` via `ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readonly`,
   so keep snapshots there for `--snapshot`.
-- `--snapshot` wins over `--mock-data`, and forces ephemeral profiles (the
-  synthetic "Snapshot — <name>" profile is never persisted to the real
-  `servers.json`).
+- `--snapshot` forces ephemeral profiles (the synthetic "Snapshot — <name>"
+  profile is never persisted to the real `servers.json`).
 - If the file fails to decode, the app logs `Snapshot load failed: …` and falls
   back to an empty list — check the console.
 - Implementation: `SnapshotTorrentService` (TransmissionCore) decodes through

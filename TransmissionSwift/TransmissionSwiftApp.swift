@@ -15,7 +15,6 @@ struct TransmissionSwiftApp: App {
     @State private var profileStore: ServerProfileStore
     @State private var torrentStore: TorrentStore
     @State private var faviconStore = FaviconStore()
-    private let mockMode: Bool
     private let snapshotPath: String?
     private let updateService = UpdateService()
 
@@ -28,9 +27,6 @@ struct TransmissionSwiftApp: App {
         let args = CommandLine.arguments
         let snapshotPath = Self.parseSnapshotPath(from: args)
         self.snapshotPath = snapshotPath
-        // --snapshot wins over --mock-data: replaying a captured file supersedes
-        // the synthetic fixtures.
-        self.mockMode = args.contains("--mock-data") && snapshotPath == nil
 
         // --- profile store
         // Snapshot replay implies ephemeral profiles so the synthetic
@@ -58,33 +54,21 @@ struct TransmissionSwiftApp: App {
 
         // --- torrent store
         // Snapshot mode decodes the captured file through SnapshotTorrentService
-        // (read-only, frozen). Mock mode seeds from `MockFixtures` and ticks
-        // progress forward. Otherwise we hand the store an empty mock — the real
+        // (read-only, frozen). Otherwise we hand the store an empty mock — the real
         // RPC-backed service lands in slice 7 of doc/ui-buildout.md.
         let service: any TorrentService
-        let tickingMock: MockTorrentService?
         if let snapshotPath {
             do {
                 service = try SnapshotTorrentService(fileURL: URL(fileURLWithPath: snapshotPath))
-                tickingMock = nil
             } catch {
                 NSLog("Snapshot load failed: \(error.localizedDescription)")
                 service = MockTorrentService(initial: [])
-                tickingMock = nil
             }
-        } else if self.mockMode {
-            let mock = MockTorrentService()
-            service = mock
-            tickingMock = mock
         } else {
             service = MockTorrentService(initial: [])
-            tickingMock = nil
         }
         let store = TorrentStore(service: service)
         self._torrentStore = State(wrappedValue: store)
-        if let tickingMock {
-            Task { await tickingMock.startTicking() }
-        }
     }
 
     /// Extracts the snapshot path from `--snapshot <path>` or `--snapshot=<path>`.
@@ -100,7 +84,7 @@ struct TransmissionSwiftApp: App {
 
     var body: some Scene {
         Window("TransmissionSwift", id: "main") {
-            ContentView(mockMode: mockMode, snapshotMode: snapshotPath != nil)
+            ContentView(snapshotMode: snapshotPath != nil)
                 .environment(profileStore)
                 .environment(torrentStore)
                 .environment(faviconStore)

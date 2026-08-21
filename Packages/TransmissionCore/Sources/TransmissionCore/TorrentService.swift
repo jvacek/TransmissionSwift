@@ -1,9 +1,9 @@
 import Foundation
 
 /// The service-level abstraction the UI consumes. Two implementations live
-/// behind this protocol — `MockTorrentService` (used by previews + the
-/// `--mock-data` launch arg) and `RPCTorrentService` (real daemon, added in
-/// slice 7 of `doc/ui-buildout.md`).
+/// behind this protocol — `MockTorrentService` (used by previews and the empty
+/// no-server state) and `RPCTorrentService` (real daemon, added in slice 7 of
+/// `doc/ui-buildout.md`).
 ///
 /// The view layer never touches `TransmissionClient` directly. That keeps the
 /// UI off the wire-protocol shapes and lets us ship the full app skin without

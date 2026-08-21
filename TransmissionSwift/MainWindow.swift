@@ -19,12 +19,11 @@ struct MainWindow: View {
     @AppStorage("prefsPendingNavTab") private var pendingNavTab: Int = -1
     @AppStorage("inspectorWidth") private var storedInspectorWidth: Double = Double(Layout.inspectorIdeal)
     @State private var windowWidth: CGFloat = Layout.windowMin
-    var mockMode: Bool = false
 
-    /// No profile configured (and not running on mock data) — the window shows
-    /// the "No Servers" onboarding empty state instead of torrent content.
+    /// No profile configured — the window shows the "No Servers" onboarding
+    /// empty state instead of torrent content.
     private var hasNoServer: Bool {
-        !mockMode && profileStore.activeProfile == nil
+        profileStore.activeProfile == nil
     }
 
     /// Inspector width clamped to whatever space is actually available.
@@ -116,7 +115,7 @@ struct MainWindow: View {
                     ToolbarItem(placement: .navigation) {
                         serverSwitcherMenu
                     }
-                    MainToolbar(mockMode: mockMode)
+                    MainToolbar()
                 }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -312,7 +311,7 @@ private struct InspectorResizeHandle: View {
     let emptyProfiles = ServerProfileStore(
         fileURL: URL.temporaryDirectory.appending(path: "preview-no-servers.json")
     )
-    MainWindow(mockMode: false)
+    MainWindow()
         .environment(TorrentStore(service: MockTorrentService(initial: [])))
         .environment(emptyProfiles)
         .environment(FaviconStore())

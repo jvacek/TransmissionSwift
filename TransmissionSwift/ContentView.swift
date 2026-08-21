@@ -6,7 +6,6 @@ struct ContentView: View {
     @Environment(ServerProfileStore.self) private var profileStore
     @Environment(TorrentStore.self) private var torrentStore
     @Environment(\.scenePhase) private var scenePhase
-    let mockMode: Bool
     /// True when replaying a captured snapshot file (`--snapshot`).
     let snapshotMode: Bool
 
@@ -16,18 +15,16 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if mockMode {
-                MainWindow(mockMode: mockMode)
-            } else if snapshotMode {
+            if snapshotMode {
                 // Replay: frozen, read-only state from the snapshot file. No
                 // connect task — the service is already the snapshot source.
-                MainWindow(mockMode: false)
+                MainWindow()
             } else {
                 // Always render the main window — when no profile exists it shows
                 // a "No Servers" empty state pointing at Settings, so onboarding
                 // lives in one window instead of a separate page. The connect task
                 // no-ops until a profile is added (id flips from nil to a UUID).
-                MainWindow(mockMode: false)
+                MainWindow()
                     .task(id: profileStore.activeProfile?.id) {
                         guard let profile = profileStore.activeProfile else { return }
                         await connectToProfile(profile)
