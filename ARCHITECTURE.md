@@ -129,6 +129,7 @@ What we persist locally — the daemon owns everything else.
 | 2026-06-10 | Speak the legacy RPC protocol, not 4.1's JSON-RPC 2.0 — works against every daemon version | Active |
 | 2026-06-10 | ATS exception `NSAllowsArbitraryLoads` — users connect to arbitrary LAN daemons over plain HTTP | Active |
 | 2026-06-10 | App sandbox kept, with `com.apple.security.network.client` entitlement | Active |
+| 2026-08-21 | User-selected file access upgraded to read-write (`ENABLE_USER_SELECTED_FILES = readwrite`) so the Developer pane's snapshot save panel can write | Active |
 | 2026-06-10 | warnings-as-errors enforced via CI flags, not Package.swift (conflicts with Xcode's `-suppress-warnings` for package deps) | Active |
 | 2026-06-10 | E2E golden-path XCUITest, opt-in via `TEST_RUNNER_TRANSMISSION_E2E=1` (needs a live local daemon) | Active |
 | 2026-06-11 | Mock-first UI buildout: views consume `protocol TorrentService` (TransmissionCore), built against `MockTorrentService` first; `RPCTorrentService` swaps in last with zero view changes. Plan + progress in `doc/ui-buildout.md` | Active |
