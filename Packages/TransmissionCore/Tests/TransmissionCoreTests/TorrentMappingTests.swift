@@ -143,7 +143,7 @@ struct TrackerFailureStatusTests {
 
     @Test("seeding torrent with all trackers failed → .error")
     func seedingAllFailed() {
-        var wire = makeWire(
+        let wire = makeWire(
             status: 6,
             trackers: [stub(host: "a.example.com"), stub(host: "b.example.com")],
             trackerStats: [
@@ -158,14 +158,14 @@ struct TrackerFailureStatusTests {
 
     @Test("downloading torrent with all trackers failed → .error")
     func downloadingAllFailed() {
-        var wire = makeWire(
+        let wire = makeWire(
             status: 4, trackers: [stub(host: "a.example.com")], trackerStats: [stat(host: "a.example.com")])
         #expect(Torrent(wire: wire).status == .error)
     }
 
     @Test("mixed working + failed trackers keeps original status")
     func mixedTrackers() {
-        var wire = makeWire(
+        let wire = makeWire(
             status: 6,
             trackers: [stub(host: "a.example.com"), stub(host: "b.example.com")],
             trackerStats: [
@@ -201,14 +201,14 @@ struct TrackerFailureStatusTests {
 
     @Test("paused torrent with all trackers failed stays paused")
     func pausedNotPromoted() {
-        var wire = makeWire(
+        let wire = makeWire(
             status: 0, trackers: [stub(host: "a.example.com")], trackerStats: [stat(host: "a.example.com")])
         #expect(Torrent(wire: wire).status == .paused)
     }
 
     @Test("torrent-level error still wins and uses errorString")
     func hardErrorStillWins() {
-        var wire = makeWire(
+        let wire = makeWire(
             status: 6, error: 2, errorString: "unregistered torrent",
             trackers: [stub(host: "a.example.com")],
             trackerStats: [stat(host: "a.example.com")]
@@ -220,7 +220,7 @@ struct TrackerFailureStatusTests {
 
     @Test("empty tracker result falls back to 'Announce failed' in the message")
     func emptyResultFallsBack() {
-        var wire = makeWire(
+        let wire = makeWire(
             status: 4,
             trackers: [stub(host: "a.example.com")],
             trackerStats: [stat(host: "a.example.com", result: "")]
