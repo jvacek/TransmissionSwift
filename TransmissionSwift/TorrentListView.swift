@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import TransmissionCore
 
@@ -36,6 +37,7 @@ struct TorrentListView: View {
         }
         .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
         .tableColumnHeaders(.automatic)
+        .background(FixedTableRowHeight())
         .id(sortOrder)
         .contextMenu(forSelectionType: Torrent.ID.self) { ids in
             contextMenu(for: ids.isEmpty ? store.selectedTorrentIDs : ids)
@@ -449,5 +451,62 @@ extension TorrentListView {
             .foregroundStyle(.secondary)
             .help(torrent.hash)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// SwiftUI Table enables NSTableView automatic row heights, which makes the
+/// table materialize + measure EVERY row on large row-set changes (insert or
+/// remove). At ~1000+ rows that Auto Layout + KVO churn hangs the main thread.
+/// This background shim finds the multi-column table (the torrents Table, not
+/// the sidebar List) and pins a fixed row height so the table can be lazy.
+struct FixedTableRowHeight: NSViewRepresentable {
+    private static let fallbackRowHeight: CGFloat = 24
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async { [weak view] in
+            guard let view else { return }
+            Self.configure(in: view)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async { [weak nsView] in
+            guard let nsView else { return }
+            Self.configure(in: nsView)
+        }
+    }
+
+    private static func configure(in view: NSView) {
+        guard let table = findTorrentsTable(from: view) else { return }
+        if table.usesAutomaticRowHeights {
+            let height = max(table.rowHeight.isFinite ? table.rowHeight : 0, fallbackRowHeight)
+            table.usesAutomaticRowHeights = false
+            table.rowHeight = height
+        }
+    }
+
+    private static func findTorrentsTable(from view: NSView) -> NSTableView? {
+        var window = view.window
+        var ancestor: NSView? = view
+        while window == nil, let current = ancestor {
+            window = current.window
+            ancestor = current.superview
+        }
+        guard let contentView = window?.contentView else { return nil }
+        return findMultiColumnTable(in: contentView)
+    }
+
+    private static func findMultiColumnTable(in view: NSView) -> NSTableView? {
+        if let table = view as? NSTableView, table.tableColumns.count > 1 {
+            return table
+        }
+        for subview in view.subviews {
+            if let found = findMultiColumnTable(in: subview) {
+                return found
+            }
+        }
+        return nil
     }
 }
