@@ -6,52 +6,41 @@ import TransmissionCore
 /// `[TorrentRowDisplay]`, and `TorrentCellContent.make` reads from it — so the
 /// guarded fields and the rendered fields can never drift apart.
 struct TorrentRowDisplay: Equatable {
-    let id: Torrent.ID
-    let name: String
-    let hash: String
-    let size: Int64
-    let progress: Double
-    let status: TorrentStatus
-    let downloadSpeed: Int64
-    let uploadSpeed: Int64
-    let connectedPeerCount: Int
-    let availablePeerCount: Int
-    let seedCount: Int
-    let eta: TimeInterval?
-    let ratio: Double
-    let primaryTracker: String
-    let downloadFolder: String
-    let addedAt: Date
-    let label: String?
-    let priority: TorrentPriority
-    let pieces: Int
-    let havePieces: Int
-    let queuePosition: Int?
-    let errorMessage: String?
+    let torrent: Torrent
+
+    var id: Torrent.ID { torrent.id }
 
     init(_ torrent: Torrent) {
-        id = torrent.id
-        name = torrent.name
-        hash = torrent.hash
-        size = torrent.size
-        progress = torrent.progress
-        status = torrent.status
-        downloadSpeed = torrent.downloadSpeed
-        uploadSpeed = torrent.uploadSpeed
-        connectedPeerCount = torrent.connectedPeerCount
-        availablePeerCount = torrent.availablePeerCount
-        seedCount = torrent.seedCount
-        eta = torrent.eta
-        ratio = torrent.ratio
-        primaryTracker = torrent.primaryTracker
-        downloadFolder = torrent.downloadFolder
-        addedAt = torrent.addedAt
-        label = torrent.label
-        priority = torrent.priority
-        pieces = torrent.pieces
-        havePieces = torrent.havePieces
-        queuePosition = torrent.queuePosition
-        errorMessage = torrent.errorMessage
+        self.torrent = torrent
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        // Only the fields the table renders participate in the poll guard; a
+        // full `Torrent` equality would deep-compare files/peers/trackers on
+        // every tick. Keep this list in sync with `TorrentCellContent.make`:
+        // a renderable field must be added to both.
+        lhs.torrent.id == rhs.torrent.id
+            && lhs.torrent.name == rhs.torrent.name
+            && lhs.torrent.hash == rhs.torrent.hash
+            && lhs.torrent.size == rhs.torrent.size
+            && lhs.torrent.progress == rhs.torrent.progress
+            && lhs.torrent.status == rhs.torrent.status
+            && lhs.torrent.downloadSpeed == rhs.torrent.downloadSpeed
+            && lhs.torrent.uploadSpeed == rhs.torrent.uploadSpeed
+            && lhs.torrent.connectedPeerCount == rhs.torrent.connectedPeerCount
+            && lhs.torrent.availablePeerCount == rhs.torrent.availablePeerCount
+            && lhs.torrent.seedCount == rhs.torrent.seedCount
+            && lhs.torrent.eta == rhs.torrent.eta
+            && lhs.torrent.ratio == rhs.torrent.ratio
+            && lhs.torrent.primaryTracker == rhs.torrent.primaryTracker
+            && lhs.torrent.downloadFolder == rhs.torrent.downloadFolder
+            && lhs.torrent.addedAt == rhs.torrent.addedAt
+            && lhs.torrent.label == rhs.torrent.label
+            && lhs.torrent.priority == rhs.torrent.priority
+            && lhs.torrent.pieces == rhs.torrent.pieces
+            && lhs.torrent.havePieces == rhs.torrent.havePieces
+            && lhs.torrent.queuePosition == rhs.torrent.queuePosition
+            && lhs.torrent.errorMessage == rhs.torrent.errorMessage
     }
 }
 
@@ -107,15 +96,15 @@ extension TorrentCellContent {
         case .name:
             return TorrentCellContent(
                 shape: .dotAndText,
-                text: row.name,
+                text: row.torrent.name,
                 font: bodyFont,
                 color: .labelColor,
                 alignment: .left,
                 toolTip: nil,
-                accessibilityLabel: row.name,
-                dotColor: row.status.nsDisplayColor)
+                accessibilityLabel: row.torrent.name,
+                dotColor: row.torrent.status.nsDisplayColor)
         case .size:
-            let text = ColumnFormatters.humanizedSize(row.size)
+            let text = ColumnFormatters.humanizedSize(row.torrent.size)
             return TorrentCellContent(
                 shape: .text,
                 text: text,
@@ -125,7 +114,7 @@ extension TorrentCellContent {
                 toolTip: nil,
                 accessibilityLabel: text)
         case .progress:
-            let percent = "\(Int((row.progress * 100).rounded()))%"
+            let percent = "\(Int((row.torrent.progress * 100).rounded()))%"
             return TorrentCellContent(
                 shape: .progress,
                 text: "",
@@ -133,28 +122,28 @@ extension TorrentCellContent {
                 color: .labelColor,
                 alignment: .left,
                 toolTip: nil,
-                accessibilityLabel: "\(Int((row.progress * 100).rounded())) percent",
-                progressValue: row.progress,
-                progressTint: row.status.nsDisplayColor,
+                accessibilityLabel: "\(Int((row.torrent.progress * 100).rounded())) percent",
+                progressValue: row.torrent.progress,
+                progressTint: row.torrent.status.nsDisplayColor,
                 percentText: percent,
                 secondaryFont: monoDigitFont,
                 secondaryColor: .secondaryLabelColor)
         case .downloadSpeed:
-            return speedContent(row.downloadSpeed, color: .systemBlue)
+            return speedContent(row.torrent.downloadSpeed, color: .systemBlue)
         case .uploadSpeed:
-            return speedContent(row.uploadSpeed, color: .systemGreen)
+            return speedContent(row.torrent.uploadSpeed, color: .systemGreen)
         case .eta:
-            let text = ColumnFormatters.humanizedETA(row.eta, status: row.status)
+            let text = ColumnFormatters.humanizedETA(row.torrent.eta, status: row.torrent.status)
             return TorrentCellContent(
                 shape: .text,
                 text: text,
                 font: monoDigitFont,
-                color: etaColor(row.status),
+                color: etaColor(row.torrent.status),
                 alignment: .right,
                 toolTip: nil,
                 accessibilityLabel: text)
         case .ratio:
-            let (text, color) = ratioContent(row.ratio)
+            let (text, color) = ratioContent(row.torrent.ratio)
             return TorrentCellContent(
                 shape: .text,
                 text: text,
@@ -164,17 +153,17 @@ extension TorrentCellContent {
                 toolTip: nil,
                 accessibilityLabel: text)
         case .addedAt:
-            let text = ColumnFormatters.relativeDate(row.addedAt)
+            let text = ColumnFormatters.relativeDate(row.torrent.addedAt)
             return TorrentCellContent(
                 shape: .text,
                 text: text,
                 font: monoDigitFont,
                 color: .secondaryLabelColor,
                 alignment: .right,
-                toolTip: row.addedAt.formatted(date: .abbreviated, time: .complete),
-                accessibilityLabel: row.addedAt.formatted(date: .abbreviated, time: .shortened))
+                toolTip: row.torrent.addedAt.formatted(date: .abbreviated, time: .complete),
+                accessibilityLabel: row.torrent.addedAt.formatted(date: .abbreviated, time: .shortened))
         case .primaryTracker:
-            if row.primaryTracker.isEmpty {
+            if row.torrent.primaryTracker.isEmpty {
                 return TorrentCellContent(
                     shape: .text,
                     text: "\u{2014}",
@@ -186,14 +175,14 @@ extension TorrentCellContent {
             }
             return TorrentCellContent(
                 shape: .text,
-                text: row.primaryTracker,
+                text: row.torrent.primaryTracker,
                 font: captionMonoFont,
                 color: .secondaryLabelColor,
                 alignment: .left,
                 toolTip: nil,
-                accessibilityLabel: row.primaryTracker)
+                accessibilityLabel: row.torrent.primaryTracker)
         case .connectedPeers:
-            let text = "\(row.connectedPeerCount)/\(row.availablePeerCount)"
+            let text = "\(row.torrent.connectedPeerCount)/\(row.torrent.availablePeerCount)"
             return TorrentCellContent(
                 shape: .text,
                 text: text,
@@ -201,29 +190,29 @@ extension TorrentCellContent {
                 color: .secondaryLabelColor,
                 alignment: .right,
                 toolTip: nil,
-                accessibilityLabel: "\(row.connectedPeerCount) of \(row.availablePeerCount) peers")
+                accessibilityLabel: "\(row.torrent.connectedPeerCount) of \(row.torrent.availablePeerCount) peers")
         case .availablePeers:
-            let text = row.availablePeerCount > 0 ? "\(row.availablePeerCount)" : "\u{2014}"
+            let text = row.torrent.availablePeerCount > 0 ? "\(row.torrent.availablePeerCount)" : "\u{2014}"
             return TorrentCellContent(
                 shape: .text,
                 text: text,
                 font: monoDigitFont,
-                color: row.availablePeerCount > 0 ? .secondaryLabelColor : .tertiaryLabelColor,
+                color: row.torrent.availablePeerCount > 0 ? .secondaryLabelColor : .tertiaryLabelColor,
                 alignment: .right,
                 toolTip: nil,
-                accessibilityLabel: "\(row.availablePeerCount) available")
+                accessibilityLabel: "\(row.torrent.availablePeerCount) available")
         case .seeds:
-            let text = row.seedCount > 0 ? "\(row.seedCount)" : "\u{2014}"
+            let text = row.torrent.seedCount > 0 ? "\(row.torrent.seedCount)" : "\u{2014}"
             return TorrentCellContent(
                 shape: .text,
                 text: text,
                 font: monoDigitFont,
-                color: row.seedCount > 0 ? .secondaryLabelColor : .tertiaryLabelColor,
+                color: row.torrent.seedCount > 0 ? .secondaryLabelColor : .tertiaryLabelColor,
                 alignment: .right,
                 toolTip: nil,
-                accessibilityLabel: "\(row.seedCount) seeds")
+                accessibilityLabel: "\(row.torrent.seedCount) seeds")
         case .status:
-            let (color, text) = statusContent(row.status)
+            let (color, text) = statusContent(row.torrent.status)
             return TorrentCellContent(
                 shape: .dotAndText,
                 text: text,
@@ -234,7 +223,7 @@ extension TorrentCellContent {
                 accessibilityLabel: text,
                 dotColor: color)
         case .label:
-            if let label = row.label, !label.isEmpty {
+            if let label = row.torrent.label, !label.isEmpty {
                 return TorrentCellContent(
                     shape: .pill,
                     text: label,
@@ -253,7 +242,7 @@ extension TorrentCellContent {
                 toolTip: nil,
                 accessibilityLabel: "no label")
         case .priority:
-            let (symbol, symbolColor, label) = priorityContent(row.priority)
+            let (symbol, symbolColor, label) = priorityContent(row.torrent.priority)
             return TorrentCellContent(
                 shape: .symbolAndText,
                 text: label,
@@ -261,11 +250,11 @@ extension TorrentCellContent {
                 color: .secondaryLabelColor,
                 alignment: .left,
                 toolTip: label,
-                accessibilityLabel: priorityAXLabel(row.priority),
+                accessibilityLabel: priorityAXLabel(row.torrent.priority),
                 symbolName: symbol,
                 symbolColor: symbolColor)
         case .queuePosition:
-            if let position = row.queuePosition {
+            if let position = row.torrent.queuePosition {
                 return TorrentCellContent(
                     shape: .text,
                     text: "#\(position)",
@@ -273,7 +262,7 @@ extension TorrentCellContent {
                     color: .systemOrange,
                     alignment: .right,
                     toolTip: nil,
-                    accessibilityLabel: ColumnFormatters.queuePosition(row.queuePosition))
+                    accessibilityLabel: ColumnFormatters.queuePosition(row.torrent.queuePosition))
             }
             return TorrentCellContent(
                 shape: .text,
@@ -282,9 +271,9 @@ extension TorrentCellContent {
                 color: .tertiaryLabelColor,
                 alignment: .right,
                 toolTip: nil,
-                accessibilityLabel: ColumnFormatters.queuePosition(row.queuePosition))
+                accessibilityLabel: ColumnFormatters.queuePosition(row.torrent.queuePosition))
         case .errorMessage:
-            if let error = row.errorMessage, !error.isEmpty {
+            if let error = row.torrent.errorMessage, !error.isEmpty {
                 return TorrentCellContent(
                     shape: .text,
                     text: error,
@@ -303,7 +292,7 @@ extension TorrentCellContent {
                 toolTip: nil,
                 accessibilityLabel: "no error")
         case .pieces:
-            let text = ColumnFormatters.piecesText(have: row.havePieces, total: row.pieces)
+            let text = ColumnFormatters.piecesText(have: row.torrent.havePieces, total: row.torrent.pieces)
             return TorrentCellContent(
                 shape: .text,
                 text: text,
@@ -314,24 +303,24 @@ extension TorrentCellContent {
                 accessibilityLabel: text)
         case .downloadFolder:
             let display = ColumnFormatters.truncatedPath(
-                row.downloadFolder, relativeTo: downloadDirectoryBase)
+                row.torrent.downloadFolder, relativeTo: downloadDirectoryBase)
             return TorrentCellContent(
                 shape: .text,
                 text: display,
                 font: captionMonoFont,
                 color: .secondaryLabelColor,
                 alignment: .left,
-                toolTip: row.downloadFolder,
-                accessibilityLabel: row.downloadFolder)
+                toolTip: row.torrent.downloadFolder,
+                accessibilityLabel: row.torrent.downloadFolder)
         case .hash:
             return TorrentCellContent(
                 shape: .text,
-                text: row.hash,
+                text: row.torrent.hash,
                 font: monoFont,
                 color: .secondaryLabelColor,
                 alignment: .left,
-                toolTip: row.hash,
-                accessibilityLabel: row.hash)
+                toolTip: row.torrent.hash,
+                accessibilityLabel: row.torrent.hash)
         }
     }
 
