@@ -428,6 +428,10 @@ extension TorrentTableRepresentable.Coordinator: NSTableViewDelegate {
     }
 
     func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
+        // Snapshot replay is read-only: still render the persisted sort
+        // indicator, but don't forward a user sort attempt to the store, where
+        // it would persist `tablePreferences` to the real UserDefaults.
+        guard actionsEnabled else { return }
         // AppKit promotes the clicked column to PRIMARY of its descriptor list,
         // keeping older entries as secondaries. We are a single-sort table:
         // take the primary, collapse the list to just it, and forward it.
@@ -458,6 +462,21 @@ extension TorrentTableRepresentable.Coordinator: NSMenuDelegate {
             rebuildRowMenu()
         }
     }
+
+    func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
+        // Attributed titles bypass NSMenu's automatic hover styling (white text
+        // on the highlight), so the destructive red would otherwise stay red
+        // against the blue highlight. `isHighlighted` KVO never fires — AppKit
+        // writes that property's backing ivar directly — so this callback is
+        // the reliable highlight signal: AppKit sends it before each highlight
+        // change, and once more with nil when the menu closes.
+        guard menu === rowMenu else { return }
+        for menuItem in menu.items {
+            if let destructive = menuItem as? DestructiveMenuItem {
+                destructive.applyHighlight(highlighted: menuItem === item)
+            }
+        }
+    }
 }
 
 /// Header cell with the same leading inset the body cells use, so column titles
@@ -475,19 +494,16 @@ private final class PaddedTableHeaderCell: NSTableHeaderCell {
 
 /// Destructive context-menu item. Attributed titles bypass NSMenu's automatic
 /// hover styling (white text on the highlight), so the destructive red would
-/// otherwise stay red against the blue highlight. Observing `isHighlighted`
-/// swaps the title color to white while hovered, then back to red after.
+/// otherwise stay red against the blue highlight. Recoloring is driven by the
+/// menu delegate's `willHighlight` callback (`NSMenuItem.isHighlighted` KVO
+/// never fires: AppKit writes its backing ivar directly).
 private final class DestructiveMenuItem: NSMenuItem {
     private let baseColor: NSColor
-    private var highlightObservation: NSKeyValueObservation?
 
     init(title: String, baseColor: NSColor) {
         self.baseColor = baseColor
         super.init(title: title, action: nil, keyEquivalent: "")
-        highlightObservation = observe(\.isHighlighted, options: [.new]) { [weak self] item, _ in
-            self?.applyColor(highlighted: item.isHighlighted)
-        }
-        applyColor(highlighted: false)
+        applyHighlight(highlighted: false)
     }
 
     @available(*, unavailable)
@@ -495,7 +511,7 @@ private final class DestructiveMenuItem: NSMenuItem {
         fatalError("init(coder:) has not been implemented")
     }
 
-    private func applyColor(highlighted: Bool) {
+    func applyHighlight(highlighted: Bool) {
         let color: NSColor = highlighted ? .white : baseColor
         attributedTitle = NSAttributedString(
             string: title,

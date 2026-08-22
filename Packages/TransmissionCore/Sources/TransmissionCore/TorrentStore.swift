@@ -103,7 +103,11 @@ public final class TorrentStore {
         }
     }
 
-    public func updateSortOrder(column: TableColumn.ID, ascending: Bool) {
+    /// Persists the sort to `TablePreferences` only. Callers that want the sort
+    /// to take effect must use `setSortOrder(column:ascending:)`, which also
+    /// re-sorts — kept private so nobody can create a "persisted but not
+    /// sorted" state.
+    private func updateSortOrder(column: TableColumn.ID, ascending: Bool) {
         var prefs = tablePreferences
         prefs.sortColumn = column
         prefs.sortAscending = ascending
