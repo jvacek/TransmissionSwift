@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 import TransmissionCore
 
 enum ColumnFormatters {
@@ -29,6 +28,18 @@ enum ColumnFormatters {
         return String(format: "%.1f %@", value, units[unitIndex])
     }
 
+    /// Splits `humanizedSpeed` into its numeric and unit parts ("2.3", "MB/s")
+    /// for the native two-part speed cell. The raw string is still used for the
+    /// accessibility label.
+    static func speedParts(_ bytesPerSecond: Int64) -> (value: String, unit: String) {
+        let text = humanizedSpeed(bytesPerSecond)
+        guard let spaceIndex = text.firstIndex(of: " ") else { return (text, "") }
+        return (
+            String(text[..<spaceIndex]),
+            String(text[text.index(after: spaceIndex)...])
+        )
+    }
+
     static func humanizedETA(_ eta: TimeInterval?, status: TorrentStatus) -> String {
         guard let eta, eta.isFinite else {
             switch status {
@@ -50,74 +61,15 @@ enum ColumnFormatters {
         }
     }
 
-    static func etaColor(for status: TorrentStatus) -> Color {
-        switch status {
-        case .downloading, .checking: return .primary
-        case .seeding, .completed: return .secondary
-        case .paused, .queued, .error: return .secondary
-        }
-    }
-
-    static func ratioTextAndColor(_ ratio: Double) -> (String, Color?) {
-        if ratio == 0 { return ("\u{2014}", nil) }
-        let text = String(format: "%.2f", ratio)
-        let color: Color?
-        if ratio >= 1.0 { color = .green } else if ratio >= 0.5 { color = .orange } else { color = .red }
-        return (text, color)
-    }
-
-    static func relativeDate(_ date: Date) -> String {
+    // Formatter allocation is expensive (locale tables); reuse one instance.
+    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
+        return formatter
+    }()
 
-    /// Render speed with the numeric value in `color` and the unit in a
-    /// smaller muted font.
-    @ViewBuilder
-    static func speedView(_ bytesPerSecond: Int64, color: Color) -> some View {
-        let text = humanizedSpeed(bytesPerSecond)
-        if text == "\u{2014}" {
-            Text(text).monospacedDigit().foregroundStyle(.tertiary)
-        } else if let spaceIndex = text.firstIndex(of: " ") {
-            HStack(spacing: 0) {
-                Text(text[..<spaceIndex]).monospacedDigit().foregroundStyle(color)
-                Text(text[spaceIndex...]).font(.caption2).foregroundStyle(color.mix(with: .gray, by: 0.4))
-            }
-        } else {
-            Text(text).monospacedDigit().foregroundStyle(color)
-        }
-    }
-
-    static func statusContent(_ status: TorrentStatus) -> (Color, String) {
-        switch status {
-        case .downloading: return (.blue, "Downloading")
-        case .seeding: return (.green, "Seeding")
-        case .completed: return (.green, "Completed")
-        case .paused: return (.gray, "Paused")
-        case .checking: return (.orange, "Checking")
-        case .queued: return (.orange, "Queued")
-        case .error: return (.red, "Error")
-        }
-    }
-
-    static func priorityView(_ priority: TorrentPriority) -> some View {
-        let (image, color, label): (String, Color, String) = {
-            switch priority {
-            case .high: return ("chevron.up", .orange, "High")
-            case .low: return ("chevron.down", .blue, "Low")
-            case .normal: return ("minus", .gray, "Normal")
-            }
-        }()
-        return HStack(spacing: 2) {
-            Image(systemName: image)
-                .foregroundStyle(color)
-                .font(.system(size: 11, weight: .medium))
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .help(label)
+    static func relativeDate(_ date: Date) -> String {
+        relativeDateFormatter.localizedString(for: date, relativeTo: Date())
     }
 
     static func queuePosition(_ position: Int?) -> String {

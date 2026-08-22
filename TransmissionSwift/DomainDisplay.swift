@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import TransmissionCore
 
@@ -19,12 +20,17 @@ extension TorrentStatus {
     /// Semantic status colour. Matches the Liquid Glass guidance: colour is
     /// reserved for status indicators, the rest of the chrome stays mono.
     var displayColor: Color {
+        Color(nsColor: nsDisplayColor)
+    }
+
+    /// AppKit colour for the native table cells, mirrors `displayColor`.
+    var nsDisplayColor: NSColor {
         switch self {
-        case .downloading: return .blue
-        case .seeding, .completed: return .green
-        case .paused, .queued: return .secondary
-        case .checking: return .orange
-        case .error: return .red
+        case .downloading: return .systemBlue
+        case .seeding, .completed: return .systemGreen
+        case .paused, .queued: return .secondaryLabelColor
+        case .checking: return .systemOrange
+        case .error: return .systemRed
         }
     }
 }

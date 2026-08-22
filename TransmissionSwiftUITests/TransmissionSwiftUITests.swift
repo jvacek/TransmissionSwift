@@ -53,4 +53,44 @@ final class TransmissionSwiftUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(connected.waitForExistence(timeout: 10), "Expected the daemon version to render")
     }
+
+    /// Golden path: the torrents table (raw NSTableView since the
+    /// nstableview-migration) renders rows. Uses a captured snapshot because the
+    /// app has no `--mock-data` launch flag since commit 6a14e0b — the sandbox
+    /// grants read access to ~/Downloads so snapshots live there.
+    /// Skips when no snapshot is present (CI without a local capture).
+    @MainActor
+    func testMockDataMainWindow() throws {
+        // The real user's Downloads, not the test runner's sandboxed home — the runner
+        // resolves NSHomeDirectory() to its own container, but the app-under-test
+        // reads ~/Downloads via the sandbox entitlement. NSUserName() is
+        // container-agnostic.
+        let snapshots = try FileManager.default.contentsOfDirectory(
+            at: URL(fileURLWithPath: "/Users/\(NSUserName())/Downloads/", isDirectory: true),
+            includingPropertiesForKeys: [.fileSizeKey]
+        )
+        .filter { $0.pathExtension == "json" && $0.lastPathComponent.hasPrefix("snapshot-") }
+        // Prefer a small snapshot: AX queries on the 1098-row capture stall
+        // (~30s per snapshot, connection loss) and make this test unusable.
+        .sorted { lhs, rhs in
+            let l = (try? lhs.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? .max
+            let r = (try? rhs.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? .max
+            return l < r
+        }
+        guard let snapshot = snapshots.first else {
+            throw XCTSkip("No snapshot-*.json in ~/Downloads to render the table")
+        }
+
+        let app = XCUIApplication()
+        app.launchArguments = ["--snapshot", snapshot.path]
+        app.launch()
+
+        let table = app.tables["torrents.table"]
+        XCTAssertTrue(
+            table.waitForExistence(timeout: 15),
+            "Expected the torrents table to appear in the main window")
+        XCTAssertTrue(
+            table.cells.firstMatch.waitForExistence(timeout: 10),
+            "Expected snapshot data to populate at least one table row")
+    }
 }

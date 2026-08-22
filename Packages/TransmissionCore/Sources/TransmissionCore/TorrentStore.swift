@@ -41,7 +41,16 @@ public enum ActionError: Error, Identifiable, Sendable {
 public final class TorrentStore {
     public private(set) var torrents: [Torrent] = [] {
         didSet {
-            facets = FilterFacets(torrents: torrents, downloadDirectory: downloadDirectory)
+            // Prune selections pointing at torrents the daemon no longer has
+            // (removed externally). Skip the empty transition set so a
+            // reconnect/connect doesn't wipe the selection.
+            if !torrents.isEmpty {
+                let liveIDs = Set(torrents.map(\.id))
+                if !selectedTorrentIDs.isSubset(of: liveIDs) {
+                    selectedTorrentIDs.formIntersection(liveIDs)
+                }
+            }
+            rebuildFacetsIfChanged()
             rebuildVisibleTorrents()
         }
     }
@@ -111,7 +120,18 @@ public final class TorrentStore {
     private var service: any TorrentService
     private var streamTask: Task<Void, Never>?
     private var freeSpaceTask: Task<Void, Never>?
-    private var sortOrder: [KeyPathComparator<Torrent>] = [KeyPathComparator(\.name)]
+    private var sortColumn: TableColumn = .name
+    private var sortAscending: Bool = true
+    /// Facet-relevant projection of the last torrent set (status, tracker,
+    /// folder, label). Recomputing `FilterFacets` is only needed when one of
+    /// these changes — a poll that only moved speeds skips the grouping work.
+    private var facetSignature: [FacetSignature] = []
+    private struct FacetSignature: Equatable {
+        let status: TorrentStatus
+        let primaryTracker: String
+        let downloadFolder: String
+        let label: String?
+    }
 
     public init(service: any TorrentService) {
         self.service = service
@@ -149,6 +169,10 @@ public final class TorrentStore {
         freeSpace = nil
         downloadDirectory = nil
         torrents = []
+        // Sidebar filters are per-server state — a tracker/folder/label filter
+        // from server A would otherwise show "0 torrents" against server B's
+        // (different) tracker set until the user re-picks one.
+        resetFilters()
         startStream()
     }
 
@@ -196,19 +220,12 @@ public final class TorrentStore {
         rebuildVisibleTorrents()
     }
 
-    public func setSortOrder(_ sortOrder: [KeyPathComparator<Torrent>]) {
-        guard self.sortOrder != sortOrder else { return }
-        self.sortOrder = sortOrder
-        if let first = sortOrder.first {
-            updateSortOrder(column: keyPathColumn(first).rawValue, ascending: first.order == .forward)
-        }
+    public func setSortOrder(column: TableColumn, ascending: Bool) {
+        guard sortColumn != column || sortAscending != ascending else { return }
+        sortColumn = column
+        sortAscending = ascending
+        updateSortOrder(column: column.rawValue, ascending: ascending)
         rebuildVisibleTorrents()
-    }
-
-    private func keyPathColumn(_ comparator: KeyPathComparator<Torrent>) -> TableColumn {
-        TableColumn.allCases.first { column in
-            column.comparator(order: comparator.order) == comparator
-        } ?? .name
     }
 
     private func startStream() {
@@ -262,7 +279,22 @@ public final class TorrentStore {
             torrents
             .filtered(by: filterSelection, relativeTo: downloadDirectory)
             .searched(searchQuery)
-            .sorted(using: sortOrder)
+            .sorted(using: sortColumn.comparator(order: sortAscending ? .forward : .reverse))
+    }
+
+    /// Recomputes `facets` only when the fields the sidebar reads from actually
+    /// changed, instead of every poll tick.
+    private func rebuildFacetsIfChanged() {
+        let signature = torrents.map { torrent in
+            FacetSignature(
+                status: torrent.status,
+                primaryTracker: torrent.primaryTracker,
+                downloadFolder: torrent.downloadFolder,
+                label: torrent.label)
+        }
+        guard signature != facetSignature else { return }
+        facetSignature = signature
+        facets = FilterFacets(torrents: torrents, downloadDirectory: downloadDirectory)
     }
 
     private func normalizedSidebarFilters(

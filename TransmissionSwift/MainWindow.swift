@@ -195,29 +195,30 @@ struct MainWindow: View {
     }
 
     private func connectingPlaceholder(message: String) -> some View {
-        TorrentListView()
-            .overlay {
-                ZStack {
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .scaleEffect(1.2)
-                        Text(message)
-                            .font(.headline)
-                        Button("Cancel") {
-                            store.simulateConnection(.disconnected(reason: "Cancelled by user"))
-                        }
-                    }
-                    .padding(.horizontal, 36)
-                    .padding(.vertical, 28)
-                    .background(
-                        .regularMaterial,
-                        in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    )
-                    .shadow(radius: 12, y: 4)
+        // Deliberately NOT a live TorrentListView: a second table bound to the
+        // same store during the connecting→connected transition caused
+        // coordinators to race each other's selection writes (empty write
+        // clobbering the real selection). Inert background + overlay only.
+        ZStack {
+            Rectangle()
+                .fill(.background)
+            VStack(spacing: 16) {
+                ProgressView()
+                    .scaleEffect(1.2)
+                Text(message)
+                    .font(.headline)
+                Button("Cancel") {
+                    store.simulateConnection(.disconnected(reason: "Cancelled by user"))
                 }
             }
+            .padding(.horizontal, 36)
+            .padding(.vertical, 28)
+            .background(
+                .regularMaterial,
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .shadow(radius: 12, y: 4)
+        }
     }
 
     private func disconnectedView(reason: String) -> some View {
