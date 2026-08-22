@@ -22,7 +22,7 @@ final class TransmissionSwiftUITests: XCTestCase {
     @MainActor
     func testAddServerAndTestConnection() throws {
         try XCTSkipUnless(
-            ProcessInfo.processInfo.environment["TRANSMISSION_E2E"] == "1",
+            ProcessInfo.processInfo.environment["TEST_RUNNER_TRANSMISSION_E2E"] == "1",
             "Set TEST_RUNNER_TRANSMISSION_E2E=1 and run a local transmission-daemon to enable")
 
         let app = XCUIApplication()
@@ -55,34 +55,24 @@ final class TransmissionSwiftUITests: XCTestCase {
     }
 
     /// Golden path: the torrents table (raw NSTableView since the
-    /// nstableview-migration) renders rows. Uses a captured snapshot because the
-    /// app has no `--mock-data` launch flag since commit 6a14e0b — the sandbox
-    /// grants read access to ~/Downloads so snapshots live there.
-    /// Skips when no snapshot is present (CI without a local capture).
+    /// nstableview-migration) renders rows. Boots the app on a committed,
+    /// anonymized snapshot fixture so the test runs anywhere — CI included —
+    /// with no daemon and no dependence on the developer's ~/Downloads.
+    ///
+    /// The app-under-test passes the repo path straight to `--snapshot`: when
+    /// built for UI testing, Xcode injects
+    /// `com.apple.security.temporary-exception.files.absolute-path.read-only = [/]`
+    /// into the app's entitlements, so the sandbox does not block reading the
+    /// fixture from the checkout. (Manual `--snapshot` launches still need
+    /// ~/Downloads — see AGENTS.md.)
     @MainActor
-    func testMockDataMainWindow() throws {
-        // The real user's Downloads, not the test runner's sandboxed home — the runner
-        // resolves NSHomeDirectory() to its own container, but the app-under-test
-        // reads ~/Downloads via the sandbox entitlement. NSUserName() is
-        // container-agnostic.
-        let snapshots = try FileManager.default.contentsOfDirectory(
-            at: URL(fileURLWithPath: "/Users/\(NSUserName())/Downloads/", isDirectory: true),
-            includingPropertiesForKeys: [.fileSizeKey]
-        )
-        .filter { $0.pathExtension == "json" && $0.lastPathComponent.hasPrefix("snapshot-") }
-        // Prefer a small snapshot: AX queries on the 1098-row capture stall
-        // (~30s per snapshot, connection loss) and make this test unusable.
-        .sorted { lhs, rhs in
-            let l = (try? lhs.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? .max
-            let r = (try? rhs.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? .max
-            return l < r
-        }
-        guard let snapshot = snapshots.first else {
-            throw XCTSkip("No snapshot-*.json in ~/Downloads to render the table")
+    func testSnapshotMainWindow() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
         }
 
         let app = XCUIApplication()
-        app.launchArguments = ["--snapshot", snapshot.path]
+        app.launchArguments = ["--snapshot", fixture.path]
         app.launch()
 
         let table = app.tables["torrents.table"]
@@ -92,5 +82,27 @@ final class TransmissionSwiftUITests: XCTestCase {
         XCTAssertTrue(
             table.cells.firstMatch.waitForExistence(timeout: 10),
             "Expected snapshot data to populate at least one table row")
+
+        // The fixture's first torrent must have decoded through the wire mapping.
+        let firstRow = table.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Sample Archive 01")
+        ).firstMatch
+        XCTAssertTrue(
+            firstRow.waitForExistence(timeout: 5),
+            "Expected a known fixture torrent name to render")
+    }
+
+    /// `#filePath`-derived path (repo checkout layout) with a bundled-resource
+    /// fallback. The filesystem-synchronized UITests group also copies JSON
+    /// into the test bundle's Resources, so both work regardless of checkout
+    /// location.
+    private func fixtureURL() -> URL? {
+        let candidates: [URL?] = [
+            URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent()
+                .appendingPathComponent("Fixtures/snapshot-10-torrents.json"),
+            Bundle(for: Self.self).url(forResource: "snapshot-10-torrents", withExtension: "json"),
+        ]
+        return candidates.compactMap { $0 }.first { FileManager.default.fileExists(atPath: $0.path) }
     }
 }

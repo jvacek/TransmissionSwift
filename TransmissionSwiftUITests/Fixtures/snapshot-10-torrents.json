@@ -1,0 +1,1416 @@
+{
+  "capturedAt" : "2026-08-21T16:23:58Z",
+  "redactions" : {
+    "freeTextFields" : 20,
+    "hashes" : 10,
+    "names" : 10,
+    "passkeysStripped" : 10,
+    "paths" : 11,
+    "peerIPs" : 1,
+    "timestampsShifted" : true,
+    "trackerURLs" : 20
+  },
+  "session" : {
+    "alt-speed-enabled" : false,
+    "download-dir" : "\/zlsa\/zeppcat\/milloehzhtlm\/lldwqspes",
+    "download-dir-free-space" : 1217279352832,
+    "rpc-version" : 17,
+    "rpc-version-minimum" : 14,
+    "version" : "4.0.5 (a6fe2a64aa)"
+  },
+  "source" : {
+    "daemonVersion" : "4.0.5 (a6fe2a64aa)",
+    "redacted" : true,
+    "rpcVersion" : 17
+  },
+  "torrents" : [
+    {
+      "addedDate" : 1778482833,
+      "bandwidthPriority" : 0,
+      "downloadDir" : "\/zlsa\/zeppcat\/milloehzhtlm\/lldwqspes\/",
+      "error" : 0,
+      "errorString" : "",
+      "eta" : -1,
+      "files" : [
+        {
+          "bytesCompleted" : 61281406,
+          "length" : 61281406,
+          "name" : "Sample Archive 01.zip"
+        }
+      ],
+      "fileStats" : [
+        {
+          "bytesCompleted" : 61281406,
+          "priority" : 0,
+          "wanted" : true
+        }
+      ],
+      "hashString" : "6b9e149d99cfb9836da7c6447f320e8224c6f41e",
+      "haveValid" : 61281406,
+      "id" : 1106,
+      "isFinished" : false,
+      "labels" : [
+
+      ],
+      "name" : "Sample Archive 01.zip",
+      "peers" : [
+        {
+          "address" : "203.0.113.127",
+          "clientName" : "qBittorrent 5.2.0",
+          "flagStr" : "T?I",
+          "progress" : 0,
+          "rateToClient" : 0,
+          "rateToPeer" : 0
+        }
+      ],
+      "peersConnected" : 1,
+      "peersFrom" : {
+        "fromCache" : 0,
+        "fromDht" : 0,
+        "fromIncoming" : 0,
+        "fromLpd" : 0,
+        "fromLtep" : 0,
+        "fromPex" : 0,
+        "fromTracker" : 1
+      },
+      "peersGettingFromUs" : 0,
+      "peersSendingToUs" : 0,
+      "percentDone" : 1,
+      "pieceCount" : 234,
+      "pieceSize" : 262144,
+      "queuePosition" : 1097,
+      "rateDownload" : 0,
+      "rateUpload" : 0,
+      "status" : 6,
+      "totalSize" : 61281406,
+      "trackers" : [
+        {
+          "announce" : "https:\/\/tracker-1.invalid\/announce",
+          "sitename" : "ysraitpkagbu",
+          "tier" : 0
+        }
+      ],
+      "trackerStats" : [
+        {
+          "announceState" : 1,
+          "downloadCount" : 343,
+          "hasAnnounced" : true,
+          "host" : "tracker-1.invalid:443",
+          "id" : 1310,
+          "isBackup" : false,
+          "lastAnnounceResult" : "Could not connect to tracker",
+          "lastAnnounceSucceeded" : false,
+          "lastAnnounceTime" : 1782606520,
+          "leecherCount" : 0,
+          "seederCount" : 92,
+          "tier" : 0
+        }
+      ],
+      "uploadRatio" : 0
+    },
+    {
+      "addedDate" : 1778482745,
+      "bandwidthPriority" : 0,
+      "downloadDir" : "\/zlsa\/zeppcat\/milloehzhtlm\/lldwqspes\/",
+      "error" : 0,
+      "errorString" : "",
+      "eta" : -1,
+      "files" : [
+        {
+          "bytesCompleted" : 16308115,
+          "length" : 16308115,
+          "name" : "Sample Archive 02.zip"
+        }
+      ],
+      "fileStats" : [
+        {
+          "bytesCompleted" : 16308115,
+          "priority" : 0,
+          "wanted" : true
+        }
+      ],
+      "hashString" : "4a8427ac7487ce2d3c1e77189946561f738fb3f6",
+      "haveValid" : 16308115,
+      "id" : 1105,
+      "isFinished" : false,
+      "labels" : [
+
+      ],
+      "name" : "Sample Archive 02.zip",
+      "peers" : [
+
+      ],
+      "peersConnected" : 0,
+      "peersFrom" : {
+        "fromCache" : 0,
+        "fromDht" : 0,
+        "fromIncoming" : 0,
+        "fromLpd" : 0,
+        "fromLtep" : 0,
+        "fromPex" : 0,
+        "fromTracker" : 0
+      },
+      "peersGettingFromUs" : 0,
+      "peersSendingToUs" : 0,
+      "percentDone" : 1,
+      "pieceCount" : 996,
+      "pieceSize" : 16384,
+      "queuePosition" : 1096,
+      "rateDownload" : 0,
+      "rateUpload" : 0,
+      "status" : 6,
+      "totalSize" : 16308115,
+      "trackers" : [
+        {
+          "announce" : "https:\/\/tracker-1.invalid\/announce",
+          "sitename" : "ysraitpkagbu",
+          "tier" : 0
+        }
+      ],
+      "trackerStats" : [
+        {
+          "announceState" : 1,
+          "downloadCount" : 351,
+          "hasAnnounced" : true,
+          "host" : "tracker-1.invalid:443",
+          "id" : 1309,
+          "isBackup" : false,
+          "lastAnnounceResult" : "Could not connect to tracker",
+          "lastAnnounceSucceeded" : false,
+          "lastAnnounceTime" : 1782605878,
+          "leecherCount" : 0,
+          "seederCount" : 96,
+          "tier" : 0
+        }
+      ],
+      "uploadRatio" : 0
+    },
+    {
+      "addedDate" : 1778482549,
+      "bandwidthPriority" : 0,
+      "downloadDir" : "\/zlsa\/zeppcat\/milloehzhtlm\/lldwqspes\/",
+      "error" : 0,
+      "errorString" : "",
+      "eta" : -1,
+      "files" : [
+        {
+          "bytesCompleted" : 16245240431,
+          "length" : 16245240431,
+          "name" : "Sample Archive 03\/fg-01.bin"
+        },
+        {
+          "bytesCompleted" : 11244476512,
+          "length" : 11244476512,
+          "name" : "Sample Archive 03\/fg-02.bin"
+        },
+        {
+          "bytesCompleted" : 275366055,
+          "length" : 275366055,
+          "name" : "Sample Archive 03\/fg-03.bin"
+        },
+        {
+          "bytesCompleted" : 207718573,
+          "length" : 207718573,
+          "name" : "Sample Archive 03\/fg-04.bin"
+        },
+        {
+          "bytesCompleted" : 47502820,
+          "length" : 47502820,
+          "name" : "Sample Archive 03\/fg-05.bin"
+        },
+        {
+          "bytesCompleted" : 27526190,
+          "length" : 27526190,
+          "name" : "Sample Archive 03\/fg-06.bin"
+        },
+        {
+          "bytesCompleted" : 2120462,
+          "length" : 2120462,
+          "name" : "Sample Archive 03\/fg-07.bin"
+        },
+        {
+          "bytesCompleted" : 5979624,
+          "length" : 5979624,
+          "name" : "Sample Archive 03\/setup.exe"
+        },
+        {
+          "bytesCompleted" : 69,
+          "length" : 69,
+          "name" : "Sample Archive 03\/Verify BIN files before installation.bat"
+        },
+        {
+          "bytesCompleted" : 388,
+          "length" : 388,
+          "name" : "Sample Archive 03\/MD5\/fitgirl-bins.md5"
+        },
+        {
+          "bytesCompleted" : 103424,
+          "length" : 103424,
+          "name" : "Sample Archive 03\/MD5\/QuickSFV.EXE"
+        },
+        {
+          "bytesCompleted" : 155,
+          "length" : 155,
+          "name" : "Sample Archive 03\/MD5\/QuickSFV.ini"
+        }
+      ],
+      "fileStats" : [
+        {
+          "bytesCompleted" : 16245240431,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 11244476512,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 275366055,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 207718573,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 47502820,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 27526190,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 2120462,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 5979624,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 69,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 388,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 103424,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 155,
+          "priority" : 0,
+          "wanted" : true
+        }
+      ],
+      "hashString" : "28f96955bc76750a71269e32ff159840f3c70aaa",
+      "haveValid" : 28056034703,
+      "id" : 1104,
+      "isFinished" : false,
+      "labels" : [
+
+      ],
+      "name" : "Sample Archive 03",
+      "peers" : [
+
+      ],
+      "peersConnected" : 0,
+      "peersFrom" : {
+        "fromCache" : 0,
+        "fromDht" : 0,
+        "fromIncoming" : 0,
+        "fromLpd" : 0,
+        "fromLtep" : 0,
+        "fromPex" : 0,
+        "fromTracker" : 0
+      },
+      "peersGettingFromUs" : 0,
+      "peersSendingToUs" : 0,
+      "percentDone" : 1,
+      "pieceCount" : 13379,
+      "pieceSize" : 2097152,
+      "queuePosition" : 1095,
+      "rateDownload" : 0,
+      "rateUpload" : 0,
+      "status" : 6,
+      "totalSize" : 28056034703,
+      "trackers" : [
+        {
+          "announce" : "https:\/\/tracker-1.invalid\/announce",
+          "sitename" : "ysraitpkagbu",
+          "tier" : 0
+        }
+      ],
+      "trackerStats" : [
+        {
+          "announceState" : 1,
+          "downloadCount" : 783,
+          "hasAnnounced" : true,
+          "host" : "tracker-1.invalid:443",
+          "id" : 1308,
+          "isBackup" : false,
+          "lastAnnounceResult" : "Could not connect to tracker",
+          "lastAnnounceSucceeded" : false,
+          "lastAnnounceTime" : 1782600982,
+          "leecherCount" : 0,
+          "seederCount" : 416,
+          "tier" : 0
+        }
+      ],
+      "uploadRatio" : 0.042900000000000001
+    },
+    {
+      "addedDate" : 1770510695,
+      "bandwidthPriority" : 0,
+      "downloadDir" : "\/zlsa\/zeppcat\/milloehzhtlm\/lldwqspes\/",
+      "error" : 0,
+      "errorString" : "",
+      "eta" : -1,
+      "files" : [
+        {
+          "bytesCompleted" : 982211014,
+          "length" : 982211014,
+          "name" : "Sample Archive 04\/fg-01.bin"
+        },
+        {
+          "bytesCompleted" : 706844985,
+          "length" : 706844985,
+          "name" : "Sample Archive 04\/fg-02.bin"
+        },
+        {
+          "bytesCompleted" : 33084191,
+          "length" : 33084191,
+          "name" : "Sample Archive 04\/fg-03.bin"
+        },
+        {
+          "bytesCompleted" : 1509317,
+          "length" : 1509317,
+          "name" : "Sample Archive 04\/fg-04.bin"
+        },
+        {
+          "bytesCompleted" : 4501928,
+          "length" : 4501928,
+          "name" : "Sample Archive 04\/setup.exe"
+        },
+        {
+          "bytesCompleted" : 69,
+          "length" : 69,
+          "name" : "Sample Archive 04\/Verify BIN files before installation.bat"
+        },
+        {
+          "bytesCompleted" : 244,
+          "length" : 244,
+          "name" : "Sample Archive 04\/MD5\/fitgirl-bins.md5"
+        },
+        {
+          "bytesCompleted" : 103424,
+          "length" : 103424,
+          "name" : "Sample Archive 04\/MD5\/QuickSFV.EXE"
+        },
+        {
+          "bytesCompleted" : 155,
+          "length" : 155,
+          "name" : "Sample Archive 04\/MD5\/QuickSFV.ini"
+        }
+      ],
+      "fileStats" : [
+        {
+          "bytesCompleted" : 982211014,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 706844985,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 33084191,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 1509317,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 4501928,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 69,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 244,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 103424,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 155,
+          "priority" : 0,
+          "wanted" : true
+        }
+      ],
+      "hashString" : "a57598720b00216be2a56024f3efbb31dbc53c96",
+      "haveValid" : 1728255327,
+      "id" : 625,
+      "isFinished" : false,
+      "labels" : [
+
+      ],
+      "name" : "Sample Archive 04",
+      "peers" : [
+
+      ],
+      "peersConnected" : 0,
+      "peersFrom" : {
+        "fromCache" : 0,
+        "fromDht" : 0,
+        "fromIncoming" : 0,
+        "fromLpd" : 0,
+        "fromLtep" : 0,
+        "fromPex" : 0,
+        "fromTracker" : 0
+      },
+      "peersGettingFromUs" : 0,
+      "peersSendingToUs" : 0,
+      "percentDone" : 1,
+      "pieceCount" : 825,
+      "pieceSize" : 2097152,
+      "queuePosition" : 623,
+      "rateDownload" : 0,
+      "rateUpload" : 0,
+      "status" : 6,
+      "totalSize" : 1728255327,
+      "trackers" : [
+        {
+          "announce" : "https:\/\/tracker-1.invalid\/announce",
+          "sitename" : "ysraitpkagbu",
+          "tier" : 0
+        }
+      ],
+      "trackerStats" : [
+        {
+          "announceState" : 1,
+          "downloadCount" : 86,
+          "hasAnnounced" : true,
+          "host" : "tracker-1.invalid:443",
+          "id" : 624,
+          "isBackup" : false,
+          "lastAnnounceResult" : "Could not connect to tracker",
+          "lastAnnounceSucceeded" : false,
+          "lastAnnounceTime" : 1782603925,
+          "leecherCount" : 0,
+          "seederCount" : 26,
+          "tier" : 0
+        }
+      ],
+      "uploadRatio" : 0
+    },
+    {
+      "addedDate" : 1768959637,
+      "bandwidthPriority" : 0,
+      "downloadDir" : "\/zlsa\/zeppcat\/milloehzhtlm\/lldwqspes\/",
+      "error" : 2,
+      "errorString" : "Unregistered torrent: Trump",
+      "eta" : -1,
+      "files" : [
+        {
+          "bytesCompleted" : 68873887856,
+          "length" : 68873887856,
+          "name" : "Sample Archive 05\/sa05-01.bin"
+        },
+        {
+          "bytesCompleted" : 6967,
+          "length" : 6967,
+          "name" : "Sample Archive 05\/sa05.nfo"
+        },
+        {
+          "bytesCompleted" : 7443482,
+          "length" : 7443482,
+          "name" : "Sample Archive 05\/Install.exe"
+        }
+      ],
+      "fileStats" : [
+        {
+          "bytesCompleted" : 68873887856,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 6967,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 7443482,
+          "priority" : 0,
+          "wanted" : true
+        }
+      ],
+      "hashString" : "3f2f23f365793e4e5a45b43104fffc3600c9f271",
+      "haveValid" : 68881338305,
+      "id" : 789,
+      "isFinished" : false,
+      "labels" : [
+
+      ],
+      "name" : "Sample Archive 05",
+      "peers" : [
+
+      ],
+      "peersConnected" : 0,
+      "peersFrom" : {
+        "fromCache" : 0,
+        "fromDht" : 0,
+        "fromIncoming" : 0,
+        "fromLpd" : 0,
+        "fromLtep" : 0,
+        "fromPex" : 0,
+        "fromTracker" : 0
+      },
+      "peersGettingFromUs" : 0,
+      "peersSendingToUs" : 0,
+      "percentDone" : 1,
+      "pieceCount" : 16423,
+      "pieceSize" : 4194304,
+      "queuePosition" : 787,
+      "rateDownload" : 0,
+      "rateUpload" : 0,
+      "status" : 6,
+      "totalSize" : 68881338305,
+      "trackers" : [
+        {
+          "announce" : "https:\/\/tracker-1.invalid\/announce",
+          "sitename" : "ysraitpkagbu",
+          "tier" : 0
+        }
+      ],
+      "trackerStats" : [
+        {
+          "announceState" : 2,
+          "downloadCount" : 55,
+          "hasAnnounced" : true,
+          "host" : "tracker-1.invalid:443",
+          "id" : 788,
+          "isBackup" : false,
+          "lastAnnounceResult" : "Unregistered torrent: Trump",
+          "lastAnnounceSucceeded" : false,
+          "lastAnnounceTime" : 1774071263,
+          "leecherCount" : 0,
+          "seederCount" : 17,
+          "tier" : 0
+        }
+      ],
+      "uploadRatio" : 0.011900000000000001
+    },
+    {
+      "addedDate" : 1768072485,
+      "bandwidthPriority" : 0,
+      "downloadDir" : "\/zlsa\/zeppcat\/milloehzhtlm\/lldwqspes\/",
+      "error" : 0,
+      "errorString" : "",
+      "eta" : -1,
+      "files" : [
+        {
+          "bytesCompleted" : 103424,
+          "length" : 103424,
+          "name" : "Sample Archive 06\/MD5\/QuickSFV.EXE"
+        },
+        {
+          "bytesCompleted" : 155,
+          "length" : 155,
+          "name" : "Sample Archive 06\/MD5\/QuickSFV.ini"
+        },
+        {
+          "bytesCompleted" : 340,
+          "length" : 340,
+          "name" : "Sample Archive 06\/MD5\/fitgirl-bins.md5"
+        },
+        {
+          "bytesCompleted" : 69,
+          "length" : 69,
+          "name" : "Sample Archive 06\/Verify BIN files before installation.bat"
+        },
+        {
+          "bytesCompleted" : 11780070686,
+          "length" : 11780070686,
+          "name" : "Sample Archive 06\/fg-01.bin"
+        },
+        {
+          "bytesCompleted" : 1027325087,
+          "length" : 1027325087,
+          "name" : "Sample Archive 06\/fg-02.bin"
+        },
+        {
+          "bytesCompleted" : 511488846,
+          "length" : 511488846,
+          "name" : "Sample Archive 06\/fg-03.bin"
+        },
+        {
+          "bytesCompleted" : 98955014,
+          "length" : 98955014,
+          "name" : "Sample Archive 06\/fg-04.bin"
+        },
+        {
+          "bytesCompleted" : 91644479,
+          "length" : 91644479,
+          "name" : "Sample Archive 06\/fg-05.bin"
+        },
+        {
+          "bytesCompleted" : 26811910,
+          "length" : 26811910,
+          "name" : "Sample Archive 06\/fg-06.bin"
+        },
+        {
+          "bytesCompleted" : 6427246,
+          "length" : 6427246,
+          "name" : "Sample Archive 06\/setup.exe"
+        }
+      ],
+      "fileStats" : [
+        {
+          "bytesCompleted" : 103424,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 155,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 340,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 69,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 11780070686,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 1027325087,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 511488846,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 98955014,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 91644479,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 26811910,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 6427246,
+          "priority" : 0,
+          "wanted" : true
+        }
+      ],
+      "hashString" : "e15253b33dbe30c2ca29f0848be1648f234e1b2a",
+      "haveValid" : 13542827256,
+      "id" : 736,
+      "isFinished" : false,
+      "labels" : [
+
+      ],
+      "name" : "Sample Archive 06",
+      "peers" : [
+
+      ],
+      "peersConnected" : 0,
+      "peersFrom" : {
+        "fromCache" : 0,
+        "fromDht" : 0,
+        "fromIncoming" : 0,
+        "fromLpd" : 0,
+        "fromLtep" : 0,
+        "fromPex" : 0,
+        "fromTracker" : 0
+      },
+      "peersGettingFromUs" : 0,
+      "peersSendingToUs" : 0,
+      "percentDone" : 1,
+      "pieceCount" : 3229,
+      "pieceSize" : 4194304,
+      "queuePosition" : 734,
+      "rateDownload" : 0,
+      "rateUpload" : 0,
+      "status" : 6,
+      "totalSize" : 13542827256,
+      "trackers" : [
+        {
+          "announce" : "https:\/\/tracker-1.invalid\/announce",
+          "sitename" : "ysraitpkagbu",
+          "tier" : 0
+        }
+      ],
+      "trackerStats" : [
+        {
+          "announceState" : 1,
+          "downloadCount" : 196,
+          "hasAnnounced" : true,
+          "host" : "tracker-1.invalid:443",
+          "id" : 735,
+          "isBackup" : false,
+          "lastAnnounceResult" : "Could not connect to tracker",
+          "lastAnnounceSucceeded" : false,
+          "lastAnnounceTime" : 1782604198,
+          "leecherCount" : 0,
+          "seederCount" : 73,
+          "tier" : 0
+        }
+      ],
+      "uploadRatio" : 0.43049999999999999
+    },
+    {
+      "addedDate" : 1768072411,
+      "bandwidthPriority" : 0,
+      "downloadDir" : "\/zlsa\/zeppcat\/milloehzhtlm\/lldwqspes\/",
+      "error" : 0,
+      "errorString" : "",
+      "eta" : -1,
+      "files" : [
+        {
+          "bytesCompleted" : 103424,
+          "length" : 103424,
+          "name" : "Sample Archive 07\/MD5\/QuickSFV.EXE"
+        },
+        {
+          "bytesCompleted" : 155,
+          "length" : 155,
+          "name" : "Sample Archive 07\/MD5\/QuickSFV.ini"
+        },
+        {
+          "bytesCompleted" : 244,
+          "length" : 244,
+          "name" : "Sample Archive 07\/MD5\/fitgirl-bins.md5"
+        },
+        {
+          "bytesCompleted" : 69,
+          "length" : 69,
+          "name" : "Sample Archive 07\/Verify BIN files before installation.bat"
+        },
+        {
+          "bytesCompleted" : 1356184246,
+          "length" : 1356184246,
+          "name" : "Sample Archive 07\/fg-01.bin"
+        },
+        {
+          "bytesCompleted" : 1307114831,
+          "length" : 1307114831,
+          "name" : "Sample Archive 07\/fg-02.bin"
+        },
+        {
+          "bytesCompleted" : 86612278,
+          "length" : 86612278,
+          "name" : "Sample Archive 07\/fg-03.bin"
+        },
+        {
+          "bytesCompleted" : 17138229,
+          "length" : 17138229,
+          "name" : "Sample Archive 07\/fg-04.bin"
+        },
+        {
+          "bytesCompleted" : 4868550,
+          "length" : 4868550,
+          "name" : "Sample Archive 07\/setup.exe"
+        }
+      ],
+      "fileStats" : [
+        {
+          "bytesCompleted" : 103424,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 155,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 244,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 69,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 1356184246,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 1307114831,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 86612278,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 17138229,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 4868550,
+          "priority" : 0,
+          "wanted" : true
+        }
+      ],
+      "hashString" : "ec2aba0c124ca4fbe953464613709436764d3f53",
+      "haveValid" : 2772022026,
+      "id" : 844,
+      "isFinished" : false,
+      "labels" : [
+
+      ],
+      "name" : "Sample Archive 07",
+      "peers" : [
+
+      ],
+      "peersConnected" : 0,
+      "peersFrom" : {
+        "fromCache" : 0,
+        "fromDht" : 0,
+        "fromIncoming" : 0,
+        "fromLpd" : 0,
+        "fromLtep" : 0,
+        "fromPex" : 0,
+        "fromTracker" : 0
+      },
+      "peersGettingFromUs" : 0,
+      "peersSendingToUs" : 0,
+      "percentDone" : 1,
+      "pieceCount" : 166,
+      "pieceSize" : 16777216,
+      "queuePosition" : 842,
+      "rateDownload" : 0,
+      "rateUpload" : 0,
+      "status" : 6,
+      "totalSize" : 2772022026,
+      "trackers" : [
+        {
+          "announce" : "https:\/\/tracker-1.invalid\/announce",
+          "sitename" : "ysraitpkagbu",
+          "tier" : 0
+        }
+      ],
+      "trackerStats" : [
+        {
+          "announceState" : 1,
+          "downloadCount" : 62,
+          "hasAnnounced" : true,
+          "host" : "tracker-1.invalid:443",
+          "id" : 843,
+          "isBackup" : false,
+          "lastAnnounceResult" : "Could not connect to tracker",
+          "lastAnnounceSucceeded" : false,
+          "lastAnnounceTime" : 1782606084,
+          "leecherCount" : 0,
+          "seederCount" : 18,
+          "tier" : 0
+        }
+      ],
+      "uploadRatio" : 0.31590000000000001
+    },
+    {
+      "addedDate" : 1767474078,
+      "bandwidthPriority" : 0,
+      "downloadDir" : "\/zlsa\/zeppcat\/milloehzhtlm\/lldwqspes\/",
+      "error" : 0,
+      "errorString" : "",
+      "eta" : -1,
+      "files" : [
+        {
+          "bytesCompleted" : 2226247483,
+          "length" : 2226247483,
+          "name" : "Sample Archive 08\/setup_firewatch_1.12_(64bit)_(54889)-1.bin"
+        },
+        {
+          "bytesCompleted" : 1767456,
+          "length" : 1767456,
+          "name" : "Sample Archive 08\/setup_firewatch_1.12_(64bit)_(54889).exe"
+        }
+      ],
+      "fileStats" : [
+        {
+          "bytesCompleted" : 2226247483,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 1767456,
+          "priority" : 0,
+          "wanted" : true
+        }
+      ],
+      "hashString" : "0b2be81f80d91956387f8a494e3d354020e7c016",
+      "haveValid" : 2228014939,
+      "id" : 142,
+      "isFinished" : false,
+      "labels" : [
+
+      ],
+      "name" : "Sample Archive 08",
+      "peers" : [
+
+      ],
+      "peersConnected" : 0,
+      "peersFrom" : {
+        "fromCache" : 0,
+        "fromDht" : 0,
+        "fromIncoming" : 0,
+        "fromLpd" : 0,
+        "fromLtep" : 0,
+        "fromPex" : 0,
+        "fromTracker" : 0
+      },
+      "peersGettingFromUs" : 0,
+      "peersSendingToUs" : 0,
+      "percentDone" : 1,
+      "pieceCount" : 4250,
+      "pieceSize" : 524288,
+      "queuePosition" : 140,
+      "rateDownload" : 0,
+      "rateUpload" : 0,
+      "status" : 6,
+      "totalSize" : 2228014939,
+      "trackers" : [
+        {
+          "announce" : "https:\/\/tracker-1.invalid\/announce",
+          "sitename" : "ysraitpkagbu",
+          "tier" : 0
+        }
+      ],
+      "trackerStats" : [
+        {
+          "announceState" : 1,
+          "downloadCount" : 454,
+          "hasAnnounced" : true,
+          "host" : "tracker-1.invalid:443",
+          "id" : 141,
+          "isBackup" : false,
+          "lastAnnounceResult" : "Could not connect to tracker",
+          "lastAnnounceSucceeded" : false,
+          "lastAnnounceTime" : 1782604490,
+          "leecherCount" : 0,
+          "seederCount" : 13,
+          "tier" : 0
+        }
+      ],
+      "uploadRatio" : 0.096799999999999997
+    },
+    {
+      "addedDate" : 1767226763,
+      "bandwidthPriority" : 0,
+      "downloadDir" : "\/zlsa\/zeppcat\/milloehzhtlm\/lldwqspes\/",
+      "error" : 0,
+      "errorString" : "",
+      "eta" : -1,
+      "files" : [
+        {
+          "bytesCompleted" : 928232760,
+          "length" : 928232760,
+          "name" : "sample_installer.exe"
+        }
+      ],
+      "fileStats" : [
+        {
+          "bytesCompleted" : 928232760,
+          "priority" : 0,
+          "wanted" : true
+        }
+      ],
+      "hashString" : "d58314b6e7165510850dfa32eeeebf7e9fead1ac",
+      "haveValid" : 928232760,
+      "id" : 93,
+      "isFinished" : false,
+      "labels" : [
+
+      ],
+      "name" : "sample_installer.exe",
+      "peers" : [
+
+      ],
+      "peersConnected" : 0,
+      "peersFrom" : {
+        "fromCache" : 0,
+        "fromDht" : 0,
+        "fromIncoming" : 0,
+        "fromLpd" : 0,
+        "fromLtep" : 0,
+        "fromPex" : 0,
+        "fromTracker" : 0
+      },
+      "peersGettingFromUs" : 0,
+      "peersSendingToUs" : 0,
+      "percentDone" : 1,
+      "pieceCount" : 1771,
+      "pieceSize" : 524288,
+      "queuePosition" : 91,
+      "rateDownload" : 0,
+      "rateUpload" : 0,
+      "status" : 6,
+      "totalSize" : 928232760,
+      "trackers" : [
+        {
+          "announce" : "https:\/\/tracker-1.invalid\/announce",
+          "sitename" : "ysraitpkagbu",
+          "tier" : 0
+        }
+      ],
+      "trackerStats" : [
+        {
+          "announceState" : 1,
+          "downloadCount" : 343,
+          "hasAnnounced" : true,
+          "host" : "tracker-1.invalid:443",
+          "id" : 92,
+          "isBackup" : false,
+          "lastAnnounceResult" : "Could not connect to tracker",
+          "lastAnnounceSucceeded" : false,
+          "lastAnnounceTime" : 1782605385,
+          "leecherCount" : 0,
+          "seederCount" : 69,
+          "tier" : 0
+        }
+      ],
+      "uploadRatio" : 0.0124
+    },
+    {
+      "addedDate" : 1767225600,
+      "bandwidthPriority" : 0,
+      "downloadDir" : "\/zlsa\/zeppcat\/milloehzhtlm\/lldwqspes\/",
+      "error" : 0,
+      "errorString" : "",
+      "eta" : -1,
+      "files" : [
+        {
+          "bytesCompleted" : 103424,
+          "length" : 103424,
+          "name" : "Sample Archive 09\/MD5\/QuickSFV.EXE"
+        },
+        {
+          "bytesCompleted" : 155,
+          "length" : 155,
+          "name" : "Sample Archive 09\/MD5\/QuickSFV.ini"
+        },
+        {
+          "bytesCompleted" : 1063,
+          "length" : 1063,
+          "name" : "Sample Archive 09\/MD5\/fitgirl-bins.md5"
+        },
+        {
+          "bytesCompleted" : 69,
+          "length" : 69,
+          "name" : "Sample Archive 09\/Verify BIN files before installation.bat"
+        },
+        {
+          "bytesCompleted" : 45823135625,
+          "length" : 45823135625,
+          "name" : "Sample Archive 09\/fg-01.bin"
+        },
+        {
+          "bytesCompleted" : 481091736,
+          "length" : 481091736,
+          "name" : "Sample Archive 09\/fg-02.bin"
+        },
+        {
+          "bytesCompleted" : 253898864,
+          "length" : 253898864,
+          "name" : "Sample Archive 09\/fg-03.bin"
+        },
+        {
+          "bytesCompleted" : 142852807,
+          "length" : 142852807,
+          "name" : "Sample Archive 09\/fg-04.bin"
+        },
+        {
+          "bytesCompleted" : 771503,
+          "length" : 771503,
+          "name" : "Sample Archive 09\/fg-05.bin"
+        },
+        {
+          "bytesCompleted" : 5914098,
+          "length" : 453613534,
+          "name" : "Sample Archive 09\/fg-optional-brazilian.bin"
+        },
+        {
+          "bytesCompleted" : 0,
+          "length" : 454277940,
+          "name" : "Sample Archive 09\/fg-optional-chinese.bin"
+        },
+        {
+          "bytesCompleted" : 0,
+          "length" : 435765495,
+          "name" : "Sample Archive 09\/fg-optional-french.bin"
+        },
+        {
+          "bytesCompleted" : 0,
+          "length" : 460072527,
+          "name" : "Sample Archive 09\/fg-optional-german.bin"
+        },
+        {
+          "bytesCompleted" : 0,
+          "length" : 480348910,
+          "name" : "Sample Archive 09\/fg-optional-italian.bin"
+        },
+        {
+          "bytesCompleted" : 0,
+          "length" : 471194689,
+          "name" : "Sample Archive 09\/fg-optional-korean.bin"
+        },
+        {
+          "bytesCompleted" : 9363330,
+          "length" : 481229805,
+          "name" : "Sample Archive 09\/fg-optional-mexican.bin"
+        },
+        {
+          "bytesCompleted" : 10840518726,
+          "length" : 10840518726,
+          "name" : "Sample Archive 09\/fg-optional-multiplayer-files.bin"
+        },
+        {
+          "bytesCompleted" : 4976696,
+          "length" : 466129365,
+          "name" : "Sample Archive 09\/fg-optional-spanish.bin"
+        },
+        {
+          "bytesCompleted" : 11218226,
+          "length" : 1898875797,
+          "name" : "Sample Archive 09\/fg-optional-trailers.bin"
+        },
+        {
+          "bytesCompleted" : 15970086712,
+          "length" : 15970086712,
+          "name" : "Sample Archive 09\/fg-optional-ultra-hd-textures.bin"
+        },
+        {
+          "bytesCompleted" : 2214372197,
+          "length" : 2214372197,
+          "name" : "Sample Archive 09\/fg-optional-useless-videos.bin"
+        },
+        {
+          "bytesCompleted" : 6003934,
+          "length" : 6003934,
+          "name" : "Sample Archive 09\/setup.exe"
+        }
+      ],
+      "fileStats" : [
+        {
+          "bytesCompleted" : 103424,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 155,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 1063,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 69,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 45823135625,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 481091736,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 253898864,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 142852807,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 771503,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 5914098,
+          "priority" : 0,
+          "wanted" : false
+        },
+        {
+          "bytesCompleted" : 0,
+          "priority" : 0,
+          "wanted" : false
+        },
+        {
+          "bytesCompleted" : 0,
+          "priority" : 0,
+          "wanted" : false
+        },
+        {
+          "bytesCompleted" : 0,
+          "priority" : 0,
+          "wanted" : false
+        },
+        {
+          "bytesCompleted" : 0,
+          "priority" : 0,
+          "wanted" : false
+        },
+        {
+          "bytesCompleted" : 0,
+          "priority" : 0,
+          "wanted" : false
+        },
+        {
+          "bytesCompleted" : 9363330,
+          "priority" : 0,
+          "wanted" : false
+        },
+        {
+          "bytesCompleted" : 10840518726,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 4976696,
+          "priority" : 0,
+          "wanted" : false
+        },
+        {
+          "bytesCompleted" : 11218226,
+          "priority" : 0,
+          "wanted" : false
+        },
+        {
+          "bytesCompleted" : 15970086712,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 2214372197,
+          "priority" : 0,
+          "wanted" : true
+        },
+        {
+          "bytesCompleted" : 6003934,
+          "priority" : 0,
+          "wanted" : true
+        }
+      ],
+      "hashString" : "695d2d5cc42caa48253013754af40f29f455d377",
+      "haveValid" : 75764309165,
+      "id" : 906,
+      "isFinished" : false,
+      "labels" : [
+
+      ],
+      "name" : "Sample Archive 09",
+      "peers" : [
+
+      ],
+      "peersConnected" : 0,
+      "peersFrom" : {
+        "fromCache" : 0,
+        "fromDht" : 0,
+        "fromIncoming" : 0,
+        "fromLpd" : 0,
+        "fromLtep" : 0,
+        "fromPex" : 0,
+        "fromTracker" : 0
+      },
+      "peersGettingFromUs" : 0,
+      "peersSendingToUs" : 0,
+      "percentDone" : 1,
+      "pieceCount" : 4848,
+      "pieceSize" : 16777216,
+      "queuePosition" : 904,
+      "rateDownload" : 0,
+      "rateUpload" : 0,
+      "status" : 6,
+      "totalSize" : 81334344877,
+      "trackers" : [
+        {
+          "announce" : "https:\/\/tracker-1.invalid\/announce",
+          "sitename" : "ysraitpkagbu",
+          "tier" : 0
+        }
+      ],
+      "trackerStats" : [
+        {
+          "announceState" : 1,
+          "downloadCount" : 292,
+          "hasAnnounced" : true,
+          "host" : "tracker-1.invalid:443",
+          "id" : 905,
+          "isBackup" : false,
+          "lastAnnounceResult" : "Could not connect to tracker",
+          "lastAnnounceSucceeded" : false,
+          "lastAnnounceTime" : 1782604134,
+          "leecherCount" : 0,
+          "seederCount" : 7,
+          "tier" : 0
+        }
+      ],
+      "uploadRatio" : 0.066600000000000006
+    }
+  ],
+  "version" : 1
+}

@@ -2,8 +2,8 @@
 
 Status: **capture + replay implemented** (2026-08-21) — machinery, Developer
 pane UI (Settings → Developer), and the `--snapshot <path>` replay launch path
-are all in. Remaining: a no-daemon XCUITest and the AGENTS.md/reference cross-refs
-(partially done in Slice C). No separate CLI binary.
+are all in. A no-daemon XCUITest against a committed fixture landed 2026-08-23
+(Slice C). No separate CLI binary.
 
 ## Problem
 
@@ -263,8 +263,19 @@ clean, app builds. Replay verified end-to-end against a real capture
 - Result notes in this doc (Slice B validation above), an AGENTS.md dev-tools
   line (with the `--snapshot` invocation + `ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER`
   note), and a cross-ref from `reference/README.md`.
-- **Remaining:** a no-daemon XCUITest launching `--snapshot <fixture>`
-  (fixture located via `#filePath`-derived paths — no resource bundling).
+- **No-daemon XCUITest** (`testSnapshotMainWindow`) landed 2026-08-23: boots the
+  app on a **committed fixture**
+  (`TransmissionSwiftUITests/Fixtures/snapshot-10-torrents.json`, the anonymized
+  10-torrent capture from Slice B) located via `#filePath`-derived paths — no
+  resource bundling required (the filesystem-synced UITests group also copies
+  it into the bundle as a fallback). The app passes the checkout path straight
+  to `--snapshot`: when built for UI testing, Xcode injects
+  `com.apple.security.temporary-exception.files.absolute-path.read-only = /`
+  into the app's entitlements, so the sandbox doesn't block reading the repo.
+  This replaced the old test that scanned the developer's real `~/Downloads`
+  for "the smallest snapshot" — which was nondeterministic and, whenever the
+  small capture wasn't present, picked the 1098-row one and stalled ~30s per AX
+  query (~150s suite).
 
 Per Jonas's cross-stack preference, the validation loop closes early: capture a
 snapshot from the local dev daemon at the end of slice A, boot the app on it
@@ -273,12 +284,6 @@ during slice B — end-to-end without ever touching the real server. Done: a rea
 
 ## Open questions
 
-- **No-daemon XCUITest.** The one unimplemented piece: a UI test that boots
-  `--snapshot <fixture>` and asserts the torrent list renders. Needs a small
-  committed fixture (an anonymized capture, or a hand-trimmed one) referenced
-  via `#filePath` — no resource bundling. The `--mock-data` launch flag was
-  removed (superseded by `--snapshot`); `MockTorrentService` remains for
-  previews and unit tests.
 - **Headless capture.** An optional `--snapshot-capture --out <path>` launch arg
   (same pipeline, active saved profile, then exit) would let scripts / agents
   capture without touching the GUI — distributed with the app for free, no

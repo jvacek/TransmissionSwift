@@ -46,6 +46,11 @@ cd Packages/TransmissionCore && swift test
 xcodebuild -project TransmissionSwift.xcodeproj -scheme TransmissionSwift build | xcbeautify
 
 # Run the macOS app's tests.
+# The scheme's TestAction uses the "UI Testing" build configuration, which
+# builds the app-under-test with bundle ID jvacek.TransmissionSwift.uitesting —
+# a separate app with its own sandbox container. UI tests therefore never clash
+# with a TransmissionSwift instance you already have running, and never touch
+# the real app's prefs/profiles.
 xcodebuild -project TransmissionSwift.xcodeproj -scheme TransmissionSwift test | xcbeautify
 
 # Run all pre-commit hooks across the repo (uses prek).
@@ -100,6 +105,13 @@ Gotchas:
 - The sandbox blocks reading an arbitrary CLI path. The target grants **read**
   access to `~/Downloads` via `ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readonly`,
   so keep snapshots there for `--snapshot`.
+- The snapshot UI test (`testSnapshotMainWindow`) runs off a **committed fixture**
+  (`TransmissionSwiftUITests/Fixtures/snapshot-10-torrents.json`, an anonymized
+  10-torrent capture) — no daemon, no dependence on your ~/Downloads. The app
+  passes the checkout path straight to `--snapshot`: when built for UI testing,
+  Xcode injects `com.apple.security.temporary-exception.files.absolute-path.read-only = /`
+  into the app's entitlements, so the sandbox doesn't block reading the repo.
+  (Manual `--snapshot` launches still need ~/Downloads.)
 - `--snapshot` forces ephemeral profiles (the synthetic "Snapshot — <name>"
   profile is never persisted to the real `servers.json`).
 - If the file fails to decode, the app logs `Snapshot load failed: …` and falls

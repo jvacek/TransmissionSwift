@@ -97,6 +97,5 @@ jobs:
           xcodebuild \
             -project TransmissionSwift.xcodeproj \
             -scheme TransmissionSwift \
-            -configuration Debug \
             -destination 'platform=macOS' \
             test | xcbeautify --renderer github-actions
