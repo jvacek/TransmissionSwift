@@ -6,6 +6,7 @@ All notable changes to TransmissionSwift.
 
 23rd August 2026
 
+- Redesign the file list in the inspector
 - Implement file mapping via URI patterns
   - Presets for Locally hosted dameons, Cyberduck, Swizzin files, SSHFS/rsync
   - Works via URIs so you can choose whatever protocol you want

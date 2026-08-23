@@ -45,6 +45,20 @@ extension TorrentPriority {
     }
 }
 
+extension TorrentFile {
+    /// For multi-file torrents Transmission reports each file's path relative to
+    /// the download directory, so the first component is the torrent's base
+    /// directory. Stripping it shows the file as it appears inside the torrent.
+    /// Single-file torrents have no separator and are returned unchanged.
+    var displayName: String {
+        let separators = CharacterSet(charactersIn: "/\\")
+        guard let firstSeparator = name.rangeOfCharacter(from: separators) else {
+            return name
+        }
+        return String(name[firstSeparator.upperBound...])
+    }
+}
+
 extension TrackerState {
     var displayLabel: String {
         switch self {
