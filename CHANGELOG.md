@@ -2,6 +2,13 @@
 
 All notable changes to TransmissionSwift.
 
+## 0.2.2
+
+23rd August 2026
+
+- Change build version numbering to allow multiple releases on same day
+- Simplify release flow
+
 ## 0.2.1
 
 23rd August 2026
