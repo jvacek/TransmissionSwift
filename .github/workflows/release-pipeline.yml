@@ -1,0 +1,320 @@
+name: Release Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Marketing version for a stable release (e.g. 1.0.0). Empty for pre-releases."
+        type: string
+        required: false
+        default: ""
+      prerelease:
+        description: "Mark the GitHub release as a pre-release and use the beta Sparkle channel."
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      SPARKLE_PRIVATE_KEY:
+        required: true
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  build-release:
+    name: Build and publish
+    runs-on: macos-26
+    concurrency:
+      # Serialize stable and pre-release runs: they all write the same gh-pages
+      # appcast, so concurrent runs could clobber each other.
+      group: release-pipeline
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Needed for the git describe/tag lookup when generating pre-release notes.
+          fetch-depth: 0
+
+      - name: Verify default branch
+        run: |
+          set -euo pipefail
+
+          if [ "$GITHUB_REF_NAME" != "main" ]; then
+            echo "Releases are only published from main."
+            exit 1
+          fi
+
+      - name: Validate version
+        if: inputs.version != ''
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Version must be in semver format (e.g. 1.0.0)"
+            exit 1
+          fi
+
+      - name: Resolve release metadata
+        env:
+          VERSION: ${{ inputs.version }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+
+          release_year="$(date -u +%Y)"
+          release_month="$(date -u +%m)"
+          release_day="$(date -u +%d)"
+          release_month="${release_month#0}"
+          release_day="${release_day#0}"
+
+          # Append HHMMSS so same-day releases still get strictly increasing
+          # build versions. Sparkle compares only the build version
+          # (sparkle:version), so equal builds are never offered as an update.
+          RELEASE_BUILD_VERSION="${release_year}.${release_month}.${release_day}.$(date -u +%H%M%S)"
+          RELEASE_DATE="${release_year}-$(date -u +%m)-$(date -u +%d)"
+          SHORT_SHA="$(git rev-parse --short=12 HEAD)"
+          RELEASE_SHA="$(git rev-parse HEAD)"
+
+          if [ "$PRERELEASE" = "true" ]; then
+            TAG="prerelease-${RELEASE_DATE}-${SHORT_SHA}"
+            TITLE="Pre-release ${RELEASE_DATE} ${SHORT_SHA}"
+            APPCAST_TITLE="Pre-release ${RELEASE_DATE}"
+            SHORT_VERSION="0.1"
+            CHANNEL="beta"
+            PRERELEASE_FLAG="--prerelease"
+            BUILD_EXTRA_FLAGS="SWIFT_ACTIVE_COMPILATION_CONDITIONS=PRERELEASE"
+            ZIP_BASENAME="TransmissionSwift-${RELEASE_DATE}-${SHORT_SHA}"
+          else
+            TAG="v${VERSION}"
+            TITLE="TransmissionSwift ${VERSION}"
+            APPCAST_TITLE="Version ${VERSION}"
+            SHORT_VERSION="$VERSION"
+            CHANNEL=""
+            PRERELEASE_FLAG=""
+            BUILD_EXTRA_FLAGS="MARKETING_VERSION=${VERSION}"
+            ZIP_BASENAME="TransmissionSwift-${TAG}"
+          fi
+
+          ZIP_PATH="build/${ZIP_BASENAME}.zip"
+          ZIP_PATH_ARM64="build/${ZIP_BASENAME}-arm64.zip"
+
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "TITLE=$TITLE" >> "$GITHUB_ENV"
+          echo "APPCAST_TITLE=$APPCAST_TITLE" >> "$GITHUB_ENV"
+          echo "SHORT_VERSION=$SHORT_VERSION" >> "$GITHUB_ENV"
+          echo "CHANNEL=$CHANNEL" >> "$GITHUB_ENV"
+          echo "PRERELEASE_FLAG=$PRERELEASE_FLAG" >> "$GITHUB_ENV"
+          echo "BUILD_EXTRA_FLAGS=$BUILD_EXTRA_FLAGS" >> "$GITHUB_ENV"
+          echo "RELEASE_DATE=$RELEASE_DATE" >> "$GITHUB_ENV"
+          echo "RELEASE_SHA=$RELEASE_SHA" >> "$GITHUB_ENV"
+          echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_ENV"
+          echo "RELEASE_BUILD_VERSION=$RELEASE_BUILD_VERSION" >> "$GITHUB_ENV"
+          echo "ZIP_PATH=$ZIP_PATH" >> "$GITHUB_ENV"
+          echo "ZIP_PATH_ARM64=$ZIP_PATH_ARM64" >> "$GITHUB_ENV"
+          echo "ZIP_FILENAME=$(basename "$ZIP_PATH")" >> "$GITHUB_ENV"
+          echo "ZIP_FILENAME_ARM64=$(basename "$ZIP_PATH_ARM64")" >> "$GITHUB_ENV"
+
+      - name: Install xcbeautify
+        run: brew install xcbeautify
+
+      - name: Build arm64-only app
+        run: |
+          set -euo pipefail
+          set -o pipefail
+
+          xcodebuild \
+            -project TransmissionSwift.xcodeproj \
+            -scheme TransmissionSwift \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CURRENT_PROJECT_VERSION="$RELEASE_BUILD_VERSION" \
+            $BUILD_EXTRA_FLAGS \
+            build | xcbeautify --renderer github-actions
+
+      - name: Zip arm64 bundle
+        run: |
+          set -euo pipefail
+
+          app_path="build/DerivedData/Build/Products/Release/TransmissionSwift.app"
+          if [ ! -d "$app_path" ]; then
+            echo "Expected arm64 app bundle not found at ${app_path}."
+            exit 1
+          fi
+
+          ditto -c -k --keepParent "$app_path" "$ZIP_PATH_ARM64"
+
+      - name: Build universal app (reuses arm64 cache)
+        run: |
+          set -euo pipefail
+          set -o pipefail
+
+          xcodebuild \
+            -project TransmissionSwift.xcodeproj \
+            -scheme TransmissionSwift \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            CURRENT_PROJECT_VERSION="$RELEASE_BUILD_VERSION" \
+            $BUILD_EXTRA_FLAGS \
+            build | xcbeautify --renderer github-actions
+
+      - name: Zip universal bundle
+        run: |
+          set -euo pipefail
+
+          app_path="build/DerivedData/Build/Products/Release/TransmissionSwift.app"
+          if [ ! -d "$app_path" ]; then
+            echo "Expected app bundle not found at ${app_path}."
+            exit 1
+          fi
+
+          ditto -c -k --keepParent "$app_path" "$ZIP_PATH"
+
+      - name: Install Sparkle tools
+        run: |
+          set -euo pipefail
+
+          curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/2.9.4/Sparkle-2.9.4.tar.xz" \
+            -o /tmp/sparkle.tar.xz
+          mkdir -p /tmp/sparkle
+          tar xf /tmp/sparkle.tar.xz --strip-components=1 -C /tmp/sparkle
+          echo "/tmp/sparkle/bin" >> "$GITHUB_PATH"
+
+      - name: Sign zips
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+
+          # --- Universal zip ---
+          download_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${ZIP_FILENAME}"
+          sign_output=$(echo "$SPARKLE_PRIVATE_KEY" | sign_update \
+            --ed-key-file - "$ZIP_PATH")
+          signature=$(echo "$sign_output" | sed -n \
+            's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
+          length=$(echo "$sign_output" | sed -n \
+            's/.*length="\([^"]*\)".*/\1/p')
+
+          echo "SIGNATURE=$signature" >> "$GITHUB_ENV"
+          echo "ED_LENGTH=$length" >> "$GITHUB_ENV"
+          echo "DOWNLOAD_URL=$download_url" >> "$GITHUB_ENV"
+
+          # --- Arm64-only zip ---
+          download_url_arm64="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${ZIP_FILENAME_ARM64}"
+          sign_output_arm64=$(echo "$SPARKLE_PRIVATE_KEY" | sign_update \
+            --ed-key-file - "$ZIP_PATH_ARM64")
+          signature_arm64=$(echo "$sign_output_arm64" | sed -n \
+            's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
+          length_arm64=$(echo "$sign_output_arm64" | sed -n \
+            's/.*length="\([^"]*\)".*/\1/p')
+
+          echo "SIGNATURE_ARM64=$signature_arm64" >> "$GITHUB_ENV"
+          echo "ED_LENGTH_ARM64=$length_arm64" >> "$GITHUB_ENV"
+          echo "DOWNLOAD_URL_ARM64=$download_url_arm64" >> "$GITHUB_ENV"
+
+      - name: Generate release notes
+        env:
+          VERSION: ${{ inputs.version }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p build/appcast
+
+          # Sparkle release notes = the full accumulated changelog, plus a live
+          # copy for sparkle:fullReleaseNotesLink.
+          cp CHANGELOG.md "build/appcast/release-notes-${TAG}.md"
+          cp CHANGELOG.md "build/appcast/changelog.md"
+
+          if [ "$PRERELEASE" = "true" ]; then
+            # Pre-release GitHub notes: changes since the last tag.
+            last_tag="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+            if [ -n "$last_tag" ]; then
+              echo "# Changes since ${last_tag}" > build/changelog.md
+              echo "" >> build/changelog.md
+              git log "$last_tag..HEAD" --oneline --no-decorate >> build/changelog.md
+            else
+              echo "# Initial pre-release" > build/changelog.md
+            fi
+            echo "" >> "build/appcast/release-notes-${TAG}.md"
+            cat build/changelog.md >> "build/appcast/release-notes-${TAG}.md"
+          else
+            # Stable: require a heading for this version, and publish only that
+            # section to the GitHub release body.
+            if ! grep -q "^## ${VERSION}$" CHANGELOG.md; then
+              echo "CHANGELOG.md has no '## ${VERSION}' heading."
+              echo "Add a section to CHANGELOG.md with the heading '## ${VERSION}'."
+              exit 1
+            fi
+            awk -v version="$VERSION" '
+              /^## / {
+                if (shown) exit
+                shown = ($0 == "## " version)
+                next
+              }
+              shown { print }
+            ' CHANGELOG.md > build/changelog.md
+          fi
+
+          release_notes_url="https://jvacek.github.io/TransmissionSwift/release-notes-${TAG}.md"
+          full_release_notes_url="https://jvacek.github.io/TransmissionSwift/changelog.md"
+          echo "RELEASE_NOTES_URL=$release_notes_url" >> "$GITHUB_ENV"
+          echo "FULL_RELEASE_NOTES_URL=$full_release_notes_url" >> "$GITHUB_ENV"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          gh release create "$TAG" \
+            "$ZIP_PATH#$ZIP_FILENAME" \
+            "$ZIP_PATH_ARM64#$ZIP_FILENAME_ARM64" \
+            --target "$RELEASE_SHA" \
+            --title "$TITLE" \
+            --notes-file build/changelog.md \
+            $PRERELEASE_FLAG
+
+      - name: Fetch existing appcast
+        run: |
+          set -euo pipefail
+
+          curl -sL \
+            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/gh-pages/appcast.xml" \
+            -o build/appcast/appcast.xml || true
+
+      - name: Update appcast
+        run: |
+          set -euo pipefail
+
+          python3 scripts/update_appcast.py \
+            --appcast-path build/appcast/appcast.xml \
+            --download-url "$DOWNLOAD_URL" \
+            --title "$APPCAST_TITLE" \
+            --short-version "$SHORT_VERSION" \
+            --build-version "$RELEASE_BUILD_VERSION" \
+            --signature "$SIGNATURE" \
+            --length "$ED_LENGTH" \
+            --release-notes-url "$RELEASE_NOTES_URL" \
+            --full-release-notes-url "$FULL_RELEASE_NOTES_URL" \
+            --channel "$CHANNEL" \
+            --download-url-arm64 "$DOWNLOAD_URL_ARM64" \
+            --signature-arm64 "$SIGNATURE_ARM64" \
+            --length-arm64 "$ED_LENGTH_ARM64"
+
+      - name: Deploy appcast to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/appcast
+          keep_files: true
