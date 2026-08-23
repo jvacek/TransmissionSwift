@@ -68,9 +68,14 @@ jobs:
           release_month="${release_month#0}"
           release_day="${release_day#0}"
 
+          # Append HHMMSS timestamp so two stable releases on the same day still
+          # get strictly increasing build versions. Sparkle compares only the
+          # build version (sparkle:version), so equal builds are never offered.
+          RELEASE_BUILD_VERSION="${release_year}.${release_month}.${release_day}.$(date -u +%H%M%S)"
+
           echo "RELEASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
           echo "RELEASE_DATE=${release_year}-$(date -u +%m)-$(date -u +%d)" >> "$GITHUB_ENV"
-          echo "RELEASE_BUILD_VERSION=${release_year}.${release_month}.${release_day}" >> "$GITHUB_ENV"
+          echo "RELEASE_BUILD_VERSION=${RELEASE_BUILD_VERSION}" >> "$GITHUB_ENV"
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
           echo "TAG=v${VERSION}" >> "$GITHUB_ENV"
 
