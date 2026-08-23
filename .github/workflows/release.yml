@@ -21,7 +21,7 @@ jobs:
     name: Build stable release
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Verify default branch
         run: |

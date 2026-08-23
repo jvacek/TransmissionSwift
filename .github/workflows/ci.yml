@@ -15,13 +15,13 @@ jobs:
     name: Lint (swift-format + prek)
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install prek
         run: brew install prek
 
       - name: Cache prek hook env
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/prek
           key: prek-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -38,10 +38,10 @@ jobs:
       matrix:
         package: [TransmissionRPC, TransmissionCore]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cache SPM build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             Packages/${{ matrix.package }}/.build
@@ -66,13 +66,13 @@ jobs:
     name: Build & test macOS app
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install xcbeautify
         run: brew install xcbeautify
 
       - name: Cache DerivedData
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/Library/Developer/Xcode/DerivedData
           key: deriveddata-${{ runner.os }}-${{ hashFiles('TransmissionSwift.xcodeproj/project.pbxproj') }}
