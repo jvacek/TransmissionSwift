@@ -55,6 +55,15 @@ struct FilterFacetsTests {
         #expect(mediaCount == mediaTorrents)
     }
 
+    @Test("noLabelCount counts torrents without any label")
+    func noLabelCount() {
+        let torrents = MockFixtures.torrents()
+        let facets = FilterFacets(torrents: torrents)
+        let unlabeled = torrents.filter { $0.labels.isEmpty }
+        #expect(!unlabeled.isEmpty)
+        #expect(facets.noLabelCount == unlabeled.count)
+    }
+
     @Test("folder rollup entries are sorted alphabetically")
     func folderSortOrder() {
         let facets = FilterFacets(torrents: MockFixtures.torrents())
@@ -115,6 +124,21 @@ struct TorrentFilteringTests {
         #expect(torrents.filtered(by: TorrentFilterSelection(labels: ["3D", "Media"])).contains { $0.id == 2 })
         #expect(torrents.filtered(by: TorrentFilterSelection(labels: ["Linux"])).contains { $0.id == 2 } == false)
         #expect(blender.labels.count == 2)
+    }
+
+    @Test("the no-label sentinel matches only unlabeled torrents")
+    func noLabelFiltering() {
+        let torrents = MockFixtures.torrents()
+        let unlabeled = torrents.filter { $0.labels.isEmpty }
+        #expect(!unlabeled.isEmpty)
+
+        let filtered = torrents.filtered(by: TorrentFilterSelection(labels: [LabelFilter.noLabelName]))
+        #expect(filtered.count == unlabeled.count)
+        #expect(filtered.allSatisfy { $0.labels.isEmpty })
+
+        // The sentinel never collides with a real label: selecting "Linux"
+        // must not leak unlabeled torrents in.
+        #expect(torrents.filtered(by: TorrentFilterSelection(labels: ["Linux"])).allSatisfy { !$0.labels.isEmpty })
     }
 
     @Test("facet filters combine with AND semantics")

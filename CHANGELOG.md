@@ -8,6 +8,7 @@ All notable changes to TransmissionSwift.
 
 - Add support for setting torrent priorities
 - Add support for setting file-level priorities
+- Add a "no label" section under labels
 
 ## 0.4.0
 

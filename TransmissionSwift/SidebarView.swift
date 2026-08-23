@@ -104,6 +104,14 @@ struct SidebarView: View {
 
             if !store.facets.labels.isEmpty {
                 Section(isExpanded: $isLabelsExpanded) {
+                    SidebarFilterRow(
+                        label: "No label",
+                        leading: { Image(systemName: "tag.slash") },
+                        count: store.facets.noLabelCount,
+                        isSelected: store.selectedSidebarFilters.contains(.label(name: LabelFilter.noLabelName))
+                    ) {
+                        store.toggleLabelFilter(LabelFilter.noLabelName)
+                    }
                     ForEach(store.facets.labels) { entry in
                         let tagColor = tagColors.color(for: entry.name)
                         SidebarFilterRow(

@@ -16,6 +16,14 @@ public enum FolderFilter {
     public static let defaultFolderName = ""
 }
 
+/// Label-filter identity. The `noLabelName` sentinel drives the sidebar's
+/// "No label" row — torrents carrying no labels. The null character can never
+/// be a real label (untypable, and Transmission never transmits it), so the
+/// sentinel can't collide with an actual label name.
+public enum LabelFilter {
+    public static let noLabelName = "\u{0}"
+}
+
 /// Return `folder` relative to `base`, or `folder` unchanged when it isn't
 /// nested under `base` or `base` is nil. Trailing slashes are normalized first.
 public func relativeDownloadFolder(_ folder: String, relativeTo base: String?) -> String {
@@ -125,7 +133,14 @@ public struct TorrentFilterSelection: Hashable, Sendable {
             && (trackers.isEmpty || trackers.contains(torrent.primaryTracker))
             && (folders.isEmpty
                 || folders.contains(relativeDownloadFolder(torrent.downloadFolder, relativeTo: downloadDirectory)))
-            && (labels.isEmpty || labels.contains(where: torrent.labels.contains))
+            && matchesLabel(torrent)
+    }
+
+    private func matchesLabel(_ torrent: Torrent) -> Bool {
+        guard !labels.isEmpty else { return true }
+        if labels.contains(LabelFilter.noLabelName), torrent.labels.isEmpty { return true }
+        let named = labels.filter { $0 != LabelFilter.noLabelName }
+        return !named.isEmpty && named.contains(where: torrent.labels.contains)
     }
 
     private func matchesStatus(_ torrent: Torrent) -> Bool {
@@ -173,6 +188,9 @@ public struct FilterFacets: Sendable, Hashable {
     public var trackers: [FacetEntry]
     public var folders: [FacetEntry]
     public var labels: [FacetEntry]
+    /// Torrents carrying no labels. Backs the sidebar's "No label" row, which
+    /// only renders once at least one named label exists.
+    public var noLabelCount: Int
 
     public init(torrents: [Torrent], downloadDirectory: String? = nil) {
         var statuses: [TorrentStatusFilter: Int] = [:]
@@ -183,6 +201,7 @@ public struct FilterFacets: Sendable, Hashable {
         self.trackers = Self.entries(torrents.map(\.primaryTracker))
         self.folders = Self.folderEntries(torrents.map(\.downloadFolder), relativeTo: downloadDirectory)
         self.labels = Self.entries(torrents.flatMap(\.labels))
+        self.noLabelCount = torrents.lazy.filter { $0.labels.isEmpty }.count
     }
 
     private static func entries(_ values: [String]) -> [FacetEntry] {
