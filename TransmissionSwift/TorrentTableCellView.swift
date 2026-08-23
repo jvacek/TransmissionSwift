@@ -503,13 +503,16 @@ final class TorrentTableCellView: NSTableCellView {
                 let dot = makeDot()
                 stack.spacing = 6
                 stack.addArrangedSubview(dot)
-                // The name fills the column (left-aligned, truncating); the tag
-                // dots are a right-aligned horizontal cluster held together by
-                // their own sub-stack.
+                // A truncating single-line label resists stretching, so `.fill`
+                // would otherwise shove spare width into whatever follows it.
+                // An explicit flexible spacer absorbs that width, keeping the
+                // name at its natural size and the tag-dot cluster pinned to the
+                // column's trailing edge.
                 let label = makeLabel()
-                label.setContentHuggingPriority(.defaultLow, for: .horizontal)
-                label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+                label.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+                label.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
                 stack.addArrangedSubview(label)
+                stack.addArrangedSubview(makeFlexibleSpacer())
                 if !(content.trailingDotColors ?? []).isEmpty {
                     let dotsStack = NSStackView()
                     dotsStack.orientation = .horizontal
