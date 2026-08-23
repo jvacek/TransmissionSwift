@@ -8,7 +8,7 @@ This file gives AI coding agents (Claude, Cursor, Codex, Aider, etc.) the persis
 
 - `ARCHITECTURE.md` — durable architectural decisions and the rationale behind them.
 - `doc/ui-buildout.md` — **the current implementation plan** (mock-first UI slices). Its "Picking up from a new session" section says exactly where work stands; start there.
-- `doc/first-slice.md` — completed (2026-06-10); historical context only.
+- `doc/snapshot-replay.md` — design + redaction policy for snapshot capture/replay (see below).
 
 If anything in this file contradicts `ARCHITECTURE.md`, treat `ARCHITECTURE.md` as the source of truth and propose updating this file.
 

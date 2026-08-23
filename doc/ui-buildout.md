@@ -156,10 +156,10 @@ Only once Slices 0–6 land. No UI changes in this slice; only `TransmissionRPC`
 - [x] Add Codable request/response types per method — `TorrentActions.swift`: `TorrentIDArguments`, `TorrentRemoveArguments`, `TorrentSetArguments`, `TorrentAddArguments`/`TorrentAddResponse`, `SessionSetArguments`. `SessionInfo.altSpeedEnabled`. `TransmissionError.torrentDuplicate`. *(7b)*
 - [x] `RPCTorrentService` conforms to `TorrentService` — all stubs wired, `supportsActions` now `true`, `SessionInfo` cached for alt-speed + rpc-version gating, `ActionError` propagated via `TorrentStore.lastActionError`. *(7b)*
 - [x] App boot: if `--mock-data` not set → use `RPCTorrentService` with the active profile. *(done in earlier session)*
-- [ ] Inspector live data (`torrent-get` inspector fields, `inspectorData(for:)` protocol method, `TorrentStore.inspectorDetail`, repoint Files/Peers/Trackers tabs). *(7c — in progress)*
-- [ ] Disconnection propagation — `AsyncThrowingStream`, transient-vs-fatal failure policy, reconnect. *(7d)*
-- [ ] Background polling pause via `ScenePhase` (verify macOS behaviour first). *(7e)*
-- [ ] Capture fresh fixtures from the live daemon (see `reference/README.md` for the recipe) for every new method.
+- [x] Inspector live data (`torrent-get` inspector fields, `inspectorData(for:)` protocol method, `TorrentStore.inspectorDetail`, repoint Files/Peers/Trackers tabs). *(7c)*
+- [x] Disconnection propagation — `AsyncThrowingStream`, transient-vs-fatal failure policy, reconnect. *(7d)*
+- [x] Background polling pause via `ScenePhase` (also paused on `.inactive`; resumes with an immediate poll). *(7e)*
+- [ ] Capture fresh fixtures from the live daemon (see `reference/README.md` for the recipe) for every new method — `session-get` and `torrent-add` done; `torrent-get` (list + inspector), `torrent-set`, `torrent-start/stop/remove`, `free-space` still hand-made in tests.
 - [ ] Re-run the XCUITest suite against the real daemon (opt-in via the existing `TEST_RUNNER_TRANSMISSION_E2E=1` flag).
 
 ---
@@ -180,7 +180,7 @@ Only once Slices 0–6 land. No UI changes in this slice; only `TransmissionRPC`
 
 ## Result notes
 
-(Fill in as slices complete, matching `first-slice.md`'s pattern.)
+(Fill in as slices complete, recording what diverged from the plan.)
 
 ### Slice 1 follow-ups (post-merge polish, 2026-06-11)
 
@@ -238,10 +238,9 @@ Finder-style tag colours, built on the multi-label slice.
 
 ### Picking up from a new session
 
-- **Slices 3–6 are done. Slice 7 sub-slices completed so far:**
-  - **7a fixes** — invalid URL → `.disconnected`, double poll collapsed, `errorMessage` fallback. All done (landed before this session).
-  - **7b** — Action methods fully wired (`torrent-start/stop/verify/remove`, `torrent-set`, `torrent-add`, `session-set`). `SessionInfo.altSpeedEnabled` added. `ActionError` + alert in MainWindow. `RPCTorrentService.supportsActions` is now `true`. Tests: fixture decode + encode tests for all new RPC types. ✅
-  - **7c** — Inspector live data. **In progress** — wire types added (`WireFile`, `WireFileStat`, `WirePeer`, `WireTrackerStat`), optional inspector fields on `WireTorrent` still TODO. Next: mapping extensions, `inspectorData(for:)` protocol method + implementations, `TorrentStore.inspectorDetail`, repoint inspector tabs.
+- **Slices 3–6 are done, and so is Slice 7's code.** 7a fixes, 7b (actions), 7c (inspector live data), 7d (disconnection propagation), 7e (background pause) are all wired and tested. What's left in Slice 7 is validation only:
+  - Capture fresh daemon fixtures for the newer RPC methods — `session-get` and `torrent-add` already have fixture files in `Packages/TransmissionRPC/Tests/TransmissionRPCTests/Fixtures/`; `torrent-get` (list + inspector), `torrent-set`, `torrent-start/stop/remove`, and `free-space` are still exercised via hand-made JSON in the tests.
+  - Re-run the XCUITest suite against the live daemon (`TEST_RUNNER_TRANSMISSION_E2E=1`), and add a live main-window E2E test (today only `testAddServerAndTestConnection` is daemon-gated).
 - **bgIsolation disabled** in `.claude/settings.json` — background sessions can now edit the main repo directly (takes effect after a session restart).
 - **Still awaiting visual verification by Jonas** (accumulated from slices 1–6 — agent can't eyeball):
   - `ProgressBar` `.transaction { $0.animation = nil }` killing the bar lerp on filter switch. Escalation: custom `Capsule()` bar.
@@ -259,5 +258,4 @@ Finder-style tag colours, built on the multi-label slice.
   - Slice 4: AddServerForm onboarding flow could redirect to ServersManagerWindow instead of the inline form.
   - Slice 5: Speed pane limits are `@AppStorage` only — wire to `session-set` in slice 7.
   - Decide on status-bar turtle button — keep or drop (same action as toolbar alt-speed toggle)?
-  - Persist sort order across launches (`@AppStorage` in slice 5's General pane).
   - Filter-change row animations.
