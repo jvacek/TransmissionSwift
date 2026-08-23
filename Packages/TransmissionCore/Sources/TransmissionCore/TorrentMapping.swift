@@ -1,6 +1,21 @@
 import Foundation
 import TransmissionRPC
 
+/// Normalize a tracker host string into a bare hostname for favicon fetching
+/// and display. The RPC returns `trackerStats[].host` as `host:port` (e.g.
+/// "tracker.example.org:1337") while `trackers[].announce` is a full URL; both
+/// should collapse to just the hostname so the favicon service hits the web
+/// server on the standard port rather than the tracker's announce port.
+private func trackerHostname(_ host: String) -> String {
+    if let url = URL(string: host), url.host != nil {
+        return url.host!
+    }
+    if let url = URL(string: "https://" + host), let hostname = url.host {
+        return hostname
+    }
+    return host
+}
+
 extension Torrent {
     public init(wire: WireTorrent) {
         var status = Self.mapStatus(wireStatus: wire.status, error: wire.error, isFinished: wire.isFinished)
@@ -50,18 +65,12 @@ extension Torrent {
                 }
             }
             resolvedTrackers = stats.map { stat in
-                // Use stat.host if it's a valid FQDN; otherwise fall back to stub's announce host.
-                // stat.host from Transmission RPC is typically the full announce URL (e.g., "http://tracker.example.com:80/announce").
-                // Extract hostname from URL if possible.
-                let host: String
-                if let url = URL(string: stat.host), let urlHost = url.host {
-                    host = urlHost
-                } else if stat.host.contains(".") && !stat.host.allSatisfy({ $0.isNumber || $0 == "." || $0 == ":" }) {
-                    // Fallback: if it looks like an FQDN (has dots, not just numbers/dots/colons), use as-is
-                    host = stat.host
-                } else {
-                    host = tierToHost[stat.tier] ?? stat.host
-                }
+                // stat.host from Transmission RPC is `host:port` (e.g.
+                // "tracker.example.org:1337"), not a full URL. Normalize it to
+                // a bare hostname so the sidebar/favicon service don't connect
+                // to the tracker's announce port.
+                let normalized = trackerHostname(stat.host)
+                let host = normalized.isEmpty ? (tierToHost[stat.tier] ?? stat.host) : normalized
                 return Tracker(
                     tier: stat.tier,
                     host: host,
@@ -92,12 +101,7 @@ extension Torrent {
         } else if let stats = wire.trackerStats {
             // Stats present but no stubs - try to extract host from stat.host
             resolvedTrackers = stats.map { stat in
-                let host: String
-                if let url = URL(string: stat.host), let h = url.host {
-                    host = h
-                } else {
-                    host = stat.host
-                }
+                let host = trackerHostname(stat.host)
                 return Tracker(
                     tier: stat.tier,
                     host: host,
@@ -276,14 +280,10 @@ extension Tracker {
             statusMessage = stat.hasAnnounced ? "Waiting to announce" : "Not yet announced"
         }
 
-        // stat.host contains the full announce URL (e.g., "http://tracker.example.com:80/announce").
-        // Extract just the hostname for favicon fetching and display.
-        let hostname: String
-        if let url = URL(string: stat.host), let host = url.host {
-            hostname = host
-        } else {
-            hostname = stat.host
-        }
+        // stat.host from Transmission RPC is `host:port` (e.g.,
+        // "tracker.example.org:1337"), not a full URL. Normalize it to a bare
+        // hostname for favicon fetching and display.
+        let hostname = trackerHostname(stat.host)
 
         self.init(
             tier: stat.tier,

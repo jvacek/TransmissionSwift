@@ -583,6 +583,26 @@ struct TorrentInspectorMappingTests {
         #expect(t.trackers.first?.host == "rich.example.com")
         #expect(t.trackers.first?.seedCount == 5)
     }
+
+    @Test("trackerStats host:port is normalized to the bare hostname")
+    func trackerStatsHostWithPort() {
+        var wire = makeWire(trackers: [
+            WireTrackerStub(announce: "https://stub.example.com/announce", sitename: "StubTracker", tier: 0)
+        ])
+        wire.trackerStats = [
+            WireTrackerStat(
+                id: 1, tier: 0, host: "tracker.opentrackr.org:1337",
+                lastAnnounceResult: "", lastAnnounceTime: 0,
+                lastAnnounceSucceeded: true, hasAnnounced: true,
+                announceState: 1, seederCount: 5, leecherCount: 2,
+                downloadCount: 50, isBackup: false)
+        ]
+        let t = Torrent(wire: wire)
+        // The announce port must not leak into the host used for favicon
+        // fetching and display (https://tracker.opentrackr.org:1337 would
+        // point at the BitTorrent announce port, not a web server).
+        #expect(t.trackers.first?.host == "tracker.opentrackr.org")
+    }
 }
 
 // MARK: - RPCTorrentService stream lifecycle
