@@ -1,5 +1,12 @@
 # TransmissionSwift
 
+[![Release](https://img.shields.io/github/v/release/jvacek/TransmissionSwift?display_name=release&logo=github)](https://github.com/jvacek/TransmissionSwift/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/jvacek/TransmissionSwift/ci.yml?branch=main&logo=github)](https://github.com/jvacek/TransmissionSwift/actions)
+[![Stars](https://img.shields.io/github/stars/jvacek/TransmissionSwift?logo=github)](https://github.com/jvacek/TransmissionSwift)
+[![macOS](https://img.shields.io/badge/macOS-26+-lightgrey?logo=apple&logoColor=white)](https://developer.apple.com/macos/)
+[![Swift](https://img.shields.io/badge/Swift-6-orange?logo=swift&logoColor=white)](https://developer.apple.com/swift/)
+<!--[![Downloads](https://img.shields.io/github/downloads/jvacek/TransmissionSwift/latest/total?logo=github)](https://github.com/jvacek/TransmissionSwift/releases)-->
+
 <img src="imgs/icon.png" alt="logo" width="256">
 
 ## What is it
