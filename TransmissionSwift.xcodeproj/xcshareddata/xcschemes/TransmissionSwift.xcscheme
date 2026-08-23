@@ -77,8 +77,8 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "--mock-data"
-            isEnabled = "NO">
+            argument = "--snapshot $(PROJECT_DIR)/TransmissionSwiftUITests/Fixtures/snapshot-10-torrents.json"
+            isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
    </LaunchAction>

@@ -247,9 +247,14 @@ scene, button disabled until connected. Replay landed same day:
   If the file fails to decode, it logs "Snapshot load failed" and falls back to
   the empty mock.
 - **Sandbox gotcha:** a sandboxed app cannot read an arbitrary path passed on the
-  command line. Snapshot files live in `~/Downloads`, so the target gained
-  `ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readonly` (the `com.apple.security.files.downloads.read-only`
-  entitlement). Read-only suffices — replay never writes.
+  command line. The target grants `ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readonly`
+  (the `com.apple.security.files.downloads.read-only` entitlement) so real
+  captures can be replayed from `~/Downloads`. Debug builds additionally carry a
+  read-only `/` temp exception
+  (`com.apple.security.temporary-exception.files.absolute-path.read-only`, from
+  `TransmissionSwift/TransmissionSwift-Debug.entitlements` — Debug config only),
+  so `--snapshot <repo fixture>` also works from Xcode Run / Debug `open`.
+  Read-only suffices — replay never writes.
 - Tests: `SnapshotTorrentServiceTests` (7 tests: serve → map → session fields →
   frozen stream → read-only → inspector → unknown-version rejection).
 
