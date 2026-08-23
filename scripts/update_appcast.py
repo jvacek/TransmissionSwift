@@ -12,6 +12,7 @@ Usage:
     --signature "abc123..." \
     --length "1234567" \
     --release-notes-url "https://.../release-notes.md" \
+    [--full-release-notes-url "https://.../changelog.md"] \
     [--channel "beta"]
 
 If appcast.xml does not exist, a new one is created.
@@ -69,6 +70,7 @@ def add_item(
     signature,
     length,
     release_notes_url,
+    full_release_notes_url=None,
     channel_name=None,
     minimum_system_version="26.0",
     download_url_arm64=None,
@@ -111,6 +113,9 @@ def add_item(
     if release_notes_url:
         ET.SubElement(item, _sparkle("releaseNotesLink")).text = release_notes_url
 
+    if full_release_notes_url:
+        ET.SubElement(item, _sparkle("fullReleaseNotesLink")).text = full_release_notes_url
+
     if channel_name:
         ET.SubElement(item, _sparkle("channel")).text = channel_name
 
@@ -130,6 +135,7 @@ def main():
     parser.add_argument("--signature", required=True)
     parser.add_argument("--length", type=int, required=True)
     parser.add_argument("--release-notes-url", default="")
+    parser.add_argument("--full-release-notes-url", default="")
     parser.add_argument("--channel", default="")
     parser.add_argument("--download-url-arm64", default="")
     parser.add_argument("--signature-arm64", default="")
@@ -151,6 +157,7 @@ def main():
         signature=args.signature,
         length=args.length,
         release_notes_url=args.release_notes_url,
+        full_release_notes_url=args.full_release_notes_url or None,
         channel_name=args.channel or None,
         download_url_arm64=args.download_url_arm64 or None,
         signature_arm64=args.signature_arm64 or None,

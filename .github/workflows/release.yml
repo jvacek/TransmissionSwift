@@ -47,10 +47,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          changelog_path="changelog/${{ inputs.version }}.md"
-          if [ ! -f "$changelog_path" ]; then
-            echo "Changelog not found at ${changelog_path}."
-            echo "Create a file at changelog/${{ inputs.version }}.md with your release notes."
+          version="${{ inputs.version }}"
+          changelog_path="CHANGELOG.md"
+          if ! grep -q "^## ${version}$" "$changelog_path"; then
+            echo "CHANGELOG.md has no '## ${version}' heading."
+            echo "Add a section to CHANGELOG.md with the heading '## ${version}'."
             exit 1
           fi
           echo "CHANGELOG_PATH=$changelog_path" >> "$GITHUB_ENV"
@@ -197,11 +198,16 @@ jobs:
           echo "ZIP_FILENAME_ARM64=$zip_filename_arm64" >> "$GITHUB_ENV"
           echo "DOWNLOAD_URL_ARM64=$download_url_arm64" >> "$GITHUB_ENV"
 
-          # --- Release notes ---
+          # --- Release notes (full changelog) ---
           release_notes_url="https://jvacek.github.io/TransmissionSwift/release-notes-${TAG}.md"
+          full_release_notes_url="https://jvacek.github.io/TransmissionSwift/changelog.md"
           echo "RELEASE_NOTES_URL=$release_notes_url" >> "$GITHUB_ENV"
+          echo "FULL_RELEASE_NOTES_URL=$full_release_notes_url" >> "$GITHUB_ENV"
 
+          # Serve the full accumulated changelog to Sparkle, plus a live copy
+          # for sparkle:fullReleaseNotesLink.
           cp "$CHANGELOG_PATH" "build/appcast/release-notes-${TAG}.md"
+          cp "$CHANGELOG_PATH" "build/appcast/changelog.md"
           cp "$CHANGELOG_PATH" "build/changelog.md"
 
       - name: Create GitHub release
@@ -243,6 +249,7 @@ jobs:
             --signature "$SIGNATURE" \
             --length "$ED_LENGTH" \
             --release-notes-url "$RELEASE_NOTES_URL" \
+            --full-release-notes-url "$FULL_RELEASE_NOTES_URL" \
             --download-url-arm64 "$DOWNLOAD_URL_ARM64" \
             --signature-arm64 "$SIGNATURE_ARM64" \
             --length-arm64 "$ED_LENGTH_ARM64"

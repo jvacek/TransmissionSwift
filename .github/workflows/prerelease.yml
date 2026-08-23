@@ -185,8 +185,16 @@ jobs:
             echo "# Initial pre-release" > "$changelog_file"
           fi
 
-          # Copy as release-notes-<tag>.md for gh-pages
-          cp "$changelog_file" "build/appcast/release-notes-${tag}.md"
+          # Serve the full changelog to Sparkle, then this prerelease's changes
+          cp "CHANGELOG.md" "build/appcast/release-notes-${tag}.md"
+          echo "" >> "build/appcast/release-notes-${tag}.md"
+          cat "$changelog_file" >> "build/appcast/release-notes-${tag}.md"
+
+          # Live copy of the full changelog for sparkle:fullReleaseNotesLink
+          cp "CHANGELOG.md" "build/appcast/changelog.md"
+
+          full_release_notes_url="https://jvacek.github.io/TransmissionSwift/changelog.md"
+          echo "FULL_RELEASE_NOTES_URL=$full_release_notes_url" >> "$GITHUB_ENV"
 
       - name: Create GitHub pre-release
         env:
@@ -226,6 +234,7 @@ jobs:
             --signature "$SIGNATURE" \
             --length "$ED_LENGTH" \
             --release-notes-url "$RELEASE_NOTES_URL" \
+            --full-release-notes-url "$FULL_RELEASE_NOTES_URL" \
             --channel "beta" \
             --download-url-arm64 "$DOWNLOAD_URL_ARM64" \
             --signature-arm64 "$SIGNATURE_ARM64" \
