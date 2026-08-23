@@ -2,6 +2,14 @@
 
 All notable changes to TransmissionSwift.
 
+## 0.3.0
+
+23rd August 2026
+
+- Allow multiple tags to be set on a torrent
+- Add colour-coding to the tags
+- Adjust background colour of progress bar
+
 ## 0.2.2
 
 23rd August 2026
