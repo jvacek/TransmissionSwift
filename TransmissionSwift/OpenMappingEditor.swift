@@ -340,6 +340,30 @@ private struct MappingEditorSheet: View {
         return trimmed.hasPrefix("/") ? "file" : nil
     }
 
+    /// The scheme's default handler, resolved via LaunchServices, so the editor
+    /// can reason about which app would actually receive the URL.
+    private var defaultHandlerBundleID: String? {
+        guard let url = previewURL ?? templateScheme.flatMap({ URL(string: "\($0)://probe") }),
+            let appURL = NSWorkspace.shared.urlForApplication(toOpen: url)
+        else { return nil }
+        return Bundle(url: appURL)?.bundleIdentifier
+    }
+
+    /// Warns when the template embeds credentials (`{password}` /
+    /// `{password-encoded}`) and Safari — explicitly chosen or the scheme's
+    /// default handler — would open it. Safari mishandles basic auth in URLs
+    /// (it re-prompts for credentials instead of using the embedded ones).
+    private var safariBasicAuthWarning: String? {
+        guard
+            model.template.contains("{password}")
+                || model.template.contains("{password-encoded}")
+        else { return nil }
+        let effectiveBundleID = model.applicationBundleID ?? defaultHandlerBundleID
+        guard effectiveBundleID == "com.apple.Safari" else { return nil }
+        return
+            "Safari doesn't handle basic-auth URLs correctly and will re-prompt for credentials. Pick a different app (e.g. Chrome)."
+    }
+
     private var trimmedName: String {
         model.name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -467,6 +491,12 @@ private struct MappingEditorSheet: View {
                         .controlSize(.small)
                     }
                 }
+            }
+
+            if let warning = safariBasicAuthWarning {
+                Label(warning, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
             }
 
             VStack(alignment: .leading, spacing: 4) {
