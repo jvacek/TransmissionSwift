@@ -247,8 +247,12 @@ extension TorrentCellContent {
         case .label:
             let labels = row.torrent.labels.filter { !$0.isEmpty }
             if !labels.isEmpty {
+                // Uncoloured tags get the shared "neutral pill" fill — a light
+                // translucent tint of the label colour, not `quaternaryLabelColor`
+                // at a flat alpha (which is actually black/white at 40-50% and
+                // renders far too dark with poor text contrast).
                 let backgrounds = labels.map { label in
-                    tagColors[label].map(\.nsColor) ?? NSColor.quaternaryLabelColor.withAlphaComponent(0.5)
+                    tagColors[label].map(\.nsColor) ?? NSColor.labelColor.withAlphaComponent(0.06)
                 }
                 let foregrounds = labels.map { label in
                     tagColors[label].map(\.nsPillForeground) ?? .labelColor
@@ -734,6 +738,12 @@ final class TagPillView: NSView {
             textLabel.trailingAnchor.constraint(
                 equalTo: trailingAnchor, constant: -Self.horizontalPadding),
             textLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            // The intrinsic-size clamp can't stop the stack from COMPRESSING a
+            // pill below its text (compression bypasses intrinsic size). A real
+            // width ≥ height constraint is what guarantees the pill never gets
+            // narrower than its own height — i.e. it collapses to a circle at
+            // minimum width instead of a tall "olive" sliver.
+            widthAnchor.constraint(greaterThanOrEqualTo: heightAnchor),
         ])
     }
 
@@ -803,9 +813,13 @@ final class TagPillView: NSView {
     private func applyStyling() {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
+        // Neutral pills use the same light recipe as the SwiftUI TagPill
+        // (label colour at ~6%) so table and inspector chips match exactly.
+        // `quaternaryLabelColor.withAlphaComponent(0.4)` is NOT a light grey —
+        // it's black/white at 40%, far too dark.
         let effectiveBackground =
             fillColor
-            ?? NSColor.quaternaryLabelColor.withAlphaComponent(0.4)
+            ?? NSColor.labelColor.withAlphaComponent(0.06)
         fillLayer.backgroundColor = effectiveBackground.cgColor
         sheenLayer.colors = [
             NSColor.white.withAlphaComponent(0.14).cgColor,
@@ -814,10 +828,7 @@ final class TagPillView: NSView {
         sheenLayer.locations = [0, 0.55]
         sheenLayer.startPoint = CGPoint(x: 0.5, y: 0)
         sheenLayer.endPoint = CGPoint(x: 0.5, y: 1)
-        borderLayer.strokeColor =
-            (fillColor != nil
-            ? NSColor.labelColor.withAlphaComponent(0.16)
-            : NSColor.quaternaryLabelColor.withAlphaComponent(0.8)).cgColor
+        borderLayer.strokeColor = NSColor.labelColor.withAlphaComponent(0.16).cgColor
         borderLayer.lineWidth = 1
         borderLayer.fillColor = nil
         CATransaction.commit()

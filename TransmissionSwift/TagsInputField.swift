@@ -7,10 +7,10 @@ import TransmissionCore
 /// (whitespace-stripped, non-empty, no commas) and dedupes case-sensitively —
 /// the daemon stores labels as a deduped set.
 ///
-/// Typing shows an inline suggestion list of existing tags whose prefix matches
-/// the draft (each with its colour dot); ↑/↓ move the highlight, Return or a
-/// click applies the highlighted tag, and Return with no match creates a new
-/// tag. Chips are colour-aware, matching the table pills.
+/// Focusing the field shows an inline card of every existing tag (each with its
+/// colour dot); typing narrows it to prefix matches. ↑/↓ move the highlight,
+/// Return or a click applies the highlighted tag, and Return with no match
+/// creates a new tag. Chips are colour-aware, matching the table pills.
 struct TagsInputField: View {
     @Binding var tags: [String]
     var suggestions: [String] = []
@@ -24,17 +24,22 @@ struct TagsInputField: View {
         suggestions.filter { !tags.contains($0) }.sorted()
     }
 
-    private var matches: [String] {
-        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return [] }
-        let needle = trimmed.lowercased()
+    private var draftIsEmpty: Bool {
+        draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Prefix matches for the current draft, or ALL existing tags when the
+    /// draft is empty — focusing the field browses the known tag list.
+    private var displayedSuggestions: [String] {
+        guard !draftIsEmpty else { return availableSuggestions }
+        let needle = draft.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return availableSuggestions.filter { $0.lowercased().hasPrefix(needle) }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             chipRow
-            if fieldFocused && !matches.isEmpty {
+            if fieldFocused && !displayedSuggestions.isEmpty {
                 suggestionCard
             }
         }
@@ -68,12 +73,22 @@ struct TagsInputField: View {
         .onTapGesture { fieldFocused = true }
     }
 
-    /// Inline popover-style list of tags matching the draft. Each row shows the
-    /// tag's colour dot; the highlighted row (↑/↓) is tinted and shows a Return
-    /// hint.
+    /// Inline popover-style list of tags. When the draft is empty it lists ALL
+    /// existing tags (with a hint); as you type it narrows to prefix matches.
+    /// Each row shows the tag's colour dot; the highlighted row (↑/↓) is tinted
+    /// and shows a Return hint.
     private var suggestionCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(matches.enumerated()), id: \.element) { index, name in
+        let rows = displayedSuggestions
+        let list = VStack(alignment: .leading, spacing: 0) {
+            if draftIsEmpty {
+                Text("Existing tags — type to filter")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.top, 5)
+                    .padding(.bottom, 3)
+            }
+            ForEach(Array(rows.enumerated()), id: \.element) { index, name in
                 Button {
                     applySuggestion(name)
                 } label: {
@@ -101,6 +116,16 @@ struct TagsInputField: View {
                 .buttonStyle(.plain)
             }
         }
+        return Group {
+            if rows.count > 6 {
+                ScrollView {
+                    list
+                }
+                .frame(maxHeight: 220)
+            } else {
+                list
+            }
+        }
         .padding(4)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -124,14 +149,18 @@ struct TagsInputField: View {
     }
 
     private func moveHighlight(by delta: Int) -> KeyPress.Result {
-        guard !matches.isEmpty else { return .ignored }
-        highlightedIndex = (highlightedIndex + delta + matches.count) % matches.count
+        guard !displayedSuggestions.isEmpty else { return .ignored }
+        let count = displayedSuggestions.count
+        highlightedIndex = (highlightedIndex + delta + count) % count
         return .handled
     }
 
     private func commit() {
-        if !matches.isEmpty {
-            applySuggestion(matches[highlightedIndex])
+        // A highlighted suggestion wins (whether it's a filtered match or one
+        // picked from the browsed full list); otherwise create a new tag from
+        // the draft.
+        if !displayedSuggestions.isEmpty {
+            applySuggestion(displayedSuggestions[highlightedIndex])
             return
         }
         let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)

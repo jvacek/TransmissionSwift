@@ -142,16 +142,19 @@ struct TagPill: View {
     }
 }
 
-/// Shared capsule treatment for tags: tag-colour fill (or translucent neutral),
-/// a subtle top sheen and a hairline border. Keeps every tag surface — table
-/// pill, inspector chip, input chip, suggestion row — looking identical.
+/// Shared capsule treatment for tags: tag-colour fill (or a light translucent
+/// neutral), a subtle top sheen and a hairline border. Keeps every tag surface
+/// — table pill, inspector chip, input chip, suggestion row — looking
+/// identical. The neutral fill is the label colour at ~6% (NOT
+/// `quaternaryLabelColor.withAlphaComponent(0.4)`, which is black/white at 40%
+/// and far too dark against label-coloured text).
 struct TagCapsuleBackground: ViewModifier {
     let color: TagColor?
 
     func body(content: Content) -> some View {
         content.background {
             Capsule()
-                .fill(color?.color ?? Color(nsColor: .quaternaryLabelColor).opacity(0.4))
+                .fill(color?.color ?? Color.primary.opacity(0.06))
                 .overlay(
                     Capsule().fill(
                         LinearGradient(
@@ -163,9 +166,7 @@ struct TagCapsuleBackground: ViewModifier {
                 )
                 .overlay(
                     Capsule().strokeBorder(
-                        color != nil
-                            ? Color.primary.opacity(0.16)
-                            : Color(nsColor: .quaternaryLabelColor).opacity(0.8),
+                        Color.primary.opacity(0.16),
                         lineWidth: 1
                     )
                 )
