@@ -9,7 +9,7 @@ All notable changes to TransmissionSwift.
 - Implement file mapping via URI patterns
   - Presets for Locally hosted dameons, Cyberduck, Swizzin files, SSHFS/rsync
   - Works via URIs so you can choose whatever protocol you want
-  - Option to override the default app that would receive the URI
+  - Option to override the default app that would receive the URI (e.g. to VLC for http:// or sftp:// addresses)
   - Placeholder substitution system so you can make your mappings dynamic
     - Options for encoding your credentials for HTTP basic auth
     - Help with explanations available next to the placeholder dropdown
