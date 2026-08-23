@@ -15,6 +15,10 @@ import Foundation
 ///   resolves to the file itself (e.g. `myfile.txt`); a multi-file torrent
 ///   resolves to its folder with a trailing `/` (e.g. `Series1/`). An empty
 ///   file list (fetch failed) falls back to the folder (`name/`).
+/// - `{fileAbsolute}` — same as `{file}`, prefixed with the torrent's full
+///   download folder (the daemon's absolute path), e.g.
+///   `/srv/downloads/TV/Series1/`. Handy when a template has no
+///   `{download-dir}/{folder}` base to compose with.
 /// - `{folder}` — the directory the torrent is saved under, relative to the
 ///   daemon's default download directory (e.g. `TV`; empty when the torrent
 ///   sits directly in it). Falls back to the folder's basename when the
@@ -83,12 +87,14 @@ public enum MappingTemplate {
         let folder = Self.folderComponent(
             of: torrent.downloadFolder, defaultDownloadDirectory: defaultDownloadDirectory)
         let openedFile = Self.fileComponent(of: torrent, file: file)
+        let fileAbsolute = torrent.downloadFolder + "/" + openedFile
         path =
             path
             .replacingOccurrences(of: "{folder}", with: folder)
             .replacingOccurrences(of: "{path}", with: torrent.downloadFolder)
             .replacingOccurrences(of: "{download-dir}", with: defaultDownloadDirectory ?? "")
             .replacingOccurrences(of: "{file}", with: openedFile)
+            .replacingOccurrences(of: "{fileAbsolute}", with: fileAbsolute)
 
         var components = URLComponents()
         components.scheme = scheme

@@ -159,7 +159,12 @@ private struct MappingEditorSheet: View {
                     token: "{file}",
                     summary:
                         "The file or folder being opened, relative to the folder the torrent is saved under."
-                )
+                ),
+                PlaceholderItem(
+                    token: "{fileAbsolute}",
+                    summary:
+                        "Same as {file}, but prefixed with the torrent's full download folder (absolute path)."
+                ),
             ]
         ),
         PlaceholderGroup(
@@ -210,7 +215,7 @@ private struct MappingEditorSheet: View {
         ),
         (
             "Cyberduck / SFTP",
-            "sftp://{user}@{host}/{download-dir}/{folder}/{file}",
+            "sftp://{user}@{host}/{fileAbsolute}",
             "Open the file or download folder over SFTP in Cyberduck."
         ),
     ]
@@ -577,6 +582,7 @@ private struct PlaceholderReferenceView: View {
                     Text("Torrent list · single file → the file itself, e.g. myfile.txt")
                     Text("Torrent list · multi-file → the torrent's folder, e.g. Series1/")
                     Text("Files tab · one file selected → that file, e.g. Series1/Episode1")
+                    Text("{fileAbsolute} is the same path, prefixed with the torrent's download folder.")
                 }
                 .font(.caption)
             }

@@ -374,6 +374,76 @@ struct MappingTemplateTests {
                 == "sftp://dev@nas.local/~/transmission/downloads/ubuntu.iso")
     }
 
+    @Test("{fileAbsolute} is {file} prefixed with the download folder (single file)")
+    func fileAbsoluteSingleFile() {
+        let server = ServerProfile(label: "x", host: "nas.local", username: "dev")
+        let files = [TorrentFile(id: 0, name: "myfile.txt", size: 1, progress: 1)]
+        #expect(
+            expand(
+                "sftp://{user}@{host}/{fileAbsolute}",
+                downloadFolder: "/srv/downloads/TV",
+                name: "myfile.txt",
+                server: server,
+                files: files
+            )?.absoluteString
+                == "sftp://dev@nas.local/srv/downloads/TV/myfile.txt")
+    }
+
+    @Test("{fileAbsolute} includes the torrent's own folder for multi-file torrents")
+    func fileAbsoluteMultiFile() {
+        let server = ServerProfile(label: "x", host: "nas.local", username: "dev")
+        let files = [
+            TorrentFile(id: 0, name: "Series1/Episode1", size: 1, progress: 1),
+            TorrentFile(id: 1, name: "Series1/Episode2", size: 1, progress: 1),
+        ]
+        #expect(
+            expand(
+                "sftp://{user}@{host}/{fileAbsolute}",
+                downloadFolder: "/srv/downloads/TV",
+                name: "Series1",
+                server: server,
+                files: files
+            )?.absoluteString
+                == "sftp://dev@nas.local/srv/downloads/TV/Series1/")
+    }
+
+    @Test("{fileAbsolute} resolves a selected file to its absolute path")
+    func fileAbsoluteInContext() {
+        let server = ServerProfile(label: "x", host: "nas.local", username: "dev")
+        let files = [
+            TorrentFile(id: 0, name: "Series1/Episode1", size: 1, progress: 1),
+            TorrentFile(id: 1, name: "Series1/Episode2", size: 1, progress: 1),
+        ]
+        let file = TorrentFile(id: 0, name: "Series1/Episode1", size: 1, progress: 1)
+        #expect(
+            expand(
+                "sftp://{user}@{host}/{fileAbsolute}",
+                downloadFolder: "/srv/downloads/TV",
+                server: server,
+                files: files,
+                file: file
+            )?.absoluteString
+                == "sftp://dev@nas.local/srv/downloads/TV/Series1/Episode1")
+    }
+
+    @Test("{fileAbsolute} keeps a home-relative download folder as ~")
+    func fileAbsoluteTilde() {
+        let server = ServerProfile(label: "x", host: "nas.local", username: "dev")
+        let files = [
+            TorrentFile(id: 0, name: "Series1/Episode1", size: 1, progress: 1),
+            TorrentFile(id: 1, name: "Series1/Episode2", size: 1, progress: 1),
+        ]
+        #expect(
+            expand(
+                "sftp://{user}@{host}/{fileAbsolute}",
+                downloadFolder: "~/transmission/downloads/TV",
+                name: "Series1",
+                server: server,
+                files: files
+            )?.absoluteString
+                == "sftp://dev@nas.local/~/transmission/downloads/TV/Series1/")
+    }
+
     @Test("file scheme expands a leading tilde to the local home directory")
     func fileSchemeExpandsTilde() {
         let server = ServerProfile(label: "x", host: "nas.local")
@@ -409,7 +479,7 @@ struct MappingTemplateTests {
 @Suite("MappingTemplate — expected outputs with the mock fixtures")
 struct MappingTemplateMockOutputsTests {
     private let server = ServerProfile(label: "x", host: "nas.local", username: "dev")
-    private let cyberduck = "sftp://{user}@{host}/{download-dir}/{folder}/{file}"
+    private let cyberduck = "sftp://{user}@{host}/{fileAbsolute}"
     private let downloads = "/srv/downloads"
 
     /// Percent-decoded full URL, for readable assertions (keeps the trailing
@@ -429,12 +499,12 @@ struct MappingTemplateMockOutputsTests {
         let ubuntu = Torrent.samples[0]
         #expect(
             expandedURL(cyberduck, torrent: ubuntu, defaultDownloadDirectory: downloads)
-                == "sftp://dev@nas.local/srv/downloads/Linux ISOs/ubuntu-24.04.2-desktop-amd64.iso")
+                == "sftp://dev@nas.local/Linux ISOs/ubuntu-24.04.2-desktop-amd64.iso")
         #expect(
             MappingTemplate.expand(
                 cyberduck, torrent: ubuntu, server: server, defaultDownloadDirectory: downloads)?
                 .absoluteString
-                == "sftp://dev@nas.local/srv/downloads/Linux%20ISOs/ubuntu-24.04.2-desktop-amd64.iso")
+                == "sftp://dev@nas.local/Linux%20ISOs/ubuntu-24.04.2-desktop-amd64.iso")
     }
 
     @Test("multi-file torrent (Debian) opens the torrent's own folder")
@@ -442,7 +512,7 @@ struct MappingTemplateMockOutputsTests {
         let debian = Torrent.samples[4]
         #expect(
             expandedURL(cyberduck, torrent: debian, defaultDownloadDirectory: downloads)
-                == "sftp://dev@nas.local/srv/downloads/Linux ISOs/Debian 12.6 — netinst (multi-arch) collection/")
+                == "sftp://dev@nas.local/Linux ISOs/Debian 12.6 — netinst (multi-arch) collection/")
     }
 
     @Test("a file selected in the inspector opens within the torrent folder")
@@ -451,7 +521,7 @@ struct MappingTemplateMockOutputsTests {
         let file = debian.files[0]
         #expect(
             expandedURL(cyberduck, torrent: debian, defaultDownloadDirectory: downloads, file: file)
-                == "sftp://dev@nas.local/srv/downloads/Linux ISOs/Debian 12.6 — netinst (multi-arch) collection/debian-12.6.0-amd64-netinst.iso"
+                == "sftp://dev@nas.local/Linux ISOs/Debian 12.6 — netinst (multi-arch) collection/debian-12.6.0-amd64-netinst.iso"
         )
     }
 }
