@@ -238,6 +238,22 @@ struct MockTorrentServiceTests {
         #expect(after.files.first { $0.id == target }?.priority == .high)
     }
 
+    @Test("setPriority updates the torrent-level priority on every targeted torrent")
+    func torrentPriority() async throws {
+        let service = MockTorrentService()
+        let before = try await service.torrents()
+        #expect(before.first { $0.id == 2 }?.priority == .normal)
+
+        try await service.setPriority([2, 5], priority: .high)
+        let after = try await service.torrents()
+        #expect(after.first { $0.id == 2 }?.priority == .high)
+        #expect(after.first { $0.id == 5 }?.priority == .high)
+        let untouched = Set(before.map(\.id)).subtracting([2, 5])
+        for id in untouched {
+            #expect(after.first { $0.id == id }?.priority == before.first { $0.id == id }?.priority)
+        }
+    }
+
     @Test("setLabels replaces the whole label set on every targeted torrent")
     func setLabels() async throws {
         let service = MockTorrentService()
@@ -378,6 +394,18 @@ struct TorrentStoreTests {
         await store.setLabels([2, 5], labels: ["Archive"])
         await waitFor { store.torrents.first { $0.id == 2 }?.labels == ["Archive"] }
         #expect(store.torrents.first { $0.id == 5 }?.labels == ["Archive"])
+    }
+
+    @Test("setPriority action updates the selected torrents through the stream")
+    @MainActor
+    func setPriorityAction() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+
+        await store.setPriority([2, 5], priority: .low)
+        await waitFor { store.torrents.first { $0.id == 2 }?.priority == .low }
+        #expect(store.torrents.first { $0.id == 5 }?.priority == .low)
     }
 
     @Test("openEditLabels is gated on actions and a non-empty target")

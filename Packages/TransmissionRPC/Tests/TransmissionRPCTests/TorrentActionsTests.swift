@@ -109,6 +109,24 @@ struct TorrentSetArgumentsEncodeTests {
         #expect(emptyJSON["labels"] == nil)
     }
 
+    @Test("bandwidthPriority encodes as -1/0/1 and is absent when nil")
+    func bandwidthPriorityEncoding() throws {
+        var low = TorrentSetArguments(ids: [3])
+        low.bandwidthPriority = -1
+        #expect(try encoded(low)["bandwidthPriority"] as? Int == -1)
+
+        var normal = TorrentSetArguments(ids: [3])
+        normal.bandwidthPriority = 0
+        #expect(try encoded(normal)["bandwidthPriority"] as? Int == 0)
+
+        var high = TorrentSetArguments(ids: [3])
+        high.bandwidthPriority = 1
+        #expect(try encoded(high)["bandwidthPriority"] as? Int == 1)
+
+        let absent = TorrentSetArguments(ids: [3])
+        #expect(try encoded(absent)["bandwidthPriority"] == nil)
+    }
+
     @Test("empty arrays are never emitted for file-index fields")
     func noEmptyArraysForFileIndexFields() throws {
         // A nil [Int]? must not encode to []. Build args with only ids set.

@@ -28,6 +28,7 @@ struct TorrentListView: View {
                     switch action {
                     case .resume: await store.start(ids)
                     case .pause: await store.stop(ids)
+                    case .setPriority(let priority): await store.setPriority(ids, priority: priority)
                     case .verify: await store.verify(ids)
                     case .reannounce: await store.reannounce(ids)
                     case .remove: await store.remove(ids)

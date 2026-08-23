@@ -76,6 +76,9 @@ public actor SnapshotTorrentService: TorrentService {
     ) async throws {
         throw SnapshotError.replayReadOnly
     }
+    public func setPriority(_ ids: [Torrent.ID], priority: TorrentPriority) async throws {
+        throw SnapshotError.replayReadOnly
+    }
     public func setOptions(_ id: Torrent.ID, options: TorrentOptions) async throws {
         throw SnapshotError.replayReadOnly
     }

@@ -25,7 +25,8 @@ struct InspectorFilesTab: View {
                             file: file,
                             sizeColumnWidth: sizeColumnWidth,
                             wanted: wantedBinding(for: file),
-                            priority: priorityBinding(for: file)
+                            priority: priorityBinding(for: file),
+                            actionsEnabled: store.actionsEnabled
                         )
                         .padding(.horizontal, 4)
                         .padding(.vertical, 3)
@@ -205,6 +206,7 @@ private struct FileRow: View {
     let sizeColumnWidth: CGFloat
     @Binding var wanted: Bool
     @Binding var priority: FilePriorityChoice
+    let actionsEnabled: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -213,7 +215,7 @@ private struct FileRow: View {
                     .toggleStyle(.checkbox)
                     .labelsHidden()
                     .accessibilityLabel("Download \(file.displayName)")
-                    .disabled(true)
+                    .disabled(!actionsEnabled)
                     .padding(.top, 2)
                 Text(file.displayName)
                     .font(.callout.monospaced())
@@ -254,7 +256,7 @@ private struct FileRow: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .disabled(true)
+        .disabled(!actionsEnabled)
         .accessibilityLabel("Priority for \(file.displayName)")
     }
 }

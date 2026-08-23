@@ -149,6 +149,14 @@ public actor MockTorrentService: TorrentService {
         broadcast()
     }
 
+    public func setPriority(_ ids: [Torrent.ID], priority: TorrentPriority) async throws {
+        let set = Set(ids)
+        for index in state.indices where set.contains(state[index].id) {
+            state[index].priority = priority
+        }
+        broadcast()
+    }
+
     public func setOptions(_ id: Torrent.ID, options: TorrentOptions) async throws {
         guard let index = state.firstIndex(where: { $0.id == id }) else { return }
         state[index].options = options

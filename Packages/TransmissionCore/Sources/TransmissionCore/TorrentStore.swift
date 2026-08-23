@@ -362,6 +362,10 @@ public final class TorrentStore {
         do { try await service.setFilePriority(id, fileIDs: fileIDs, priority: priority) } catch { recordError(error) }
     }
 
+    public func setPriority(_ ids: [Torrent.ID], priority: TorrentPriority) async {
+        do { try await service.setPriority(ids, priority: priority) } catch { recordError(error) }
+    }
+
     public func setOptions(_ id: Torrent.ID, options: TorrentOptions) async {
         do { try await service.setOptions(id, options: options) } catch { recordError(error) }
     }

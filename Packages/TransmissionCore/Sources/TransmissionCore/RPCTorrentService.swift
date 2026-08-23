@@ -159,6 +159,17 @@ public actor RPCTorrentService: TorrentService {
         await refreshAfterMutation()
     }
 
+    public func setPriority(_ ids: [Torrent.ID], priority: TorrentPriority) async throws {
+        var args = TorrentSetArguments(ids: ids)
+        switch priority {
+        case .low: args.bandwidthPriority = -1
+        case .normal: args.bandwidthPriority = 0
+        case .high: args.bandwidthPriority = 1
+        }
+        try await client.torrentSet(args)
+        await refreshAfterMutation()
+    }
+
     public func setOptions(_ id: Torrent.ID, options: TorrentOptions) async throws {
         var args = TorrentSetArguments(ids: [id])
         args.downloadLimited = options.downloadLimited

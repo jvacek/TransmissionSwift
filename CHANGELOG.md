@@ -2,6 +2,13 @@
 
 All notable changes to TransmissionSwift.
 
+## 0.4.1
+
+24th August 2026
+
+- Add support for setting torrent priorities
+- Add support for setting file-level priorities
+
 ## 0.4.0
 
 24th August 2026

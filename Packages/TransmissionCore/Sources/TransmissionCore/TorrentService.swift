@@ -55,6 +55,10 @@ public protocol TorrentService: Sendable {
     func setFilePriority(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], priority: TorrentPriority)
         async throws
 
+    /// Whole-torrent bandwidth priority. Maps to `torrent-set`
+    /// `bandwidthPriority` (-1 = low, 0 = normal, 1 = high).
+    func setPriority(_ ids: [Torrent.ID], priority: TorrentPriority) async throws
+
     /// Whole-struct replace of a torrent's transfer options. Maps to one
     /// `torrent-set` call carrying the changed limit fields.
     func setOptions(_ id: Torrent.ID, options: TorrentOptions) async throws

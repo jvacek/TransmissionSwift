@@ -5,6 +5,7 @@ import TransmissionCore
 enum TorrentRowAction {
     case resume
     case pause
+    case setPriority(TorrentPriority)
     case verify
     case reannounce
     case remove
@@ -326,6 +327,16 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         private static let editLabelsItemTag = 2
         private static let openMappingItemTag = 3
 
+        /// Title + SF-symbol glyph for a torrent-priority context-menu item.
+        /// Mirrors the priority column's glyphs (`TorrentTableCellView`).
+        private static func priorityMenuItemContent(_ priority: TorrentPriority) -> (String, String) {
+            switch priority {
+            case .high: return ("High", "chevron.up")
+            case .normal: return ("Normal", "minus")
+            case .low: return ("Low", "chevron.down")
+            }
+        }
+
         private func populateRowMenu(_ menu: NSMenu, ids: [Torrent.ID]) {
             menu.removeAllItems()
             let canAct = actionsEnabled && !ids.isEmpty
@@ -369,10 +380,30 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                 item.tag = Self.openMappingItemTag
                 return item
             }
+            // Priority submenu. Checks the option matching the affected torrents
+            // when they all share one priority; nothing is checked on a mixed
+            // selection.
+            let prioritySubmenu = NSMenu()
+            let affectedPriorities = ids.compactMap { id in
+                displayedRows.first { $0.id == id }?.torrent.priority
+            }
+            let uniformPriority = Set(affectedPriorities).count == 1 ? affectedPriorities.first : nil
+            for priority in TorrentPriority.allCases {
+                let (title, symbol) = Self.priorityMenuItemContent(priority)
+                let priorityItem = item(title, symbol, .setPriority(priority))
+                priorityItem.state = priority == uniformPriority ? .on : .off
+                prioritySubmenu.addItem(priorityItem)
+            }
+            let priorityMenuItem = NSMenuItem(title: "Priority", action: nil, keyEquivalent: "")
+            priorityMenuItem.image = NSImage(
+                systemSymbolName: "arrow.up.arrow.down", accessibilityDescription: "Priority")
+            priorityMenuItem.submenu = prioritySubmenu
+            priorityMenuItem.isEnabled = canAct
 
             menu.autoenablesItems = false
             menu.addItem(item("Resume", "play.fill", .resume))
             menu.addItem(item("Pause", "pause.fill", .pause))
+            menu.addItem(priorityMenuItem)
             menu.addItem(.separator())
             menu.addItem(item("Verify Local Data", "checkmark.shield", .verify))
             menu.addItem(item("Update Tracker", "megaphone", .reannounce))
