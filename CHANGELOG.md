@@ -2,6 +2,13 @@
 
 All notable changes to TransmissionSwift.
 
+## 0.2.1
+
+23rd August 2026
+
+- Fix favicons not fetching
+- Show entire changelog in sparkle
+
 ## 0.2.0
 
 23rd August 2026
