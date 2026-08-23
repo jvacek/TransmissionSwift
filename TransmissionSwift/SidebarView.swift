@@ -10,6 +10,7 @@ private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category:
 struct SidebarView: View {
     @Environment(TorrentStore.self) private var store
     @Environment(FaviconStore.self) private var favicons
+    @Environment(TagColorStore.self) private var tagColors
 
     @AppStorage("sidebar.section.expanded.status") private var isStatusExpanded = true
     @AppStorage("sidebar.section.expanded.trackers") private var isTrackersExpanded = true
@@ -104,13 +105,26 @@ struct SidebarView: View {
             if !store.facets.labels.isEmpty {
                 Section(isExpanded: $isLabelsExpanded) {
                     ForEach(store.facets.labels) { entry in
+                        let tagColor = tagColors.color(for: entry.name)
                         SidebarFilterRow(
                             label: entry.name,
-                            leading: { Image(systemName: "tag") },
+                            leading: {
+                                if let tagColor {
+                                    // Finder shows a coloured dot for a tag.
+                                    TagColorDot(color: tagColor)
+                                } else {
+                                    Image(systemName: "tag")
+                                }
+                            },
                             count: entry.count,
                             isSelected: store.selectedSidebarFilters.contains(.label(name: entry.name))
                         ) {
                             store.toggleLabelFilter(entry.name)
+                        }
+                        .contextMenu {
+                            TagColorPickerMenu(current: tagColor) { color in
+                                tagColors.setColor(color, for: entry.name)
+                            }
                         }
                     }
                 } header: {

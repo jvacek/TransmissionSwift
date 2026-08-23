@@ -102,6 +102,7 @@ private struct InspectorHeader: View {
     let store = TorrentStore(service: service)
     return InspectorView()
         .environment(store)
+        .environment(TagColorStore())
         .frame(width: 322, height: 600)
         .task { store.selectedTorrentIDs = [5] }
 }
@@ -109,5 +110,6 @@ private struct InspectorHeader: View {
 #Preview("Empty") {
     InspectorView()
         .environment(TorrentStore(service: MockTorrentService(initial: [])))
+        .environment(TagColorStore())
         .frame(width: 322, height: 600)
 }

@@ -2,7 +2,7 @@ import SwiftUI
 import TransmissionCore
 import TransmissionRPC
 
-/// The six-pane Preferences window, registered as a `Settings` scene.
+/// The Preferences window, registered as a `Settings` scene.
 ///
 /// `pendingNavTab` is written by any "Server Settings…" call-site before
 /// invoking `openSettings()` / `showSettingsWindow:`. `onAppear` handles the
@@ -34,6 +34,9 @@ struct PreferencesView: View {
             DeveloperPrefsPane()
                 .tabItem { Label("Developer", systemImage: "wrench.and.screwdriver") }
                 .tag(6)
+            TagsPrefsPane()
+                .tabItem { Label("Tags", systemImage: "tag") }
+                .tag(7)
         }
         .onAppear {
             guard pendingNavTab >= 0 else { return }

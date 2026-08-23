@@ -15,6 +15,7 @@ struct TransmissionSwiftApp: App {
     @State private var profileStore: ServerProfileStore
     @State private var torrentStore: TorrentStore
     @State private var faviconStore = FaviconStore()
+    @State private var tagColorStore: TagColorStore
     private let snapshotPath: String?
     private let updateService = UpdateService()
 
@@ -69,6 +70,8 @@ struct TransmissionSwiftApp: App {
         }
         let store = TorrentStore(service: service)
         self._torrentStore = State(wrappedValue: store)
+
+        self._tagColorStore = State(wrappedValue: TagColorStore())
     }
 
     /// Extracts the snapshot path from `--snapshot <path>` or `--snapshot=<path>`.
@@ -88,6 +91,7 @@ struct TransmissionSwiftApp: App {
                 .environment(profileStore)
                 .environment(torrentStore)
                 .environment(faviconStore)
+                .environment(tagColorStore)
                 .onOpenURL { url in
                     // Fires for both magnet: links (CFBundleURLTypes) and
                     // double-clicked / "Open With" .torrent files
@@ -143,6 +147,7 @@ struct TransmissionSwiftApp: App {
                 .environment(profileStore)
                 .environment(faviconStore)
                 .environment(torrentStore)
+                .environment(tagColorStore)
         }
     }
 }

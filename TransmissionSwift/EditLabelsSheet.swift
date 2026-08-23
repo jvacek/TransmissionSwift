@@ -69,5 +69,6 @@ struct EditLabelsSheet: View {
     let store = TorrentStore(service: MockTorrentService())
     return EditLabelsSheet(isPresented: .constant(true), ids: [2])
         .environment(store)
+        .environment(TagColorStore())
         .frame(width: 400)
 }

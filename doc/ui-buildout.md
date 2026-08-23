@@ -226,6 +226,16 @@ feature instead of a single value.
 - **Verification:** 163 core + 22 RPC tests (incl. new mapping/filter/facet/setLabels/encode suites), app builds, snapshot UI test passes, `swift-format` lint + prek clean.
 - **Verified upstream:** Transmission supports multiple labels per torrent (`rpcimpl.cc` `makeLabels`/`setLabels`); `torrent-set labels` replaces the whole set.
 
+### Tag colour coding (2026-08-23)
+
+Finder-style tag colours, built on the multi-label slice.
+
+- **Data:** `TagColor` (7-colour Finder palette: red/orange/yellow/green/blue/purple/gray) + `@Observable TagColorStore` (TransmissionCore) persisting a `[String: TagColor]` map as JSON in `UserDefaults` (`tagColors`), whitespace-normalized keys. "No colour" = absent entry.
+- **Where colour shows:** Finder-style coloured dots after the torrent name in the table (one dot per tag — coloured in the tag's colour, grey when uncoloured — so a torrent's tag count is visible even before any colour is assigned); the Labels column pill gets a solid tag-colour fill with contrast text (white, except black on yellow); the inspector's label chips are coloured; the sidebar's label rows show a coloured dot instead of the `tag` icon.
+- **Setting colour:** right-click a tag in the sidebar → Finder-style 7-colour picker (coloured circle + name + checkmark, plus "No Colour"), or the new **Tags** settings pane (tag 7) listing every in-use tag plus any pre-coloured tag, each with a swatch that opens the same picker.
+- **Table plumbing:** `TorrentCellContent.make` gained a `tagColors` lookup; the representable carries `[String: TagColor]` and forces a visible-cell refresh when it changes (external to the row poll guard, which only knows torrent fields).
+- **Verification:** 175 core tests (7 new `TagColorStore`), 22 RPC, app builds, snapshot UI test passes, `swift-format` + prek clean. Colours are a local pref, so they stay editable in snapshot replay.
+
 ### Picking up from a new session
 
 - **Slices 3–6 are done. Slice 7 sub-slices completed so far:**

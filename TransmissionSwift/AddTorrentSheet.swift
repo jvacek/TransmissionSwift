@@ -189,9 +189,11 @@ extension UTType {
 #Preview("Add Torrent") {
     AddTorrentSheet(isPresented: .constant(true))
         .environment(TorrentStore(service: MockTorrentService()))
+        .environment(TagColorStore())
 }
 
 #Preview("Magnet") {
     AddTorrentSheet(isPresented: .constant(true), initialMagnetMode: true)
         .environment(TorrentStore(service: MockTorrentService()))
+        .environment(TagColorStore())
 }

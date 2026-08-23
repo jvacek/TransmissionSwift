@@ -3,6 +3,7 @@ import TransmissionCore
 
 struct TorrentListView: View {
     @Environment(TorrentStore.self) private var store
+    @Environment(TagColorStore.self) private var tagColors
 
     var body: some View {
         let prefs = store.tablePreferences
@@ -20,6 +21,7 @@ struct TorrentListView: View {
             },
             actionsEnabled: store.actionsEnabled,
             labelsSupported: store.supportsLabels,
+            tagColors: tagColors.colors,
             onRowAction: { action, ids in
                 Task {
                     switch action {

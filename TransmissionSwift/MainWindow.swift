@@ -322,5 +322,6 @@ private struct InspectorResizeHandle: View {
         .environment(TorrentStore(service: MockTorrentService(initial: [])))
         .environment(emptyProfiles)
         .environment(FaviconStore())
+        .environment(TagColorStore())
         .frame(width: 1100, height: 640)
 }

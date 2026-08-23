@@ -6,6 +6,7 @@ import TransmissionCore
 struct InspectorGeneralTab: View {
     let torrent: Torrent
     @Environment(TorrentStore.self) private var store
+    @Environment(TagColorStore.self) private var tagColors
 
     var body: some View {
         ScrollView {
@@ -125,12 +126,7 @@ struct InspectorGeneralTab: View {
                         .foregroundStyle(.tertiary)
                 } else {
                     ForEach(torrent.labels, id: \.self) { label in
-                        Text(label)
-                            .font(.caption)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(Color.secondary.opacity(0.14)))
-                            .lineLimit(1)
+                        labelChip(label)
                     }
                 }
                 if store.actionsEnabled && store.supportsLabels {
@@ -145,6 +141,10 @@ struct InspectorGeneralTab: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func labelChip(_ label: String) -> some View {
+        TagPill(label: label, color: tagColors.color(for: label))
     }
 
     private func row(_ label: String, _ value: String, monospaced: Bool = false) -> some View {
@@ -165,5 +165,6 @@ struct InspectorGeneralTab: View {
 
 #Preview {
     InspectorGeneralTab(torrent: Torrent.samples[4])
+        .environment(TagColorStore())
         .frame(width: 322, height: 640)
 }

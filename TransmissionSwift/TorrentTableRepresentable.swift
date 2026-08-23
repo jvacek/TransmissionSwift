@@ -20,6 +20,10 @@ struct TorrentTableRepresentable: NSViewRepresentable {
     var onSortChange: ((TransmissionCore.TableColumn, Bool) -> Void)?
     var actionsEnabled: Bool
     var labelsSupported: Bool = true
+    /// Local tag→colour assignments (TagColorStore). External to the torrent
+    /// rows, so a change forces a visible-cell refresh rather than riding the
+    /// row poll guard.
+    var tagColors: [String: TagColor] = [:]
     var onRowAction: ((TorrentRowAction, [Torrent.ID]) -> Void)?
     var onInspectorRequest: (() -> Void)?
 
@@ -81,6 +85,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             sortState: Coordinator.SortState(columnID: sortColumnID, ascending: sortAscending),
             actionsEnabled: actionsEnabled,
             labelsSupported: labelsSupported,
+            tagColors: tagColors,
             onSortChange: onSortChange,
             onRowAction: onRowAction,
             onInspectorRequest: onInspectorRequest)
@@ -112,6 +117,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             sortState: Coordinator.SortState(columnID: sortColumnID, ascending: sortAscending),
             actionsEnabled: actionsEnabled,
             labelsSupported: labelsSupported,
+            tagColors: tagColors,
             onSortChange: onSortChange,
             onRowAction: onRowAction,
             onInspectorRequest: onInspectorRequest)
@@ -138,6 +144,8 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         var sortState: SortState?
         var actionsEnabled = true
         var labelsSupported = true
+        var tagColors: [String: TagColor] = [:]
+        private var lastTagColors: [String: TagColor] = [:]
         var onRowAction: ((TorrentRowAction, [Torrent.ID]) -> Void)?
         var onInspectorRequest: (() -> Void)?
         weak var rowMenu: NSMenu?
@@ -163,6 +171,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             sortState: SortState?,
             actionsEnabled: Bool,
             labelsSupported: Bool,
+            tagColors: [String: TagColor],
             onSortChange: ((TransmissionCore.TableColumn, Bool) -> Void)?,
             onRowAction: ((TorrentRowAction, [Torrent.ID]) -> Void)?,
             onInspectorRequest: (() -> Void)?
@@ -171,6 +180,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             self.sortState = sortState
             self.actionsEnabled = actionsEnabled
             self.labelsSupported = labelsSupported
+            self.tagColors = tagColors
             self.onSortChange = onSortChange
             self.onRowAction = onRowAction
             self.onInspectorRequest = onInspectorRequest
@@ -183,7 +193,12 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             let newDisplays = newRows.map(TorrentRowDisplay.init)
             let change = Self.classifyChange(from: displayedRows, to: newDisplays)
             let baseChanged = downloadDirectoryBase != lastDownloadDirectoryBase
-            guard change != .none || baseChanged else { return }
+            // Tag colours are external to the rows, so a change bypasses the
+            // poll guard and refreshes visible cells (make() recomputes each
+            // cell's colour, and the per-cell equality guard skips unchanged ones).
+            let colorsChanged = tagColors != lastTagColors
+            if colorsChanged { lastTagColors = tagColors }
+            guard change != .none || baseChanged || colorsChanged else { return }
             displayedRows = newDisplays
             lastDownloadDirectoryBase = downloadDirectoryBase
             guard let tableView else { return }
@@ -409,7 +424,8 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                         content: TorrentCellContent.make(
                             for: tableColumn,
                             row: displayedRows[row],
-                            downloadDirectoryBase: downloadDirectoryBase))
+                            downloadDirectoryBase: downloadDirectoryBase,
+                            tagColors: tagColors))
                 }
             }
         }
@@ -443,7 +459,8 @@ extension TorrentTableRepresentable.Coordinator: NSTableViewDelegate {
             content: TorrentCellContent.make(
                 for: column,
                 row: displayedRows[row],
-                downloadDirectoryBase: downloadDirectoryBase))
+                downloadDirectoryBase: downloadDirectoryBase,
+                tagColors: tagColors))
         return cell
     }
 
