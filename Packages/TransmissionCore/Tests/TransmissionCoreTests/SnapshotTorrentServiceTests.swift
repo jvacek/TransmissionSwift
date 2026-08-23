@@ -120,4 +120,24 @@ struct SnapshotTorrentServiceTests {
             try SnapshotTorrentService(fileURL: url)
         }
     }
+
+    @Test("exposes the captured tag colours for seeding the replay store")
+    func exposesTagColors() throws {
+        let url = try writeFixture()
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let service = try SnapshotTorrentService(fileURL: url)
+        #expect(service.tagColors == ["My Label": .green, "Movies": .blue, "Family": .purple])
+    }
+
+    @Test("exposes an empty colour map when the file carries none")
+    func emptyTagColorsWhenAbsent() throws {
+        var file = SnapshotFixtures.rawSnapshot()
+        file.tagColors = nil
+        let url = try writeFixture(file)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let service = try SnapshotTorrentService(fileURL: url)
+        #expect(service.tagColors.isEmpty)
+    }
 }

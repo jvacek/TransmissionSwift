@@ -72,6 +72,12 @@ public struct SnapshotFile: Codable, Sendable {
     public var torrents: [WireTorrent]
     /// Present in redacted files; nil in a raw capture.
     public var redactions: SnapshotRedactionSummary?
+    /// Local tag→colour assignments captured alongside the state, so replay
+    /// shows the same colours. Optional: files captured before colour support
+    /// (or captures with no colour assignments) simply omit it. Only embedded
+    /// when the capture keeps real names — an anonymized capture fuzzes labels,
+    /// so the colour keys would reference labels that no longer exist.
+    public var tagColors: [String: TagColor]?
 
     public init(
         version: Int,
@@ -79,7 +85,8 @@ public struct SnapshotFile: Codable, Sendable {
         source: SnapshotSourceInfo,
         session: SessionInfo,
         torrents: [WireTorrent],
-        redactions: SnapshotRedactionSummary? = nil
+        redactions: SnapshotRedactionSummary? = nil,
+        tagColors: [String: TagColor]? = nil
     ) {
         self.version = version
         self.capturedAt = capturedAt
@@ -87,6 +94,7 @@ public struct SnapshotFile: Codable, Sendable {
         self.session = session
         self.torrents = torrents
         self.redactions = redactions
+        self.tagColors = tagColors
     }
 }
 

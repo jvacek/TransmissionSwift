@@ -58,9 +58,15 @@ struct TransmissionSwiftApp: App {
         // (read-only, frozen). Otherwise we hand the store an empty mock — the real
         // RPC-backed service lands in slice 7 of doc/ui-buildout.md.
         let service: any TorrentService
+        var snapshotTagColors: [String: TagColor] = [:]
         if let snapshotPath {
             do {
-                service = try SnapshotTorrentService(fileURL: URL(fileURLWithPath: snapshotPath))
+                let snapshotService = try SnapshotTorrentService(
+                    fileURL: URL(fileURLWithPath: snapshotPath))
+                // Colours are captured in the snapshot, so replay shows the same
+                // assignments without touching the user's real prefs.
+                snapshotTagColors = snapshotService.tagColors
+                service = snapshotService
             } catch {
                 NSLog("Snapshot load failed: \(error.localizedDescription)")
                 service = MockTorrentService(initial: [])
@@ -71,7 +77,11 @@ struct TransmissionSwiftApp: App {
         let store = TorrentStore(service: service)
         self._torrentStore = State(wrappedValue: store)
 
-        self._tagColorStore = State(wrappedValue: TagColorStore())
+        let tagColorStore = TagColorStore()
+        if !snapshotTagColors.isEmpty {
+            tagColorStore.seed(snapshotTagColors)
+        }
+        self._tagColorStore = State(wrappedValue: tagColorStore)
     }
 
     /// Extracts the snapshot path from `--snapshot <path>` or `--snapshot=<path>`.

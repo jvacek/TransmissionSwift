@@ -80,6 +80,9 @@ struct SnapshotPipelineTests {
         #expect(file.redactions == summary)
         #expect(file.torrents.count == 2)
         #expect(file.session.downloadDirFreeSpace == 123_456_789_012)
+        // Tag colours ride through redaction untouched (keys are label names,
+        // values are palette strings — no rule matches).
+        #expect(file.tagColors == ["My Label": .green, "Movies": .blue, "Family": .purple])
 
         // Domain mapping through the live code path (Torrent(wire:)).
         let torrents = file.torrents.map { Torrent(wire: $0) }
@@ -259,6 +262,43 @@ struct SnapshotPipelineTests {
             options: SnapshotRedactionOptions(maxTorrents: 1)
         )
         #expect(result.torrentCount == 1)
+    }
+
+    @Test("capture embeds tag colours when names are kept")
+    @MainActor
+    func captureEmbedsTagColors() async throws {
+        let stub = StubSnapshotService(raw: SnapshotFixtures.rawSnapshot())
+        let store = TorrentStore(service: stub)
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("snapshot-test-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let colors: [String: TagColor] = ["My Label": .green, "Movies": .blue]
+        _ = try await store.captureSnapshot(
+            to: url,
+            options: SnapshotRedactionOptions(respectFilters: false),
+            tagColors: colors
+        )
+        let file = try JSONDecoder().decode(SnapshotFile.self, from: Data(contentsOf: url))
+        #expect(file.tagColors == colors)
+    }
+
+    @Test("anonymized captures drop tag colours (fuzzed labels would not match)")
+    @MainActor
+    func anonymizedCaptureOmitsTagColors() async throws {
+        let stub = StubSnapshotService(raw: SnapshotFixtures.rawSnapshot())
+        let store = TorrentStore(service: stub)
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("snapshot-test-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        _ = try await store.captureSnapshot(
+            to: url,
+            options: SnapshotRedactionOptions(includeNames: false, respectFilters: false),
+            tagColors: ["My Label": .green]
+        )
+        let file = try JSONDecoder().decode(SnapshotFile.self, from: Data(contentsOf: url))
+        #expect(file.tagColors == nil)
     }
 
     /// Polls the main actor until `predicate` holds (store state updates

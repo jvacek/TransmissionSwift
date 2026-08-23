@@ -44,6 +44,14 @@ public final class TagColorStore {
         colors.keys.sorted()
     }
 
+    /// Replaces the in-memory assignments without persisting — used to seed the
+    /// store from a snapshot's captured colours on replay. The user's own
+    /// `UserDefaults` prefs stay untouched until they actually edit a colour
+    /// (at which point `setColor` persists the merged set, as usual).
+    public func seed(_ colors: [String: TagColor]) {
+        self.colors = colors
+    }
+
     private func load() {
         guard let data = userDefaults.data(forKey: Self.storageKey),
             let decoded = try? JSONDecoder().decode([String: TagColor].self, from: data)

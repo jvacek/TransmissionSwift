@@ -87,4 +87,21 @@ struct TagColorStoreTests {
         #expect(store.color(for: "Media") == .yellow)
         #expect(store.coloredLabels == ["3D", "Linux", "Media"])
     }
+
+    @Test("seed replaces the in-memory map without persisting")
+    @MainActor
+    func seedReplacesWithoutPersisting() {
+        let (store, defaults) = makeStore()
+        store.setColor(.red, for: "Linux")
+        store.seed(["Media": .blue, "3D": .green])
+
+        #expect(store.color(for: "Media") == .blue)
+        #expect(store.color(for: "3D") == .green)
+        #expect(store.color(for: "Linux") == nil)
+        // The seed wrote nothing: defaults still hold exactly the pre-seed state.
+        let persisted =
+            defaults.data(forKey: "tagColors")
+            .flatMap { try? JSONDecoder().decode([String: TagColor].self, from: $0) }
+        #expect(persisted == ["Linux": .red])
+    }
 }

@@ -13,6 +13,7 @@ import UniformTypeIdentifiers
 /// for bug reports / agent repros (see `doc/snapshot-replay.md`).
 struct DeveloperPrefsPane: View {
     @Environment(TorrentStore.self) private var torrentStore
+    @Environment(TagColorStore.self) private var tagColors
 
     // Per-capture options — defaults favor identifying-friendly, focused
     // captures; never persisted.
@@ -150,7 +151,8 @@ struct DeveloperPrefsPane: View {
                     maxTorrents: limitEnabled ? limitValue : nil,
                     respectFilters: respectFilters
                 )
-                let result = try await torrentStore.captureSnapshot(to: url, options: options)
+                let result = try await torrentStore.captureSnapshot(
+                    to: url, options: options, tagColors: tagColors.colors)
                 captureResult = .saved(url: url, result: result)
             } catch {
                 captureResult = .failed(error.localizedDescription)

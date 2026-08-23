@@ -13,6 +13,11 @@
     "redacted" : false,
     "rpcVersion" : 17
   },
+  "tagColors" : {
+    "3D" : "orange",
+    "Linux" : "green",
+    "Media" : "blue"
+  },
   "torrents" : [
     {
       "addedDate" : 1787468400,

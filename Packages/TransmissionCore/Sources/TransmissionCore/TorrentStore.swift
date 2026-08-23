@@ -444,10 +444,13 @@ public final class TorrentStore {
     /// to `url`. Runs the full pipeline: raw capture → scope (current filters
     /// + torrent limit) → deterministic redaction → leak check → write.
     /// Returns what was redacted and how many torrents made it in, for the
-    /// capture-complete alert.
+    /// capture-complete alert. `tagColors` (the local tag→colour assignments)
+    /// is embedded so replay shows the same colours; it's dropped when the
+    /// capture anonymizes names, since fuzzed labels wouldn't match them.
     public func captureSnapshot(
         to url: URL,
-        options: SnapshotRedactionOptions = SnapshotRedactionOptions()
+        options: SnapshotRedactionOptions = SnapshotRedactionOptions(),
+        tagColors: [String: TagColor] = [:]
     ) async throws -> SnapshotCaptureResult {
         let raw = try await service.captureRawSnapshot()
         let visibleOrder = options.respectFilters ? visibleTorrents.map(\.id) : nil
@@ -456,6 +459,7 @@ public final class TorrentStore {
         )
         var scopedRaw = raw
         scopedRaw.torrents = scoped
+        scopedRaw.tagColors = options.includeNames ? (tagColors.isEmpty ? nil : tagColors) : nil
         let redactor = SnapshotRedactor(options: options)
         let (tree, summary) = try redactor.redact(scopedRaw)
         try SnapshotLeakChecker.check(

@@ -31,7 +31,8 @@ enum SnapshotFixtures {
                 altSpeedEnabled: true,
                 downloadDir: "/Users/jonas/Downloads"
             ),
-            torrents: [downloadingTorrent(), errorTorrent()]
+            torrents: [downloadingTorrent(), errorTorrent()],
+            tagColors: ["My Label": .green, "Movies": .blue, "Family": .purple]
         )
     }
 
