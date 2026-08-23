@@ -16,7 +16,7 @@ This app lets you connect to a remote Transmission instance over RPC.
 - Enable slow mode
 - Combining filters in the sidebar
 - Managing torrent labels and assigning colour coding to them
-- Path mapping via custom URI patterns, open your files with whatever app you want (Finder, Chrome, Cyberduck...)
+- Path mapping via custom URI patterns, open your files with whatever app you want (Finder, Chrome, Cyberduck, VLC...)
 - App self-updating via Sparkle
 
 It is written in Swift and SwiftUI, zipping down to a ~4MB app with minimal resource use.
