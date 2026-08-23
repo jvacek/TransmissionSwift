@@ -42,6 +42,10 @@ public protocol TorrentService: Sendable {
     func remove(_ ids: [Torrent.ID], deleteLocalData: Bool) async throws
     func verify(_ ids: [Torrent.ID]) async throws
 
+    /// Re-announce the given torrents to their trackers. Maps to RPC
+    /// `torrent-reannounce` ("ask tracker for more peers").
+    func reannounce(_ ids: [Torrent.ID]) async throws
+
     /// Per-file selection. Maps to `torrent-set` `files-wanted` /
     /// `files-unwanted`.
     func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool) async throws

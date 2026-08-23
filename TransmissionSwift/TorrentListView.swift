@@ -29,6 +29,7 @@ struct TorrentListView: View {
                     case .resume: await store.start(ids)
                     case .pause: await store.stop(ids)
                     case .verify: await store.verify(ids)
+                    case .reannounce: await store.reannounce(ids)
                     case .remove: await store.remove(ids)
                     case .removeAndDeleteData:
                         await store.remove(ids, deleteLocalData: true)

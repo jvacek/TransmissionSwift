@@ -6,15 +6,16 @@ All notable changes to TransmissionSwift.
 
 23rd August 2026
 
-- Redesign the file list in the inspector
-- Implement file mapping via URI patterns
-  - Presets for Locally hosted dameons, Cyberduck, Swizzin files, SSHFS/rsync
+- **Implement file mapping via URI patterns**
+  - Presets for Locally hosted daemons, Cyberduck, Swizzin files, SSHFS/rsync
   - Works via URIs so you can choose whatever protocol you want
   - Option to override the default app that would receive the URI (e.g. to VLC for http:// or sftp:// addresses)
   - Placeholder substitution system so you can make your mappings dynamic
     - Options for encoding your credentials for HTTP basic auth
     - Help with explanations available next to the placeholder dropdown
 - Allow duplicating server profiles
+- Redesign the file list in the inspector
+- Add action for updating the tracker
 
 ## 0.3.0
 

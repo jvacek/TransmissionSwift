@@ -65,6 +65,7 @@ public actor SnapshotTorrentService: TorrentService {
         throw SnapshotError.replayReadOnly
     }
     public func verify(_ ids: [Torrent.ID]) async throws { throw SnapshotError.replayReadOnly }
+    public func reannounce(_ ids: [Torrent.ID]) async throws { throw SnapshotError.replayReadOnly }
     public func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool)
         async throws
     {

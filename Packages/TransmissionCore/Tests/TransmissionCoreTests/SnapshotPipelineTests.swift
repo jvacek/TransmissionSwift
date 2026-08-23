@@ -46,6 +46,7 @@ private struct StubSnapshotService: TorrentService {
     func stop(_ ids: [Torrent.ID]) async throws {}
     func remove(_ ids: [Torrent.ID], deleteLocalData: Bool) async throws {}
     func verify(_ ids: [Torrent.ID]) async throws {}
+    func reannounce(_ ids: [Torrent.ID]) async throws {}
     func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool) async throws {}
     func setFilePriority(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], priority: TorrentPriority)
         async throws

@@ -17,6 +17,7 @@ This app lets you connect to a remote Transmission instance over RPC.
   - Start/pause
   - Delete, with or without data
   - Verify
+  - Update tracker
 - Add new torrents
   - via .torrent files (drag+drop, or register handler for .torrent files)
   - magnets links via UI

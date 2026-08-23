@@ -6,6 +6,7 @@ enum TorrentRowAction {
     case resume
     case pause
     case verify
+    case reannounce
     case remove
     case removeAndDeleteData
     case editLabels
@@ -374,6 +375,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             menu.addItem(item("Pause", "pause.fill", .pause))
             menu.addItem(.separator())
             menu.addItem(item("Verify Local Data", "checkmark.shield", .verify))
+            menu.addItem(item("Update Tracker", "megaphone", .reannounce))
             menu.addItem(.separator())
             if !mappings.isEmpty {
                 for mapping in mappings {

@@ -125,6 +125,11 @@ public actor RPCTorrentService: TorrentService {
         await refreshAfterMutation()
     }
 
+    public func reannounce(_ ids: [Torrent.ID]) async throws {
+        try await client.torrentAction("torrent-reannounce", ids: ids)
+        await refreshAfterMutation()
+    }
+
     public func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool)
         async throws
     {

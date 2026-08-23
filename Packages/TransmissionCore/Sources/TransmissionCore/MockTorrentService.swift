@@ -114,6 +114,17 @@ public actor MockTorrentService: TorrentService {
         broadcast()
     }
 
+    public func reannounce(_ ids: [Torrent.ID]) async throws {
+        let set = Set(ids)
+        for index in state.indices where set.contains(state[index].id) {
+            for trackerIndex in state[index].trackers.indices {
+                state[index].trackers[trackerIndex].state = .working
+                state[index].trackers[trackerIndex].statusMessage = "Working — announced just now"
+            }
+        }
+        broadcast()
+    }
+
     public func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool)
         async throws
     {

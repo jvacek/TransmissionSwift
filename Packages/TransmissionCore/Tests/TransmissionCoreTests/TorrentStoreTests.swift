@@ -275,6 +275,18 @@ struct MockTorrentServiceTests {
         let after = try await service.torrents().first { $0.id == 1 }!
         #expect(after.options == options)
     }
+
+    @Test("reannounce refreshes tracker state on the targeted torrents")
+    func reannounce() async throws {
+        let service = MockTorrentService()
+        let before = try await service.torrents().first { $0.id == 5 }!
+        #expect(!before.trackers.isEmpty)
+
+        try await service.reannounce([5])
+        let after = try await service.torrents().first { $0.id == 5 }!
+        #expect(after.trackers.allSatisfy { $0.state == .working })
+        #expect(after.trackers.allSatisfy { $0.statusMessage == "Working — announced just now" })
+    }
 }
 
 @Suite("TorrentStore")

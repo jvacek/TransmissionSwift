@@ -348,6 +348,10 @@ public final class TorrentStore {
         do { try await service.verify(ids) } catch { recordError(error) }
     }
 
+    public func reannounce(_ ids: [Torrent.ID]) async {
+        do { try await service.reannounce(ids) } catch { recordError(error) }
+    }
+
     public func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool) async {
         do { try await service.setFilesWanted(id, fileIDs: fileIDs, wanted: wanted) } catch { recordError(error) }
     }
