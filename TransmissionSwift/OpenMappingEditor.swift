@@ -1,4 +1,5 @@
 import AppKit
+import Observation
 import SwiftUI
 import TransmissionCore
 import UniformTypeIdentifiers
@@ -21,12 +22,12 @@ struct OpenMappingEditor: View {
     /// `{download-dir}` placeholder in preview/Test.
     var sampleDownloadDir: String?
 
-    @State private var editingMapping: OpenMapping?
+    /// Created fresh on every Add/Edit click. The sheet's field state lives in
+    /// this model rather than in the sheet's `@State`, so the fields are always
+    /// seeded from the mapping being edited — SwiftUI would otherwise reuse the
+    /// sheet's `@State` across presentations.
+    @State private var editingModel: MappingEditorModel?
     @State private var showEditor = false
-    /// Bumped on every Add/Edit click. The sheet content is keyed by it so each
-    /// presentation gets a fresh identity (and therefore fresh `@State`) —
-    /// otherwise SwiftUI reuses the previous open's field values.
-    @State private var editSessionID = UUID()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -55,8 +56,7 @@ struct OpenMappingEditor: View {
                     }
                     Spacer()
                     Button {
-                        editingMapping = mapping
-                        editSessionID = UUID()
+                        editingModel = MappingEditorModel(existing: mapping)
                         showEditor = true
                     } label: {
                         Image(systemName: "pencil")
@@ -74,8 +74,7 @@ struct OpenMappingEditor: View {
             }
 
             Button {
-                editingMapping = nil
-                editSessionID = UUID()
+                editingModel = MappingEditorModel(existing: nil)
                 showEditor = true
             } label: {
                 Label("Add Mapping…", systemImage: "plus")
@@ -83,32 +82,60 @@ struct OpenMappingEditor: View {
             .buttonStyle(.borderless)
         }
         .sheet(isPresented: $showEditor) {
-            MappingEditorSheet(
-                isPresented: $showEditor,
-                existing: editingMapping,
-                sampleServer: sampleServer,
-                sampleTorrent: sampleTorrent,
-                samplePassword: samplePassword,
-                sampleDownloadDir: sampleDownloadDir,
-                resolveSamplePassword: resolveSamplePassword,
-                onSave: { mapping in
-                    if let index = mappings.firstIndex(where: { $0.id == mapping.id }) {
-                        mappings[index] = mapping
-                    } else {
-                        mappings.append(mapping)
+            if let editingModel {
+                MappingEditorSheet(
+                    isPresented: $showEditor,
+                    model: editingModel,
+                    sampleServer: sampleServer,
+                    sampleTorrent: sampleTorrent,
+                    samplePassword: samplePassword,
+                    sampleDownloadDir: sampleDownloadDir,
+                    resolveSamplePassword: resolveSamplePassword,
+                    onSave: { mapping in
+                        if let index = mappings.firstIndex(where: { $0.id == mapping.id }) {
+                            mappings[index] = mapping
+                        } else {
+                            mappings.append(mapping)
+                        }
                     }
-                }
-            )
-            .id(editSessionID)
+                )
+            }
         }
     }
 }
 
 // MARK: - Add / Edit sheet
 
+/// Field state for one Add/Edit session of the mapping editor. A new instance
+/// is created on every open and seeded from the mapping being edited, so the
+/// sheet's fields never carry stale values from a previous presentation.
+@Observable
+final class MappingEditorModel {
+    /// The mapping being edited, if any; nil when adding a new one.
+    let existing: OpenMapping?
+    var name: String
+    var template: String
+    var applicationBundleID: String?
+    var testMessage: String?
+    var testFailed = false
+
+    init(existing: OpenMapping?) {
+        self.existing = existing
+        name = existing?.name ?? ""
+        template = existing?.template ?? ""
+        applicationBundleID = existing?.applicationBundleID
+    }
+
+    func resetTestState() {
+        testMessage = nil
+        testFailed = false
+    }
+}
+
 private struct MappingEditorSheet: View {
     @Binding var isPresented: Bool
-    let existing: OpenMapping?
+    /// The live field state for this session.
+    @Bindable var model: MappingEditorModel
     let sampleServer: ServerProfile
     let sampleTorrent: Torrent?
     let samplePassword: String
@@ -119,11 +146,6 @@ private struct MappingEditorSheet: View {
     let resolveSamplePassword: () -> String
     let onSave: (OpenMapping) -> Void
 
-    @State private var name: String
-    @State private var template: String
-    @State private var applicationBundleID: String?
-    @State private var testMessage: String?
-    @State private var testFailed = false
     @FocusState private var templateFocused: Bool
 
     private static let placeholderGroups: [(title: String, items: [String])] = [
@@ -161,29 +183,6 @@ private struct MappingEditorSheet: View {
         ),
     ]
 
-    init(
-        isPresented: Binding<Bool>,
-        existing: OpenMapping?,
-        sampleServer: ServerProfile,
-        sampleTorrent: Torrent?,
-        samplePassword: String,
-        sampleDownloadDir: String?,
-        resolveSamplePassword: @escaping () -> String,
-        onSave: @escaping (OpenMapping) -> Void
-    ) {
-        self._isPresented = isPresented
-        self.existing = existing
-        self.sampleServer = sampleServer
-        self.sampleTorrent = sampleTorrent
-        self.samplePassword = samplePassword
-        self.sampleDownloadDir = sampleDownloadDir
-        self.resolveSamplePassword = resolveSamplePassword
-        self.onSave = onSave
-        _name = State(initialValue: existing?.name ?? "")
-        _template = State(initialValue: existing?.template ?? "")
-        _applicationBundleID = State(initialValue: existing?.applicationBundleID)
-    }
-
     /// The torrent the preview + Test act on. Prefers the real torrent passed
     /// in (inspector selection, else first in the list); when there are none,
     /// substitutes the placeholders with their literal names so the preview
@@ -198,7 +197,7 @@ private struct MappingEditorSheet: View {
 
     private var previewURL: URL? {
         MappingTemplate.expand(
-            template,
+            model.template,
             torrent: previewTorrent,
             server: sampleServer,
             // The preview never exposes a real password — mask a typed one,
@@ -213,7 +212,7 @@ private struct MappingEditorSheet: View {
     /// (typed field, else the stored Keychain secret).
     private var testURL: URL? {
         MappingTemplate.expand(
-            template,
+            model.template,
             torrent: previewTorrent,
             server: sampleServer,
             password: resolveSamplePassword(),
@@ -227,7 +226,7 @@ private struct MappingEditorSheet: View {
     /// lists candidates.
     private var handlerApps: [(bundleID: String, name: String)] {
         var apps: [(bundleID: String, name: String)] = []
-        if let bundleID = applicationBundleID {
+        if let bundleID = model.applicationBundleID {
             apps.append((bundleID, HandlerApp.displayName(for: bundleID) ?? bundleID))
         }
         let probe = previewURL ?? templateScheme.flatMap { URL(string: "\($0)://probe") }
@@ -251,7 +250,7 @@ private struct MappingEditorSheet: View {
     /// The URL scheme of the current template, used to probe for candidate apps
     /// when the full preview URL can't be built.
     private var templateScheme: String? {
-        let trimmed = template.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = model.template.trimmingCharacters(in: .whitespacesAndNewlines)
         if let range = trimmed.range(of: "://") {
             return String(trimmed[..<range.lowerBound]).lowercased()
         }
@@ -259,11 +258,11 @@ private struct MappingEditorSheet: View {
     }
 
     private var trimmedName: String {
-        name.trimmingCharacters(in: .whitespacesAndNewlines)
+        model.name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var trimmedTemplate: String {
-        template.trimmingCharacters(in: .whitespacesAndNewlines)
+        model.template.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var canSave: Bool {
@@ -272,16 +271,16 @@ private struct MappingEditorSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(existing == nil ? "Add Mapping" : "Edit Mapping")
+            Text(model.existing == nil ? "Add Mapping" : "Edit Mapping")
                 .font(.headline)
 
-            TextField("Name", text: $name, prompt: Text("e.g. Finder"))
+            TextField("Name", text: $model.name, prompt: Text("e.g. Finder"))
                 .textFieldStyle(.roundedBorder)
 
             VStack(alignment: .leading, spacing: 6) {
                 TextField(
                     "Template",
-                    text: $template,
+                    text: $model.template,
                     prompt: Text("e.g. file:///Volumes/transmission/{folder}")
                 )
                 .textFieldStyle(.roundedBorder)
@@ -324,7 +323,7 @@ private struct MappingEditorSheet: View {
             }
 
             HStack(spacing: 10) {
-                Picker("Open with", selection: $applicationBundleID) {
+                Picker("Open with", selection: $model.applicationBundleID) {
                     Text("Default app").tag(String?.none)
                     if !handlerApps.isEmpty {
                         Divider()
@@ -372,15 +371,16 @@ private struct MappingEditorSheet: View {
                 Button("Test") { test() }
                     .disabled(testURL == nil || trimmedTemplate.isEmpty)
                     .help("Opens the preview URL in the chosen app")
-                if let message = testMessage {
+                if let message = model.testMessage {
                     Text(message)
                         .font(.caption)
-                        .foregroundStyle(testFailed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                        .foregroundStyle(
+                            model.testFailed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                 }
                 Spacer()
                 Button("Cancel") { isPresented = false }
                     .keyboardShortcut(.cancelAction)
-                Button(existing == nil ? "Add" : "Save") { save() }
+                Button(model.existing == nil ? "Add" : "Save") { save() }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                     .disabled(!canSave)
@@ -388,38 +388,28 @@ private struct MappingEditorSheet: View {
         }
         .padding(20)
         .frame(width: 460)
-        .onAppear {
-            // The sheet's @State persists across presentations (SwiftUI reuses
-            // the content view's identity), so init's initial values only apply
-            // on the very first open. Re-sync from the mapping on every appear.
-            name = existing?.name ?? ""
-            template = existing?.template ?? ""
-            applicationBundleID = existing?.applicationBundleID
-            testMessage = nil
-            testFailed = false
-        }
     }
 
     private func applyPreset(_ preset: (name: String, template: String, explanation: String)) {
         if trimmedName.isEmpty {
-            name = preset.name
+            model.name = preset.name
         }
-        template = preset.template
+        model.template = preset.template
         // A preset changes the scheme, so the previously picked app may no
         // longer be a candidate — fall back to the system default.
-        applicationBundleID = nil
-        testMessage = nil
+        model.applicationBundleID = nil
+        model.resetTestState()
     }
 
     private func insertPlaceholder(_ placeholder: String) {
-        testMessage = nil
+        model.resetTestState()
         // Insert at the text caret when the template field is the first
         // responder; fall back to appending otherwise.
         if templateFocused, let editor = NSApp.keyWindow?.firstResponder as? NSTextView {
             editor.insertText(placeholder, replacementRange: editor.selectedRange())
-            template = editor.string
+            model.template = editor.string
         } else {
-            template += placeholder
+            model.template += placeholder
         }
     }
 
@@ -438,18 +428,18 @@ private struct MappingEditorSheet: View {
             guard response == .OK, let url = panel.url,
                 let bundleID = Bundle(url: url)?.bundleIdentifier
             else { return }
-            applicationBundleID = bundleID
-            testMessage = nil
+            model.applicationBundleID = bundleID
+            model.resetTestState()
         }
     }
 
     private func test() {
-        testMessage = nil
+        model.resetTestState()
         guard let url = testURL else { return }
-        if let bundleID = applicationBundleID, !bundleID.isEmpty {
+        if let bundleID = model.applicationBundleID, !bundleID.isEmpty {
             guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
-                testMessage = "Could not find the app for “\(bundleID)”."
-                testFailed = true
+                model.testMessage = "Could not find the app for “\(bundleID)”."
+                model.testFailed = true
                 return
             }
             NSWorkspace.shared.open(
@@ -457,30 +447,30 @@ private struct MappingEditorSheet: View {
             ) { _, error in
                 Task { @MainActor in
                     if let error {
-                        testMessage = "Could not open — \(error.localizedDescription)"
-                        testFailed = true
+                        model.testMessage = "Could not open — \(error.localizedDescription)"
+                        model.testFailed = true
                     } else {
-                        testMessage = "Opened."
-                        testFailed = false
+                        model.testMessage = "Opened."
+                        model.testFailed = false
                     }
                 }
             }
         } else if NSWorkspace.shared.open(url) {
-            testMessage = "Opened in the default app."
-            testFailed = false
+            model.testMessage = "Opened in the default app."
+            model.testFailed = false
         } else {
-            testMessage = "Could not open — no app handles \(url.scheme ?? "this") links."
-            testFailed = true
+            model.testMessage = "Could not open — no app handles \(url.scheme ?? "this") links."
+            model.testFailed = true
         }
     }
 
     private func save() {
         onSave(
             OpenMapping(
-                id: existing?.id ?? UUID(),
+                id: model.existing?.id ?? UUID(),
                 name: trimmedName,
                 template: trimmedTemplate,
-                applicationBundleID: applicationBundleID))
+                applicationBundleID: model.applicationBundleID))
         isPresented = false
     }
 }
