@@ -74,18 +74,19 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         coordinator.rowMenu = rowMenu
         tableView.menu = rowMenu
 
-        coordinator.downloadDirectoryBase = downloadDirectoryBase
-        coordinator.onSortChange = onSortChange
-        coordinator.sortState = Coordinator.SortState(columnID: sortColumnID, ascending: sortAscending)
+        coordinator.configure(
+            downloadDirectoryBase: downloadDirectoryBase,
+            sortState: Coordinator.SortState(columnID: sortColumnID, ascending: sortAscending),
+            actionsEnabled: actionsEnabled,
+            onSortChange: onSortChange,
+            onRowAction: onRowAction,
+            onInspectorRequest: onInspectorRequest)
         tableView.dataSource = coordinator
         tableView.delegate = coordinator
         tableView.target = coordinator
         tableView.doubleAction = #selector(TorrentTableRepresentable.Coordinator.doubleClicked(_:))
 
         coordinator.syncSortIndicator()
-        coordinator.actionsEnabled = actionsEnabled
-        coordinator.onRowAction = onRowAction
-        coordinator.onInspectorRequest = onInspectorRequest
 
         let scrollView = NSScrollView()
         scrollView.documentView = tableView
@@ -103,12 +104,13 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         // every update so a re-injected store or re-created representable never
         // drives selection through a stale reference.
         coordinator.updateSelectionBinding($selection)
-        coordinator.downloadDirectoryBase = downloadDirectoryBase
-        coordinator.onSortChange = onSortChange
-        coordinator.sortState = Coordinator.SortState(columnID: sortColumnID, ascending: sortAscending)
-        coordinator.actionsEnabled = actionsEnabled
-        coordinator.onRowAction = onRowAction
-        coordinator.onInspectorRequest = onInspectorRequest
+        coordinator.configure(
+            downloadDirectoryBase: downloadDirectoryBase,
+            sortState: Coordinator.SortState(columnID: sortColumnID, ascending: sortAscending),
+            actionsEnabled: actionsEnabled,
+            onSortChange: onSortChange,
+            onRowAction: onRowAction,
+            onInspectorRequest: onInspectorRequest)
         // Indicators before rows: the header reacts on the same frame as the
         // click, even if the row reload takes an extra layout pass.
         coordinator.syncSortIndicator()
@@ -149,8 +151,27 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             selectionBinding = binding
         }
 
-        /// Single funnel for all row mutations. v1 is reloadData + selection
-        /// restore; an incremental diff can slot in here later without a redesign.
+        /// Single funnel for the representable's input props, shared by
+        /// `makeNSView` and `updateNSView` so the two call sites can't drift.
+        func configure(
+            downloadDirectoryBase: String?,
+            sortState: SortState?,
+            actionsEnabled: Bool,
+            onSortChange: ((TransmissionCore.TableColumn, Bool) -> Void)?,
+            onRowAction: ((TorrentRowAction, [Torrent.ID]) -> Void)?,
+            onInspectorRequest: (() -> Void)?
+        ) {
+            self.downloadDirectoryBase = downloadDirectoryBase
+            self.sortState = sortState
+            self.actionsEnabled = actionsEnabled
+            self.onSortChange = onSortChange
+            self.onRowAction = onRowAction
+            self.onInspectorRequest = onInspectorRequest
+        }
+
+        /// Single funnel for all row mutations. Selection is a separate concern
+        /// restored by `syncSelectionFromBinding` after every update; an
+        /// incremental diff can slot in here later without a redesign.
         func apply(rows newRows: [Torrent]) {
             let newDisplays = newRows.map(TorrentRowDisplay.init)
             let change = Self.classifyChange(from: displayedRows, to: newDisplays)
@@ -161,7 +182,6 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             guard let tableView else { return }
             if change == .structural {
                 tableView.reloadData()
-                restoreSelection()
             } else {
                 refreshVisibleCells(in: tableView)
             }
@@ -172,7 +192,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         /// pays for two full scans. `.structural` when the row set or id order
         /// changed (reload), `.values` when only cell content changed (refresh
         /// visible cells in place), `.none` when nothing moved.
-        private static func classifyChange(
+        static func classifyChange(
             from old: [TorrentRowDisplay], to new: [TorrentRowDisplay]
         ) -> TorrentTableRepresentable.Coordinator.ChangeKind {
             guard old.count == new.count else { return .structural }
@@ -184,7 +204,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             return valuesChanged ? .values : .none
         }
 
-        private enum ChangeKind {
+        enum ChangeKind: Equatable {
             case none, values, structural
         }
 
