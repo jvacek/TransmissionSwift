@@ -6,10 +6,13 @@ import TransmissionCore
 /// the parent's `torrent`.
 struct InspectorFilesTab: View {
     @Environment(TorrentStore.self) private var store
+    @Environment(ServerProfileStore.self) private var profileStore
     let torrent: Torrent
 
+    @State private var selectedFiles: Set<TorrentFile.ID> = []
+
     var body: some View {
-        Table(torrent.files) {
+        Table(torrent.files, selection: $selectedFiles) {
             TableColumn("") { file in
                 Toggle("Download", isOn: wantedBinding(for: file))
                     .toggleStyle(.checkbox)
@@ -57,6 +60,26 @@ struct InspectorFilesTab: View {
             .width(80)
         }
         .accessibilityIdentifier("inspector.files.table")
+        .contextMenu(forSelectionType: TorrentFile.ID.self) { ids in
+            let canOpen = store.actionsEnabled && ids.count == 1
+            let mappings = profileStore.activeProfile?.mappings ?? []
+            if mappings.isEmpty {
+                Button("No file mappings configured") {}.disabled(true)
+            } else {
+                ForEach(mappings) { mapping in
+                    Button("Open with \(mapping.name)") {
+                        guard ids.count == 1,
+                            let file = torrent.files.first(where: { ids.contains($0.id) }),
+                            let profile = profileStore.activeProfile
+                        else { return }
+                        MappingOpener.open(
+                            mapping, torrent: torrent, file: file, profile: profile, store: store)
+                    }
+                    .disabled(!canOpen)
+                }
+            }
+        } primaryAction: { _ in
+        }
     }
 
     private func wantedBinding(for file: TorrentFile) -> Binding<Bool> {
@@ -128,5 +151,9 @@ private enum FilePriorityChoice: CaseIterable, Hashable {
 #Preview {
     InspectorFilesTab(torrent: Torrent.samples[4])
         .environment(TorrentStore(service: MockTorrentService()))
+        .environment(
+            ServerProfileStore(
+                fileURL: URL.temporaryDirectory.appending(path: "preview-servers.json"))
+        )
         .frame(width: 322, height: 400)
 }

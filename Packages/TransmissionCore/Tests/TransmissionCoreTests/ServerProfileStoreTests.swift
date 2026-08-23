@@ -51,4 +51,54 @@ struct ServerProfileStoreTests {
             useHTTPS: true)
         #expect(profile.rpcURL?.absoluteString == "https://example.com:9092/transmission/rpc")
     }
+
+    @Test("profiles without a mappings key decode to empty mappings (backward compat)")
+    func backwardCompatibleDecode() throws {
+        let json = """
+            {
+              "id": "\(UUID().uuidString)",
+              "label": "Legacy",
+              "host": "nas.local",
+              "port": 9091,
+              "rpcPath": "/transmission/rpc",
+              "username": "dev",
+              "useHTTPS": false
+            }
+            """
+        let profile = try JSONDecoder().decode(
+            ServerProfile.self, from: Data(json.utf8))
+        #expect(profile.mappings.isEmpty)
+        #expect(profile.host == "nas.local")
+    }
+
+    @Test("mappings round-trip through JSON encoding")
+    func mappingsRoundTrip() throws {
+        let profile = ServerProfile(
+            label: "x", host: "nas.local",
+            mappings: [
+                OpenMapping(name: "Finder", template: "file:///Volumes/transmission/{folder}"),
+                OpenMapping(
+                    name: "Web", template: "https://{host}/downloads/{folder}/",
+                    applicationBundleID: "com.google.Chrome"),
+            ])
+        let data = try JSONEncoder().encode(profile)
+        let decoded = try JSONDecoder().decode(ServerProfile.self, from: data)
+        #expect(decoded == profile)
+        #expect(decoded.mappings.count == 2)
+        #expect(decoded.mappings[1].applicationBundleID == "com.google.Chrome")
+    }
+
+    @Test("mappings without an applicationBundleID key decode to nil (backward compat)")
+    func mappingBackwardCompatibleDecode() throws {
+        let json = """
+            {
+              "id": "\(UUID().uuidString)",
+              "name": "Finder",
+              "template": "file:///Volumes/transmission/{folder}"
+            }
+            """
+        let mapping = try JSONDecoder().decode(OpenMapping.self, from: Data(json.utf8))
+        #expect(mapping.applicationBundleID == nil)
+        #expect(mapping.name == "Finder")
+    }
 }

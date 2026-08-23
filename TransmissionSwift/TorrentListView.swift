@@ -4,6 +4,7 @@ import TransmissionCore
 struct TorrentListView: View {
     @Environment(TorrentStore.self) private var store
     @Environment(TagColorStore.self) private var tagColors
+    @Environment(ServerProfileStore.self) private var profileStore
 
     var body: some View {
         let prefs = store.tablePreferences
@@ -38,6 +39,10 @@ struct TorrentListView: View {
             },
             onInspectorRequest: {
                 store.inspectorVisible = true
+            },
+            mappings: profileStore.activeProfile?.mappings ?? [],
+            onOpenMapping: { mapping, ids in
+                openMapping(mapping, ids: ids)
             }
         )
         .onAppear {
@@ -49,5 +54,12 @@ struct TorrentListView: View {
         let prefs = store.tablePreferences
         let column = TransmissionCore.TableColumn(rawValue: prefs.sortColumn) ?? .name
         store.setSortOrder(column: column, ascending: prefs.sortAscending)
+    }
+
+    private func openMapping(_ mapping: OpenMapping, ids: [Torrent.ID]) {
+        guard let torrent = store.torrents.first(where: { ids.contains($0.id) }),
+            let profile = profileStore.activeProfile
+        else { return }
+        MappingOpener.open(mapping, torrent: torrent, file: nil, profile: profile, store: store)
     }
 }

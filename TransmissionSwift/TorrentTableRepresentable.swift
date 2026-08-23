@@ -26,6 +26,9 @@ struct TorrentTableRepresentable: NSViewRepresentable {
     var tagColors: [String: TagColor] = [:]
     var onRowAction: ((TorrentRowAction, [Torrent.ID]) -> Void)?
     var onInspectorRequest: (() -> Void)?
+    /// Per-server "Open with…" entries (see `OpenMapping`).
+    var mappings: [OpenMapping] = []
+    var onOpenMapping: ((OpenMapping, [Torrent.ID]) -> Void)?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(selection: $selection)
@@ -88,7 +91,9 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             tagColors: tagColors,
             onSortChange: onSortChange,
             onRowAction: onRowAction,
-            onInspectorRequest: onInspectorRequest)
+            onInspectorRequest: onInspectorRequest,
+            mappings: mappings,
+            onOpenMapping: onOpenMapping)
         tableView.dataSource = coordinator
         tableView.delegate = coordinator
         tableView.target = coordinator
@@ -120,7 +125,9 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             tagColors: tagColors,
             onSortChange: onSortChange,
             onRowAction: onRowAction,
-            onInspectorRequest: onInspectorRequest)
+            onInspectorRequest: onInspectorRequest,
+            mappings: mappings,
+            onOpenMapping: onOpenMapping)
         // Indicators before rows: the header reacts on the same frame as the
         // click, even if the row reload takes an extra layout pass.
         coordinator.syncSortIndicator()
@@ -148,6 +155,8 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         private var lastTagColors: [String: TagColor] = [:]
         var onRowAction: ((TorrentRowAction, [Torrent.ID]) -> Void)?
         var onInspectorRequest: (() -> Void)?
+        var mappings: [OpenMapping] = []
+        var onOpenMapping: ((OpenMapping, [Torrent.ID]) -> Void)?
         weak var rowMenu: NSMenu?
 
         private(set) var displayedRows: [TorrentRowDisplay] = []
@@ -174,7 +183,9 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             tagColors: [String: TagColor],
             onSortChange: ((TransmissionCore.TableColumn, Bool) -> Void)?,
             onRowAction: ((TorrentRowAction, [Torrent.ID]) -> Void)?,
-            onInspectorRequest: (() -> Void)?
+            onInspectorRequest: (() -> Void)?,
+            mappings: [OpenMapping],
+            onOpenMapping: ((OpenMapping, [Torrent.ID]) -> Void)?
         ) {
             self.downloadDirectoryBase = downloadDirectoryBase
             self.sortState = sortState
@@ -184,6 +195,8 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             self.onSortChange = onSortChange
             self.onRowAction = onRowAction
             self.onInspectorRequest = onInspectorRequest
+            self.mappings = mappings
+            self.onOpenMapping = onOpenMapping
         }
 
         /// Single funnel for all row mutations. Selection is a separate concern
@@ -281,8 +294,11 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         }
 
         @objc func contextMenuItemClicked(_ sender: NSMenuItem) {
-            guard let payload = sender.representedObject as? MenuPayload else { return }
-            onRowAction?(payload.action, payload.ids)
+            if let payload = sender.representedObject as? MenuPayload {
+                onRowAction?(payload.action, payload.ids)
+            } else if let payload = sender.representedObject as? OpenMappingPayload {
+                onOpenMapping?(payload.mapping, payload.ids)
+            }
         }
 
         final class MenuPayload {
@@ -295,8 +311,19 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             }
         }
 
+        final class OpenMappingPayload {
+            let mapping: OpenMapping
+            let ids: [Torrent.ID]
+
+            init(mapping: OpenMapping, ids: [Torrent.ID]) {
+                self.mapping = mapping
+                self.ids = ids
+            }
+        }
+
         private static let destructiveItemTag = 1
         private static let editLabelsItemTag = 2
+        private static let openMappingItemTag = 3
 
         private func populateRowMenu(_ menu: NSMenu, ids: [Torrent.ID]) {
             menu.removeAllItems()
@@ -323,6 +350,19 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                 item.tag = Self.destructiveItemTag
                 return item
             }
+            let openItem = { (mapping: OpenMapping) in
+                let item = NSMenuItem(
+                    title: "Open with \(mapping.name)",
+                    action: #selector(TorrentTableRepresentable.Coordinator.contextMenuItemClicked(_:)),
+                    keyEquivalent: "")
+                item.image = NSImage(
+                    systemSymbolName: "arrow.up.right.square",
+                    accessibilityDescription: "Open with \(mapping.name)")
+                item.target = self
+                item.representedObject = OpenMappingPayload(mapping: mapping, ids: ids)
+                item.tag = Self.openMappingItemTag
+                return item
+            }
 
             menu.autoenablesItems = false
             menu.addItem(item("Resume", "play.fill", .resume))
@@ -330,6 +370,12 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             menu.addItem(.separator())
             menu.addItem(item("Verify Local Data", "checkmark.shield", .verify))
             menu.addItem(.separator())
+            if !mappings.isEmpty {
+                for mapping in mappings {
+                    menu.addItem(openItem(mapping))
+                }
+                menu.addItem(.separator())
+            }
             let editLabelsItem = item("Edit Labels…", "tag", .editLabels)
             editLabelsItem.tag = Self.editLabelsItemTag
             menu.addItem(editLabelsItem)
@@ -338,8 +384,14 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             menu.addItem(
                 destructiveItem("Remove and Delete Data\u{2026}", "trash.fill", .removeAndDeleteData))
             for menuItem in menu.items where menuItem.action != nil {
-                menuItem.isEnabled =
-                    menuItem.tag == Self.editLabelsItemTag ? canAct && labelsSupported : canAct
+                switch menuItem.tag {
+                case Self.editLabelsItemTag:
+                    menuItem.isEnabled = canAct && labelsSupported
+                case Self.openMappingItemTag:
+                    menuItem.isEnabled = actionsEnabled && ids.count == 1
+                default:
+                    menuItem.isEnabled = canAct
+                }
             }
         }
 
