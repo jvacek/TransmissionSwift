@@ -4,7 +4,7 @@ All notable changes to TransmissionSwift.
 
 ## 0.4.0
 
-23rd August 2026
+24th August 2026
 
 - **Implement file mapping via URI patterns**
   - Presets for Locally hosted daemons, Cyberduck, Swizzin files, SSHFS/rsync
