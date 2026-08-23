@@ -1,0 +1,52 @@
+# Changelog
+
+All notable changes to TransmissionSwift.
+
+## 0.2.1
+
+23rd August 2026
+
+- Fix favicons not fetching
+- Show entire changelog in sparkle
+
+## 0.2.0
+
+23rd August 2026
+
+- Major rewrite of the main table to NSTableView directly instead of using the SwiftUI table due to perf and stability
+- Fetching favicons for trackers for the sidebar
+- Testing suite improvements
+- Links in tracker messages are clickable in inspector
+- Add snapshot feature to help with troubleshooting
+- Do a quick refresh after start/pause to get a quicker refresh on the rows
+- Add Apple Silicon-only builds
+- Add little about view + page
+
+## 0.1.0
+
+11th July 2026
+
+This is basically the first stable release. These are some of the things that work at this point:
+
+- Adding torrents
+  - Using torrent file, or magnet link
+  - Handling .torrent file registrations
+  - Drag and drop
+  - Add paused
+  - Set priority and destination folder
+  - Add Label
+- Filtering torrents
+  - Select multiple criteria for subfilter
+  - Favicons on torrent lists
+  - Download paths relative to default path
+  - Collapsable sections
+- Store multiple servers
+- Free space check
+- Turtle mode
+- Torrent list
+  - Search
+  - Start/stop torrents
+  - Torrent inspector
+    - View details only
+  - Verify local data
+  - Delete (with or without data)
