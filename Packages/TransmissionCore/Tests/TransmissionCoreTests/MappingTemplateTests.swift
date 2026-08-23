@@ -444,6 +444,40 @@ struct MappingTemplateTests {
                 == "sftp://dev@nas.local/~/transmission/downloads/TV/Series1/")
     }
 
+    @Test("{fileAbsolute} stays correct for torrents outside the default download dir")
+    func fileAbsoluteOutsideDefaultDir() {
+        let server = ServerProfile(label: "x", host: "nas.local", username: "dev")
+        let files = [
+            TorrentFile(id: 0, name: "SubFolder/Episode1", size: 1, progress: 1),
+            TorrentFile(id: 1, name: "SubFolder/Episode2", size: 1, progress: 1),
+        ]
+        // Matches a real daemon: torrent placed at
+        // /tmp/.../elsewhere/SubFolder while the session default is
+        // /tmp/.../downloads. {folder} can only fall back to the basename, so
+        // a {download-dir}/{folder}/{file} template points at the wrong place;
+        // {fileAbsolute} carries the full path and stays correct.
+        #expect(
+            expand(
+                "sftp://{user}@{host}/{fileAbsolute}",
+                downloadFolder: "/tmp/tswift-test/elsewhere/SubFolder",
+                name: "SubFolder",
+                server: server,
+                defaultDownloadDirectory: "/tmp/tswift-test/downloads",
+                files: files
+            )?.absoluteString
+                == "sftp://dev@nas.local/tmp/tswift-test/elsewhere/SubFolder/SubFolder/")
+        #expect(
+            expand(
+                "sftp://{user}@{host}/{download-dir}/{folder}/{file}",
+                downloadFolder: "/tmp/tswift-test/elsewhere/SubFolder",
+                name: "SubFolder",
+                server: server,
+                defaultDownloadDirectory: "/tmp/tswift-test/downloads",
+                files: files
+            )?.absoluteString
+                == "sftp://dev@nas.local/tmp/tswift-test/downloads/SubFolder/SubFolder/")
+    }
+
     @Test("file scheme expands a leading tilde to the local home directory")
     func fileSchemeExpandsTilde() {
         let server = ServerProfile(label: "x", host: "nas.local")
