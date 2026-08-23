@@ -13,14 +13,14 @@ struct AddTorrentSheet: View {
     var prefilledURL: URL? = nil
 
     enum InputMode: Hashable { case file, magnet }
-    private enum Field: Hashable { case magnet, destination, label }
+    private enum Field: Hashable { case magnet, destination }
 
     @FocusState private var focusedField: Field?
     @State private var mode: InputMode = .file
     @State private var fileURL: URL?
     @State private var magnetString: String = ""
     @State private var destination: String = ""
-    @State private var labelText: String = ""
+    @State private var tags: [String] = []
     @State private var priority: TorrentPriority = .normal
     @State private var startWhenAdded: Bool = true
     @State private var showFileImporter: Bool = false
@@ -119,8 +119,9 @@ struct AddTorrentSheet: View {
                     .focused($focusedField, equals: .destination)
             }
 
-            TextField("Label (optional)", text: $labelText)
-                .focused($focusedField, equals: .label)
+            LabeledContent("Tags") {
+                TagsInputField(tags: $tags, suggestions: store.facets.labels.map(\.name))
+            }
 
             LabeledContent("Priority") {
                 Picker("Priority", selection: $priority) {
@@ -173,7 +174,7 @@ struct AddTorrentSheet: View {
             fileURL: mode == .file ? fileURL : nil,
             magnetURL: mode == .magnet ? magnetString : nil,
             destination: destination,
-            label: labelText.isEmpty ? nil : labelText,
+            labels: tags,
             priority: priority,
             startWhenAdded: startWhenAdded
         )

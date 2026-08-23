@@ -18,7 +18,8 @@ private func makeWire(
     haveValid: Int64 = 0,
     queuePosition: Int = 0,
     trackers: [WireTrackerStub]? = nil,
-    trackerStats: [WireTrackerStat]? = nil
+    trackerStats: [WireTrackerStat]? = nil,
+    labels: [String]? = nil
 ) -> WireTorrent {
     WireTorrent(
         id: 1,
@@ -43,7 +44,7 @@ private func makeWire(
         uploadRatio: 0.0,
         downloadDir: "/downloads",
         addedDate: 0,
-        labels: nil,
+        labels: labels,
         bandwidthPriority: bandwidthPriority,
         pieceCount: pieceCount,
         pieceSize: pieceSize,
@@ -666,5 +667,140 @@ struct RPCTorrentServiceTests {
 
         let after = await stub.callCount
         #expect(after >= before + 1)
+    }
+}
+
+// MARK: - Labels mapping
+
+@Suite("TorrentMapping — labels")
+struct LabelMappingTests {
+    @Test("multiple wire labels map to the full domain array in order")
+    func multiLabelMapping() {
+        let t = Torrent(wire: makeWire(labels: ["Linux", "Media"]))
+        #expect(t.labels == ["Linux", "Media"])
+    }
+
+    @Test("absent wire labels map to an empty array")
+    func nilLabelsMapToEmpty() {
+        let t = Torrent(wire: makeWire(labels: nil))
+        #expect(t.labels == [])
+    }
+
+    @Test("empty wire labels map to an empty array")
+    func emptyLabelsMapToEmpty() {
+        let t = Torrent(wire: makeWire(labels: []))
+        #expect(t.labels == [])
+    }
+}
+
+// MARK: - RPCTorrentService setLabels
+
+@Suite("RPCTorrentService — setLabels")
+struct RPCSetLabelsTests {
+    private actor StubClient: TransmissionClient {
+        private let rpcVersion: Int
+        private(set) var sessionGetCount = 0
+        private(set) var setCallCount = 0
+        private(set) var lastSetIDs: [Int]?
+        private(set) var lastSetLabels: [String]?
+        private var appliedLabels: [String]?
+
+        init(rpcVersion: Int) {
+            self.rpcVersion = rpcVersion
+        }
+
+        func sessionGet() async throws(TransmissionError) -> SessionInfo {
+            sessionGetCount += 1
+            return SessionInfo(
+                version: "test", rpcVersion: rpcVersion, rpcVersionMinimum: 16,
+                downloadDirFreeSpace: 0, altSpeedEnabled: false, downloadDir: "/x")
+        }
+
+        func torrentGet(fields: [String], ids: [Int]?) async throws(TransmissionError)
+            -> TorrentGetResponse
+        {
+            TorrentGetResponse(torrents: [makeWire(labels: appliedLabels)])
+        }
+
+        func torrentAction(_ method: String, ids: [Int]) async throws(TransmissionError) {}
+        func torrentRemove(ids: [Int], deleteLocalData: Bool) async throws(TransmissionError) {}
+
+        func torrentSet(_ args: TorrentSetArguments) async throws(TransmissionError) {
+            setCallCount += 1
+            lastSetIDs = args.ids
+            lastSetLabels = args.labels
+            appliedLabels = args.labels
+        }
+
+        func torrentAdd(_ args: TorrentAddArguments) async throws(TransmissionError)
+            -> TorrentAddResponse
+        {
+            TorrentAddResponse(torrentAdded: nil, torrentDuplicate: nil)
+        }
+
+        func sessionSet(_ args: SessionSetArguments) async throws(TransmissionError) {}
+    }
+
+    @Test("sends labels via torrent-set and yields a post-mutation refresh")
+    func writesAndRefreshes() async throws {
+        let stub = StubClient(rpcVersion: 17)
+        let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
+
+        let stream = await service.torrentsStream()
+        var iterator = stream.makeAsyncIterator()
+        _ = try await iterator.next()  // start the poll loop so the continuation is live
+
+        try await service.setLabels([1], labels: ["Linux", "Media"])
+
+        #expect(await stub.setCallCount == 1)
+        #expect(await stub.lastSetIDs == [1])
+        #expect(await stub.lastSetLabels == ["Linux", "Media"])
+
+        // The refresh after the mutation must carry the new labels.
+        let refreshed = try await iterator.next()
+        #expect(refreshed?.first?.labels == ["Linux", "Media"])
+    }
+
+    @Test("fetches the session when the cache is cold")
+    func fetchesSessionWhenCold() async throws {
+        let stub = StubClient(rpcVersion: 17)
+        let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
+
+        // No connect / freeSpace() call — cachedSession starts nil.
+        try await service.setLabels([1], labels: ["A"])
+
+        #expect(await stub.sessionGetCount == 1)
+        #expect(await stub.setCallCount == 1)
+    }
+
+    @Test("throws instead of silently no-oping when the daemon predates labels")
+    func throwsOnOldDaemon() async throws {
+        let stub = StubClient(rpcVersion: 16)
+        let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
+
+        await #expect(throws: TransmissionError.self) {
+            try await service.setLabels([1], labels: ["A"])
+        }
+        #expect(await stub.setCallCount == 0)
+    }
+
+    @Test("supportsLabels reflects the daemon's rpc-version once known")
+    func supportsLabelsReflectsDaemon() async throws {
+        let old = StubClient(rpcVersion: 16)
+        let oldService = RPCTorrentService(client: old, pollingInterval: { 60 })
+        _ = await oldService.freeSpace()  // warm the session cache
+        #expect(await oldService.supportsLabels() == false)
+
+        let modern = StubClient(rpcVersion: 17)
+        let modernService = RPCTorrentService(client: modern, pollingInterval: { 60 })
+        _ = await modernService.freeSpace()
+        #expect(await modernService.supportsLabels() == true)
+    }
+
+    @Test("supportsLabels stays optimistic while the session is unknown")
+    func supportsLabelsOptimisticWhenCold() async throws {
+        let stub = StubClient(rpcVersion: 16)
+        let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
+        #expect(await service.supportsLabels() == true)
     }
 }

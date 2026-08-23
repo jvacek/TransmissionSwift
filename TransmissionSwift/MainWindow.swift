@@ -65,6 +65,12 @@ struct MainWindow: View {
                 prefilledURL: store.addTorrentPrefilledURL
             )
         }
+        .sheet(isPresented: $store.showEditLabels) {
+            EditLabelsSheet(
+                isPresented: $store.showEditLabels,
+                ids: store.editLabelsTargetIDs
+            )
+        }
         .dropDestination(for: URL.self) { urls, _ in
             guard let url = urls.first else { return false }
             let accepted = url.pathExtension == "torrent" || url.scheme == "magnet"

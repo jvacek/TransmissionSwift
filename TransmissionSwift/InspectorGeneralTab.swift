@@ -5,6 +5,7 @@ import TransmissionCore
 /// immutable details below.
 struct InspectorGeneralTab: View {
     let torrent: Torrent
+    @Environment(TorrentStore.self) private var store
 
     var body: some View {
         ScrollView {
@@ -69,7 +70,7 @@ struct InspectorGeneralTab: View {
                     "\(torrent.pieces.formatted()) × \(ColumnFormatters.humanizedSize(torrent.pieceSize))")
                 row("Added", torrent.addedAt.formatted(date: .abbreviated, time: .shortened))
                 row("Location", torrent.downloadFolder, monospaced: true)
-                row("Label", torrent.label ?? "—")
+                labelsRow
                 row("Priority", torrent.priority.displayLabel)
                 trackerRow
                 row("Hash", torrent.hash, monospaced: true)
@@ -110,6 +111,39 @@ struct InspectorGeneralTab: View {
                 .truncationMode(.middle)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var labelsRow: some View {
+        GridRow {
+            Text("Labels")
+                .foregroundStyle(.secondary)
+                .gridColumnAlignment(.trailing)
+            HStack(spacing: 4) {
+                if torrent.labels.isEmpty {
+                    Text("—")
+                        .foregroundStyle(.tertiary)
+                } else {
+                    ForEach(torrent.labels, id: \.self) { label in
+                        Text(label)
+                            .font(.caption)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.secondary.opacity(0.14)))
+                            .lineLimit(1)
+                    }
+                }
+                if store.actionsEnabled && store.supportsLabels {
+                    Spacer()
+                    Button("Edit…") {
+                        store.openEditLabels(for: [torrent.id])
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                    .accessibilityLabel("Edit labels")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

@@ -195,7 +195,7 @@ extension Torrent {
             primaryTracker: primaryTracker,
             downloadFolder: wire.downloadDir,
             addedAt: Date(timeIntervalSince1970: TimeInterval(wire.addedDate)),
-            label: wire.labels?.first,
+            labels: wire.labels ?? [],
             priority: priority,
             pieces: wire.pieceCount,
             pieceSize: wire.pieceSize,

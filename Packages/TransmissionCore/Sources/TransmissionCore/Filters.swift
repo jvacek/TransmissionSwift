@@ -125,7 +125,7 @@ public struct TorrentFilterSelection: Hashable, Sendable {
             && (trackers.isEmpty || trackers.contains(torrent.primaryTracker))
             && (folders.isEmpty
                 || folders.contains(relativeDownloadFolder(torrent.downloadFolder, relativeTo: downloadDirectory)))
-            && (labels.isEmpty || torrent.label.map(labels.contains) == true)
+            && (labels.isEmpty || labels.contains(where: torrent.labels.contains))
     }
 
     private func matchesStatus(_ torrent: Torrent) -> Bool {
@@ -182,7 +182,7 @@ public struct FilterFacets: Sendable, Hashable {
         self.statusCounts = statuses
         self.trackers = Self.entries(torrents.map(\.primaryTracker))
         self.folders = Self.folderEntries(torrents.map(\.downloadFolder), relativeTo: downloadDirectory)
-        self.labels = Self.entries(torrents.compactMap(\.label))
+        self.labels = Self.entries(torrents.flatMap(\.labels))
     }
 
     private static func entries(_ values: [String]) -> [FacetEntry] {
@@ -235,7 +235,7 @@ extension Torrent {
     public var etaSortKey: TimeInterval { eta ?? .infinity }
 
     /// Sortable key for the Label column.
-    public var labelSortKey: String { label ?? "" }
+    public var labelSortKey: String { labels.joined(separator: ", ") }
 
     /// Sortable key for the Error column.
     public var errorMessageSortKey: String { errorMessage ?? "" }

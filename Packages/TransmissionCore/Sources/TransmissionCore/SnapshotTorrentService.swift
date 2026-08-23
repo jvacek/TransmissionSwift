@@ -72,11 +72,14 @@ public actor SnapshotTorrentService: TorrentService {
     public func setOptions(_ id: Torrent.ID, options: TorrentOptions) async throws {
         throw SnapshotError.replayReadOnly
     }
+    public func setLabels(_ ids: [Torrent.ID], labels: [String]) async throws {
+        throw SnapshotError.replayReadOnly
+    }
     public func setAlternativeSpeedEnabled(_ enabled: Bool) async throws {
         throw SnapshotError.replayReadOnly
     }
     public func add(
-        fileURL: URL?, magnetURL: String?, destination: String, label: String?,
+        fileURL: URL?, magnetURL: String?, destination: String, labels: [String],
         priority: TorrentPriority, startWhenAdded: Bool
     ) async throws {
         throw SnapshotError.replayReadOnly

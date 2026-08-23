@@ -144,6 +144,14 @@ public actor MockTorrentService: TorrentService {
         broadcast()
     }
 
+    public func setLabels(_ ids: [Torrent.ID], labels: [String]) async throws {
+        let set = Set(ids)
+        for index in state.indices where set.contains(state[index].id) {
+            state[index].labels = labels
+        }
+        broadcast()
+    }
+
     public func setAlternativeSpeedEnabled(_ enabled: Bool) async throws {
         altSpeed = enabled
     }
@@ -162,7 +170,7 @@ public actor MockTorrentService: TorrentService {
         fileURL: URL?,
         magnetURL: String?,
         destination: String,
-        label: String?,
+        labels: [String],
         priority: TorrentPriority,
         startWhenAdded: Bool
     ) async throws {
@@ -195,7 +203,7 @@ public actor MockTorrentService: TorrentService {
             primaryTracker: "tracker.example.com",
             downloadFolder: destination,
             addedAt: Date(),
-            label: label.flatMap { $0.isEmpty ? nil : $0 },
+            labels: labels.filter { !$0.isEmpty },
             priority: priority,
             pieces: 2048,
             pieceSize: 512 * 1024,

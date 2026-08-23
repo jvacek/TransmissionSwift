@@ -97,6 +97,18 @@ struct TorrentSetArgumentsEncodeTests {
         #expect(json["peerLimit"] == nil)
     }
 
+    @Test("labels round-trip as a plain array; absent when nil")
+    func labelsEncoding() throws {
+        var args = TorrentSetArguments(ids: [3])
+        args.labels = ["Linux", "Media"]
+        let json = try encoded(args)
+        #expect(json["labels"] as? [String] == ["Linux", "Media"])
+
+        let empty = TorrentSetArguments(ids: [3])
+        let emptyJSON = try encoded(empty)
+        #expect(emptyJSON["labels"] == nil)
+    }
+
     @Test("empty arrays are never emitted for file-index fields")
     func noEmptyArraysForFileIndexFields() throws {
         // A nil [Int]? must not encode to []. Build args with only ids set.

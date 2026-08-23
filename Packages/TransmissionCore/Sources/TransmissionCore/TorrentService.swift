@@ -13,6 +13,11 @@ public protocol TorrentService: Sendable {
     /// False in RPCTorrentService until slice 7b; true in MockTorrentService.
     var supportsActions: Bool { get }
 
+    /// Whether the daemon supports labels (rpc-version >= 17, Transmission 4.0).
+    /// The RPC service derives this from its cached `session-get`; mock/replay
+    /// report true (the mock supports labels, and replay is read-only anyway).
+    func supportsLabels() async -> Bool
+
     /// Free space (bytes) on the daemon's download directory, or nil if unknown.
     func freeSpace() async -> Int64?
 
@@ -50,6 +55,11 @@ public protocol TorrentService: Sendable {
     /// `torrent-set` call carrying the changed limit fields.
     func setOptions(_ id: Torrent.ID, options: TorrentOptions) async throws
 
+    /// Whole-set replace of one or more torrents' labels (empty array clears
+    /// them). Maps to `torrent-set` `labels`; Transmission replaces the full
+    /// set, it never appends.
+    func setLabels(_ ids: [Torrent.ID], labels: [String]) async throws
+
     /// Session-wide alt-speed (turtle) toggle. Reads/writes `session-set`'s
     /// `alt-speed-enabled` field.
     func setAlternativeSpeedEnabled(_ enabled: Bool) async throws
@@ -61,7 +71,7 @@ public protocol TorrentService: Sendable {
         fileURL: URL?,
         magnetURL: String?,
         destination: String,
-        label: String?,
+        labels: [String],
         priority: TorrentPriority,
         startWhenAdded: Bool
     ) async throws
@@ -82,6 +92,7 @@ public protocol TorrentService: Sendable {
 
 extension TorrentService {
     public var supportsActions: Bool { true }
+    public func supportsLabels() async -> Bool { true }
     public func freeSpace() async -> Int64? { nil }
     public func downloadDirectory() async -> String? { nil }
     public func captureRawSnapshot() async throws -> SnapshotFile {

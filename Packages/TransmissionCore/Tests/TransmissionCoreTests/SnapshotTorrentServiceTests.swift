@@ -81,7 +81,7 @@ struct SnapshotTorrentServiceTests {
         }
         await #expect(throws: SnapshotError.self) {
             try await service.add(
-                fileURL: nil, magnetURL: nil, destination: "/x", label: nil,
+                fileURL: nil, magnetURL: nil, destination: "/x", labels: [],
                 priority: .normal, startWhenAdded: true)
         }
     }

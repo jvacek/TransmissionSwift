@@ -19,6 +19,7 @@ struct TorrentListView: View {
                 store.setSortOrder(column: column, ascending: ascending)
             },
             actionsEnabled: store.actionsEnabled,
+            labelsSupported: store.supportsLabels,
             onRowAction: { action, ids in
                 Task {
                     switch action {
@@ -28,6 +29,8 @@ struct TorrentListView: View {
                     case .remove: await store.remove(ids)
                     case .removeAndDeleteData:
                         await store.remove(ids, deleteLocalData: true)
+                    case .editLabels:
+                        store.openEditLabels(for: ids)
                     }
                 }
             },

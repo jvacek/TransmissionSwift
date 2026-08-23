@@ -214,6 +214,18 @@ Landed after the slice was first marked done. All built + UI test passes.
 - **New app-target files** (filesystem-synced, no pbxproj edits): `InspectorGeneralTab/FilesTab/PeersTab/TrackersTab/OptionsTab.swift`; `InspectorView.swift` rewritten.
 - **XCUITest learning:** SwiftUI's segmented picker segments *are* addressable — they surface as `radioButtons` keyed by each segment's `accessibilityLabel` (set on the `Image` options). Toolbar buttons remain unaddressable per slice 1's note, but the inspector defaults to visible so the test never needs the toolbar toggle.
 
+### Multi-label support (2026-08-23)
+
+Pre-colour-coding slice: the app now treats labels as a first-class multi-tag
+feature instead of a single value.
+
+- **Domain:** `Torrent.label: String?` → `Torrent.labels: [String]` (empty = untagged). Wire maps the full array (`wire.labels ?? []`); `FilterFacets` rolls up per label; label filtering matches if **any** of the torrent's labels is selected.
+- **RPC:** `TorrentSetArguments` gained `labels`; new `TorrentService.setLabels(_:labels:)` replaces the whole set per daemon semantics (gated on rpc-version ≥ 17). `add(...)` now takes `labels: [String]`.
+- **UI:** new reusable `TagsInputField` (chips + commit-on-Return + add-existing menu) used by the Add sheet and a new `EditLabelsSheet` popup (entry points: inspector Details "Labels" row → Edit…, and the table's context menu → Edit Labels…). Table Labels column renders multiple pills; inspector shows label chips. Sidebar stays single-select (OR-within-labels matching).
+- **Fixture:** Blender (id 2) carries `["3D", "Media"]` to exercise multi-label.
+- **Verification:** 163 core + 22 RPC tests (incl. new mapping/filter/facet/setLabels/encode suites), app builds, snapshot UI test passes, `swift-format` lint + prek clean.
+- **Verified upstream:** Transmission supports multiple labels per torrent (`rpcimpl.cc` `makeLabels`/`setLabels`); `torrent-set labels` replaces the whole set.
+
 ### Picking up from a new session
 
 - **Slices 3–6 are done. Slice 7 sub-slices completed so far:**

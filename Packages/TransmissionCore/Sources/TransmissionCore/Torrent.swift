@@ -20,7 +20,10 @@ public struct Torrent: Identifiable, Hashable, Sendable {
     public var primaryTracker: String
     public var downloadFolder: String
     public var addedAt: Date
-    public var label: String?
+    /// Tags assigned to the torrent. Empty = untagged. Transmission supports
+    /// multiple labels per torrent (array on the wire); the daemon replaces the
+    /// whole set on write.
+    public var labels: [String]
     public var priority: TorrentPriority
     public var pieces: Int
     public var pieceSize: Int64
@@ -49,7 +52,7 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         primaryTracker: String,
         downloadFolder: String,
         addedAt: Date,
-        label: String? = nil,
+        labels: [String] = [],
         priority: TorrentPriority = .normal,
         pieces: Int,
         pieceSize: Int64,
@@ -77,7 +80,7 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         self.primaryTracker = primaryTracker
         self.downloadFolder = downloadFolder
         self.addedAt = addedAt
-        self.label = label
+        self.labels = labels
         self.priority = priority
         self.pieces = pieces
         self.pieceSize = pieceSize

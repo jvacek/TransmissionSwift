@@ -29,12 +29,30 @@ struct FilterFacetsTests {
         let folderTotal = facets.folders.map(\.count).reduce(0, +)
         #expect(folderTotal == torrents.count)
 
-        let labelled = torrents.compactMap(\.label).count
+        let labelled = torrents.flatMap(\.labels).count
         let labelTotal = facets.labels.map(\.count).reduce(0, +)
         #expect(labelTotal == labelled)
 
         let trackerHosts = Set(torrents.map(\.primaryTracker))
         #expect(Set(facets.trackers.map(\.name)) == trackerHosts)
+    }
+
+    @Test("a multi-label torrent contributes to each label facet")
+    func multiLabelRollup() {
+        let torrents = MockFixtures.torrents()
+        let facets = FilterFacets(torrents: torrents)
+
+        // id 2 (Blender) carries both "3D" and "Media".
+        let blender = torrents.first { $0.id == 2 }!
+        #expect(blender.labels.count == 2)
+        for label in blender.labels {
+            let entry = facets.labels.first { $0.name == label }
+            #expect(entry != nil)
+            #expect(entry!.count >= 1)
+        }
+        let mediaCount = facets.labels.first { $0.name == "Media" }?.count ?? 0
+        let mediaTorrents = torrents.filter { $0.labels.contains("Media") }.count
+        #expect(mediaCount == mediaTorrents)
     }
 
     @Test("folder rollup entries are sorted alphabetically")
@@ -86,6 +104,19 @@ struct TorrentFilteringTests {
         #expect(torrents.filtered(by: TorrentFilterSelection(trackers: ["bt.archive.org"])).count == 2)
     }
 
+    @Test("a torrent matches when any of its labels is selected")
+    func multiLabelFiltering() {
+        let torrents = MockFixtures.torrents()
+        // id 2 (Blender) has ["3D", "Media"] — it must match either label alone
+        // and both together.
+        let blender = torrents.first { $0.id == 2 }!
+        #expect(torrents.filtered(by: TorrentFilterSelection(labels: ["3D"])).contains { $0.id == 2 })
+        #expect(torrents.filtered(by: TorrentFilterSelection(labels: ["Media"])).contains { $0.id == 2 })
+        #expect(torrents.filtered(by: TorrentFilterSelection(labels: ["3D", "Media"])).contains { $0.id == 2 })
+        #expect(torrents.filtered(by: TorrentFilterSelection(labels: ["Linux"])).contains { $0.id == 2 } == false)
+        #expect(blender.labels.count == 2)
+    }
+
     @Test("facet filters combine with AND semantics")
     func combinedFiltering() {
         let torrents = MockFixtures.torrents()
@@ -101,7 +132,7 @@ struct TorrentFilteringTests {
         #expect(!filtered.isEmpty)
         #expect(filtered.allSatisfy { $0.status == .downloading })
         #expect(filtered.allSatisfy { $0.primaryTracker == "releases.ubuntu.com" })
-        #expect(filtered.allSatisfy { $0.label == "Linux" })
+        #expect(filtered.allSatisfy { $0.labels.contains("Linux") })
     }
 
     @Test("search is case-insensitive substring on name; empty matches all")
@@ -207,6 +238,32 @@ struct MockTorrentServiceTests {
         #expect(after.files.first { $0.id == target }?.priority == .high)
     }
 
+    @Test("setLabels replaces the whole label set on every targeted torrent")
+    func setLabels() async throws {
+        let service = MockTorrentService()
+        let before = try await service.torrents()
+
+        try await service.setLabels([2, 5], labels: ["A", "B"])
+        let after = try await service.torrents()
+        for id in [2, 5] {
+            #expect(after.first { $0.id == id }?.labels == ["A", "B"])
+        }
+        let untouched = Set(before.map(\.id)).subtracting([2, 5])
+        for id in untouched {
+            let b = before.first { $0.id == id }!
+            let a = after.first { $0.id == id }!
+            #expect(a.labels == b.labels)
+        }
+    }
+
+    @Test("setLabels with an empty array clears labels")
+    func setLabelsClears() async throws {
+        let service = MockTorrentService()
+        try await service.setLabels([2], labels: [])
+        let after = try await service.torrents()
+        #expect(after.first { $0.id == 2 }?.labels == [])
+    }
+
     @Test("setOptions replaces the torrent's options")
     func options() async throws {
         let service = MockTorrentService()
@@ -272,6 +329,34 @@ struct TorrentStoreTests {
         #expect(store.selectedTorrentIDs == [1, 3])
     }
 
+    @Test("setLabels replaces labels on the selected torrents")
+    @MainActor
+    func setLabelsAction() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+
+        await store.setLabels([2, 5], labels: ["Archive"])
+        await waitFor { store.torrents.first { $0.id == 2 }?.labels == ["Archive"] }
+        #expect(store.torrents.first { $0.id == 5 }?.labels == ["Archive"])
+    }
+
+    @Test("openEditLabels is gated on actions and a non-empty target")
+    @MainActor
+    func openEditLabels() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+
+        store.openEditLabels(for: [2])
+        #expect(store.showEditLabels)
+        #expect(store.editLabelsTargetIDs == [2])
+
+        store.showEditLabels = false
+        store.openEditLabels(for: [])
+        #expect(!store.showEditLabels)
+    }
+
     @Test("visibleTorrents applies filter then search")
     @MainActor
     func visibility() async {
@@ -299,7 +384,7 @@ struct TorrentStoreTests {
         #expect(!store.visibleTorrents.isEmpty)
         #expect(store.visibleTorrents.allSatisfy { $0.status == .downloading })
         #expect(store.visibleTorrents.allSatisfy { $0.primaryTracker == "releases.ubuntu.com" })
-        #expect(store.visibleTorrents.allSatisfy { $0.label == "Linux" })
+        #expect(store.visibleTorrents.allSatisfy { $0.labels.contains("Linux") })
     }
 }
 
@@ -330,7 +415,7 @@ struct SortingPerformanceTests {
                 primaryTracker: baseTorrent.primaryTracker,
                 downloadFolder: baseTorrent.downloadFolder,
                 addedAt: baseTorrent.addedAt,
-                label: baseTorrent.label,
+                labels: baseTorrent.labels,
                 priority: baseTorrent.priority,
                 pieces: baseTorrent.pieces,
                 pieceSize: baseTorrent.pieceSize,

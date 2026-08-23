@@ -33,7 +33,7 @@ These are places where the wire protocol diverges from what the mock implies:
 
 7. **`queuePosition` of `-1` is not in the spec** — the spec documents positions as `[0...n)` only, so `-1` may never occur on a 4.x daemon. Keep the defensive `-1 → nil` mapping, but if the domain wants `nil` for "not waiting in a queue", derive that from status instead. Verify against the live daemon.
 
-8. **`labels` absent on daemons < 3.00 (rpc-version 16).** Decode as `[String]?`; take `first` or `nil`. No version-gating needed in the domain layer — the `labels` field simply won't appear in older daemon responses and decodes as `nil`.
+8. **`labels` is an array; Transmission supports multiple per torrent.** The daemon stores a deduped set (`std::vector<tr_quark>`) and `torrent-set` / `torrent-add` **replace the whole set** — verified in `rpcimpl.cc` `makeLabels`/`setLabels` (4.0.6). The domain maps `wire.labels ?? []` → `Torrent.labels: [String]` (no `.first` collapse). Labels are absent on daemons < 3.00 (rpc-version 16) — the field decodes as `nil` → `[]`, so no version-gating is needed in the domain layer. Writing labels (`torrent-set` `labels`, wired as `TorrentService.setLabels`) gates on rpc-version ≥ 17. Daemon validation: whitespace-stripped, non-empty, no commas.
 
 9. **`bandwidthPriority` is `-1/0/1`**, not the `0/1/2` the mock uses. Map: `-1 → .low`, `0 → .normal`, `1 → .high`.
 

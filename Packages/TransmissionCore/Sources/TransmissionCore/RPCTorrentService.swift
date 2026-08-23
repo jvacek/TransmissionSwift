@@ -55,6 +55,14 @@ public actor RPCTorrentService: TorrentService {
         cachedSession?.downloadDir
     }
 
+    public func supportsLabels() async -> Bool {
+        // Optimistic until the first session-get lands (nil cache = don't disable
+        // a capability we can't disprove); the store refreshes this alongside
+        // freeSpace polling, so it flips to false as soon as an old daemon's
+        // rpc-version is known.
+        cachedSession.map { $0.rpcVersion >= 17 } ?? true
+    }
+
     public func torrents() async throws -> [Torrent] {
         let resp = try await client.torrentGet(fields: TorrentGetResponse.listFields, ids: nil)
         return resp.torrents.map { Torrent(wire: $0) }
@@ -162,6 +170,36 @@ public actor RPCTorrentService: TorrentService {
         await refreshAfterMutation()
     }
 
+    public func setLabels(_ ids: [Torrent.ID], labels: [String]) async throws {
+        // Label writes require rpc-version >= 17 (Transmission 4.0). cachedSession
+        // is refreshed by freeSpace() on connect and periodically; if it's still
+        // missing, fetch once here so a cold cache can't silently no-op the action.
+        let session: SessionInfo
+        if let cached = cachedSession {
+            session = cached
+        } else if let fetched = try? await client.sessionGet() {
+            cachedSession = fetched
+            session = fetched
+        } else {
+            logger.warning(
+                "setLabels skipped — session unknown (cannot verify rpc-version); ids=\(ids, privacy: .public)")
+            throw TransmissionError.serverError("Cannot verify whether the daemon supports labels (session-get failed)")
+        }
+        guard session.rpcVersion >= 17 else {
+            logger.warning(
+                "setLabels skipped — daemon rpc-version \(session.rpcVersion) < 17 does not support labels; ids=\(ids, privacy: .public)"
+            )
+            throw TransmissionError.serverError(
+                "This daemon (rpc-version \(session.rpcVersion)) does not support labels")
+        }
+        logger.info("setLabels: ids=\(ids, privacy: .public) labels=\(labels, privacy: .public)")
+        var args = TorrentSetArguments(ids: ids)
+        args.labels = labels
+        try await client.torrentSet(args)
+        logger.info("setLabels succeeded for ids=\(ids, privacy: .public)")
+        await refreshAfterMutation()
+    }
+
     public func setAlternativeSpeedEnabled(_ enabled: Bool) async throws {
         try await client.sessionSet(SessionSetArguments(altSpeedEnabled: enabled))
     }
@@ -183,7 +221,7 @@ public actor RPCTorrentService: TorrentService {
         fileURL: URL?,
         magnetURL: String?,
         destination: String,
-        label: String?,
+        labels: [String],
         priority: TorrentPriority,
         startWhenAdded: Bool
     ) async throws {
@@ -214,11 +252,11 @@ public actor RPCTorrentService: TorrentService {
         case .high: bandwidthPriority = 1
         }
 
-        let labels: [String]?
-        if let label, !label.isEmpty, (cachedSession?.rpcVersion ?? 0) >= 17 {
-            labels = [label]
+        let wireLabels: [String]?
+        if !labels.isEmpty, (cachedSession?.rpcVersion ?? 0) >= 17 {
+            wireLabels = labels
         } else {
-            labels = nil
+            wireLabels = nil
         }
 
         let args = TorrentAddArguments(
@@ -227,7 +265,7 @@ public actor RPCTorrentService: TorrentService {
             downloadDir: destination.isEmpty ? nil : destination,
             paused: !startWhenAdded,
             bandwidthPriority: bandwidthPriority,
-            labels: labels
+            labels: wireLabels
         )
         let response = try await client.torrentAdd(args)
         if let dup = response.torrentDuplicate {
@@ -267,8 +305,12 @@ public actor RPCTorrentService: TorrentService {
     /// §3.1–3.4 "Response arguments: none"), so this second `torrent-get` is
     /// unavoidable.
     private func refreshAfterMutation() async {
-        if let snapshot = try? await torrents() {
+        do {
+            let snapshot = try await torrents()
             continuation?.yield(snapshot)
+            logger.debug("Post-mutation refresh yielded \(snapshot.count) torrents")
+        } catch {
+            logger.error("Post-mutation refresh failed: \(error)")
         }
     }
 }

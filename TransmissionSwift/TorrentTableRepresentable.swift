@@ -8,6 +8,7 @@ enum TorrentRowAction {
     case verify
     case remove
     case removeAndDeleteData
+    case editLabels
 }
 
 struct TorrentTableRepresentable: NSViewRepresentable {
@@ -18,6 +19,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
     var sortAscending: Bool
     var onSortChange: ((TransmissionCore.TableColumn, Bool) -> Void)?
     var actionsEnabled: Bool
+    var labelsSupported: Bool = true
     var onRowAction: ((TorrentRowAction, [Torrent.ID]) -> Void)?
     var onInspectorRequest: (() -> Void)?
 
@@ -78,6 +80,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             downloadDirectoryBase: downloadDirectoryBase,
             sortState: Coordinator.SortState(columnID: sortColumnID, ascending: sortAscending),
             actionsEnabled: actionsEnabled,
+            labelsSupported: labelsSupported,
             onSortChange: onSortChange,
             onRowAction: onRowAction,
             onInspectorRequest: onInspectorRequest)
@@ -108,6 +111,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             downloadDirectoryBase: downloadDirectoryBase,
             sortState: Coordinator.SortState(columnID: sortColumnID, ascending: sortAscending),
             actionsEnabled: actionsEnabled,
+            labelsSupported: labelsSupported,
             onSortChange: onSortChange,
             onRowAction: onRowAction,
             onInspectorRequest: onInspectorRequest)
@@ -133,6 +137,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         var onSortChange: ((TransmissionCore.TableColumn, Bool) -> Void)?
         var sortState: SortState?
         var actionsEnabled = true
+        var labelsSupported = true
         var onRowAction: ((TorrentRowAction, [Torrent.ID]) -> Void)?
         var onInspectorRequest: (() -> Void)?
         weak var rowMenu: NSMenu?
@@ -157,6 +162,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             downloadDirectoryBase: String?,
             sortState: SortState?,
             actionsEnabled: Bool,
+            labelsSupported: Bool,
             onSortChange: ((TransmissionCore.TableColumn, Bool) -> Void)?,
             onRowAction: ((TorrentRowAction, [Torrent.ID]) -> Void)?,
             onInspectorRequest: (() -> Void)?
@@ -164,6 +170,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             self.downloadDirectoryBase = downloadDirectoryBase
             self.sortState = sortState
             self.actionsEnabled = actionsEnabled
+            self.labelsSupported = labelsSupported
             self.onSortChange = onSortChange
             self.onRowAction = onRowAction
             self.onInspectorRequest = onInspectorRequest
@@ -274,6 +281,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         }
 
         private static let destructiveItemTag = 1
+        private static let editLabelsItemTag = 2
 
         private func populateRowMenu(_ menu: NSMenu, ids: [Torrent.ID]) {
             menu.removeAllItems()
@@ -307,11 +315,16 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             menu.addItem(.separator())
             menu.addItem(item("Verify Local Data", "checkmark.shield", .verify))
             menu.addItem(.separator())
+            let editLabelsItem = item("Edit Labels…", "tag", .editLabels)
+            editLabelsItem.tag = Self.editLabelsItemTag
+            menu.addItem(editLabelsItem)
+            menu.addItem(.separator())
             menu.addItem(destructiveItem("Remove\u{2026}", "trash", .remove))
             menu.addItem(
                 destructiveItem("Remove and Delete Data\u{2026}", "trash.fill", .removeAndDeleteData))
             for menuItem in menu.items where menuItem.action != nil {
-                menuItem.isEnabled = canAct
+                menuItem.isEnabled =
+                    menuItem.tag == Self.editLabelsItemTag ? canAct && labelsSupported : canAct
             }
         }
 

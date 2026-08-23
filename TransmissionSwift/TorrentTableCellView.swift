@@ -35,7 +35,7 @@ struct TorrentRowDisplay: Equatable {
             && lhs.torrent.primaryTracker == rhs.torrent.primaryTracker
             && lhs.torrent.downloadFolder == rhs.torrent.downloadFolder
             && lhs.torrent.addedAt == rhs.torrent.addedAt
-            && lhs.torrent.label == rhs.torrent.label
+            && lhs.torrent.labels == rhs.torrent.labels
             && lhs.torrent.priority == rhs.torrent.priority
             && lhs.torrent.pieces == rhs.torrent.pieces
             && lhs.torrent.havePieces == rhs.torrent.havePieces
@@ -55,6 +55,7 @@ struct TorrentCellContent: Equatable {
         case twoPart  // value + unit (speed)
         case symbolAndText  // SF symbol + label (priority)
         case pill  // label on a rounded background
+        case pills  // multiple pill labels (torrent tags)
     }
 
     var shape: Shape
@@ -73,6 +74,9 @@ struct TorrentCellContent: Equatable {
     var secondaryColor: NSColor?
     var symbolName: String?
     var symbolColor: NSColor?
+    /// Pill texts for the `.pills` shape. `text` stays populated (first label)
+    /// so existing consumers never see an empty cell.
+    var pillTexts: [String]?
 }
 
 // MARK: - Display-value builder
@@ -223,15 +227,17 @@ extension TorrentCellContent {
                 accessibilityLabel: text,
                 dotColor: color)
         case .label:
-            if let label = row.torrent.label, !label.isEmpty {
+            let labels = row.torrent.labels.filter { !$0.isEmpty }
+            if !labels.isEmpty {
                 return TorrentCellContent(
-                    shape: .pill,
-                    text: label,
+                    shape: .pills,
+                    text: labels[0],
                     font: bodyFont,
                     color: .labelColor,
                     alignment: .left,
                     toolTip: nil,
-                    accessibilityLabel: label)
+                    accessibilityLabel: labels.joined(separator: ", "),
+                    pillTexts: labels)
             }
             return TorrentCellContent(
                 shape: .text,
@@ -406,6 +412,7 @@ final class TorrentTableCellView: NSTableCellView {
     private var secondaryLabel: NSTextField?
     private var progressView: TorrentProgressBarView?
     private var symbolImageView: NSImageView?
+    private var pillLabels: [NSTextField] = []
     private var lastShape: TorrentCellContent.Shape?
 
     override init(frame frameRect: NSRect) {
@@ -436,15 +443,19 @@ final class TorrentTableCellView: NSTableCellView {
 
     private func render(_ content: TorrentCellContent) {
         let stack = containerStack()
-        if lastShape != content.shape {
+        let pillCountChanged =
+            content.shape == .pills && pillLabels.count != (content.pillTexts ?? []).count
+        if lastShape != content.shape || pillCountChanged {
             // Rebuild the subview arrangement. Per-column reuse means the shape
-            // is normally constant for a cell's lifetime; this only runs on the
-            // first configure or if the reuse pool ever mixes columns.
+            // is normally constant for a cell's lifetime; this runs on the
+            // first configure, when the reuse pool mixes columns, or when a
+            // `.pills` cell's tag count changed (labels were edited).
             for view in stack.arrangedSubviews {
                 stack.removeArrangedSubview(view)
                 view.removeFromSuperview()
             }
             lastShape = content.shape
+            var pills: [NSTextField] = []
             switch content.shape {
             case .text:
                 let label = makeLabel()
@@ -507,6 +518,15 @@ final class TorrentTableCellView: NSTableCellView {
                 label.setContentHuggingPriority(.required, for: .horizontal)
                 stack.addArrangedSubview(label)
                 self.label = label
+            case .pills:
+                stack.spacing = 4
+                for _ in content.pillTexts ?? [] {
+                    let label = makeLabel()
+                    label.setContentHuggingPriority(.required, for: .horizontal)
+                    stack.addArrangedSubview(label)
+                    pills.append(label)
+                }
+                self.pillLabels = pills
             }
         }
         apply(content)
@@ -521,6 +541,16 @@ final class TorrentTableCellView: NSTableCellView {
             label?.wantsLayer = true
             label?.layer?.cornerRadius = 4
             label?.layer?.backgroundColor = NSColor.quaternaryLabelColor.withAlphaComponent(0.5).cgColor
+        case .pills:
+            for (index, pill) in pillLabels.enumerated() {
+                pill.stringValue = content.pillTexts?[index] ?? ""
+                pill.font = content.font
+                pill.textColor = content.color
+                pill.alignment = content.alignment
+                pill.wantsLayer = true
+                pill.layer?.cornerRadius = 4
+                pill.layer?.backgroundColor = NSColor.quaternaryLabelColor.withAlphaComponent(0.5).cgColor
+            }
         case .dotAndText:
             configureLabel(content)
             dotView?.layer?.backgroundColor = (content.dotColor ?? .labelColor).cgColor

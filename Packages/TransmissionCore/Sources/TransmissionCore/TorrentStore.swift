@@ -86,6 +86,10 @@ public final class TorrentStore {
     public var addTorrentStartInMagnetMode: Bool = false
     public var addTorrentPrefilledURL: URL? = nil
 
+    // Edit-labels popup
+    public var showEditLabels: Bool = false
+    public var editLabelsTargetIDs: [Torrent.ID] = []
+
     public private(set) var facets = FilterFacets(torrents: [])
     public private(set) var visibleTorrents: [Torrent] = []
 
@@ -121,6 +125,10 @@ public final class TorrentStore {
     /// True when the backing service supports mutation actions.
     public private(set) var actionsEnabled: Bool = true
 
+    /// Whether the connected daemon supports labels (rpc-version >= 17). Gates
+    /// the "Edit Labels" affordances; refreshed whenever the session is polled.
+    public private(set) var supportsLabels: Bool = true
+
     private var service: any TorrentService
     private var streamTask: Task<Void, Never>?
     private var freeSpaceTask: Task<Void, Never>?
@@ -134,7 +142,7 @@ public final class TorrentStore {
         let status: TorrentStatus
         let primaryTracker: String
         let downloadFolder: String
-        let label: String?
+        let labels: [String]
     }
 
     public init(service: any TorrentService) {
@@ -172,6 +180,7 @@ public final class TorrentStore {
         connection = .connecting
         freeSpace = nil
         downloadDirectory = nil
+        supportsLabels = true
         torrents = []
         // Sidebar filters are per-server state — a tracker/folder/label filter
         // from server A would otherwise show "0 torrents" against server B's
@@ -246,6 +255,7 @@ public final class TorrentStore {
             // Sync alt-speed state from the now-warm cache — avoids showing the
             // wrong turtle toggle state if alt speed was enabled before launch.
             self.isAlternativeSpeedEnabled = await capturedService.isAlternativeSpeedEnabled()
+            self.supportsLabels = await capturedService.supportsLabels()
             guard !Task.isCancelled else { return }
             self.startFreeSpacePoll()
             do {
@@ -274,6 +284,7 @@ public final class TorrentStore {
                 try? await Task.sleep(for: .seconds(interval))
                 guard !Task.isCancelled else { break }
                 self.freeSpace = await capturedService.freeSpace()
+                self.supportsLabels = await capturedService.supportsLabels()
             }
         }
     }
@@ -294,7 +305,7 @@ public final class TorrentStore {
                 status: torrent.status,
                 primaryTracker: torrent.primaryTracker,
                 downloadFolder: torrent.downloadFolder,
-                label: torrent.label)
+                labels: torrent.labels)
         }
         guard signature != facetSignature else { return }
         facetSignature = signature
@@ -367,11 +378,17 @@ public final class TorrentStore {
         showAddTorrent = true
     }
 
+    public func openEditLabels(for ids: [Torrent.ID]) {
+        guard actionsEnabled, supportsLabels, !ids.isEmpty else { return }
+        editLabelsTargetIDs = ids
+        showEditLabels = true
+    }
+
     public func add(
         fileURL: URL?,
         magnetURL: String?,
         destination: String,
-        label: String?,
+        labels: [String],
         priority: TorrentPriority,
         startWhenAdded: Bool
     ) async {
@@ -380,11 +397,22 @@ public final class TorrentStore {
                 fileURL: fileURL,
                 magnetURL: magnetURL,
                 destination: destination,
-                label: label,
+                labels: labels,
                 priority: priority,
                 startWhenAdded: startWhenAdded
             )
         } catch {
+            recordError(error)
+        }
+    }
+
+    public func setLabels(_ ids: [Torrent.ID], labels: [String]) async {
+        logger.info("setLabels store action: ids=\(ids) labels=\(labels)")
+        do {
+            try await service.setLabels(ids, labels: labels)
+            logger.info("setLabels store action succeeded for ids=\(ids)")
+        } catch {
+            logger.error("setLabels store action failed for ids=\(ids): \(error)")
             recordError(error)
         }
     }

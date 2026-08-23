@@ -65,6 +65,9 @@ public struct TorrentSetArguments: Encodable, Sendable {
     public var peerLimit: Int?
     public var queuePosition: Int?
     public var bandwidthPriority: Int?
+    /// Whole-set replace of the torrent's labels. Requires RPC ≥ 17
+    /// (Transmission 4.0). Omit on older daemons.
+    public var labels: [String]?
 
     enum CodingKeys: String, CodingKey {
         case ids
@@ -85,6 +88,7 @@ public struct TorrentSetArguments: Encodable, Sendable {
         case peerLimit = "peer-limit"
         case queuePosition
         case bandwidthPriority
+        case labels
     }
 
     public init(ids: [Int]) {

@@ -56,7 +56,7 @@ enum TorrentTableColumns {
             column: .status, title: "Status",
             minWidth: 80, idealWidth: 100, maxWidth: 150, hiddenByDefault: true),
         TorrentTableColumnSpec(
-            column: .label, title: "Label",
+            column: .label, title: "Labels",
             minWidth: 80, idealWidth: 120, maxWidth: 200, hiddenByDefault: true),
         TorrentTableColumnSpec(
             column: .priority, title: "Priority",
