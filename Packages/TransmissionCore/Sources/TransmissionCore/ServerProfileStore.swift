@@ -64,6 +64,32 @@ public final class ServerProfileStore {
         try persist()
     }
 
+    /// Creates a copy of the profile with a fresh ID (and fresh mapping IDs so
+    /// the two profiles' mappings stay independent), appends it, and persists.
+    /// Returns the new profile, or nil when no profile has that id.
+    @discardableResult
+    public func duplicate(id: UUID) throws -> ServerProfile? {
+        guard let original = profiles.first(where: { $0.id == id }) else { return nil }
+        let copy = ServerProfile(
+            id: UUID(),
+            label: "\(original.label) (Copy)",
+            host: original.host,
+            port: original.port,
+            rpcPath: original.rpcPath,
+            username: original.username,
+            useHTTPS: original.useHTTPS,
+            mappings: original.mappings.map { mapping in
+                OpenMapping(
+                    id: UUID(),
+                    name: mapping.name,
+                    template: mapping.template,
+                    applicationBundleID: mapping.applicationBundleID)
+            })
+        profiles.append(copy)
+        try persist()
+        return copy
+    }
+
     // MARK: - Persistence
 
     private struct PersistedData: Codable {

@@ -336,6 +336,8 @@ private struct ServersPrefsPane: View {
     @State private var selection: PaneSelection?
     @State private var pendingNew = false
 
+    private let keychain = KeychainStore()
+
     var body: some View {
         HStack(spacing: 0) {
             VStack(spacing: 0) {
@@ -436,6 +438,24 @@ private struct ServersPrefsPane: View {
             .buttonStyle(.borderless)
             .disabled(!canRemove)
             .help("Remove selected server")
+
+            Button {
+                if case .existing(let id) = selection,
+                    let copy = try? profileStore.duplicate(id: id)
+                {
+                    if let pwd = try? keychain.password(for: id), !pwd.isEmpty {
+                        try? keychain.setPassword(pwd, for: copy.id)
+                    }
+                    selection = .existing(copy.id)
+                }
+            } label: {
+                Label("Duplicate Server", systemImage: "square.on.square")
+                    .labelStyle(.iconOnly)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.borderless)
+            .disabled(!canRemove)
+            .help("Duplicate selected server")
 
             Spacer()
         }
