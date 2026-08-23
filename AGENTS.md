@@ -95,19 +95,23 @@ anonymized JSON file, and replays it read-only — no daemon, no credentials.
 redaction pass (names kept, trackers/IPs/paths/hashes/timestamps scrubbed) and
 a leak-check tripwire that refuses the file if anything identifying survives.
 
-**Replay**: launch the app with a path to the file:
+**Replay**: launch the app with a path to the file — the committed fixture is the
+canonical one:
 ```bash
-open Build/Products/Debug/TransmissionSwift.app --args --snapshot ~/Downloads/snapshot-*.json
+open Build/Products/Debug/TransmissionSwift.app --args --snapshot TransmissionSwiftUITests/Fixtures/snapshot-10-torrents.json
 ```
 The app boots a read-only, frozen view of that state (actions disabled).
 
 Gotchas:
 - The sandbox blocks reading an arbitrary CLI path. The target grants **read**
-  access to `~/Downloads` via `ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readonly`,
-  so keep snapshots there for `--snapshot`.
+  access to `~/Downloads` via `ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readonly`.
+  The committed fixture path above is readable because UI-test builds inject a
+  filesystem temp exception; for a plain `open` launch of the sandboxed Debug
+  app, copy the fixture into `~/Downloads` first.
 - The snapshot UI test (`testSnapshotMainWindow`) runs off a **committed fixture**
-  (`TransmissionSwiftUITests/Fixtures/snapshot-10-torrents.json`, an anonymized
-  10-torrent capture) — no daemon, no dependence on your ~/Downloads. The app
+  (`TransmissionSwiftUITests/Fixtures/snapshot-10-torrents.json`, the first 10
+  `MockFixtures` torrents in wire form) — no daemon, no dependence on your
+  ~/Downloads. The app
   passes the checkout path straight to `--snapshot`: when built for UI testing,
   Xcode injects `com.apple.security.temporary-exception.files.absolute-path.read-only = /`
   into the app's entitlements, so the sandbox doesn't block reading the repo.

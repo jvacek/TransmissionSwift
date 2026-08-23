@@ -55,9 +55,10 @@ final class TransmissionSwiftUITests: XCTestCase {
     }
 
     /// Golden path: the torrents table (raw NSTableView since the
-    /// nstableview-migration) renders rows. Boots the app on a committed,
-    /// anonymized snapshot fixture so the test runs anywhere — CI included —
-    /// with no daemon and no dependence on the developer's ~/Downloads.
+    /// nstableview-migration) renders rows. Boots the app on a committed
+    /// snapshot fixture (mirrors `MockFixtures`, the design-handoff sample set)
+    /// so the test runs anywhere — CI included — with no daemon and no
+    /// dependence on the developer's ~/Downloads.
     ///
     /// The app-under-test passes the repo path straight to `--snapshot`: when
     /// built for UI testing, Xcode injects
@@ -85,7 +86,7 @@ final class TransmissionSwiftUITests: XCTestCase {
 
         // The fixture's first torrent must have decoded through the wire mapping.
         let firstRow = table.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS %@", "Sample Archive 01")
+            NSPredicate(format: "label CONTAINS %@", "Ubuntu 24.04.2 Desktop")
         ).firstMatch
         XCTAssertTrue(
             firstRow.waitForExistence(timeout: 5),

@@ -254,9 +254,9 @@ scene, button disabled until connected. Replay landed same day:
   frozen stream → read-only → inspector → unknown-version rejection).
 
 **Validation:** 145 core tests + 21 RPC tests pass, `swift format lint --strict`
-clean, app builds. Replay verified end-to-end against a real capture
-(`~/Downloads/snapshot-2026-08-21-182355.json`, 10 torrents) launched with
-`--snapshot`.
+clean, app builds. Replay verified end-to-end against the committed fixture
+(`TransmissionSwiftUITests/Fixtures/snapshot-10-torrents.json`, the first 10
+`MockFixtures` torrents in wire form) launched with `--snapshot`.
 
 ### Slice C — docs ✅
 
@@ -265,8 +265,10 @@ clean, app builds. Replay verified end-to-end against a real capture
   note), and a cross-ref from `reference/README.md`.
 - **No-daemon XCUITest** (`testSnapshotMainWindow`) landed 2026-08-23: boots the
   app on a **committed fixture**
-  (`TransmissionSwiftUITests/Fixtures/snapshot-10-torrents.json`, the anonymized
-  10-torrent capture from Slice B) located via `#filePath`-derived paths — no
+  (`TransmissionSwiftUITests/Fixtures/snapshot-10-torrents.json`, the first 10
+  `MockFixtures` torrents in wire form — since 2026-08-23 this replaced the
+  anonymized Slice B capture, so the UI asserts against the design-handoff
+  sample set instead) located via `#filePath`-derived paths — no
   resource bundling required (the filesystem-synced UITests group also copies
   it into the bundle as a fallback). The app passes the checkout path straight
   to `--snapshot`: when built for UI testing, Xcode injects
@@ -279,8 +281,9 @@ clean, app builds. Replay verified end-to-end against a real capture
 
 Per Jonas's cross-stack preference, the validation loop closes early: capture a
 snapshot from the local dev daemon at the end of slice A, boot the app on it
-during slice B — end-to-end without ever touching the real server. Done: a real
-`~/Downloads` capture (10 torrents) was replayed via `--snapshot`.
+during slice B — end-to-end without ever touching the real server. Done: the
+committed fixture (`snapshot-10-torrents.json`, 10 mock torrents) is replayed
+via `--snapshot`.
 
 ## Open questions
 
