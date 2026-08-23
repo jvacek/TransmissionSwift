@@ -145,17 +145,52 @@ private struct MappingEditorSheet: View {
     let onSave: (OpenMapping) -> Void
 
     @FocusState private var templateFocused: Bool
+    /// Whether the placeholder reference popover is visible.
+    @State private var showPlaceholderHelp = false
 
-    private static let placeholderGroups: [(title: String, items: [String])] = [
-        ("File", ["{file}"]),
-        ("Torrent", ["{folder}", "{path}"]),
-        (
-            "Server",
-            ["{host}", "{port}", "{user}", "{password}", "{password-encoded}", "{download-dir}"]
+    /// Single source of truth for the template placeholders: drives both the
+    /// "Insert placeholder" menu and the reference popover, so the two can't
+    /// drift apart.
+    private static let placeholderGroups: [PlaceholderGroup] = [
+        PlaceholderGroup(
+            title: "File",
+            items: [
+                PlaceholderItem(
+                    token: "{file}",
+                    summary:
+                        "The file or folder being opened, relative to the folder the torrent is saved under."
+                )
+            ]
+        ),
+        PlaceholderGroup(
+            title: "Torrent",
+            items: [
+                PlaceholderItem(
+                    token: "{folder}",
+                    summary:
+                        "The folder the torrent is saved under, relative to the daemon's default download folder."
+                ),
+                PlaceholderItem(token: "{path}", summary: "The torrent's full download folder."),
+            ]
+        ),
+        PlaceholderGroup(
+            title: "Server",
+            items: [
+                PlaceholderItem(token: "{host}", summary: "Server host."),
+                PlaceholderItem(token: "{port}", summary: "Server port."),
+                PlaceholderItem(token: "{user}", summary: "Server username (empty when unset)."),
+                PlaceholderItem(
+                    token: "{password}",
+                    summary:
+                        "Raw password; avoid when it can contain / or %. Prefer {password-encoded}."),
+                PlaceholderItem(
+                    token: "{password-encoded}",
+                    summary: "Percent-encoded password, safe to embed for basic auth."),
+                PlaceholderItem(
+                    token: "{download-dir}", summary: "The daemon's default download folder."),
+            ]
         ),
     ]
-
-    private static let placeholders: [String] = placeholderGroups.flatMap(\.items)
 
     private static let presets: [(name: String, template: String, explanation: String)] = [
         (
@@ -304,16 +339,29 @@ private struct MappingEditorSheet: View {
                     .controlSize(.small)
 
                     Menu("Insert placeholder") {
-                        ForEach(Array(Self.placeholderGroups.enumerated()), id: \.element.title) {
+                        ForEach(Array(Self.placeholderGroups.enumerated()), id: \.element.id) {
                             index, group in
                             if index > 0 { Divider() }
                             Text(group.title)
-                            ForEach(group.items, id: \.self) { placeholder in
-                                Button(placeholder) { insertPlaceholder(placeholder) }
+                            ForEach(group.items) { item in
+                                Button(item.token) { insertPlaceholder(item.token) }
+                                    .help(item.summary)
                             }
                         }
                     }
                     .controlSize(.small)
+
+                    Button {
+                        showPlaceholderHelp.toggle()
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    .help("Placeholder reference")
+                    .popover(isPresented: $showPlaceholderHelp, arrowEdge: .top) {
+                        PlaceholderReferenceView(groups: Self.placeholderGroups)
+                    }
 
                     Spacer()
                 }
@@ -359,10 +407,6 @@ private struct MappingEditorSheet: View {
                     .foregroundStyle(.red)
                 }
             }
-
-            Text("Placeholders: \(Self.placeholders.joined(separator: "  "))")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
 
             HStack(spacing: 10) {
                 Button("Test") { test() }
@@ -482,5 +526,63 @@ private enum HandlerApp {
             (bundle.localizedInfoDictionary?["CFBundleDisplayName"] as? String)
             ?? bundle.infoDictionary?["CFBundleDisplayName"] as? String
             ?? bundle.infoDictionary?["CFBundleName"] as? String
+    }
+}
+
+/// One selectable template placeholder with its one-line documentation.
+private struct PlaceholderItem: Identifiable, Hashable {
+    let token: String
+    let summary: String
+    var id: String { token }
+}
+
+/// A group of placeholders shown together in the insert menu and reference.
+private struct PlaceholderGroup: Identifiable {
+    let title: String
+    let items: [PlaceholderItem]
+    var id: String { title }
+}
+
+/// Compact, scrollable reference for the template placeholders, shown from a
+/// popover so it doesn't consume the sheet's limited vertical space.
+private struct PlaceholderReferenceView: View {
+    let groups: [PlaceholderGroup]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(groups) { group in
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(group.title)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        ForEach(group.items) { item in
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(item.token)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .frame(minWidth: 88, alignment: .leading)
+                                Text(item.summary)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                }
+                Divider()
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("How {file} resolves")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text("Torrent list · single file → the file itself, e.g. myfile.txt")
+                    Text("Torrent list · multi-file → the torrent's folder, e.g. Series1/")
+                    Text("Files tab · one file selected → that file, e.g. Series1/Episode1")
+                }
+                .font(.caption)
+            }
+            .padding(12)
+        }
+        .frame(width: 340, height: 380)
+        .textSelection(.enabled)
     }
 }
