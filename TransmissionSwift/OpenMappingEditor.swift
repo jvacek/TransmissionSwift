@@ -47,8 +47,17 @@ struct OpenMappingEditor: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
-                        if let bundleID = mapping.applicationBundleID {
+                        if mapping.action == .finder {
+                            Text("Reveals in Finder")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        } else if let bundleID = mapping.applicationBundleID {
                             Text("Opens in \(HandlerApp.displayName(for: bundleID) ?? bundleID)")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        if mapping.accessBookmark != nil {
+                            Text("Access granted")
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
                         }
@@ -112,7 +121,11 @@ final class MappingEditorModel: Identifiable {
     let existing: OpenMapping?
     var name: String
     var template: String
+    var action: OpenMappingAction
     var applicationBundleID: String?
+    /// Persisted so editing a mapping doesn't drop a granted file-access
+    /// bookmark; also the test/preview never touches it.
+    var accessBookmark: Data?
     var testMessage: String?
     var testFailed = false
 
@@ -120,12 +133,27 @@ final class MappingEditorModel: Identifiable {
         self.existing = existing
         name = existing?.name ?? ""
         template = existing?.template ?? ""
+        action = existing?.action ?? .open
         applicationBundleID = existing?.applicationBundleID
+        accessBookmark = existing?.accessBookmark
     }
 
     func resetTestState() {
         testMessage = nil
         testFailed = false
+    }
+
+    /// The folder a stored access bookmark points at, for display. Resolving
+    /// decodes the bookmark data and needs no active scope.
+    var accessGrantedPath: String? {
+        guard let data = accessBookmark else { return nil }
+        var isStale = false
+        return
+            (try? URL(
+                resolvingBookmarkData: data,
+                options: .withSecurityScope,
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale))?.path
     }
 }
 
@@ -147,6 +175,8 @@ private struct MappingEditorSheet: View {
     @FocusState private var templateFocused: Bool
     /// Whether the placeholder reference popover is visible.
     @State private var showPlaceholderHelp = false
+    /// Whether the save-time "allow file access?" alert is visible.
+    @State private var showAccessAlert = false
 
     /// Single source of truth for the template placeholders: drives both the
     /// "Insert placeholder" menu and the reference popover, so the two can't
@@ -197,28 +227,44 @@ private struct MappingEditorSheet: View {
         ),
     ]
 
-    private static let presets: [(name: String, template: String, explanation: String)] = [
-        (
-            "Finder / local mount",
-            "file:///Volumes/transmission/{folder}/{file}",
-            "The daemon's download folder is mounted on this Mac."
-        ),
-        (
-            "Local daemon (Finder)",
-            "file:///{download-dir}/{folder}/{file}",
-            "The daemon runs on this Mac — open the torrent's file or folder in Finder."
-        ),
-        (
-            "Swizzin Web",
-            "https://{user}:{password-encoded}@{host}/transmission.downloads/{folder}/{file}",
-            "Open the file in swizzin's web downloads view (basic auth)."
-        ),
-        (
-            "Cyberduck / SFTP",
-            "sftp://{user}@{host}/{fileAbsolute}",
-            "Open the file or download folder over SFTP in Cyberduck."
-        ),
-    ]
+    private static let presets:
+        [(label: String, defaultName: String, template: String, action: OpenMappingAction, explanation: String)] = [
+            (
+                "Reveal in Finder (from local daemon)",
+                "Finder",
+                "file:///{download-dir}/{folder}/{file}",
+                .finder,
+                "The daemon runs on this Mac — reveal the torrent's file or folder in Finder."
+            ),
+            (
+                "Reveal in Finder (mounted volume)",
+                "Finder",
+                "file:///Volumes/transmission/{folder}/{file}",
+                .finder,
+                "The daemon's download folder is mounted on this Mac — reveal the file or folder in Finder."
+            ),
+            (
+                "Open with default app",
+                "Default app",
+                "file:///{fileAbsolute}",
+                .open,
+                "Open the file with its default macOS app (e.g. Music for mp3, TextEdit for txt)."
+            ),
+            (
+                "Open in Cyberduck",
+                "Cyberduck",
+                "sftp://{user}@{host}/{fileAbsolute}",
+                .open,
+                "Open the file or download folder over SFTP in Cyberduck."
+            ),
+            (
+                "Open in Swizzin web",
+                "Swizzin Web",
+                "https://{user}:{password-encoded}@{host}/transmission.downloads/{folder}/{file}",
+                .open,
+                "Open the file in swizzin's web downloads view (basic auth)."
+            ),
+        ]
 
     /// The torrent the preview + Test act on. Prefers the real torrent passed
     /// in (inspector selection, else first in the list); when there are none,
@@ -326,12 +372,12 @@ private struct MappingEditorSheet: View {
 
                 HStack(spacing: 12) {
                     Menu {
-                        ForEach(Self.presets, id: \.name) { preset in
+                        ForEach(Self.presets, id: \.label) { preset in
                             Button {
                                 applyPreset(preset)
                             } label: {
                                 VStack(alignment: .leading) {
-                                    Text(preset.name)
+                                    Text(preset.label)
                                     Text(preset.explanation)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
@@ -373,20 +419,54 @@ private struct MappingEditorSheet: View {
             }
 
             HStack(spacing: 10) {
-                Picker("Open with", selection: $model.applicationBundleID) {
-                    Text("Default app").tag(String?.none)
-                    if !handlerApps.isEmpty {
-                        Divider()
-                        ForEach(handlerApps, id: \.bundleID) { app in
-                            Text(app.name).tag(Optional(app.bundleID))
-                        }
-                    }
+                Picker("Action", selection: $model.action) {
+                    Text("Reveal in Finder").tag(OpenMappingAction.finder)
+                    Text("Open").tag(OpenMappingAction.open)
                 }
                 .pickerStyle(.menu)
-                .help("Which app receives the URL; the system default when unset")
-                Button("Choose App…") { chooseApp() }
-                    .controlSize(.small)
+                .help(
+                    "Reveal selects the item in Finder; Open hands the URL to the system's protocol handler or a chosen app"
+                )
                 Spacer()
+            }
+
+            if model.action == .open {
+                HStack(spacing: 10) {
+                    Picker("Open with", selection: $model.applicationBundleID) {
+                        Text("Let the system handle it").tag(String?.none)
+                        if !handlerApps.isEmpty {
+                            Divider()
+                            ForEach(handlerApps, id: \.bundleID) { app in
+                                Text(app.name).tag(Optional(app.bundleID))
+                            }
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .help("Which app receives the URL; the system default for the scheme when unset")
+                    Button("Choose App…") { chooseApp() }
+                        .controlSize(.small)
+                    Spacer()
+                }
+                if model.action == .open && templateScheme == "file" {
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("File access")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(
+                                model.accessGrantedPath.map { "Access granted to \($0)" }
+                                    ?? "macOS needs permission to hand local files to another app."
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button(model.accessBookmark == nil ? "Pre-approve directory…" : "Change directory…") {
+                            chooseAccessFolder()
+                        }
+                        .controlSize(.small)
+                    }
+                }
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -434,13 +514,28 @@ private struct MappingEditorSheet: View {
         }
         .padding(20)
         .frame(width: 460)
+        .alert("Allow access to local files?", isPresented: $showAccessAlert) {
+            Button("Pre-approve directory…") {
+                chooseAccessFolder {
+                    commitSave()
+                }
+            }
+            Button("Save without access") {
+                commitSave()
+            }
+        } message: {
+            Text(accessPromptMessage)
+        }
     }
 
-    private func applyPreset(_ preset: (name: String, template: String, explanation: String)) {
+    private func applyPreset(
+        _ preset: (label: String, defaultName: String, template: String, action: OpenMappingAction, explanation: String)
+    ) {
         if trimmedName.isEmpty {
-            model.name = preset.name
+            model.name = preset.defaultName
         }
         model.template = preset.template
+        model.action = preset.action
         // A preset changes the scheme, so the previously picked app may no
         // longer be a candidate — fall back to the system default.
         model.applicationBundleID = nil
@@ -479,44 +574,115 @@ private struct MappingEditorSheet: View {
         }
     }
 
+    /// Lets the user pre-approve a folder for this mapping up-front (default
+    /// download dir is the suggested starting point). Creating the bookmark
+    /// must go through the powerbox panel — a path the app can't reach yet has
+    /// no bookmark to record.
+    private func chooseAccessFolder(then completion: (() -> Void)? = nil) {
+        let panel = NSOpenPanel()
+        panel.title = "Allow Access"
+        panel.message =
+            "Choose a folder that “\(model.name)” may open files from. Pre-approving it now means no prompt when you open a file."
+        panel.prompt = "Allow"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        if let dir = sampleDownloadDir, !dir.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: dir, isDirectory: true)
+        }
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                do {
+                    model.accessBookmark = try url.bookmarkData(
+                        options: .withSecurityScope,
+                        includingResourceValuesForKeys: nil,
+                        relativeTo: nil)
+                } catch {
+                    model.testMessage = "Could not save access permission: \(error.localizedDescription)"
+                    model.testFailed = true
+                }
+            }
+            completion?()
+        }
+    }
+
+    /// An `.open` mapping that targets local files has no permission yet — ask
+    /// up-front (default download dir) instead of surprising the user at first
+    /// use. `.finder` needs no bookmark, so it never prompts.
+    private var shouldPromptForAccess: Bool {
+        model.action == .open && templateScheme == "file" && model.accessBookmark == nil
+    }
+
+    private var accessPromptMessage: String {
+        if let dir = sampleDownloadDir, !dir.isEmpty {
+            return
+                "This mapping opens local files. Allow access to the download folder \(dir) so macOS can hand files to another app? You can pre-approve a different folder, or skip and the app will ask on first use."
+        }
+        return
+            "This mapping opens local files. macOS needs permission to hand them to another app. You can pre-approve a folder now, or the app will ask on first use."
+    }
+
     private func test() {
         model.resetTestState()
         guard let url = testURL else { return }
-        if let bundleID = model.applicationBundleID, !bundleID.isEmpty {
-            guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
-                model.testMessage = "Could not find the app for “\(bundleID)”."
+        switch model.action {
+        case .finder:
+            guard url.scheme == "file", FileManager.default.fileExists(atPath: url.path) else {
+                model.testMessage =
+                    "Nothing to reveal at \(url.path) — Reveal in Finder only works for files that exist on this Mac (a local daemon or mounted volume)."
                 model.testFailed = true
                 return
             }
-            NSWorkspace.shared.open(
-                [url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration()
-            ) { _, error in
-                Task { @MainActor in
-                    if let error {
-                        model.testMessage = "Could not open — \(error.localizedDescription)"
-                        model.testFailed = true
-                    } else {
-                        model.testMessage = "Opened."
-                        model.testFailed = false
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+            model.testMessage = "Revealed in Finder."
+            model.testFailed = false
+        case .open:
+            if let bundleID = model.applicationBundleID, !bundleID.isEmpty {
+                guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
+                    model.testMessage = "Could not find the app for “\(bundleID)”."
+                    model.testFailed = true
+                    return
+                }
+                NSWorkspace.shared.open(
+                    [url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration()
+                ) { _, error in
+                    Task { @MainActor in
+                        if let error {
+                            model.testMessage = "Could not open — \(error.localizedDescription)"
+                            model.testFailed = true
+                        } else {
+                            model.testMessage = "Opened."
+                            model.testFailed = false
+                        }
                     }
                 }
+            } else if NSWorkspace.shared.open(url) {
+                model.testMessage = "Opened in the default app."
+                model.testFailed = false
+            } else {
+                model.testMessage = "Could not open — no app handles \(url.scheme ?? "this") links."
+                model.testFailed = true
             }
-        } else if NSWorkspace.shared.open(url) {
-            model.testMessage = "Opened in the default app."
-            model.testFailed = false
-        } else {
-            model.testMessage = "Could not open — no app handles \(url.scheme ?? "this") links."
-            model.testFailed = true
         }
     }
 
     private func save() {
+        if shouldPromptForAccess {
+            showAccessAlert = true
+        } else {
+            commitSave()
+        }
+    }
+
+    private func commitSave() {
         onSave(
             OpenMapping(
                 id: model.existing?.id ?? UUID(),
                 name: trimmedName,
                 template: trimmedTemplate,
-                applicationBundleID: model.applicationBundleID))
+                action: model.action,
+                applicationBundleID: model.applicationBundleID,
+                accessBookmark: model.accessBookmark))
         onCancel()
     }
 }

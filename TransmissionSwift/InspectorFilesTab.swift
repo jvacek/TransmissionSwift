@@ -67,15 +67,21 @@ struct InspectorFilesTab: View {
                 Button("No file mappings configured") {}.disabled(true)
             } else {
                 ForEach(mappings) { mapping in
-                    Button("Open with \(mapping.name)") {
+                    Button {
                         guard ids.count == 1,
                             let file = torrent.files.first(where: { ids.contains($0.id) }),
                             let profile = profileStore.activeProfile
                         else { return }
                         Task {
                             await MappingOpener.open(
-                                mapping, torrent: torrent, file: file, profile: profile, store: store)
+                                mapping, torrent: torrent, file: file, profile: profile, store: store,
+                                profileStore: profileStore)
                         }
+                    } label: {
+                        Label(
+                            mapping.action == .finder
+                                ? "Reveal in \(mapping.name)" : "Open with \(mapping.name)",
+                            systemImage: mapping.action == .finder ? "folder" : "arrow.up.right.square")
                     }
                     .disabled(!canOpen)
                 }

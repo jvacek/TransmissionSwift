@@ -62,7 +62,8 @@ struct TorrentListView: View {
         else { return }
         Task {
             await MappingOpener.open(
-                mapping, torrent: torrent, file: nil, profile: profile, store: store)
+                mapping, torrent: torrent, file: nil, profile: profile, store: store,
+                profileStore: profileStore)
         }
     }
 }

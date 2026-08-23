@@ -351,13 +351,18 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                 return item
             }
             let openItem = { (mapping: OpenMapping) in
+                let title =
+                    mapping.action == .finder
+                    ? "Reveal in \(mapping.name)" : "Open with \(mapping.name)"
+                let symbol: String =
+                    mapping.action == .finder ? "folder" : "arrow.up.right.square"
                 let item = NSMenuItem(
-                    title: "Open with \(mapping.name)",
+                    title: title,
                     action: #selector(TorrentTableRepresentable.Coordinator.contextMenuItemClicked(_:)),
                     keyEquivalent: "")
                 item.image = NSImage(
-                    systemSymbolName: "arrow.up.right.square",
-                    accessibilityDescription: "Open with \(mapping.name)")
+                    systemSymbolName: symbol,
+                    accessibilityDescription: title)
                 item.target = self
                 item.representedObject = OpenMappingPayload(mapping: mapping, ids: ids)
                 item.tag = Self.openMappingItemTag
