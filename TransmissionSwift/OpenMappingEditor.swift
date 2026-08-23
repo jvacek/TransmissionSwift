@@ -280,15 +280,36 @@ private struct MappingEditorSheet: View {
 
     private var previewURL: URL? {
         MappingTemplate.expand(
-            model.template,
+            maskedTemplate,
             torrent: previewTorrent,
             server: sampleServer,
-            // The preview never exposes a real password — mask a typed one,
-            // and a stored-only secret isn't read during rendering.
-            password: samplePassword.isEmpty ? "" : "xxxx",
+            // Password placeholders are masked with readable tokens below, so a
+            // real password never reaches the preview (and a stored-only secret
+            // isn't read during rendering).
+            password: "",
             // Fall back to the literal placeholder name so the preview stays
             // legible when the daemon's default download dir is unknown.
             defaultDownloadDirectory: sampleDownloadDir ?? "download-dir")
+    }
+
+    /// `{password}` / `{password-encoded}` are swapped for `<password>` /
+    /// `<encoded-password>` so the preview shows exactly where each lands —
+    /// more informative than a shared `xxxx` mask, and still no real secret.
+    private var maskedTemplate: String {
+        model.template
+            .replacingOccurrences(of: "{password-encoded}", with: "<encoded-password>")
+            .replacingOccurrences(of: "{password}", with: "<password>")
+    }
+
+    /// `previewURL` percent-encodes the angle brackets in the password tokens
+    /// (`%3C`/`%3E`); undo that just for those tokens so the preview reads as
+    /// `<password>` / `<encoded-password>`.
+    private var previewDisplayString: String? {
+        guard let url = previewURL else { return nil }
+        return
+            url.absoluteString
+            .replacingOccurrences(of: "%3Cencoded-password%3E", with: "<encoded-password>")
+            .replacingOccurrences(of: "%3Cpassword%3E", with: "<password>")
     }
 
     /// The URL the Test button actually opens, using the effective password
@@ -504,7 +525,7 @@ private struct MappingEditorSheet: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if let url = previewURL {
-                    Text(url.absoluteString)
+                    Text(previewDisplayString ?? url.absoluteString)
                         .font(.caption)
                         .monospaced()
                         .foregroundStyle(.secondary)
