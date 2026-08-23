@@ -885,7 +885,9 @@ final class TorrentProgressBarView: NSView {
         let clamped = min(max(progress, 0), 1)
         let width = bounds.width * CGFloat(clamped)
         fillLayer.frame = CGRect(x: 0, y: 0, width: width, height: bounds.height)
-        trackLayer.backgroundColor = NSColor.quaternaryLabelColor.withAlphaComponent(0.5).cgColor
+        // A light grey (label colour at ~10%) so the track reads as empty
+        // space behind the tinted fill instead of a dark bezel.
+        trackLayer.backgroundColor = NSColor.labelColor.withAlphaComponent(0.1).cgColor
         fillLayer.backgroundColor = (tintColor ?? .labelColor).cgColor
     }
 }
