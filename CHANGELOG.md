@@ -2,6 +2,19 @@
 
 All notable changes to TransmissionSwift.
 
+## 0.4.0
+
+23rd August 2026
+
+- Implement file mapping via URI patterns
+  - Presets for Locally hosted dameons, Cyberduck, Swizzin files, SSHFS/rsync
+  - Works via URIs so you can choose whatever protocol you want
+  - Option to override the default app that would receive the URI
+  - Placeholder substitution system so you can make your mappings dynamic
+    - Options for encoding your credentials for HTTP basic auth
+    - Help with explanations available next to the placeholder dropdown
+- Allow duplicating server profiles
+
 ## 0.3.0
 
 23rd August 2026
