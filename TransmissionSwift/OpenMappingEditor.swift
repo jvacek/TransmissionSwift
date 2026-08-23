@@ -22,12 +22,11 @@ struct OpenMappingEditor: View {
     /// `{download-dir}` placeholder in preview/Test.
     var sampleDownloadDir: String?
 
-    /// Created fresh on every Add/Edit click. The sheet's field state lives in
-    /// this model rather than in the sheet's `@State`, so the fields are always
-    /// seeded from the mapping being edited — SwiftUI would otherwise reuse the
-    /// sheet's `@State` across presentations.
+    /// Created fresh on every Add/Edit click. Presenting a non-nil model shows
+    /// the sheet; the sheet content receives the model directly (via
+    /// `sheet(item:)`), so the fields are always seeded from the mapping being
+    /// edited.
     @State private var editingModel: MappingEditorModel?
-    @State private var showEditor = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -57,7 +56,6 @@ struct OpenMappingEditor: View {
                     Spacer()
                     Button {
                         editingModel = MappingEditorModel(existing: mapping)
-                        showEditor = true
                     } label: {
                         Image(systemName: "pencil")
                     }
@@ -75,31 +73,29 @@ struct OpenMappingEditor: View {
 
             Button {
                 editingModel = MappingEditorModel(existing: nil)
-                showEditor = true
             } label: {
                 Label("Add Mapping…", systemImage: "plus")
             }
             .buttonStyle(.borderless)
         }
-        .sheet(isPresented: $showEditor) {
-            if let editingModel {
-                MappingEditorSheet(
-                    isPresented: $showEditor,
-                    model: editingModel,
-                    sampleServer: sampleServer,
-                    sampleTorrent: sampleTorrent,
-                    samplePassword: samplePassword,
-                    sampleDownloadDir: sampleDownloadDir,
-                    resolveSamplePassword: resolveSamplePassword,
-                    onSave: { mapping in
-                        if let index = mappings.firstIndex(where: { $0.id == mapping.id }) {
-                            mappings[index] = mapping
-                        } else {
-                            mappings.append(mapping)
-                        }
+        .sheet(item: $editingModel) { model in
+            MappingEditorSheet(
+                model: model,
+                onCancel: { editingModel = nil },
+                sampleServer: sampleServer,
+                sampleTorrent: sampleTorrent,
+                samplePassword: samplePassword,
+                sampleDownloadDir: sampleDownloadDir,
+                resolveSamplePassword: resolveSamplePassword,
+                onSave: { mapping in
+                    if let index = mappings.firstIndex(where: { $0.id == mapping.id }) {
+                        mappings[index] = mapping
+                    } else {
+                        mappings.append(mapping)
                     }
-                )
-            }
+                    editingModel = nil
+                }
+            )
         }
     }
 }
@@ -110,7 +106,8 @@ struct OpenMappingEditor: View {
 /// is created on every open and seeded from the mapping being edited, so the
 /// sheet's fields never carry stale values from a previous presentation.
 @Observable
-final class MappingEditorModel {
+final class MappingEditorModel: Identifiable {
+    let id = UUID()
     /// The mapping being edited, if any; nil when adding a new one.
     let existing: OpenMapping?
     var name: String
@@ -133,9 +130,10 @@ final class MappingEditorModel {
 }
 
 private struct MappingEditorSheet: View {
-    @Binding var isPresented: Bool
     /// The live field state for this session.
     @Bindable var model: MappingEditorModel
+    /// Dismisses the sheet (nils out the presenting item).
+    let onCancel: () -> Void
     let sampleServer: ServerProfile
     let sampleTorrent: Torrent?
     let samplePassword: String
@@ -149,13 +147,12 @@ private struct MappingEditorSheet: View {
     @FocusState private var templateFocused: Bool
 
     private static let placeholderGroups: [(title: String, items: [String])] = [
-        ("Torrent", ["{name}", "{folder}", "{path}"]),
-        ("File", ["{filePath}"]),
+        ("File", ["{file}"]),
+        ("Torrent", ["{folder}", "{path}"]),
         (
             "Server",
             ["{host}", "{port}", "{user}", "{password}", "{password-encoded}", "{download-dir}"]
         ),
-        ("Cyberduck", ["{trailingSlash}"]),
     ]
 
     private static let placeholders: [String] = placeholderGroups.flatMap(\.items)
@@ -163,23 +160,23 @@ private struct MappingEditorSheet: View {
     private static let presets: [(name: String, template: String, explanation: String)] = [
         (
             "Finder / local mount",
-            "file:///Volumes/transmission/{folder}",
+            "file:///Volumes/transmission/{folder}/{file}",
             "The daemon's download folder is mounted on this Mac."
         ),
         (
             "Local daemon (Finder)",
-            "file:///{path}",
-            "The daemon runs on this Mac — open the torrent's folder in Finder."
+            "file:///{download-dir}/{folder}/{file}",
+            "The daemon runs on this Mac — open the torrent's file or folder in Finder."
         ),
         (
             "Swizzin Web",
-            "https://{user}:{password-encoded}@{host}/transmission.downloads/{folder}/{name}",
+            "https://{user}:{password-encoded}@{host}/transmission.downloads/{folder}/{file}",
             "Open the file in swizzin's web downloads view (basic auth)."
         ),
         (
             "Cyberduck / SFTP",
-            "sftp://{user}@{host}/{download-dir}/{folder}/{name}/",
-            "Open the download folder over SFTP in Cyberduck."
+            "sftp://{user}@{host}/{download-dir}/{folder}/{file}",
+            "Open the file or download folder over SFTP in Cyberduck."
         ),
     ]
 
@@ -378,7 +375,7 @@ private struct MappingEditorSheet: View {
                             model.testFailed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                 }
                 Spacer()
-                Button("Cancel") { isPresented = false }
+                Button("Cancel") { onCancel() }
                     .keyboardShortcut(.cancelAction)
                 Button(model.existing == nil ? "Add" : "Save") { save() }
                     .keyboardShortcut(.defaultAction)
@@ -471,7 +468,7 @@ private struct MappingEditorSheet: View {
                 name: trimmedName,
                 template: trimmedTemplate,
                 applicationBundleID: model.applicationBundleID))
-        isPresented = false
+        onCancel()
     }
 }
 

@@ -11,14 +11,18 @@ enum MappingOpener {
         file: TorrentFile?,
         profile: ServerProfile,
         store: TorrentStore
-    ) {
+    ) async {
         // The password lives in the Keychain, not on the profile. Reading it is
         // a user-initiated action, so a transient keychain prompt is acceptable.
         let password = (try? KeychainStore().password(for: profile.id)) ?? nil
+        // From the torrent list the file list isn't fetched; `{file}` needs it
+        // to tell a single-file torrent (open the file) from a multi-file one
+        // (open the folder), so resolve it on demand.
+        let resolved = await store.torrentForOpening(torrent)
         guard
             let url = MappingTemplate.expand(
                 mapping.template,
-                torrent: torrent,
+                torrent: resolved,
                 server: profile,
                 password: password,
                 defaultDownloadDirectory: store.downloadDirectory,

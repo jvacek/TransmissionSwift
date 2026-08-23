@@ -9,12 +9,17 @@ import Foundation
 /// segments automatically while preserving `/` separators from `{path}`.
 ///
 /// Placeholders:
-/// - `{folder}` — the torrent's download folder relative to the daemon's
-///   default download directory (e.g. `SomeShow/Season 1`; empty when the
-///   torrent sits directly in it). Falls back to the folder's basename when
-///   the default directory is unknown or the torrent lives outside it.
+/// - `{file}`  — the torrent's content relative to the folder it's saved
+///   under (`{folder}`). A specific file (file-list selection) resolves to
+///   that file's path (e.g. `Series1/Episode1`); a single-file torrent
+///   resolves to the file itself (e.g. `myfile.txt`); a multi-file torrent
+///   resolves to its folder with a trailing `/` (e.g. `Series1/`). An empty
+///   file list (fetch failed) falls back to the folder (`name/`).
+/// - `{folder}` — the directory the torrent is saved under, relative to the
+///   daemon's default download directory (e.g. `TV`; empty when the torrent
+///   sits directly in it). Falls back to the folder's basename when the
+///   default directory is unknown or the torrent lives outside it.
 /// - `{path}`   — full `torrent.downloadFolder` (keeps its `/`)
-/// - `{name}`   — torrent name
 /// - `{download-dir}` — the daemon's default download directory (empty when
 ///   unknown), e.g. `~/transmission/downloads`
 /// - `{host}`   — server host
@@ -24,13 +29,6 @@ import Foundation
 ///   password can contain `/` or a malformed `%` — those break the authority.
 /// - `{password-encoded}` — percent-encoded password, safe to embed in a
 ///   `user:password@host` userinfo for HTTP basic auth.
-/// - `{trailingSlash}` — "/" when `{name}` is a directory, "" for a single
-///   file (per Cyberduck URI rules a trailing `/` denotes a directory).
-///   Multi-file torrents have a directory name; a single-file torrent's name
-///   is the file. Defaults to "/" when the file list isn't fetched (list poll).
-/// - `{filePath}` — full path of a specific file inside the torrent
-///   (`downloadFolder` + the file's relative name). Empty when no file is in
-///   context, e.g. opening from the torrent list rather than a file selection.
 ///
 /// A template without `://` must start with `/` and is treated as a `file://`
 /// path; anything else is invalid and expands to `nil`.
@@ -84,16 +82,13 @@ public enum MappingTemplate {
 
         let folder = Self.folderComponent(
             of: torrent.downloadFolder, defaultDownloadDirectory: defaultDownloadDirectory)
-        let trailingSlash = torrent.files.count == 1 ? "" : "/"
-        let filePath = file.map { torrent.downloadFolder + "/" + $0.name } ?? ""
+        let openedFile = Self.fileComponent(of: torrent, file: file)
         path =
             path
             .replacingOccurrences(of: "{folder}", with: folder)
-            .replacingOccurrences(of: "{name}", with: torrent.name)
             .replacingOccurrences(of: "{path}", with: torrent.downloadFolder)
             .replacingOccurrences(of: "{download-dir}", with: defaultDownloadDirectory ?? "")
-            .replacingOccurrences(of: "{trailingSlash}", with: trailingSlash)
-            .replacingOccurrences(of: "{filePath}", with: filePath)
+            .replacingOccurrences(of: "{file}", with: openedFile)
 
         var components = URLComponents()
         components.scheme = scheme
@@ -104,7 +99,8 @@ public enum MappingTemplate {
         components.password = authorityComponents.password
         components.host = authorityComponents.host
         components.port = authorityComponents.port
-        components.path = Self.expandTildeIfNeeded(scheme: scheme, path: path)
+        components.path = Self.expandTildeIfNeeded(
+            scheme: scheme, path: Self.collapseDuplicateSlashes(path))
         return components.url
     }
 
@@ -140,6 +136,41 @@ public enum MappingTemplate {
             return (downloadFolder as NSString).lastPathComponent
         }
         return relative
+    }
+
+    /// `{file}` = the torrent's content relative to the folder it's saved under
+    /// (`{folder}`). A specific file wins; a single-file torrent resolves to
+    /// the file itself; a multi-file torrent resolves to its folder with a
+    /// trailing `/` (per Cyberduck URI rules a trailing `/` denotes a
+    /// directory). An empty file list (unknown) treats the torrent as a
+    /// folder.
+    private static func fileComponent(of torrent: Torrent, file: TorrentFile?) -> String {
+        if let file {
+            return file.name
+        }
+        if torrent.files.count == 1 {
+            return torrent.files.first?.name ?? torrent.name
+        }
+        return torrent.name + "/"
+    }
+
+    /// Collapses runs of `/` so an empty `{folder}` (torrent directly in the
+    /// default download dir) between literal template slashes yields one slash
+    /// instead of `//`. Daemon paths are POSIX, so a leading `//` never
+    /// carries meaning here.
+    private static func collapseDuplicateSlashes(_ path: String) -> String {
+        var collapsed = ""
+        var lastWasSlash = false
+        for character in path {
+            if character == "/" {
+                if !lastWasSlash { collapsed.append("/") }
+                lastWasSlash = true
+            } else {
+                collapsed.append(character)
+                lastWasSlash = false
+            }
+        }
+        return collapsed
     }
 
     /// Path `path` expressed relative to `base`, or nil when it is not inside

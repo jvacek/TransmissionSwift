@@ -60,6 +60,9 @@ struct TorrentListView: View {
         guard let torrent = store.torrents.first(where: { ids.contains($0.id) }),
             let profile = profileStore.activeProfile
         else { return }
-        MappingOpener.open(mapping, torrent: torrent, file: nil, profile: profile, store: store)
+        Task {
+            await MappingOpener.open(
+                mapping, torrent: torrent, file: nil, profile: profile, store: store)
+        }
     }
 }

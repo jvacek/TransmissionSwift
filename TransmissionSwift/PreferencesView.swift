@@ -354,7 +354,7 @@ private struct ServersPrefsPane: View {
         }
         .frame(width: 660, height: 460)
         .onAppear {
-            if selection == nil, let first = profileStore.profiles.first {
+            if selection == nil, let first = sortedProfiles.first {
                 selection = .existing(first.id)
             }
         }
@@ -373,7 +373,9 @@ private struct ServersPrefsPane: View {
             }
         )
         return List(selection: selectionBinding) {
-            ForEach(profileStore.profiles) { profile in
+            // The active profile is always first so edits target the server the
+            // toolbar/menus are actually using.
+            ForEach(sortedProfiles) { profile in
                 serverRow(profile)
                     .tag(PaneSelection.existing(profile.id))
             }
@@ -385,6 +387,12 @@ private struct ServersPrefsPane: View {
             }
         }
         .listStyle(.sidebar)
+    }
+
+    /// The profile list with the active profile pinned to the top.
+    private var sortedProfiles: [ServerProfile] {
+        guard let active = profileStore.activeProfile else { return profileStore.profiles }
+        return [active] + profileStore.profiles.filter { $0.id != active.id }
     }
 
     private func serverRow(_ profile: ServerProfile) -> some View {

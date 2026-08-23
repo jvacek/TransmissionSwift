@@ -436,6 +436,16 @@ public final class TorrentStore {
         }
     }
 
+    /// The torrent to resolve a mapping against. From the torrent list the
+    /// `files` array isn't fetched, so fetch inspector detail on demand when
+    /// `{file}` needs to tell a single-file torrent (open the file) from a
+    /// multi-file one (open the folder). Falls back to the list torrent when
+    /// the fetch fails or files are already known.
+    public func torrentForOpening(_ torrent: Torrent) async -> Torrent {
+        if !torrent.files.isEmpty { return torrent }
+        return (try? await service.inspectorData(for: torrent.id)) ?? torrent
+    }
+
     public func refreshFreeSpace() async {
         freeSpace = await service.freeSpace()
     }

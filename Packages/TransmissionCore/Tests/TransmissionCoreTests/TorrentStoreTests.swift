@@ -317,6 +317,33 @@ struct TorrentStoreTests {
         #expect(store.torrents.first { $0.id == 1 }?.status == .paused)
     }
 
+    @Test("torrentForOpening returns the torrent as-is when files are known")
+    @MainActor
+    func torrentForOpeningKnownFiles() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+        let torrent = store.torrents[0]
+        #expect(!torrent.files.isEmpty)
+        let resolved = await store.torrentForOpening(torrent)
+        #expect(resolved.id == torrent.id)
+        #expect(resolved.files.count == torrent.files.count)
+    }
+
+    @Test("torrentForOpening fetches files for a list-poll torrent")
+    @MainActor
+    func torrentForOpeningFetchesFiles() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+        let full = store.torrents[0]
+        var listTorrent = full
+        listTorrent.files = []  // list poll doesn't fetch files
+        let resolved = await store.torrentForOpening(listTorrent)
+        #expect(!resolved.files.isEmpty)
+        #expect(resolved.files.count == full.files.count)
+    }
+
     @Test("removed selection is cleared")
     @MainActor
     func removeClearsSelection() async {

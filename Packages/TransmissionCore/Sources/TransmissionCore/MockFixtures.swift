@@ -376,23 +376,28 @@ public enum MockFixtures {
     // MARK: - Debian fixture (id 5)
 
     private static func debianFiles() -> [TorrentFile] {
-        [
+        // Real Transmission reports multi-file file names relative to the
+        // torrent's download folder, prefixed with the torrent-named folder.
+        let prefix = "Debian 12.6 — netinst (multi-arch) collection/"
+        return [
             TorrentFile(
-                id: 0, name: "debian-12.6.0-amd64-netinst.iso", size: 658 * miB, progress: 1, priority: .normal,
-                wanted: true),
+                id: 0, name: prefix + "debian-12.6.0-amd64-netinst.iso", size: 658 * miB, progress: 1,
+                priority: .normal, wanted: true),
             TorrentFile(
-                id: 1, name: "debian-12.6.0-arm64-netinst.iso", size: 640 * miB, progress: 1, priority: .normal,
-                wanted: true),
+                id: 1, name: prefix + "debian-12.6.0-arm64-netinst.iso", size: 640 * miB, progress: 1,
+                priority: .normal, wanted: true),
             TorrentFile(
-                id: 2, name: "debian-12.6.0-i386-netinst.iso", size: 612 * miB, progress: 0.42, priority: .normal,
-                wanted: true),
+                id: 2, name: prefix + "debian-12.6.0-i386-netinst.iso", size: 612 * miB, progress: 0.42,
+                priority: .normal, wanted: true),
             TorrentFile(
-                id: 3, name: "debian-12.6.0-amd64-DVD-1.iso", size: Int64(3.9 * Double(giB)), progress: 0.04,
+                id: 3, name: prefix + "debian-12.6.0-amd64-DVD-1.iso", size: Int64(3.9 * Double(giB)), progress: 0.04,
                 priority: .high, wanted: true),
-            TorrentFile(id: 4, name: "SHA256SUMS", size: 4 * kiB, progress: 1, priority: .high, wanted: true),
-            TorrentFile(id: 5, name: "SHA256SUMS.sign", size: 833, progress: 1, priority: .normal, wanted: true),
+            TorrentFile(id: 4, name: prefix + "SHA256SUMS", size: 4 * kiB, progress: 1, priority: .high, wanted: true),
             TorrentFile(
-                id: 6, name: "README.txt", size: Int64(5.6 * Double(kiB)), progress: 1, priority: .low, wanted: false),
+                id: 5, name: prefix + "SHA256SUMS.sign", size: 833, progress: 1, priority: .normal, wanted: true),
+            TorrentFile(
+                id: 6, name: prefix + "README.txt", size: Int64(5.6 * Double(kiB)), progress: 1, priority: .low,
+                wanted: false),
         ]
     }
 

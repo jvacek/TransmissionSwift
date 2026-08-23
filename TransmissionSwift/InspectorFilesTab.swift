@@ -72,8 +72,10 @@ struct InspectorFilesTab: View {
                             let file = torrent.files.first(where: { ids.contains($0.id) }),
                             let profile = profileStore.activeProfile
                         else { return }
-                        MappingOpener.open(
-                            mapping, torrent: torrent, file: file, profile: profile, store: store)
+                        Task {
+                            await MappingOpener.open(
+                                mapping, torrent: torrent, file: file, profile: profile, store: store)
+                        }
                     }
                     .disabled(!canOpen)
                 }
