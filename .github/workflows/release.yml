@@ -213,7 +213,16 @@ jobs:
           # for sparkle:fullReleaseNotesLink.
           cp "$CHANGELOG_PATH" "build/appcast/release-notes-${TAG}.md"
           cp "$CHANGELOG_PATH" "build/appcast/changelog.md"
-          cp "$CHANGELOG_PATH" "build/changelog.md"
+
+          # GitHub release notes: only the section under this version's heading.
+          awk -v version="$VERSION" '
+            /^## / {
+              if (shown) exit
+              shown = ($0 == "## " version)
+              next
+            }
+            shown { print }
+          ' "$CHANGELOG_PATH" > build/changelog.md
 
       - name: Create GitHub release
         env:
