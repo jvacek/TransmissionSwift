@@ -2,6 +2,12 @@
 
 All notable changes to TransmissionSwift.
 
+## 0.5.2
+
+- Add favicons to tracker inspector
+- Wire up the RPC for comment, creator, dateCreated, isPrivate, downloadedEver, uploadedEver, activityDate, magnetLink.
+- Add the above to the torrent inspector
+
 ## 0.5.1
 
 25th August 2026
