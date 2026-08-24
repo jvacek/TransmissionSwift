@@ -46,7 +46,14 @@ public enum MockFixtures {
                 files: stubFile(
                     named: "ubuntu-24.04.2-desktop-amd64.iso", size: Int64(5.9 * Double(giB)), progress: 0.62),
                 peers: stubPeers(progressNear: 0.62, count: 4),
-                trackers: stubTrackers(primary: "releases.ubuntu.com")
+                trackers: stubTrackers(primary: "releases.ubuntu.com"),
+                comment: "Ubuntu CD releases. ubuntu.com",
+                creator: "mktorrent 1.1",
+                createdAt: ago(days: 12),
+                downloadedEver: Int64(3.66 * Double(giB)),
+                uploadedEver: 512 * miB,
+                lastActivityAt: ago(hours: 1),
+                magnetLink: "magnet:?xt=urn:btih:1f0c4d3b2e1a9876fedc54321089abcdef000001&dn=Ubuntu+24.04"
             ),
             Torrent(
                 id: 2,
@@ -72,7 +79,14 @@ public enum MockFixtures {
                 havePieces: 4600,
                 files: stubFile(named: "blender-4.2-splash-demo.tar.zst", size: Int64(2.3 * Double(giB)), progress: 1),
                 peers: stubPeers(progressNear: 0.9, count: 3),
-                trackers: stubTrackers(primary: "tracker.blender.org")
+                trackers: stubTrackers(primary: "tracker.blender.org"),
+                comment: "Blender Foundation demo files",
+                createdAt: ago(days: 30),
+                isPrivate: true,
+                downloadedEver: Int64(2.3 * Double(giB)),
+                uploadedEver: Int64(7.3 * Double(giB)),
+                lastActivityAt: ago(hours: 6),
+                magnetLink: "magnet:?xt=urn:btih:1f0c4d3b2e1a9876fedc54321089abcdef000002&dn=Blender+4.2"
             ),
             Torrent(
                 id: 3,

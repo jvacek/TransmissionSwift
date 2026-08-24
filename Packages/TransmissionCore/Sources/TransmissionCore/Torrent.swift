@@ -34,6 +34,16 @@ public struct Torrent: Identifiable, Hashable, Sendable {
     public var files: [TorrentFile]
     public var peers: [Peer]
     public var trackers: [Tracker]
+    // Inspector-only metadata — absent from list polls; filled by
+    // `inspectorData(for:)` and merged into the live torrent for display.
+    public var comment: String?
+    public var creator: String?
+    public var createdAt: Date?
+    public var isPrivate: Bool
+    public var downloadedEver: Int64
+    public var uploadedEver: Int64
+    public var lastActivityAt: Date?
+    public var magnetLink: String?
 
     public init(
         id: Int,
@@ -62,7 +72,15 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         options: TorrentOptions = TorrentOptions(),
         files: [TorrentFile] = [],
         peers: [Peer] = [],
-        trackers: [Tracker] = []
+        trackers: [Tracker] = [],
+        comment: String? = nil,
+        creator: String? = nil,
+        createdAt: Date? = nil,
+        isPrivate: Bool = false,
+        downloadedEver: Int64 = 0,
+        uploadedEver: Int64 = 0,
+        lastActivityAt: Date? = nil,
+        magnetLink: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -91,6 +109,35 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         self.files = files
         self.peers = peers
         self.trackers = trackers
+        self.comment = comment
+        self.creator = creator
+        self.createdAt = createdAt
+        self.isPrivate = isPrivate
+        self.downloadedEver = downloadedEver
+        self.uploadedEver = uploadedEver
+        self.lastActivityAt = lastActivityAt
+        self.magnetLink = magnetLink
+    }
+}
+
+extension Torrent {
+    /// Overlay the inspector-fetched metadata onto the live list-poll torrent:
+    /// transfer state stays fresh from the poll while static metadata and
+    /// cumulative stats come from the richer fetch. `other` wins only where it
+    /// carries data (non-nil optionals); its live counters always win since the
+    /// inspector fetch is at least as recent.
+    public func mergingMetadata(from other: Torrent?) -> Torrent {
+        guard let other, other.id == id else { return self }
+        var merged = self
+        merged.comment = other.comment ?? comment
+        merged.creator = other.creator ?? creator
+        merged.createdAt = other.createdAt ?? createdAt
+        merged.isPrivate = other.isPrivate
+        merged.downloadedEver = other.downloadedEver
+        merged.uploadedEver = other.uploadedEver
+        merged.lastActivityAt = other.lastActivityAt ?? lastActivityAt
+        merged.magnetLink = other.magnetLink ?? magnetLink
+        return merged
     }
 }
 

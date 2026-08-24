@@ -205,7 +205,18 @@ extension Torrent {
             options: TorrentOptions(),
             files: resolvedFiles,
             peers: resolvedPeers,
-            trackers: resolvedTrackers
+            trackers: resolvedTrackers,
+            comment: wire.comment.flatMap { $0.isEmpty ? nil : $0 },
+            creator: wire.creator.flatMap { $0.isEmpty ? nil : $0 },
+            createdAt: wire.dateCreated.map { Date(timeIntervalSince1970: TimeInterval($0)) },
+            isPrivate: wire.isPrivate ?? false,
+            downloadedEver: wire.downloadedEver ?? 0,
+            uploadedEver: wire.uploadedEver ?? 0,
+            lastActivityAt: {
+                guard let seconds = wire.activityDate, seconds > 0 else { return nil }
+                return Date(timeIntervalSince1970: TimeInterval(seconds))
+            }(),
+            magnetLink: wire.magnetLink.flatMap { $0.isEmpty ? nil : $0 }
         )
     }
 

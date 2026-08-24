@@ -19,7 +19,15 @@ private func makeWire(
     queuePosition: Int = 0,
     trackers: [WireTrackerStub]? = nil,
     trackerStats: [WireTrackerStat]? = nil,
-    labels: [String]? = nil
+    labels: [String]? = nil,
+    comment: String? = nil,
+    creator: String? = nil,
+    dateCreated: Int64? = nil,
+    isPrivate: Bool? = nil,
+    downloadedEver: Int64? = nil,
+    uploadedEver: Int64? = nil,
+    activityDate: Int64? = nil,
+    magnetLink: String? = nil
 ) -> WireTorrent {
     WireTorrent(
         id: 1,
@@ -50,6 +58,14 @@ private func makeWire(
         pieceSize: pieceSize,
         haveValid: haveValid,
         queuePosition: queuePosition,
+        comment: comment,
+        creator: creator,
+        dateCreated: dateCreated,
+        isPrivate: isPrivate,
+        downloadedEver: downloadedEver,
+        uploadedEver: uploadedEver,
+        activityDate: activityDate,
+        magnetLink: magnetLink,
         trackers: trackers,
         trackerStats: trackerStats
     )
@@ -804,5 +820,77 @@ struct RPCSetLabelsTests {
         let stub = StubClient(rpcVersion: 16)
         let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
         #expect(await service.supportsLabels() == true)
+    }
+}
+
+// MARK: - Inspector metadata mapping
+
+@Suite("TorrentMapping — inspector metadata")
+struct MetadataMappingTests {
+    @Test("absent metadata fields map to defaults (list-poll torrents)")
+    func absentFieldsDefault() {
+        let t = Torrent(wire: makeWire())
+        #expect(t.comment == nil)
+        #expect(t.creator == nil)
+        #expect(t.createdAt == nil)
+        #expect(!t.isPrivate)
+        #expect(t.downloadedEver == 0)
+        #expect(t.uploadedEver == 0)
+        #expect(t.lastActivityAt == nil)
+        #expect(t.magnetLink == nil)
+    }
+
+    @Test("present metadata fields map onto the model")
+    func presentFieldsMap() {
+        let t = Torrent(
+            wire: makeWire(
+                comment: "from vlc",
+                creator: "Transmission 4.0.6",
+                dateCreated: 1_700_000_000,
+                isPrivate: true,
+                downloadedEver: 2_048,
+                uploadedEver: 4_096,
+                activityDate: 1_700_001_000,
+                magnetLink: "magnet:?xt=urn:btih:abc123"
+            ))
+        #expect(t.comment == "from vlc")
+        #expect(t.creator == "Transmission 4.0.6")
+        #expect(t.createdAt == Date(timeIntervalSince1970: 1_700_000_000))
+        #expect(t.isPrivate)
+        #expect(t.downloadedEver == 2_048)
+        #expect(t.uploadedEver == 4_096)
+        #expect(t.lastActivityAt == Date(timeIntervalSince1970: 1_700_001_000))
+        #expect(t.magnetLink == "magnet:?xt=urn:btih:abc123")
+    }
+
+    @Test("empty strings and zero activityDate collapse to nil")
+    func emptyValuesCollapseToNil() {
+        let t = Torrent(
+            wire: makeWire(comment: "", creator: "", activityDate: 0, magnetLink: ""))
+        #expect(t.comment == nil)
+        #expect(t.creator == nil)
+        #expect(t.lastActivityAt == nil)
+        #expect(t.magnetLink == nil)
+    }
+
+    @Test("mergingMetadata overlays metadata but keeps live transfer state")
+    func mergingMetadataOverlays() {
+        var live = Torrent(wire: makeWire(status: 4))
+        live.downloadSpeed = 500
+        let rich = Torrent(
+            wire: makeWire(status: 4, comment: "meta", downloadedEver: 9_999))
+
+        let merged = live.mergingMetadata(from: rich)
+        #expect(merged.comment == "meta")
+        #expect(merged.downloadedEver == 9_999)
+        #expect(merged.downloadSpeed == 500)
+
+        // Mismatched id → unchanged.
+        var other = rich
+        other.id = 42
+        #expect(live.mergingMetadata(from: other).comment == nil)
+
+        // nil detail → unchanged.
+        #expect(live.mergingMetadata(from: nil).comment == nil)
     }
 }

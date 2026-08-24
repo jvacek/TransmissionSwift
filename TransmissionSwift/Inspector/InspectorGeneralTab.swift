@@ -1,8 +1,8 @@
 import SwiftUI
 import TransmissionCore
 
-/// Key-value overview of the selected torrent: transfer state up top,
-/// immutable details below.
+/// Key-value overview of the selected torrent: transfer state up top, then
+/// immutable torrent metadata, then location/labels/priority.
 struct InspectorGeneralTab: View {
     let torrent: Torrent
     @Environment(TorrentStore.self) private var store
@@ -12,7 +12,8 @@ struct InspectorGeneralTab: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 transferSection
-                detailsSection
+                metadataSection
+                locationSection
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -53,15 +54,21 @@ struct InspectorGeneralTab: View {
                 row("Time left", ColumnFormatters.humanizedETA(torrent.eta, status: torrent.status))
                 row("Ratio", torrent.ratio.formatted(.number.precision(.fractionLength(2))))
                 row("Peers", peersSummary)
+                row("Downloaded", ColumnFormatters.humanizedSize(torrent.downloadedEver))
+                row("Uploaded", ColumnFormatters.humanizedSize(torrent.uploadedEver))
+                row(
+                    "Last activity",
+                    torrent.lastActivityAt?.formatted(.relative(presentation: .named)) ?? "—")
             }
             .font(.callout)
             .padding(.top, 4)
         }
     }
 
-    private var detailsSection: some View {
+    /// Immutable facts about the torrent itself — what the .torrent encodes.
+    private var metadataSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Details")
+            Text("Metadata")
                 .font(.headline)
 
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
@@ -70,11 +77,34 @@ struct InspectorGeneralTab: View {
                     "Pieces",
                     "\(torrent.pieces.formatted()) × \(ColumnFormatters.humanizedSize(torrent.pieceSize))")
                 row("Added", torrent.addedAt.formatted(date: .abbreviated, time: .shortened))
+                if let createdAt = torrent.createdAt {
+                    row(
+                        "Created",
+                        createdAt.formatted(date: .abbreviated, time: .shortened))
+                }
+                if let creator = torrent.creator {
+                    row("Creator", creator)
+                }
+                commentRow
+                row("Private", torrent.isPrivate ? "Yes" : "No")
+                magnetRow
+                row("Hash", torrent.hash, monospaced: true)
+            }
+            .font(.callout)
+        }
+    }
+
+    /// Where the data lives and how it's organized — mutable, action-adjacent.
+    private var locationSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Location & Labels")
+                .font(.headline)
+
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
                 row("Location", torrent.downloadFolder, monospaced: true)
                 labelsRow
                 priorityRow
                 trackerRow
-                row("Hash", torrent.hash, monospaced: true)
             }
             .font(.callout)
         }
@@ -112,6 +142,46 @@ struct InspectorGeneralTab: View {
                 .truncationMode(.middle)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var commentRow: some View {
+        GridRow {
+            Text("Comment")
+                .foregroundStyle(.secondary)
+                .gridColumnAlignment(.trailing)
+            if let comment = torrent.comment, !comment.isEmpty {
+                LinkableText(text: comment)
+                    .font(.callout)
+                    .lineLimit(3)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text("—")
+                    .font(.callout)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    private var magnetRow: some View {
+        GridRow {
+            Text("Magnet")
+                .foregroundStyle(.secondary)
+                .gridColumnAlignment(.trailing)
+            if let magnet = torrent.magnetLink {
+                Text(magnet)
+                    .font(.callout.monospaced())
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .help(magnet)
+            } else {
+                Text("—")
+                    .font(.callout)
+                    .foregroundStyle(.tertiary)
+            }
         }
     }
 

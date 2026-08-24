@@ -56,7 +56,7 @@ struct InspectorView: View {
         // always be empty.
         let detail = store.inspectorDetail?.id == torrent.id ? store.inspectorDetail! : torrent
         switch store.inspectorTab {
-        case .general: InspectorGeneralTab(torrent: torrent)
+        case .general: InspectorGeneralTab(torrent: torrent.mergingMetadata(from: store.inspectorDetail))
         case .files: InspectorFilesTab(torrent: detail)
         case .peers: InspectorPeersTab(torrent: detail)
         case .trackers: InspectorTrackersTab(torrent: detail)

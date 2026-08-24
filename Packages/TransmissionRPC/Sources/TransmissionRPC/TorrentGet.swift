@@ -92,6 +92,15 @@ public struct WireTorrent: Codable, Sendable {
     public var pieceSize: Int64
     public var haveValid: Int64
     public var queuePosition: Int
+    // Static metadata + cumulative stats — requested with inspectorFields only.
+    public var comment: String? = nil
+    public var creator: String? = nil
+    public var dateCreated: Int64? = nil
+    public var isPrivate: Bool? = nil
+    public var downloadedEver: Int64? = nil
+    public var uploadedEver: Int64? = nil
+    public var activityDate: Int64? = nil
+    public var magnetLink: String? = nil
     public var trackers: [WireTrackerStub]?
     // Inspector-only fields — absent on list polls; present when inspectorFields are requested.
     public var files: [WireFile]? = nil
@@ -132,5 +141,8 @@ extension TorrentGetResponse {
         "files", "fileStats",
         "peers",
         "trackerStats",
+        "comment", "creator", "dateCreated", "isPrivate",
+        "downloadedEver", "uploadedEver", "activityDate",
+        "magnetLink",
     ]
 }
