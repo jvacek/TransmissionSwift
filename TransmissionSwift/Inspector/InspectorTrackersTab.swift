@@ -49,12 +49,12 @@ private struct TrackerCard: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 7) {
-                    FaviconView(host: tracker.host)
-                        .frame(width: 16, height: 16)
                     Circle()
                         .fill(tracker.state.displayColor)
                         .frame(width: 7, height: 7)
                         .accessibilityLabel(tracker.state.displayLabel)
+                    FaviconView(host: tracker.host)
+                        .frame(width: 16, height: 16)
                     Text(tracker.host)
                         .font(.callout.weight(.semibold).monospaced())
                         .lineLimit(1)
