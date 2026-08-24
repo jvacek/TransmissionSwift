@@ -21,7 +21,10 @@ This app lets you connect to a remote Transmission instance over RPC.
 - Add new torrents
   - via .torrent files (drag+drop, or register handler for .torrent files)
   - magnets links via UI
-- Enable slow mode
+- Change server settings
+  - Enable slow mode
+  - Netowrking config
+  - Seeding config
 - Combining filters in the sidebar
 - Managing torrent labels and assigning colour coding to them
 - Path mapping via custom URI patterns, open your files with whatever app you want
@@ -41,11 +44,10 @@ It is written in Swift and SwiftUI, zipping down to a ~4MB app with minimal reso
 to bypass the verification
 - Open again
 
-Alternatively, you can open it in XCode and build it from there.
+Alternatively, you can open the project in Xcode and build it from there.
 
 ## What doesn't work yet
 - Changing server settings from the settings page
-- Unselecting specific files for download
 
 ## What's being planned
 
