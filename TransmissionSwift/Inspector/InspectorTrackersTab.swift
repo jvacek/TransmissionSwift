@@ -5,6 +5,7 @@ import TransmissionCore
 /// per tracker.
 struct InspectorTrackersTab: View {
     let torrent: Torrent
+    @Environment(FaviconStore.self) private var favicons
 
     private var tiers: [(tier: Int, trackers: [Tracker])] {
         Dictionary(grouping: torrent.trackers, by: \.tier)
@@ -31,6 +32,13 @@ struct InspectorTrackersTab: View {
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        // Make sure icons exist for this torrent's trackers — no-op for hosts
+        // the sidebar already fetched.
+        .task(id: torrent.id) {
+            let hosts = Set(torrent.trackers.map(\.host))
+            guard !hosts.isEmpty else { return }
+            await favicons.refresh(hosts: Array(hosts))
+        }
     }
 }
 
@@ -41,6 +49,8 @@ private struct TrackerCard: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 7) {
+                    FaviconView(host: tracker.host)
+                        .frame(width: 16, height: 16)
                     Circle()
                         .fill(tracker.state.displayColor)
                         .frame(width: 7, height: 7)
@@ -72,5 +82,6 @@ private struct TrackerCard: View {
 
 #Preview {
     InspectorTrackersTab(torrent: Torrent.samples[4])
+        .environment(FaviconStore())
         .frame(width: 322, height: 500)
 }
