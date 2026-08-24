@@ -45,8 +45,21 @@ struct ContentView: View {
         }
     }
 
+    /// True when running as Xcode's test-host or preview process. The launch
+    /// auto-connect reads the Keychain, and doing that from these freshly
+    /// re-signed binaries triggers a keychain authorization prompt even though
+    /// nothing user-initiated asked for the password.
+    private var isXcodeAuxiliaryProcess: Bool {
+        let env = ProcessInfo.processInfo.environment
+        return env["XCTestConfigurationFilePath"] != nil || env["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+    }
+
     @MainActor
     private func connectToProfile(_ profile: ServerProfile) async {
+        // Skip the launch auto-connect under the test runner / previews — no
+        // connection is needed there, and reading the Keychain prompts.
+        if isXcodeAuxiliaryProcess { return }
+
         // Window was closed and reopened while already connected to this same
         // profile — onAppear's resumePolling() already restarted the stream.
         if case .connected = torrentStore.connection, connectedProfileID == profile.id { return }

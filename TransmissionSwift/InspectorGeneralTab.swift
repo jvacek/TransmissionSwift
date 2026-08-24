@@ -72,7 +72,7 @@ struct InspectorGeneralTab: View {
                 row("Added", torrent.addedAt.formatted(date: .abbreviated, time: .shortened))
                 row("Location", torrent.downloadFolder, monospaced: true)
                 labelsRow
-                row("Priority", torrent.priority.displayLabel)
+                priorityRow
                 trackerRow
                 row("Hash", torrent.hash, monospaced: true)
             }
@@ -143,6 +143,39 @@ struct InspectorGeneralTab: View {
         }
     }
 
+    private var priorityRow: some View {
+        GridRow {
+            Text("Priority")
+                .foregroundStyle(.secondary)
+                .gridColumnAlignment(.trailing)
+            HStack(spacing: 6) {
+                Image(systemName: torrent.priority.systemImage)
+                    .foregroundStyle(torrent.priority.displayColor)
+                Picker("Priority", selection: priorityBinding) {
+                    ForEach(TorrentPriority.allCases, id: \.self) { priority in
+                        Text(priority.displayLabel).tag(priority)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(width: 96, alignment: .leading)
+                .disabled(!store.actionsEnabled)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel("Priority: \(torrent.priority.displayLabel)")
+        }
+    }
+
+    private var priorityBinding: Binding<TorrentPriority> {
+        Binding(
+            get: { torrent.priority },
+            set: { newPriority in
+                guard newPriority != torrent.priority else { return }
+                Task { await store.setPriority([torrent.id], priority: newPriority) }
+            }
+        )
+    }
+
     private func labelChip(_ label: String) -> some View {
         TagPill(label: label, color: tagColors.color(for: label))
     }
@@ -165,6 +198,7 @@ struct InspectorGeneralTab: View {
 
 #Preview {
     InspectorGeneralTab(torrent: Torrent.samples[4])
+        .environment(TorrentStore(service: MockTorrentService()))
         .environment(TagColorStore())
         .frame(width: 322, height: 640)
 }

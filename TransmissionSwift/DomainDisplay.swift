@@ -43,6 +43,34 @@ extension TorrentPriority {
         case .high: return "High"
         }
     }
+
+    /// Priority glyph, shared by the table column, the context-menu submenu,
+    /// the file-inspector dropdown, and the General-tab picker. High/low are
+    /// directional chevrons; normal is a neutral ring (not a dash).
+    var systemImage: String {
+        switch self {
+        case .high: return "chevron.up"
+        case .normal: return "circle"
+        case .low: return "chevron.down"
+        }
+    }
+
+    var displayColor: Color {
+        switch self {
+        case .high: return .orange
+        case .normal: return .gray
+        case .low: return .blue
+        }
+    }
+
+    /// AppKit colour for the native table cells, mirrors `displayColor`.
+    var nsDisplayColor: NSColor {
+        switch self {
+        case .high: return .systemOrange
+        case .normal: return .systemGray
+        case .low: return .systemBlue
+        }
+    }
 }
 
 extension TorrentFile {

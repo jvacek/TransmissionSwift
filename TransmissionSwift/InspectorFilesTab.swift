@@ -199,8 +199,8 @@ struct InspectorFilesTab: View {
     }
 }
 
-/// One file: name + priority chevron on the first line, size and progress
-/// sharing the second. Compact enough for the narrow inspector.
+/// One file: checkbox + name + priority capsule on the first line, size +
+/// progress on the second. Compact for the narrow inspector.
 private struct FileRow: View {
     let file: TorrentFile
     let sizeColumnWidth: CGFloat
@@ -222,8 +222,8 @@ private struct FileRow: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer(minLength: 8)
-                priorityMenu
-                    .padding(.top, 2)
+                priorityControl
+                    .padding(.top, 1)
             }
 
             HStack(spacing: 8) {
@@ -240,8 +240,34 @@ private struct FileRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var priorityMenu: some View {
-        Menu {
+    private var priorityControl: some View {
+        // A native `Menu` label only ever shows one image and strips extra
+        // chrome, so stacking a coloured glyph *and* a separate badge inside
+        // it is unreliable. Bake the whole interior (glyph + circular `⇅`
+        // badge) into a single `ImageRenderer`-produced `NSImage` — layout is
+        // fully under our control, so nothing can overlap — and hand that one
+        // image to a native `Menu`. The native `.button` style supplies the
+        // rounded-rect chrome, the click, and hover/pressed states.
+        let renderer = ImageRenderer(
+            content:
+                HStack(spacing: 8) {
+                    Image(systemName: priority.systemImage)
+                        .font(.callout)
+                        .foregroundStyle(priority.displayColor)
+                    ZStack {
+                        Circle().fill(Color(nsColor: .tertiarySystemFill))
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(width: 18, height: 18)
+                }
+                .padding(.vertical, 1)
+        )
+        renderer.scale = 2
+        let chip = renderer.nsImage ?? NSImage()
+
+        return Menu {
             ForEach(FilePriorityChoice.allCases, id: \.self) { choice in
                 Button {
                     priority = choice
@@ -250,13 +276,11 @@ private struct FileRow: View {
                 }
             }
         } label: {
-            Image(systemName: priority.systemImage)
-                .foregroundStyle(priority.displayColor)
+            Image(nsImage: chip)
         }
-        .menuStyle(.borderlessButton)
+        .menuStyle(.button)
         .menuIndicator(.hidden)
-        .fixedSize()
-        .disabled(!actionsEnabled)
+        .allowsHitTesting(actionsEnabled)
         .accessibilityLabel("Priority for \(file.displayName)")
     }
 }
@@ -320,12 +344,11 @@ private enum FilePriorityChoice: CaseIterable, Hashable {
         }
     }
 
-    /// Mirrors the torrent table's priority glyphs (TorrentTableCellView).
+    /// Mirrors the torrent table's priority glyphs (TorrentPriority.systemImage);
+    /// Skip (don't download) gets its own slash glyph.
     var systemImage: String {
         switch self {
-        case .high: return "chevron.up"
-        case .normal: return "minus"
-        case .low: return "chevron.down"
+        case .high, .normal, .low: return priority!.systemImage
         case .skip: return "slash.circle"
         }
     }
@@ -335,7 +358,7 @@ private enum FilePriorityChoice: CaseIterable, Hashable {
         case .high: return .orange
         case .normal: return .gray
         case .low: return .blue
-        case .skip: return .secondary
+        case .skip: return .red
         }
     }
 

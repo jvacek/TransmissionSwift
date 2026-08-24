@@ -432,6 +432,31 @@ struct TorrentStoreTests {
         #expect(store.torrents.first { $0.id == 5 }?.priority == .low)
     }
 
+    @Test("file wanted/priority mutations refresh the inspected torrent's detail")
+    @MainActor
+    func fileMutationRefreshesInspectorDetail() async throws {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+
+        store.selectedTorrentIDs = [5]
+        await store.fetchInspectorDetail(for: 5)
+        let detail = try #require(store.inspectorDetail)
+        let target = try #require(detail.files.first { $0.priority == .normal }?.id)
+
+        await store.setFilePriority(5, fileIDs: [target], priority: .high)
+        await waitFor {
+            store.inspectorDetail?.files.first { $0.id == target }?.priority == .high
+        }
+        #expect(store.inspectorDetail?.files.first { $0.id == target }?.priority == .high)
+
+        await store.setFilesWanted(5, fileIDs: [target], wanted: false)
+        await waitFor {
+            store.inspectorDetail?.files.first { $0.id == target }?.wanted == false
+        }
+        #expect(store.inspectorDetail?.files.first { $0.id == target }?.wanted == false)
+    }
+
     @Test("openEditLabels is gated on actions and a non-empty target")
     @MainActor
     func openEditLabels() async {

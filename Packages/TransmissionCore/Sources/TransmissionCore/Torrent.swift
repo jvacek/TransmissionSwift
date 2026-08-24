@@ -98,6 +98,8 @@ public enum TorrentStatus: String, Sendable, Hashable, CaseIterable, Codable {
     case downloading, seeding, paused, checking, queued, error, completed
 }
 
+/// Case order is the canonical display order for menus and dropdowns — high
+/// always on top. Sorting (table column) uses the raw string, not this order.
 public enum TorrentPriority: String, Sendable, Hashable, CaseIterable, Codable {
-    case low, normal, high
+    case high, normal, low
 }

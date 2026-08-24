@@ -328,13 +328,9 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         private static let openMappingItemTag = 3
 
         /// Title + SF-symbol glyph for a torrent-priority context-menu item.
-        /// Mirrors the priority column's glyphs (`TorrentTableCellView`).
+        /// Mirrors the priority column's glyphs (TorrentPriority.systemImage).
         private static func priorityMenuItemContent(_ priority: TorrentPriority) -> (String, String) {
-            switch priority {
-            case .high: return ("High", "chevron.up")
-            case .normal: return ("Normal", "minus")
-            case .low: return ("Low", "chevron.down")
-            }
+            (priority.displayLabel, priority.systemImage)
         }
 
         private func populateRowMenu(_ menu: NSMenu, ids: [Torrent.ID]) {

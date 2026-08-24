@@ -278,17 +278,17 @@ extension TorrentCellContent {
                 toolTip: nil,
                 accessibilityLabel: "no label")
         case .priority:
-            let (symbol, symbolColor, label) = priorityContent(row.torrent.priority)
+            let priority = row.torrent.priority
             return TorrentCellContent(
                 shape: .symbolAndText,
-                text: label,
+                text: priority.displayLabel,
                 font: captionFont,
                 color: .secondaryLabelColor,
                 alignment: .left,
-                toolTip: label,
-                accessibilityLabel: priorityAXLabel(row.torrent.priority),
-                symbolName: symbol,
-                symbolColor: symbolColor)
+                toolTip: priority.displayLabel,
+                accessibilityLabel: priorityAXLabel(priority),
+                symbolName: priority.systemImage,
+                symbolColor: priority.nsDisplayColor)
         case .queuePosition:
             if let position = row.torrent.queuePosition {
                 return TorrentCellContent(
@@ -409,14 +409,6 @@ extension TorrentCellContent {
 
     private static func statusContent(_ status: TorrentStatus) -> (NSColor, String) {
         (status.nsDisplayColor, status.displayLabel)
-    }
-
-    private static func priorityContent(_ priority: TorrentPriority) -> (String, NSColor, String) {
-        switch priority {
-        case .high: return ("chevron.up", .systemOrange, "High")
-        case .low: return ("chevron.down", .systemBlue, "Low")
-        case .normal: return ("minus", .systemGray, "Normal")
-        }
     }
 
     private static func priorityAXLabel(_ priority: TorrentPriority) -> String {
@@ -555,18 +547,21 @@ final class TorrentTableCellView: NSTableCellView {
                 self.label = value
                 self.secondaryLabel = unit
             case .symbolAndText:
+                // Text first, symbol as a trailing indicator — matches the
+                // files-tab / inspector dropdowns where the chevron sits after
+                // the priority label.
+                let label = makeLabel()
+                label.setContentHuggingPriority(.defaultLow, for: .horizontal)
+                label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+                stack.addArrangedSubview(label)
                 let image = NSImageView()
                 image.translatesAutoresizingMaskIntoConstraints = false
                 image.setAccessibilityElement(false)
                 image.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 11, weight: .medium)
                 stack.spacing = 2
                 stack.addArrangedSubview(image)
-                let label = makeLabel()
-                label.setContentHuggingPriority(.defaultLow, for: .horizontal)
-                label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-                stack.addArrangedSubview(label)
-                self.symbolImageView = image
                 self.label = label
+                self.symbolImageView = image
             case .pill:
                 let pill = makePill()
                 stack.addArrangedSubview(pill)

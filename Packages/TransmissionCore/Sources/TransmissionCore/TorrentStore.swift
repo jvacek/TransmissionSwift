@@ -353,13 +353,19 @@ public final class TorrentStore {
     }
 
     public func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool) async {
-        do { try await service.setFilesWanted(id, fileIDs: fileIDs, wanted: wanted) } catch { recordError(error) }
+        do {
+            try await service.setFilesWanted(id, fileIDs: fileIDs, wanted: wanted)
+            await refreshInspectorIfCurrent(id)
+        } catch { recordError(error) }
     }
 
     public func setFilePriority(
         _ id: Torrent.ID, fileIDs: [TorrentFile.ID], priority: TorrentPriority
     ) async {
-        do { try await service.setFilePriority(id, fileIDs: fileIDs, priority: priority) } catch { recordError(error) }
+        do {
+            try await service.setFilePriority(id, fileIDs: fileIDs, priority: priority)
+            await refreshInspectorIfCurrent(id)
+        } catch { recordError(error) }
     }
 
     public func setPriority(_ ids: [Torrent.ID], priority: TorrentPriority) async {
@@ -442,6 +448,16 @@ public final class TorrentStore {
         } catch {
             logger.error("Inspector fetch failed for id \(id): \(error)")
         }
+    }
+
+    /// After a mutation that only affects inspector-scoped data, re-fetch the
+    /// inspector detail when the mutated torrent is the one currently shown.
+    /// Per-file wanted/priority live in `inspectorDetail` — the list poll never
+    /// carries `files` — so without this the Files tab shows stale values until
+    /// the selection changes.
+    private func refreshInspectorIfCurrent(_ id: Torrent.ID) async {
+        guard selectedTorrents.first?.id == id else { return }
+        await fetchInspectorDetail(for: id)
     }
 
     /// The torrent to resolve a mapping against. From the torrent list the
