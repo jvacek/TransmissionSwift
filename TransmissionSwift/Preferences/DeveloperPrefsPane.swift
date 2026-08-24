@@ -110,7 +110,7 @@ struct DeveloperPrefsPane: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480)
+        .frame(maxWidth: .infinity, alignment: .top)
         .alert(item: $captureResult) { result in
             switch result {
             case .saved(let url, let capture):

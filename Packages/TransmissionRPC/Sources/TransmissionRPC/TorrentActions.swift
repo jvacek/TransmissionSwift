@@ -158,12 +158,152 @@ public struct TorrentAddResponse: Decodable, Sendable {
 
 public struct SessionSetArguments: Encodable, Sendable {
     public var altSpeedEnabled: Bool?
+    public var altSpeedDown: Int?
+    public var altSpeedUp: Int?
+    public var altSpeedTimeBegin: Int?
+    public var altSpeedTimeDay: Int?
+    public var altSpeedTimeEnabled: Bool?
+    public var altSpeedTimeEnd: Int?
+
+    public var speedLimitDownEnabled: Bool?
+    public var speedLimitDown: Int?
+    public var speedLimitUpEnabled: Bool?
+    public var speedLimitUp: Int?
+
+    public var blocklistEnabled: Bool?
+    public var blocklistURL: String?
+
+    public var dhtEnabled: Bool?
+    public var downloadQueueEnabled: Bool?
+    public var downloadQueueSize: Int?
+
+    public var encryption: String?
+
+    public var idleSeedingLimitEnabled: Bool?
+    public var idleSeedingLimit: Int?
+
+    public var lpdEnabled: Bool?
+    public var peerPort: Int?
+    public var peerPortRandomOnStart: Bool?
+    public var pexEnabled: Bool?
+    public var portForwardingEnabled: Bool?
+
+    public var queueStalledEnabled: Bool?
+    public var queueStalledMinutes: Int?
+
+    public var seedQueueEnabled: Bool?
+    public var seedQueueSize: Int?
+    public var seedRatioLimit: Double?
+    public var seedRatioLimited: Bool?
+
+    public var utpEnabled: Bool?
 
     enum CodingKeys: String, CodingKey {
         case altSpeedEnabled = "alt-speed-enabled"
+        case altSpeedDown = "alt-speed-down"
+        case altSpeedUp = "alt-speed-up"
+        case altSpeedTimeBegin = "alt-speed-time-begin"
+        case altSpeedTimeDay = "alt-speed-time-day"
+        case altSpeedTimeEnabled = "alt-speed-time-enabled"
+        case altSpeedTimeEnd = "alt-speed-time-end"
+
+        case speedLimitDownEnabled = "speed-limit-down-enabled"
+        case speedLimitDown = "speed-limit-down"
+        case speedLimitUpEnabled = "speed-limit-up-enabled"
+        case speedLimitUp = "speed-limit-up"
+
+        case blocklistEnabled = "blocklist-enabled"
+        case blocklistURL = "blocklist-url"
+
+        case dhtEnabled = "dht-enabled"
+        case downloadQueueEnabled = "download-queue-enabled"
+        case downloadQueueSize = "download-queue-size"
+
+        case encryption
+
+        case idleSeedingLimitEnabled = "idle-seeding-limit-enabled"
+        case idleSeedingLimit = "idle-seeding-limit"
+
+        case lpdEnabled = "lpd-enabled"
+        case peerPort = "peer-port"
+        case peerPortRandomOnStart = "peer-port-random-on-start"
+        case pexEnabled = "pex-enabled"
+        case portForwardingEnabled = "port-forwarding-enabled"
+
+        case queueStalledEnabled = "queue-stalled-enabled"
+        case queueStalledMinutes = "queue-stalled-minutes"
+
+        case seedQueueEnabled = "seed-queue-enabled"
+        case seedQueueSize = "seed-queue-size"
+        case seedRatioLimit
+        case seedRatioLimited
+
+        case utpEnabled = "utp-enabled"
     }
 
-    public init(altSpeedEnabled: Bool? = nil) {
+    public init(
+        altSpeedEnabled: Bool? = nil,
+        altSpeedDown: Int? = nil,
+        altSpeedUp: Int? = nil,
+        altSpeedTimeBegin: Int? = nil,
+        altSpeedTimeDay: Int? = nil,
+        altSpeedTimeEnabled: Bool? = nil,
+        altSpeedTimeEnd: Int? = nil,
+        speedLimitDownEnabled: Bool? = nil,
+        speedLimitDown: Int? = nil,
+        speedLimitUpEnabled: Bool? = nil,
+        speedLimitUp: Int? = nil,
+        blocklistEnabled: Bool? = nil,
+        blocklistURL: String? = nil,
+        dhtEnabled: Bool? = nil,
+        downloadQueueEnabled: Bool? = nil,
+        downloadQueueSize: Int? = nil,
+        encryption: String? = nil,
+        idleSeedingLimitEnabled: Bool? = nil,
+        idleSeedingLimit: Int? = nil,
+        lpdEnabled: Bool? = nil,
+        peerPort: Int? = nil,
+        peerPortRandomOnStart: Bool? = nil,
+        pexEnabled: Bool? = nil,
+        portForwardingEnabled: Bool? = nil,
+        queueStalledEnabled: Bool? = nil,
+        queueStalledMinutes: Int? = nil,
+        seedQueueEnabled: Bool? = nil,
+        seedQueueSize: Int? = nil,
+        seedRatioLimit: Double? = nil,
+        seedRatioLimited: Bool? = nil,
+        utpEnabled: Bool? = nil
+    ) {
         self.altSpeedEnabled = altSpeedEnabled
+        self.altSpeedDown = altSpeedDown
+        self.altSpeedUp = altSpeedUp
+        self.altSpeedTimeBegin = altSpeedTimeBegin
+        self.altSpeedTimeDay = altSpeedTimeDay
+        self.altSpeedTimeEnabled = altSpeedTimeEnabled
+        self.altSpeedTimeEnd = altSpeedTimeEnd
+        self.speedLimitDownEnabled = speedLimitDownEnabled
+        self.speedLimitDown = speedLimitDown
+        self.speedLimitUpEnabled = speedLimitUpEnabled
+        self.speedLimitUp = speedLimitUp
+        self.blocklistEnabled = blocklistEnabled
+        self.blocklistURL = blocklistURL
+        self.dhtEnabled = dhtEnabled
+        self.downloadQueueEnabled = downloadQueueEnabled
+        self.downloadQueueSize = downloadQueueSize
+        self.encryption = encryption
+        self.idleSeedingLimitEnabled = idleSeedingLimitEnabled
+        self.idleSeedingLimit = idleSeedingLimit
+        self.lpdEnabled = lpdEnabled
+        self.peerPort = peerPort
+        self.peerPortRandomOnStart = peerPortRandomOnStart
+        self.pexEnabled = pexEnabled
+        self.portForwardingEnabled = portForwardingEnabled
+        self.queueStalledEnabled = queueStalledEnabled
+        self.queueStalledMinutes = queueStalledMinutes
+        self.seedQueueEnabled = seedQueueEnabled
+        self.seedQueueSize = seedQueueSize
+        self.seedRatioLimit = seedRatioLimit
+        self.seedRatioLimited = seedRatioLimited
+        self.utpEnabled = utpEnabled
     }
 }

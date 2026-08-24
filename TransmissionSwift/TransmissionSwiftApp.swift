@@ -140,7 +140,7 @@ struct TransmissionSwiftApp: App {
                 }
                 Divider()
                 Button("Server Settings…") {
-                    UserDefaults.standard.set(4, forKey: "prefsPendingNavTab")
+                    UserDefaults.standard.set(PrefsTab.servers.rawValue, forKey: "prefsPendingNavTab")
                     NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
                 }
             }

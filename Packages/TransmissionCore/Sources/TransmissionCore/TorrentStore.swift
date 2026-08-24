@@ -57,6 +57,12 @@ public final class TorrentStore {
     }
     public private(set) var connection: ConnectionState = .connecting
     public private(set) var isAlternativeSpeedEnabled: Bool = false
+    /// Session-level settings (speed limits, network, queue, seed ratio/idle)
+    /// for the connected daemon. Nil until the first session-poll completes, or
+    /// when disconnected. Not the same shape as `@AppStorage` — these are the
+    /// daemon's values, so the Speed/Network panes bind here rather than to
+    /// UserDefaults.
+    public private(set) var sessionSettings: SessionSettings? = nil
     /// Non-nil when a user action failed. Cleared by the view when the alert is dismissed.
     public var lastActionError: ActionError?
     /// Free space (bytes) on the daemon's download directory. Nil until the first poll completes.
@@ -123,6 +129,12 @@ public final class TorrentStore {
         torrents.filter { selectedTorrentIDs.contains($0.id) }
     }
 
+    /// True while the app has a live connection to a daemon. Gates any
+    /// session-side setting that can only be read/changed when connected.
+    public var isConnected: Bool {
+        connection.isConnected
+    }
+
     /// True when the backing service supports mutation actions.
     public private(set) var actionsEnabled: Bool = true
 
@@ -181,6 +193,7 @@ public final class TorrentStore {
         connection = .connecting
         freeSpace = nil
         downloadDirectory = nil
+        sessionSettings = nil
         supportsLabels = true
         torrents = []
         // Sidebar filters are per-server state — a tracker/folder/label filter
@@ -257,6 +270,7 @@ public final class TorrentStore {
             // wrong turtle toggle state if alt speed was enabled before launch.
             self.isAlternativeSpeedEnabled = await capturedService.isAlternativeSpeedEnabled()
             self.supportsLabels = await capturedService.supportsLabels()
+            self.sessionSettings = await capturedService.sessionSettings()
             guard !Task.isCancelled else { return }
             self.startFreeSpacePoll()
             do {
@@ -286,6 +300,7 @@ public final class TorrentStore {
                 guard !Task.isCancelled else { break }
                 self.freeSpace = await capturedService.freeSpace()
                 self.supportsLabels = await capturedService.supportsLabels()
+                self.sessionSettings = await capturedService.sessionSettings()
             }
         }
     }
@@ -411,8 +426,32 @@ public final class TorrentStore {
         do {
             try await service.setAlternativeSpeedEnabled(newValue)
             isAlternativeSpeedEnabled = newValue
+            sessionSettings?.altSpeedEnabled = newValue
         } catch {
             recordError(error)
+        }
+    }
+
+    /// Apply a session-side setting change. `mutate` mutates a copy of the
+    /// current `SessionSettings`; the store diffs it to build a patch (only the
+    /// changed fields are sent), applies it optimistically, and rolls back /
+    /// re-reads on failure. Requires a live session; no-ops otherwise.
+    public func updateSessionSettings(_ mutate: (inout SessionSettings) -> Void) async {
+        guard var current = sessionSettings else { return }
+        let before = current
+        mutate(&current)
+        guard current != before else { return }
+        let patch = SessionSettingsPatch(before: before, updated: current)
+        sessionSettings = current
+        isAlternativeSpeedEnabled = current.altSpeedEnabled
+        do {
+            try await service.applySessionSettings(patch)
+            sessionSettings = await service.sessionSettings() ?? current
+            isAlternativeSpeedEnabled = sessionSettings?.altSpeedEnabled ?? current.altSpeedEnabled
+        } catch {
+            recordError(error)
+            sessionSettings = await service.sessionSettings() ?? before
+            isAlternativeSpeedEnabled = sessionSettings?.altSpeedEnabled ?? before.altSpeedEnabled
         }
     }
 

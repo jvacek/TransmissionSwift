@@ -11,6 +11,7 @@ public actor MockTorrentService: TorrentService {
     private var state: [Torrent]
     private var continuation: AsyncThrowingStream<[Torrent], Error>.Continuation?
     private var altSpeed = false
+    private var sessionSettingsValue = SessionSettings.sample
     private var tickTask: Task<Void, Never>?
 
     public init(initial: [Torrent] = MockFixtures.torrents()) {
@@ -173,9 +174,57 @@ public actor MockTorrentService: TorrentService {
 
     public func setAlternativeSpeedEnabled(_ enabled: Bool) async throws {
         altSpeed = enabled
+        sessionSettingsValue.altSpeedEnabled = enabled
     }
 
     public func isAlternativeSpeedEnabled() async -> Bool { altSpeed }
+
+    public func sessionSettings() async -> SessionSettings? { sessionSettingsValue }
+
+    public func applySessionSettings(_ patch: SessionSettingsPatch) async throws {
+        let updated = try? Self.updating(sessionSettingsValue, with: patch)
+        if let updated { sessionSettingsValue = updated }
+    }
+
+    /// Applies a patch as a full struct replacement, for cases where a store
+    /// holds the current value and the patch carries only the changed fields.
+    private static func updating(_ base: SessionSettings, with patch: SessionSettingsPatch)
+        throws -> SessionSettings
+    {
+        var value = base
+        value.downLimited = patch.downLimited ?? value.downLimited
+        value.downLimitKBps = patch.downLimitKBps ?? value.downLimitKBps
+        value.upLimited = patch.upLimited ?? value.upLimited
+        value.upLimitKBps = patch.upLimitKBps ?? value.upLimitKBps
+        value.altSpeedEnabled = patch.altSpeedEnabled ?? value.altSpeedEnabled
+        value.altSpeedDownKBps = patch.altSpeedDownKBps ?? value.altSpeedDownKBps
+        value.altSpeedUpKBps = patch.altSpeedUpKBps ?? value.altSpeedUpKBps
+        value.altSpeedTimeEnabled = patch.altSpeedTimeEnabled ?? value.altSpeedTimeEnabled
+        value.altSpeedTimeBeginMinutes = patch.altSpeedTimeBeginMinutes ?? value.altSpeedTimeBeginMinutes
+        value.altSpeedTimeEndMinutes = patch.altSpeedTimeEndMinutes ?? value.altSpeedTimeEndMinutes
+        value.altSpeedTimeDayMask = patch.altSpeedTimeDayMask ?? value.altSpeedTimeDayMask
+        value.peerPort = patch.peerPort ?? value.peerPort
+        value.peerPortRandomOnStart = patch.peerPortRandomOnStart ?? value.peerPortRandomOnStart
+        value.portForwardingEnabled = patch.portForwardingEnabled ?? value.portForwardingEnabled
+        value.encryption = patch.encryption ?? value.encryption
+        value.blocklistEnabled = patch.blocklistEnabled ?? value.blocklistEnabled
+        value.blocklistURL = patch.blocklistURL ?? value.blocklistURL
+        value.pexEnabled = patch.pexEnabled ?? value.pexEnabled
+        value.dhtEnabled = patch.dhtEnabled ?? value.dhtEnabled
+        value.utpEnabled = patch.utpEnabled ?? value.utpEnabled
+        value.lpdEnabled = patch.lpdEnabled ?? value.lpdEnabled
+        value.downloadQueueEnabled = patch.downloadQueueEnabled ?? value.downloadQueueEnabled
+        value.downloadQueueSize = patch.downloadQueueSize ?? value.downloadQueueSize
+        value.seedQueueEnabled = patch.seedQueueEnabled ?? value.seedQueueEnabled
+        value.seedQueueSize = patch.seedQueueSize ?? value.seedQueueSize
+        value.queueStalledEnabled = patch.queueStalledEnabled ?? value.queueStalledEnabled
+        value.queueStalledMinutes = patch.queueStalledMinutes ?? value.queueStalledMinutes
+        value.seedRatioLimited = patch.seedRatioLimited ?? value.seedRatioLimited
+        value.seedRatioLimit = patch.seedRatioLimit ?? value.seedRatioLimit
+        value.idleSeedingLimitEnabled = patch.idleSeedingLimitEnabled ?? value.idleSeedingLimitEnabled
+        value.idleSeedingLimitMinutes = patch.idleSeedingLimitMinutes ?? value.idleSeedingLimitMinutes
+        return value
+    }
 
     public func inspectorData(for id: Torrent.ID) async throws -> Torrent {
         guard let torrent = state.first(where: { $0.id == id }) else {

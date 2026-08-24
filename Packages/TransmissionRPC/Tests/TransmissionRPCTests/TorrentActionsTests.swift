@@ -185,3 +185,93 @@ struct TorrentAddArgumentsEncodeTests {
         #expect(json["paused"] == nil)
     }
 }
+
+// MARK: - SessionSetArguments encode
+
+@Suite("SessionSetArguments encode")
+struct SessionSetArgumentsEncodeTests {
+    private func encoded(_ args: SessionSetArguments) throws -> [String: Any] {
+        let data = try JSONEncoder().encode(args)
+        return try JSONSerialization.jsonObject(with: data) as! [String: Any]
+    }
+
+    @Test("kebab-case keys and nil optionals omitted")
+    func kebabKeysAndNilOmitted() throws {
+        var args = SessionSetArguments()
+        args.altSpeedEnabled = true
+        args.speedLimitDown = 1000
+        args.speedLimitDownEnabled = true
+        args.peerPort = 51413
+        args.encryption = "required"
+        let json = try encoded(args)
+
+        #expect(json["alt-speed-enabled"] as? Bool == true)
+        #expect(json["speed-limit-down"] as? Int == 1000)
+        #expect(json["speed-limit-down-enabled"] as? Bool == true)
+        #expect(json["peer-port"] as? Int == 51413)
+        #expect(json["encryption"] as? String == "required")
+        // Absent when nil.
+        #expect(json["peer-port-random-on-start"] == nil)
+        #expect(json["blocklist-url"] == nil)
+        #expect(json["seedRatioLimit"] == nil)
+        #expect(json["utp-enabled"] == nil)
+    }
+
+    @Test("seedRatioLimit/seedRatioLimited keep camelCase")
+    func camelCaseSeedRatio() throws {
+        var args = SessionSetArguments()
+        args.seedRatioLimit = 1.5
+        args.seedRatioLimited = true
+        let json = try encoded(args)
+        #expect(json["seedRatioLimit"] as? Double == 1.5)
+        #expect(json["seedRatioLimited"] as? Bool == true)
+        #expect(json["seed-ratio-limit"] == nil)
+    }
+}
+
+// MARK: - SessionInfo decode (expanded session-get fields)
+
+@Suite("SessionInfo decode")
+struct SessionInfoDecodeTests {
+    @Test("expanded session-get fields decode with kebab-case keys")
+    func decodesExpandedFields() throws {
+        let json = """
+            {
+              "result": "success",
+              "arguments": {
+                "version": "4.0.6 (abc)",
+                "rpc-version": 17,
+                "rpc-version-minimum": 14,
+                "download-dir-free-space": 123,
+                "alt-speed-enabled": false,
+                "download-dir": "/downloads",
+                "speed-limit-down": 1000,
+                "speed-limit-down-enabled": true,
+                "alt-speed-time-begin": 540,
+                "lpd-enabled": true,
+                "seedRatioLimit": 1.5,
+                "seedRatioLimited": true,
+                "idle-seeding-limit": 30,
+                "idle-seeding-limit-enabled": false,
+                "encryption": "preferred"
+              }
+            }
+            """
+        let data = try #require(json.data(using: .utf8))
+        let response = try JSONDecoder().decode(RPCResponse<SessionInfo>.self, from: data)
+        let s = response.arguments
+
+        #expect(s.speedLimitDown == 1000)
+        #expect(s.speedLimitDownEnabled == true)
+        #expect(s.altSpeedTimeBegin == 540)
+        #expect(s.lpdEnabled == true)
+        #expect(s.seedRatioLimit == 1.5)
+        #expect(s.seedRatioLimited == true)
+        #expect(s.idleSeedingLimit == 30)
+        #expect(s.idleSeedingLimitEnabled == false)
+        #expect(s.encryption == "preferred")
+        // Absent fields stay nil.
+        #expect(s.altSpeedUp == nil)
+        #expect(s.blocklistURL == nil)
+    }
+}

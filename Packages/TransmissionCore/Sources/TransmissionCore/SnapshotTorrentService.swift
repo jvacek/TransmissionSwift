@@ -56,6 +56,14 @@ public actor SnapshotTorrentService: TorrentService {
 
     public func isAlternativeSpeedEnabled() async -> Bool { session.altSpeedEnabled }
 
+    /// Read-only: the captured session's settings, so the Speed/Network panes
+    /// render the frozen values.
+    public func sessionSettings() async -> SessionSettings? { SessionSettings(wire: session) }
+
+    public func applySessionSettings(_ patch: SessionSettingsPatch) async throws {
+        throw SnapshotError.replayReadOnly
+    }
+
     // Mutations are unreachable (supportsActions == false, so the UI disables
     // them); throwing guards against accidental invocation from code that
     // doesn't consult `supportsActions`.

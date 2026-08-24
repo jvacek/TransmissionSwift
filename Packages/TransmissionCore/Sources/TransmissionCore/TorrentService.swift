@@ -73,6 +73,16 @@ public protocol TorrentService: Sendable {
     func setAlternativeSpeedEnabled(_ enabled: Bool) async throws
     func isAlternativeSpeedEnabled() async -> Bool
 
+    /// The current session-level settings (speed limits, network, queue, seed
+    /// ratio/idle). Returns nil when disconnected or unknown. Read-only services
+    /// (mock with no state, snapshot replay) return a plausible value so previews
+    /// and the no-server placeholder render populated controls.
+    func sessionSettings() async -> SessionSettings?
+
+    /// Applies a partial `session-set` write. Default no-op for read-only /
+    /// snapshot services; `RPCTorrentService` maps the patch and sends it.
+    func applySessionSettings(_ patch: SessionSettingsPatch) async throws
+
     /// Add a new torrent. Exactly one of `fileURL` / `magnetURL` should be
     /// non-nil. Maps to `torrent-add` in slice 7.
     func add(
@@ -103,6 +113,8 @@ extension TorrentService {
     public func supportsLabels() async -> Bool { true }
     public func freeSpace() async -> Int64? { nil }
     public func downloadDirectory() async -> String? { nil }
+    public func sessionSettings() async -> SessionSettings? { nil }
+    public func applySessionSettings(_ patch: SessionSettingsPatch) async throws {}
     public func captureRawSnapshot() async throws -> SnapshotFile {
         throw SnapshotError.captureUnsupported
     }

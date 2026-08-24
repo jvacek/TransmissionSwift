@@ -8,6 +8,13 @@ public enum ConnectionState: Sendable, Equatable {
     case awaitingKeychain
     case connected
     case disconnected(reason: String)
+
+    /// True only for a live connection. Used to gate session-side settings
+    /// that require a daemon round-trip.
+    public var isConnected: Bool {
+        if case .connected = self { return true }
+        return false
+    }
 }
 
 /// One of the five tabs in the right-pane inspector.

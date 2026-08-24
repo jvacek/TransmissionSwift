@@ -224,6 +224,31 @@ public actor RPCTorrentService: TorrentService {
         cachedSession?.altSpeedEnabled ?? false
     }
 
+    public func sessionSettings() async -> SessionSettings? {
+        if let cached = cachedSession {
+            return SessionSettings(wire: cached)
+        }
+        // Cold cache — warm it from a fresh session-get so mocked/empty state
+        // doesn't read stale or nil values.
+        if let fetched = try? await client.sessionGet() {
+            cachedSession = fetched
+            return SessionSettings(wire: fetched)
+        }
+        return nil
+    }
+
+    public func applySessionSettings(_ patch: SessionSettingsPatch) async throws {
+        guard !patch.isEmpty else { return }
+        var args = SessionSetArguments()
+        patch.apply(to: &args)
+        logger.info("applySessionSettings: \(String(describing: args), privacy: .public)")
+        try await client.sessionSet(args)
+        // Refresh the cache so subsequent reads reflect the written state.
+        if let fetched = try? await client.sessionGet() {
+            cachedSession = fetched
+        }
+    }
+
     public func inspectorData(for id: Torrent.ID) async throws -> Torrent {
         let fields = TorrentGetResponse.listFields + TorrentGetResponse.inspectorFields
         let resp = try await client.torrentGet(fields: fields, ids: [id])
