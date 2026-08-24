@@ -2,6 +2,11 @@ import SwiftUI
 import TransmissionCore
 import UniformTypeIdentifiers
 
+/// File vs. magnet source. `nonisolated` + file-scope so its `Hashable`
+/// conformance isn't main-actor-isolated — `glassEffectID` needs a `Sendable`
+/// hashable.
+nonisolated enum AddTorrentInputMode: Hashable, Sendable { case file, magnet }
+
 /// Sheet presented from the main window — the mutually-exclusive file vs.
 /// magnet source is a segmented picker; the shared options (destination, tags,
 /// priority, start) sit below. Everything scrolls together.
@@ -12,11 +17,11 @@ struct AddTorrentSheet: View {
     var initialMagnetMode: Bool = false
     var prefilledURL: URL? = nil
 
-    enum InputMode: Hashable { case file, magnet }
     private enum Field: Hashable { case magnet, destination }
 
     @FocusState private var focusedField: Field?
-    @State private var mode: InputMode = .file
+    @State private var mode: AddTorrentInputMode = .file
+    @Namespace private var selectionNamespace
     @State private var fileURL: URL?
     @State private var magnetString: String = ""
     @State private var destination: String = ""
@@ -27,17 +32,18 @@ struct AddTorrentSheet: View {
     @State private var isAdding: Bool = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    modePicker
-                    sourceSection
-                    optionsSection
-                }
-                .padding(20)
+        ScrollView {
+            VStack(alignment: .leading) {
+                modePicker
+                sourceSection
+                optionsSection
             }
-            footerBar
+            // Clear the floating glass header so content starts below it,
+            // then scrolls underneath its blur layer.
+            .padding(.top, 68)
+            .padding([.horizontal, .bottom], 20)
         }
+        .overlay(alignment: .top) { headerBar }
         .frame(width: 560)
         .fileImporter(
             isPresented: $showFileImporter,
@@ -73,16 +79,41 @@ struct AddTorrentSheet: View {
 
     // MARK: - Sections
 
-    /// File vs. magnet — the only mutually-exclusive choice — as a segmented
-    /// picker (a `TabView` clips inside sheets and drags its own chrome in).
+    /// File vs. magnet — the only mutually-exclusive choice — as a Liquid
+    /// Glass segmented control in the system style: one glass capsule holding
+    /// all segments, with the selected one as a raised accent pill that slides
+    /// between segments (droplet-style, via `matchedGeometryEffect`). The pill
+    /// is a plain fill, not nested glass — glass can't sample glass. The stock
+    /// `.segmented` picker keeps its pre-Tahoe chrome in content areas, hence
+    /// hand-rolled.
     private var modePicker: some View {
-        Picker("Source", selection: $mode) {
-            Text("File").tag(InputMode.file)
-            Text("Magnet Link").tag(InputMode.magnet)
+        HStack(spacing: 0) {
+            ForEach([AddTorrentInputMode.file, .magnet], id: \.self) { segment in
+                let isSelected = mode == segment
+                Button {
+                    withAnimation(.smooth(duration: 0.35)) { mode = segment }
+                } label: {
+                    Text(segment == .file ? "File" : "Magnet Link")
+                        .font(.callout.weight(isSelected ? .semibold : .regular))
+                        .foregroundStyle(isSelected ? Color.white : Color.secondary)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 8)
+                        .background {
+                            if isSelected {
+                                Capsule()
+                                    .fill(Color.accentColor)
+                                    .matchedGeometryEffect(id: "modeSelection", in: selectionNamespace)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(segment == .file ? "File" : "Magnet Link")
+                .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+
+            }
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .frame(maxWidth: 320)
+        .glassEffect(.regular.interactive(), in: .capsule)
         .frame(maxWidth: .infinity)
     }
 
@@ -93,9 +124,12 @@ struct AddTorrentSheet: View {
     }
 
     /// Shared bordered container so the file picker and the magnet input look
-    /// alike.
+    /// alike. The content row gets a fixed height so switching modes doesn't
+    /// shift the content below by a few pixels.
     private func sourceBox(_ content: some View) -> some View {
         content
+            .frame(height: 24)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -242,24 +276,53 @@ struct AddTorrentSheet: View {
         }
     }
 
-    private var footerBar: some View {
-        HStack(spacing: 12) {
-            Spacer()
-            Button("Cancel") {
-                isPresented = false
-            }
-            .keyboardShortcut(.cancelAction)
+    /// Header in the style of a modern modal: glass close button left, big
+    /// title centered, prominent glass add button right. Both buttons sit
+    /// close to the sheet's corners so their curvature nests concentrically
+    /// with the window's rounded corners.
+    private var headerBar: some View {
+        GlassEffectContainer {
+            Text("Add Torrent")
+                .font(.title2.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .overlay(alignment: .leading) {
+                    Button {
+                        isPresented = false
+                    } label: {
+                        // Explicit glassEffect on fixed bounds — the `.glass`
+                        // button style's circle doesn't reliably track the
+                        // frame, which made it render smaller than the Add
+                        // capsule.
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .semibold))
+                            .frame(width: 32, height: 32)
+                            .glassEffect(.regular, in: .circle)
+                            // Make the whole glass circle the hit target —
+                            // `.plain` buttons otherwise only hit-test the
+                            // glyph itself.
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .frame(height: 44)
+                    .controlSize(.large)
+                    .keyboardShortcut(.cancelAction)
+                    .accessibilityLabel("Cancel")
 
-            Button(isAdding ? "Adding…" : "Add Torrent") {
-                Task { await submit() }
-            }
-            .buttonStyle(.glassProminent)
-            .disabled(!isValid || isAdding)
-            .keyboardShortcut(.defaultAction)
+                }
+                .overlay(alignment: .trailing) {
+                    Button(isAdding ? "Adding…" : "Add") {
+                        Task { await submit() }
+                    }
+                    .buttonStyle(.glassProminent)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.large)
+                    //                    .frame(height: 50)
+                    .disabled(!isValid || isAdding)
+                    .keyboardShortcut(.defaultAction)
+                }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(.regularMaterial)
+        .padding(.horizontal, 10)
+        .padding(.top, 14)
     }
 
     // MARK: - Logic
