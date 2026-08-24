@@ -603,10 +603,9 @@ final class TorrentTableCellView: NSTableCellView {
             }
         case .dotAndText:
             configureLabel(content)
-            dotView?.layer?.backgroundColor = (content.dotColor ?? .labelColor).cgColor
+            setDotColor(content.dotColor, for: dotView)
             for (index, tagDot) in trailingDotViews.enumerated() {
-                tagDot.layer?.backgroundColor =
-                    (content.trailingDotColors?[index] ?? .labelColor).cgColor
+                setDotColor(content.trailingDotColors?[index], for: tagDot)
             }
         case .progress:
             progressView?.progress = content.progressValue ?? 0
@@ -624,6 +623,36 @@ final class TorrentTableCellView: NSTableCellView {
                 systemSymbolName: content.symbolName ?? "", accessibilityDescription: nil)
             symbolImageView?.contentTintColor = content.symbolColor
             configureLabel(content)
+        }
+    }
+
+    /// Re-applies the layer-based dot colours when the system appearance flips.
+    /// `CALayer.backgroundColor` is a static `cgColor` snapshot, so it does not
+    /// follow light/dark on its own — `TagPillView` already overrides this hook
+    /// for its pills; the status/tag dots need the same treatment, otherwise
+    /// they keep their old-appearance colour until a content reload happens.
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        guard let content, content.shape == .dotAndText else { return }
+        setDotColor(content.dotColor, for: dotView)
+        for (index, tagDot) in trailingDotViews.enumerated() {
+            setDotColor(content.trailingDotColors?[index], for: tagDot)
+        }
+    }
+
+    /// Resolves `color` against this cell's current appearance before handing it
+    /// to a layer. `NSColor.cgColor` snapshots the appearance it is converted
+    /// under, so resolving explicitly keeps the resolved colour in step with
+    /// `effectiveAppearance` rather than whichever appearance was active at the
+    /// first conversion.
+    private func setDotColor(_ color: NSColor?, for view: NSView?) {
+        guard let view else { return }
+        // `NSColor.cgColor` snapshots the appearance it is converted under, so
+        // resolve it while this cell's appearance is the drawing appearance —
+        // a bare `cgColor` would bake in whichever appearance was active at the
+        // first conversion.
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            view.layer?.backgroundColor = (color ?? .labelColor).cgColor
         }
     }
 
@@ -876,13 +905,27 @@ final class TorrentProgressBarView: NSView {
         updateFill()
     }
 
+    /// Re-resolves the track/fill `cgColor`s when the appearance changes. `withAlphaComponent`
+    /// and `cgColor` both snapshot the active appearance, so without this the bar
+    /// keeps its old-appearance colour until a content reload.
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateFill()
+    }
+
     private func updateFill() {
         let clamped = min(max(progress, 0), 1)
         let width = bounds.width * CGFloat(clamped)
         fillLayer.frame = CGRect(x: 0, y: 0, width: width, height: bounds.height)
-        // A light grey (label colour at ~10%) so the track reads as empty
-        // space behind the tinted fill instead of a dark bezel.
-        trackLayer.backgroundColor = NSColor.labelColor.withAlphaComponent(0.1).cgColor
-        fillLayer.backgroundColor = (tintColor ?? .labelColor).cgColor
+        // A light grey (label colour at ~10%) so the track reads as empty space
+        // behind the tinted fill instead of a dark bezel. `cgColor` snapshots the
+        // appearance it is converted under, so resolve while this view's
+        // appearance is the drawing appearance.
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            let track = NSColor.labelColor.withAlphaComponent(0.1)
+            trackLayer.backgroundColor = track.cgColor
+            let fill = tintColor ?? .labelColor
+            fillLayer.backgroundColor = fill.cgColor
+        }
     }
 }
