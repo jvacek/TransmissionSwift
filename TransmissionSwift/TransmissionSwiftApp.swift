@@ -115,6 +115,7 @@ struct TransmissionSwiftApp: App {
                 }
         }
         .commands {
+            FileCommands(torrentStore: torrentStore)
             AboutCommands(updateService: updateService)
             PreferencesCommands()
             ServerCommands(profileStore: profileStore)
@@ -139,6 +140,26 @@ struct TransmissionSwiftApp: App {
                 .environment(tagColorStore)
         }
         .defaultSize(width: 700, height: 520)
+    }
+}
+
+// MARK: - File commands
+
+private struct FileCommands: Commands {
+    let torrentStore: TorrentStore
+
+    var body: some Commands {
+        CommandGroup(before: .newItem) {
+            Button("Add Torrent…") {
+                torrentStore.openAddSheet()
+            }
+            .keyboardShortcut("o", modifiers: .command)
+
+            Button("Add Magnet Link…") {
+                torrentStore.openAddSheet(magnetMode: true)
+            }
+            .keyboardShortcut("o", modifiers: [.command, .shift])
+        }
     }
 }
 
