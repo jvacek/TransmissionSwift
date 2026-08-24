@@ -22,7 +22,7 @@ struct ServersPrefsPane: View {
                 Divider()
                 listFooter
             }
-            .frame(minWidth: 200, maxWidth: 240)
+            .frame(minWidth: 10, maxWidth: 210)
 
             Divider()
 
@@ -39,29 +39,24 @@ struct ServersPrefsPane: View {
 
     // MARK: List
 
+    /// A hand-rolled sidebar instead of `List`: on macOS 26, List rows taller
+    /// than one line crash SwiftUI's table core during the first layout pass
+    /// (`TableViewListCore_Mac2` assertion — previews die with a cryptic
+    /// design-time error). The server list is small and fixed, so a
+    /// ScrollView of buttons loses nothing.
     private var serverList: some View {
-        let selectionBinding = Binding<PaneSelection?>(
-            get: { selection },
-            set: { newVal in
-                if selection == .new, newVal != .new {
-                    pendingNew = false
+        ScrollView {
+            VStack(alignment: .leading, spacing: 1) {
+                ForEach(sortedProfiles) { profile in
+                    serverRow(profile)
                 }
-                selection = newVal
+                if pendingNew {
+                    newServerRow
+                }
             }
-        )
-        return List(selection: selectionBinding) {
-            ForEach(sortedProfiles) { profile in
-                serverRow(profile)
-                    .tag(PaneSelection.existing(profile.id))
-            }
-            if pendingNew {
-                Label("New Server", systemImage: "plus.circle")
-                    .italic()
-                    .foregroundStyle(.secondary)
-                    .tag(PaneSelection.new)
-            }
-        }
-        .listStyle(.sidebar)
+            //            .padding(.horizontal, 0)
+            .padding(.vertical, 4)
+        }.frame(width: 200)
     }
 
     /// The profile list with the active profile pinned to the top.
@@ -70,12 +65,28 @@ struct ServersPrefsPane: View {
         return [active] + profileStore.profiles.filter { $0.id != active.id }
     }
 
+    private func select(_ newSelection: PaneSelection) {
+        if selection == .new, newSelection != .new {
+            pendingNew = false
+        }
+        selection = newSelection
+    }
+
     private func serverRow(_ profile: ServerProfile) -> some View {
         let isActive = profileStore.activeProfile?.id == profile.id
-        return VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text(profile.label)
-                    .fontWeight(isActive ? .semibold : .regular)
+        let isSelected = selection == .existing(profile.id)
+        return Button {
+            select(.existing(profile.id))
+        } label: {
+            HStack(spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(profile.label)
+                        .fontWeight(isActive ? .semibold : .regular)
+                    Text("\(profile.host):" + String(profile.port))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospaced()
+                }
                 Spacer()
                 if isActive {
                     Image(systemName: "checkmark")
@@ -83,16 +94,42 @@ struct ServersPrefsPane: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Text("\(profile.host):\(profile.port)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospaced()
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(isSelected ? AnyShapeStyle(Color.accentColor.opacity(0.25)) : AnyShapeStyle(.clear))
+            )
         }
+        .buttonStyle(.plain)
         .contextMenu {
             if !isActive {
                 Button("Make Active") { try? profileStore.setActive(profile.id) }
             }
         }
+    }
+
+    private var newServerRow: some View {
+        Button {
+            selection = .new
+        } label: {
+            Label("New Server", systemImage: "plus.circle")
+                .italic()
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(
+                            selection == .new ? AnyShapeStyle(Color.accentColor.opacity(0.25)) : AnyShapeStyle(.clear)
+                        )
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     private var listFooter: some View {
