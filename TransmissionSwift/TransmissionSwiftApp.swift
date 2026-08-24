@@ -126,11 +126,11 @@ struct TransmissionSwiftApp: App {
         .windowResizability(.contentSize)
         .defaultPosition(.center)
 
-        // A plain Window (not the Settings scene) so `.windowStyle(.hiddenTitleBar)`
-        // can hide the title bar. On macOS 26 the Settings scene always renders an
-        // "<App name> Settings" centered title bar that cannot be removed; hosting
-        // PreferencesView in a hidden-title-bar window matches the Liquid Glass
-        // look we preview. The app menu item is wired manually (PreferencesCommands).
+        // A plain Window (not the Settings scene): on macOS 26 the Settings scene
+        // always renders an unremovable "<App name> Settings" centered title. A
+        // regular titled window hosting PreferencesView's NavigationSplitView gets
+        // the Xcode-Settings look for free — traffic lights inside the sidebar's
+        // glass card, and the pane title in the title bar via .navigationTitle.
         Window("Preferences", id: "preferences") {
             PreferencesView()
                 .environment(profileStore)
@@ -138,7 +138,6 @@ struct TransmissionSwiftApp: App {
                 .environment(torrentStore)
                 .environment(tagColorStore)
         }
-        .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 700, height: 520)
     }
 }

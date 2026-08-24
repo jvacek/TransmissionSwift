@@ -60,7 +60,6 @@ struct GeneralPrefsPane: View {
             .disabled(true)
         }
         .formStyle(.grouped)
-        .frame(minWidth: 420)
     }
 }
 

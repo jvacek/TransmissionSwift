@@ -41,7 +41,6 @@ struct SpeedPrefsPane: View {
                 }
             }
             .formStyle(.grouped)
-            .frame(minWidth: 460)
         } else {
             SessionNotConnectedView()
         }

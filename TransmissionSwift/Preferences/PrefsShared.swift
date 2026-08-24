@@ -12,7 +12,6 @@ struct SessionNotConnectedView: View {
         } description: {
             Text("Connect to a server to change these settings.")
         }
-        .frame(minWidth: 460, minHeight: 320)
     }
 }
 

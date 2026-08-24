@@ -29,7 +29,7 @@ struct ServersPrefsPane: View {
             formPane
                 .frame(maxWidth: .infinity)
         }
-        .frame(minWidth: 560, minHeight: 420)
+        .frame(minHeight: 420)
         .onAppear {
             if selection == nil, let first = sortedProfiles.first {
                 selection = .existing(first.id)

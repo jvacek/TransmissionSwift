@@ -5,15 +5,17 @@ import TransmissionCore
 /// written by menu call-sites and consumed by `PreferencesView` on appear.
 private let prefsPendingTabKey = "prefsPendingNavTab"
 
-/// The Preferences window, hosted in a hidden-title-bar `Window` scene (see
+/// The Preferences window, hosted in a regular titled `Window` scene (see
 /// `TransmissionSwiftApp`).
 ///
 /// A `NavigationSplitView` — a Liquid Glass `List` sidebar on the left and the
 /// selected pane on the right. The sidebar's collapse toggle is removed
 /// (`.toolbar(removing: .sidebarToggle)` + ``columnVisibility == .all``) so the
-/// window reads like System Settings. The detail column shows a large,
-/// left-aligned pane title above the content (the `Settings` scene would
-/// otherwise show a centred "<App> Settings" title bar we can't remove).
+/// window reads like System Settings / Xcode's settings. The detail's toolbar
+/// item (pane title, leading-aligned) gives the window a unified toolbar, which
+/// lets the sidebar's glass card run the full height of the window with the
+/// traffic lights inside it — the `Settings` scene would otherwise show a
+/// centred "<App> Settings" title we can't remove.
 ///
 /// `pendingTab` is written by any "Server Settings…" call-site before opening
 /// the window. `onAppear` handles the fresh-open case; `onChange` handles the
@@ -34,20 +36,19 @@ struct PreferencesView: View {
             .toolbar(removing: .sidebarToggle)
             .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
         } detail: {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(selection.title)
-                    .font(.largeTitle.weight(.semibold))
-                    .padding(.horizontal, 20)
-                    .padding(.top, 14)
-                    .padding(.bottom, 10)
-
-                pane(for: selection)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            pane(for: selection)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .toolbar(removing: .title)
+                .toolbar {
+                    ToolbarItem(placement: .navigation) {
+                        Text(selection.title)
+                            .font(.title3.weight(.semibold))
+                            .padding(.leading, 20)
+                    }
+                    .sharedBackgroundVisibility(.hidden)
+                }
         }
         .navigationSplitViewStyle(.balanced)
-        .background(.windowBackground)
         .frame(minWidth: 660, minHeight: 480)
         .onAppear {
             if let tab = PrefsTab(rawValue: pendingTab) {

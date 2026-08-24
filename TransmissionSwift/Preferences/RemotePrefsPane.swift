@@ -36,7 +36,6 @@ struct RemotePrefsPane: View {
             .disabled(true)
         }
         .formStyle(.grouped)
-        .frame(minWidth: 460)
     }
 }
 

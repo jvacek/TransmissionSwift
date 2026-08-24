@@ -12,7 +12,6 @@ struct UpdatesPrefsPane: View {
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 420)
     }
 }
 
