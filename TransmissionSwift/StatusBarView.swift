@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import TransmissionCore
 
@@ -45,15 +46,6 @@ struct StatusBarView: View {
 
     private var leftCluster: some View {
         HStack(spacing: 10) {
-            Button {
-                Task { await store.toggleAlternativeSpeed() }
-            } label: {
-                Image(systemName: store.isAlternativeSpeedEnabled ? "tortoise.fill" : "tortoise")
-            }
-            .buttonStyle(.borderless)
-            .disabled(!store.actionsEnabled)
-            .help("Alternative speed limits")
-
             Text("\(store.torrents.count) torrents · \(activeCount) active")
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -63,12 +55,19 @@ struct StatusBarView: View {
 
     private var rightCluster: some View {
         HStack(spacing: 12) {
-            Label(ColumnFormatters.humanizedSpeed(totalDown), systemImage: "arrow.down")
-                .foregroundStyle(.blue)
-                .monospacedDigit()
-            Label(ColumnFormatters.humanizedSpeed(totalUp), systemImage: "arrow.up")
-                .foregroundStyle(.green)
-                .monospacedDigit()
+            speedLabel(total: totalDown, systemImage: "arrow.down", color: .blue, capKBps: effectiveDownCapKBps)
+            speedLabel(total: totalUp, systemImage: "arrow.up", color: .green, capKBps: effectiveUpCapKBps)
+            Button {
+                Task { await store.toggleAlternativeSpeed() }
+            } label: {
+                Image(systemName: store.isAlternativeSpeedEnabled ? "tortoise.fill" : "tortoise")
+            }
+            .buttonStyle(.borderless)
+            .disabled(!store.actionsEnabled)
+            .help("Alternative speed limits")
+            .foregroundStyle(
+                store.isAlternativeSpeedEnabled ? Color(NSColor.controlAccentColor) : Color(NSColor.secondaryLabelColor)
+            )
             if let freeSpace = store.freeSpace {
                 Divider().frame(height: 14)
                 Button {
@@ -84,6 +83,36 @@ struct StatusBarView: View {
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
+    }
+
+    private func speedLabel(total: Int64, systemImage: String, color: Color, capKBps: Int?) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: systemImage)
+                .foregroundStyle(color)
+            Text(ColumnFormatters.humanizedSpeed(total))
+                .foregroundStyle(color)
+            if let capKBps, capKBps > 0 {
+                Text("(\(ColumnFormatters.humanizedSpeed(Int64(capKBps) * 1024)))")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+        }
+        .monospacedDigit()
+    }
+
+    /// Effective per-torrent speed cap in KB/s, whichever scheme is active:
+    /// turtle limits win while `altSpeedEnabled`, otherwise the global limits.
+    private var effectiveDownCapKBps: Int? {
+        guard let s = store.sessionSettings else { return nil }
+        if s.altSpeedEnabled { return s.altSpeedDownKBps }
+        if s.downLimited { return s.downLimitKBps }
+        return nil
+    }
+    private var effectiveUpCapKBps: Int? {
+        guard let s = store.sessionSettings else { return nil }
+        if s.altSpeedEnabled { return s.altSpeedUpKBps }
+        if s.upLimited { return s.upLimitKBps }
+        return nil
     }
 
     private var activeCount: Int {
