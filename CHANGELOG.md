@@ -9,6 +9,7 @@ All notable changes to TransmissionSwift.
 - Add support for setting torrent priorities
 - Add support for setting file-level priorities
 - Add a "no label" section under labels
+- Fix a bug where if filtering on a torrent/label/folder, removing the last instance of aforementioned would get you stuck in a filter impossible to get out of.
 
 ## 0.4.0
 
