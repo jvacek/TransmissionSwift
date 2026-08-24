@@ -37,29 +37,52 @@ struct TagsInputField: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            chipRow
-            if fieldFocused && !displayedSuggestions.isEmpty {
+        fieldBox
+            .popover(
+                isPresented: Binding(
+                    get: { fieldFocused && !displayedSuggestions.isEmpty },
+                    set: { if !$0 { fieldFocused = false } }
+                ),
+                arrowEdge: .bottom
+            ) {
                 suggestionCard
             }
-        }
-        .onChange(of: draft) { _, _ in highlightedIndex = 0 }
-        .accessibilityElement(children: .contain)
+            .onChange(of: draft) { _, _ in highlightedIndex = 0 }
+            .accessibilityElement(children: .contain)
     }
 
-    private var chipRow: some View {
-        FlowLayout(spacing: 6) {
-            ForEach(tags, id: \.self) { tag in
-                TagChip(tag: tag, color: tagColors.color(for: tag)) { remove(tag) }
+    /// One bordered box holding the committed chips (if any) above a
+    /// full-width add-tag row. The text field must NOT live inside the
+    /// `FlowLayout` — the wrapping layout starves it of width, which truncated
+    /// the placeholder, wrapped the text on focus and hid the cursor.
+    private var fieldBox: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if !tags.isEmpty {
+                FlowLayout(spacing: 6) {
+                    ForEach(tags, id: \.self) { tag in
+                        TagChip(tag: tag, color: tagColors.color(for: tag)) { remove(tag) }
+                    }
+                }
             }
 
-            TextField("Add tag…", text: $draft)
-                .textFieldStyle(.plain)
-                .frame(width: 120)
-                .focused($fieldFocused)
-                .onSubmit(commit)
-                .onKeyPress(.upArrow) { moveHighlight(by: -1) }
-                .onKeyPress(.downArrow) { moveHighlight(by: 1) }
+            HStack(spacing: 6) {
+                Button {
+                    commit()
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundStyle(draftIsEmpty ? Color.secondary : Color.accentColor)
+                }
+                .buttonStyle(.plain)
+                .disabled(draftIsEmpty)
+                .accessibilityLabel("Add tag")
+
+                TextField("Add tag…", text: $draft)
+                    .textFieldStyle(.plain)
+                    .focused($fieldFocused)
+                    .onSubmit(commit)
+                    .onKeyPress(.upArrow) { moveHighlight(by: -1) }
+                    .onKeyPress(.downArrow) { moveHighlight(by: 1) }
+            }
         }
         .padding(6)
         .background(
@@ -70,13 +93,15 @@ struct TagsInputField: View {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .stroke(fieldFocused ? Color.accentColor.opacity(0.6) : Color.secondary.opacity(0.2))
         )
+        .contentShape(Rectangle())
         .onTapGesture { fieldFocused = true }
     }
 
-    /// Inline popover-style list of tags. When the draft is empty it lists ALL
-    /// existing tags (with a hint); as you type it narrows to prefix matches.
-    /// Each row shows the tag's colour dot; the highlighted row (↑/↓) is tinted
-    /// and shows a Return hint.
+    /// Suggestion list shown in a popover (floating above the sheet, ESC
+    /// dismisses it). When the draft is empty it lists ALL existing tags (with
+    /// a hint); as you type it narrows to prefix matches. Each row shows the
+    /// tag's colour dot; the highlighted row (↑/↓) is tinted and shows a
+    /// Return hint.
     private var suggestionCard: some View {
         let rows = displayedSuggestions
         let list = VStack(alignment: .leading, spacing: 0) {
@@ -126,17 +151,8 @@ struct TagsInputField: View {
                 list
             }
         }
-        .padding(4)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(.regularMaterial)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color.secondary.opacity(0.25))
-        )
-        .shadow(color: Color.black.opacity(0.12), radius: 6, y: 3)
-        .padding(.trailing, 24)
+        .padding(6)
+        .frame(width: 280)
     }
 
     // MARK: - Editing
