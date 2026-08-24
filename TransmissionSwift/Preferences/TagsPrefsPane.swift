@@ -27,7 +27,7 @@ struct TagsPrefsPane: View {
                 Section {
                     ForEach(tags, id: \.self) { name in
                         LabeledContent(name) {
-                            TagColorPickerButton(current: tagColors.color(for: name)) { color in
+                            TagColorRadioPicker(current: tagColors.color(for: name)) { color in
                                 tagColors.setColor(color, for: name)
                             }
                         }
@@ -41,27 +41,50 @@ struct TagsPrefsPane: View {
     }
 }
 
-/// A compact swatch button that opens the colour picker. Shows the current
-/// colour as a dot, or a muted placeholder when the tag is uncoloured.
-private struct TagColorPickerButton: View {
+/// A horizontal radio row of the seven tag colours. The active colour shows a
+/// tick; a trailing "no colour" dot (slashed circle) clears the assignment.
+private struct TagColorRadioPicker: View {
     let current: TagColor?
     let onPick: (TagColor?) -> Void
 
     var body: some View {
-        Menu {
-            TagColorPickerMenu(current: current, onPick: onPick)
-        } label: {
-            HStack(spacing: 6) {
-                TagColorDot(color: current)
-                Image(systemName: "chevron.down")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+        HStack(spacing: 10) {
+            ForEach(TagColor.allCases, id: \.self) { color in
+                Button {
+                    onPick(color)
+                } label: {
+                    Circle()
+                        .fill(color.color)
+                        .frame(width: 18, height: 18)
+                        .overlay {
+                            if current == color {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(color == .yellow ? Color.black : Color.white)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(color.displayName)
             }
+
+            Button {
+                onPick(nil)
+            } label: {
+                Circle()
+                    .stroke(Color.secondary, lineWidth: 1.5)
+                    .frame(width: 18, height: 18)
+                    .overlay {
+                        if current == nil {
+                            Image(systemName: "slash")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("No colour")
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .accessibilityLabel("Tag colour")
     }
 }
 
