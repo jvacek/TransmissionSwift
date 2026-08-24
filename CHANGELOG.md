@@ -8,10 +8,11 @@ All notable changes to TransmissionSwift.
 
 - Redesign of the settings page
 - Implement RPC calls for controlling the daemon's config (via settings)
-  - Port checking
+  - Speed controls
+  - Seeding controld
+  - Networking + Port checking
   - Blocklist Updating
-  - Speed limits
-  - preview f
+- Big reorg in the source
 
 ## 0.4.1
 
