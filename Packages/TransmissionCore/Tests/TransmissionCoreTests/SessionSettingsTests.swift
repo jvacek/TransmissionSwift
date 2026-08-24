@@ -56,7 +56,7 @@ struct SessionSettingsTests {
 struct SessionSettingsPatchTests {
     @Test("diff only includes changed fields")
     func diff() {
-        var before = SessionSettings.sample
+        let before = SessionSettings.sample
         var updated = before
         updated.downLimitKBps = 2000
         updated.altSpeedEnabled = false
@@ -79,7 +79,7 @@ struct SessionSettingsPatchTests {
     @Test("apply populates only non-nil fields onto SessionSetArguments")
     func applyMapsToArguments() throws {
         var args = SessionSetArguments()
-        var before = SessionSettings.sample
+        let before = SessionSettings.sample
         var updated = before
         updated.peerPort = 9090
         updated.encryption = .tolerated
