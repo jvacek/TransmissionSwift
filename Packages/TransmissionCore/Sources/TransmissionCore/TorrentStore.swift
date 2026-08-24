@@ -51,6 +51,7 @@ public final class TorrentStore {
                 }
             }
             rebuildFacetsIfChanged()
+            pruneSidebarFiltersIfNeeded()
             rebuildVisibleTorrents()
         }
     }
@@ -310,6 +311,35 @@ public final class TorrentStore {
         guard signature != facetSignature else { return }
         facetSignature = signature
         facets = FilterFacets(torrents: torrents, downloadDirectory: downloadDirectory)
+    }
+
+    /// Drop sidebar filters that reference label / folder / tracker facets that
+    /// no longer exist (their last torrent was removed or relabelled). Without
+    /// this, deleting the last tagged torrent leaves its label filter applied —
+    /// and since the whole Labels section disappears, there's no way to clear
+    /// it. Status filters are always valid. Skipped while the set is empty so a
+    /// transient empty snapshot (reconnect) doesn't wipe the filters.
+    private func pruneSidebarFiltersIfNeeded() {
+        guard !torrents.isEmpty else { return }
+        let labelNames = Set(facets.labels.map(\.name))
+        let folderNames = Set(facets.folders.map(\.name))
+        let trackerHosts = Set(facets.trackers.map(\.name))
+        let labelsSectionVisible = !labelNames.isEmpty
+
+        let pruned = selectedSidebarFilters.filter { filter in
+            switch filter {
+            case .status: return true
+            case .tracker(let host): return trackerHosts.contains(host)
+            case .folder(let name): return folderNames.contains(name)
+            case .label(let name):
+                // "No label" only exists while the section is visible.
+                if name == LabelFilter.noLabelName { return labelsSectionVisible }
+                return labelNames.contains(name)
+            }
+        }
+        guard pruned != selectedSidebarFilters else { return }
+        selectedSidebarFilters = pruned
+        filterSelection = TorrentFilterSelection(sidebarFilters: pruned)
     }
 
     private func normalizedSidebarFilters(

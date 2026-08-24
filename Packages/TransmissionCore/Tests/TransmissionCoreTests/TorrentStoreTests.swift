@@ -502,6 +502,92 @@ struct TorrentStoreTests {
         #expect(store.visibleTorrents.allSatisfy { $0.primaryTracker == "releases.ubuntu.com" })
         #expect(store.visibleTorrents.allSatisfy { $0.labels.contains("Linux") })
     }
+
+    @Test("a label filter is cleared when its last labelled torrent is removed")
+    @MainActor
+    func labelFilterPruned() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+
+        store.toggleLabelFilter("Linux")
+        #expect(store.selectedSidebarFilters.contains(.label(name: "Linux")))
+
+        let linuxIDs = store.torrents.filter { $0.labels.contains("Linux") }.map(\.id)
+        await store.remove(linuxIDs)
+        await waitFor { !store.torrents.contains { $0.labels.contains("Linux") } }
+
+        #expect(!store.selectedSidebarFilters.contains(.label(name: "Linux")))
+        #expect(store.filterSelection.labels.isEmpty)
+    }
+
+    @Test("the no-label filter is cleared when the last labelled torrent is removed")
+    @MainActor
+    func noLabelFilterPruned() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+
+        store.toggleLabelFilter(LabelFilter.noLabelName)
+        #expect(store.selectedSidebarFilters.contains(.label(name: LabelFilter.noLabelName)))
+
+        let labelledIDs = store.torrents.filter { !$0.labels.isEmpty }.map(\.id)
+        await store.remove(labelledIDs)
+        await waitFor { store.facets.labels.isEmpty }
+
+        #expect(!store.selectedSidebarFilters.contains(.label(name: LabelFilter.noLabelName)))
+    }
+
+    @Test("a folder filter is cleared when its last torrent is removed")
+    @MainActor
+    func folderFilterPruned() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+
+        store.toggleFolderFilter("Linux ISOs")
+        #expect(store.selectedSidebarFilters.contains(.folder(name: "Linux ISOs")))
+
+        let ids = store.torrents.filter { $0.downloadFolder == "Linux ISOs" }.map(\.id)
+        await store.remove(ids)
+        await waitFor { !store.torrents.contains { $0.downloadFolder == "Linux ISOs" } }
+
+        #expect(!store.selectedSidebarFilters.contains(.folder(name: "Linux ISOs")))
+        #expect(store.filterSelection.folders.isEmpty)
+    }
+
+    @Test("a tracker filter is cleared when its last torrent is removed")
+    @MainActor
+    func trackerFilterPruned() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+
+        store.toggleTrackerFilter("releases.ubuntu.com")
+        #expect(store.selectedSidebarFilters.contains(.tracker(host: "releases.ubuntu.com")))
+
+        let ids = store.torrents.filter { $0.primaryTracker == "releases.ubuntu.com" }.map(\.id)
+        await store.remove(ids)
+        await waitFor { !store.torrents.contains { $0.primaryTracker == "releases.ubuntu.com" } }
+
+        #expect(!store.selectedSidebarFilters.contains(.tracker(host: "releases.ubuntu.com")))
+        #expect(store.filterSelection.trackers.isEmpty)
+    }
+
+    @Test("an unrelated facet filter survives removal of other torrents")
+    @MainActor
+    func unrelatedFilterSurvives() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+
+        store.toggleLabelFilter("Linux")
+        let mediaIDs = store.torrents.filter { $0.labels.contains("Media") }.map(\.id)
+        await store.remove(mediaIDs)
+        await waitFor { !store.torrents.contains { $0.labels.contains("Media") } }
+
+        #expect(store.selectedSidebarFilters.contains(.label(name: "Linux")))
+    }
 }
 
 @Suite("Sorting Performance")
