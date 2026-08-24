@@ -40,7 +40,7 @@ struct AddTorrentSheet: View {
             }
             // Clear the floating glass header so content starts below it,
             // then scrolls underneath its blur layer.
-            .padding(.top, 68)
+            .padding(.top, 45)
             .padding([.horizontal, .bottom], 20)
         }
         .overlay(alignment: .top) { headerBar }
