@@ -65,19 +65,6 @@ struct MainToolbar: ToolbarContent {
         // Group 3 — view toggles
         ToolbarItem(placement: .primaryAction) {
             Button {
-                Task { await store.toggleAlternativeSpeed() }
-            } label: {
-                Label(
-                    "Alternative Speed Limits",
-                    systemImage: store.isAlternativeSpeedEnabled ? "tortoise.fill" : "tortoise"
-                )
-            }
-            .disabled(!store.actionsEnabled)
-            .help("Alternative speed limits")
-            .accessibilityIdentifier("toolbar.altSpeed")
-        }
-        ToolbarItem(placement: .primaryAction) {
-            Button {
                 store.inspectorVisible.toggle()
             } label: {
                 Label("Toggle Inspector", systemImage: "sidebar.right")
