@@ -164,6 +164,8 @@ struct AddTorrentSheet: View {
                     }
                     Spacer()
                     Button("Choose…") { showFileImporter = true }
+                        .buttonStyle(.glass)
+                        .buttonBorderShape(.capsule)
                 }
             )
         }
@@ -240,40 +242,40 @@ struct AddTorrentSheet: View {
         .padding(.vertical, 10)
     }
 
-    /// macOS segmented pickers drop `Label` icons, so this is hand-rolled to
-    /// keep the priority glyphs visible. Mirrors the glyphs used elsewhere
-    /// (`TorrentPriority.systemImage`).
+    /// Priority as a Liquid Glass segmented control matching `modePicker`:
+    /// one interactive glass capsule, with an accent pill that slides between
+    /// segments (`matchedGeometryEffect`). Keeps the priority glyphs visible —
+    /// macOS segmented pickers drop `Label` icons.
     private var prioritySegments: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 0) {
             ForEach([TorrentPriority.high, .normal, .low], id: \.self) { level in
                 let isSelected = priority == level
                 Button {
-                    priority = level
+                    withAnimation(.smooth(duration: 0.35)) { priority = level }
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: level.systemImage)
                         Text(level.displayLabel)
                     }
                     .font(.callout)
-                    .foregroundStyle(
-                        isSelected ? Color.white : level.displayColor
-                    )
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(
-                                isSelected
-                                    ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(Color.secondary.opacity(0.07))
-                            )
-                    )
-                    .contentShape(Rectangle())
+                    .foregroundStyle(isSelected ? Color.white : level.displayColor)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background {
+                        if isSelected {
+                            Capsule()
+                                .fill(Color.accentColor)
+                                .matchedGeometryEffect(id: "prioritySelection", in: selectionNamespace)
+                        }
+                    }
+                    .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Priority \(level.displayLabel)")
                 .accessibilityAddTraits(isSelected ? [.isSelected] : [])
             }
         }
+        .glassEffect(.regular.interactive(), in: .capsule)
     }
 
     /// Header in the style of a modern modal: glass close button left, big
