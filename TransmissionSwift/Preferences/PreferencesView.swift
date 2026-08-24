@@ -5,32 +5,49 @@ import TransmissionCore
 /// written by menu call-sites and consumed by `PreferencesView` on appear.
 private let prefsPendingTabKey = "prefsPendingNavTab"
 
-/// The Preferences window, registered as a `Settings` scene.
+/// The Preferences window, hosted in a hidden-title-bar `Window` scene (see
+/// `TransmissionSwiftApp`).
 ///
-/// Uses the standard, off-the-shelf macOS 26 appearance: a `TabView` with
-/// `.tabViewStyle(.sidebarAdaptable)`, which the system renders as a Liquid
-/// Glass Settings window — a detached, hovering sidebar of categories on the
-/// left and the selected pane on the right. The per-category title is the
-/// sidebar row (the window title follows the selection). The sidebar's default
-/// collapse toggle is removed via `.toolbar(removing: .sidebarToggle)`.
+/// A `NavigationSplitView` — a Liquid Glass `List` sidebar on the left and the
+/// selected pane on the right. The sidebar's collapse toggle is removed
+/// (`.toolbar(removing: .sidebarToggle)` + ``columnVisibility == .all``) so the
+/// window reads like System Settings. The detail column shows a large,
+/// left-aligned pane title above the content (the `Settings` scene would
+/// otherwise show a centred "<App> Settings" title bar we can't remove).
 ///
-/// `pendingTab` is written by any "Server Settings…" call-site before invoking
-/// `openSettings()` / `showSettingsWindow:`. `onAppear` handles the fresh-open
-/// case; `onChange` handles the already-visible case.
+/// `pendingTab` is written by any "Server Settings…" call-site before opening
+/// the window. `onAppear` handles the fresh-open case; `onChange` handles the
+/// already-visible case.
 struct PreferencesView: View {
     @State private var selection: PrefsTab = .general
     @AppStorage(prefsPendingTabKey) private var pendingTab: String = ""
 
     var body: some View {
-        TabView(selection: $selection) {
-            ForEach(PrefsTab.allCases) { tab in
-                Tab(tab.title, systemImage: tab.systemImage, value: tab) {
-                    pane(for: tab)
+        NavigationSplitView(columnVisibility: .constant(.all)) {
+            List(selection: $selection) {
+                ForEach(PrefsTab.allCases) { tab in
+                    Label(tab.title, systemImage: tab.systemImage)
+                        .tag(tab)
                 }
             }
+            .listStyle(.sidebar)
+            .toolbar(removing: .sidebarToggle)
+            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
+        } detail: {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(selection.title)
+                    .font(.largeTitle.weight(.semibold))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 14)
+                    .padding(.bottom, 10)
+
+                pane(for: selection)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .tabViewStyle(.sidebarAdaptable)
-        .toolbar(removing: .sidebarToggle)
+        .navigationSplitViewStyle(.balanced)
+        .background(.windowBackground)
         .frame(minWidth: 660, minHeight: 480)
         .onAppear {
             if let tab = PrefsTab(rawValue: pendingTab) {

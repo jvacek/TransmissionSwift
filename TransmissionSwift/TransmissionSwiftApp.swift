@@ -116,34 +116,8 @@ struct TransmissionSwiftApp: App {
         }
         .commands {
             AboutCommands(updateService: updateService)
-            CommandMenu("Server") {
-                if profileStore.profiles.isEmpty {
-                    Text("No servers configured")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(Array(profileStore.profiles.enumerated()), id: \.element.id) {
-                        index, profile in
-                        Toggle(
-                            isOn: Binding(
-                                get: { profileStore.activeProfile?.id == profile.id },
-                                set: { on in if on { try? profileStore.setActive(profile.id) } }
-                            )
-                        ) {
-                            Text(profile.label)
-                        }
-                        .keyboardShortcut(
-                            index < 9
-                                ? KeyEquivalent(Character(String(index + 1))) : KeyEquivalent("0"),
-                            modifiers: .command
-                        )
-                    }
-                }
-                Divider()
-                Button("Server Settings…") {
-                    UserDefaults.standard.set(PrefsTab.servers.rawValue, forKey: "prefsPendingNavTab")
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                }
-            }
+            PreferencesCommands()
+            ServerCommands(profileStore: profileStore)
         }
 
         Window("About TransmissionSwift", id: "about") {
@@ -152,13 +126,20 @@ struct TransmissionSwiftApp: App {
         .windowResizability(.contentSize)
         .defaultPosition(.center)
 
-        Settings {
+        // A plain Window (not the Settings scene) so `.windowStyle(.hiddenTitleBar)`
+        // can hide the title bar. On macOS 26 the Settings scene always renders an
+        // "<App name> Settings" centered title bar that cannot be removed; hosting
+        // PreferencesView in a hidden-title-bar window matches the Liquid Glass
+        // look we preview. The app menu item is wired manually (PreferencesCommands).
+        Window("Preferences", id: "preferences") {
             PreferencesView()
                 .environment(profileStore)
                 .environment(faviconStore)
                 .environment(torrentStore)
                 .environment(tagColorStore)
         }
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 700, height: 520)
     }
 }
 
@@ -175,6 +156,61 @@ private struct AboutCommands: Commands {
             }
             Button("Check for Updates…") {
                 updateService.checkForUpdates(nil)
+            }
+        }
+    }
+}
+
+// MARK: - Preferences commands
+
+/// The Preferences window lives in a plain `Window` scene (so we can hide the
+/// title bar), so we re-add the app-menu Settings item manually.
+private struct PreferencesCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            Button("Preferences…") {
+                openWindow(id: "preferences")
+            }
+            .keyboardShortcut(",", modifiers: .command)
+        }
+    }
+}
+
+// MARK: - Server commands
+
+private struct ServerCommands: Commands {
+    let profileStore: ServerProfileStore
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandMenu("Server") {
+            if profileStore.profiles.isEmpty {
+                Text("No servers configured")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(Array(profileStore.profiles.enumerated()), id: \.element.id) {
+                    index, profile in
+                    Toggle(
+                        isOn: Binding(
+                            get: { profileStore.activeProfile?.id == profile.id },
+                            set: { on in if on { try? profileStore.setActive(profile.id) } }
+                        )
+                    ) {
+                        Text(profile.label)
+                    }
+                    .keyboardShortcut(
+                        index < 9
+                            ? KeyEquivalent(Character(String(index + 1))) : KeyEquivalent("0"),
+                        modifiers: .command
+                    )
+                }
+            }
+            Divider()
+            Button("Server Settings…") {
+                UserDefaults.standard.set(PrefsTab.servers.rawValue, forKey: "prefsPendingNavTab")
+                openWindow(id: "preferences")
             }
         }
     }
