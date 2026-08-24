@@ -633,6 +633,7 @@ struct RPCTorrentServiceTests {
             TorrentAddResponse(torrentAdded: nil, torrentDuplicate: nil)
         }
         func sessionSet(_ args: SessionSetArguments) async throws(TransmissionError) {}
+        func portTest() async throws(TransmissionError) -> Bool { true }
     }
 
     @Test("cancelling the consumer for-await stops the poll loop")
@@ -739,6 +740,7 @@ struct RPCSetLabelsTests {
         }
 
         func sessionSet(_ args: SessionSetArguments) async throws(TransmissionError) {}
+        func portTest() async throws(TransmissionError) -> Bool { true }
     }
 
     @Test("sends labels via torrent-set and yields a post-mutation refresh")

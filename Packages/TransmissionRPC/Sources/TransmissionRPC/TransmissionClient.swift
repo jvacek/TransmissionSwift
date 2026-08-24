@@ -12,4 +12,8 @@ public protocol TransmissionClient: Sendable {
     func torrentSet(_ args: TorrentSetArguments) async throws(TransmissionError)
     func torrentAdd(_ args: TorrentAddArguments) async throws(TransmissionError) -> TorrentAddResponse
     func sessionSet(_ args: SessionSetArguments) async throws(TransmissionError)
+
+    /// Whether the peer listening port is reachable from the outside
+    /// (`port-test` returns `port-is-open`).
+    func portTest() async throws(TransmissionError) -> Bool
 }

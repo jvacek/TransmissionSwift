@@ -249,6 +249,10 @@ public actor RPCTorrentService: TorrentService {
         }
     }
 
+    public func isPortOpen() async -> Bool? {
+        try? await client.portTest()
+    }
+
     public func inspectorData(for id: Torrent.ID) async throws -> Torrent {
         let fields = TorrentGetResponse.listFields + TorrentGetResponse.inspectorFields
         let resp = try await client.torrentGet(fields: fields, ids: [id])

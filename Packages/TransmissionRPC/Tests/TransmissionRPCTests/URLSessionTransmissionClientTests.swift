@@ -41,6 +41,19 @@ struct URLSessionTransmissionClientTests {
         #expect(info.rpcVersionMinimum == 14)
     }
 
+    @Test("portTest returns the port-is-open boolean")
+    func portTest() async throws {
+        let host = "port-test.test"
+        let fixture = try #require(
+            #"{"result":"success","arguments":{"port-is-open":true}}"#.data(using: .utf8))
+        StubURLProtocol.register(host: host) { request in
+            (makeHTTPResponse(url: request.url!, statusCode: 200), fixture)
+        }
+
+        let isOpen = try await makeClient(host: host).portTest()
+        #expect(isOpen == true)
+    }
+
     @Test("sessionGet retries once on 409, echoing the offered session ID")
     func handshake() async throws {
         let host = "handshake.test"

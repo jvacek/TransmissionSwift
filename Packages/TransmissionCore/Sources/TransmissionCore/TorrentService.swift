@@ -83,6 +83,11 @@ public protocol TorrentService: Sendable {
     /// snapshot services; `RPCTorrentService` maps the patch and sends it.
     func applySessionSettings(_ patch: SessionSettingsPatch) async throws
 
+    /// Whether the daemon's peer port is reachable from the outside (`port-test`).
+    /// Returns nil when the service can't answer (read-only/snapshot services or
+    /// a transient failure). Default nil.
+    func isPortOpen() async -> Bool?
+
     /// Add a new torrent. Exactly one of `fileURL` / `magnetURL` should be
     /// non-nil. Maps to `torrent-add` in slice 7.
     func add(
@@ -115,6 +120,7 @@ extension TorrentService {
     public func downloadDirectory() async -> String? { nil }
     public func sessionSettings() async -> SessionSettings? { nil }
     public func applySessionSettings(_ patch: SessionSettingsPatch) async throws {}
+    public func isPortOpen() async -> Bool? { nil }
     public func captureRawSnapshot() async throws -> SnapshotFile {
         throw SnapshotError.captureUnsupported
     }

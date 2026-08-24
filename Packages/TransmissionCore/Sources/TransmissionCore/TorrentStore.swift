@@ -63,6 +63,9 @@ public final class TorrentStore {
     /// daemon's values, so the Speed/Network panes bind here rather than to
     /// UserDefaults.
     public private(set) var sessionSettings: SessionSettings? = nil
+    /// Result of the last `port-test`: nil means "not tested / unknown", true
+    /// means the peer port is reachable, false means it is not.
+    public private(set) var portIsOpen: Bool? = nil
     /// Non-nil when a user action failed. Cleared by the view when the alert is dismissed.
     public var lastActionError: ActionError?
     /// Free space (bytes) on the daemon's download directory. Nil until the first poll completes.
@@ -455,12 +458,22 @@ public final class TorrentStore {
         }
     }
 
+    /// Ask the daemon whether its peer port is reachable from the outside
+    /// (`port-test`). No-ops when disconnected or the service can't answer.
+    public func testPort() async {
+        guard isConnected else { return }
+        guard let result = await service.isPortOpen() else {
+            lastActionError = .failed(message: "The connected server couldn't report its port status.")
+            return
+        }
+        portIsOpen = result
+    }
+
     public func openAddSheet(magnetMode: Bool = false, prefilledURL: URL? = nil) {
         addTorrentStartInMagnetMode = magnetMode
         addTorrentPrefilledURL = prefilledURL
         showAddTorrent = true
     }
-
     public func openEditLabels(for ids: [Torrent.ID]) {
         guard actionsEnabled, supportsLabels, !ids.isEmpty else { return }
         editLabelsTargetIDs = ids

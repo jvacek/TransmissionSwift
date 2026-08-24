@@ -186,6 +186,8 @@ public actor MockTorrentService: TorrentService {
         if let updated { sessionSettingsValue = updated }
     }
 
+    public func isPortOpen() async -> Bool? { true }
+
     /// Applies a patch as a full struct replacement, for cases where a store
     /// holds the current value and the patch carries only the changed fields.
     private static func updating(_ base: SessionSettings, with patch: SessionSettingsPatch)

@@ -64,6 +64,8 @@ public actor SnapshotTorrentService: TorrentService {
         throw SnapshotError.replayReadOnly
     }
 
+    public func isPortOpen() async -> Bool? { nil }
+
     // Mutations are unreachable (supportsActions == false, so the UI disables
     // them); throwing guards against accidental invocation from code that
     // doesn't consult `supportsActions`.

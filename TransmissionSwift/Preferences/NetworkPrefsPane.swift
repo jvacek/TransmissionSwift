@@ -18,8 +18,13 @@ struct NetworkPrefsPane: View {
                     }
                     Toggle("Pick random port on launch", isOn: boolBinding(\.peerPortRandomOnStart))
                     Toggle("Enable UPnP/NAT-PMP port forwarding", isOn: boolBinding(\.portForwardingEnabled))
+                    LabeledContent("Port status") {
+                        portStatusRow
+                    }
                 } header: {
                     Text("Connections")
+                } footer: {
+                    Text("Tests whether the listening port is reachable from the outside.")
                 }
 
                 Section {
@@ -79,6 +84,29 @@ struct NetworkPrefsPane: View {
             .frame(minWidth: 460)
         } else {
             SessionNotConnectedView()
+        }
+    }
+
+    private var portStatusRow: some View {
+        HStack {
+            switch store.portIsOpen {
+            case .some(true):
+                Label("Open", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            case .some(false):
+                Label("Closed", systemImage: "xmark.circle.fill")
+                    .foregroundStyle(.red)
+            case .none:
+                Text("Not tested")
+                    .foregroundStyle(.secondary)
+            }
+            Button {
+                Task { await store.testPort() }
+            } label: {
+                Label("Test", systemImage: "arrow.clockwise")
+                    .labelStyle(.titleAndIcon)
+            }
+            .controlSize(.small)
         }
     }
 

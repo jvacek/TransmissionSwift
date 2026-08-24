@@ -74,6 +74,11 @@ public actor URLSessionTransmissionClient: TransmissionClient {
         try await sendAction(method: "session-set", arguments: args)
     }
 
+    public func portTest() async throws(TransmissionError) -> Bool {
+        let reply: PortTestReply = try await send(method: "port-test", arguments: EmptyArguments())
+        return reply.portIsOpen
+    }
+
     // MARK: - Request plumbing
 
     private struct RPCRequest<Arguments: Encodable>: Encodable {
@@ -92,6 +97,15 @@ public actor URLSessionTransmissionClient: TransmissionClient {
 
     private struct EmptyArguments: Encodable {}
     private struct VoidReply: Decodable {}
+
+    /// `port-test` response: `{"port-is-open": bool}`.
+    private struct PortTestReply: Decodable {
+        let portIsOpen: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case portIsOpen = "port-is-open"
+        }
+    }
 
     /// Sends a mutation RPC that returns no useful arguments — only checks for "success".
     private func sendAction<Arguments: Encodable>(
