@@ -259,21 +259,36 @@ struct ServerProfileForm: View {
         Form {
             Section("Connection") {
                 TextField("Label", text: $label, prompt: Text("Home NAS"))
-                TextField("Host", text: $host)
-                TextField("Port", value: $port, format: .number.grouping(.never))
-                TextField("RPC Path", text: $rpcPath)
+                LabeledContent("Host") {
+                    TextField("", text: $host)
+                        .monospaced()
+                }
+                LabeledContent("Port") {
+                    TextField("", value: $port, format: .number.grouping(.never))
+                        .monospaced()
+                }
+                LabeledContent("RPC Path") {
+                    TextField("", text: $rpcPath)
+                        .monospaced()
+                }
                 Toggle("Use HTTPS", isOn: $useHTTPS)
             }
 
             Section("Authentication") {
-                TextField("Username", text: $username, prompt: Text("optional"))
-                SecureField(
-                    "Password",
-                    text: $password,
-                    prompt: Text(
-                        hasStoredPassword && password.isEmpty ? "Leave blank to keep" : "optional"
+                LabeledContent("Username") {
+                    TextField("", text: $username, prompt: Text("optional"))
+                        .monospaced()
+                }
+                LabeledContent("Password") {
+                    SecureField(
+                        "",
+                        text: $password,
+                        prompt: Text(
+                            hasStoredPassword && password.isEmpty ? "Leave blank to keep" : "optional"
+                        )
                     )
-                )
+                    .monospaced()
+                }
             }
 
             Section("File Mappings") {

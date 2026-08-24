@@ -22,13 +22,16 @@ struct TurtleTimeRow: View {
     @Binding var end: Int
 
     var body: some View {
-        HStack {
+        HStack(spacing: 4) {
             Text("Active window")
             Spacer()
-            TimeField(minutes: $begin)
-            Text("–").foregroundStyle(.secondary)
-            TimeField(minutes: $end)
+            HStack(spacing: 2) {
+                TimeField(minutes: $begin)
+                Text("–").foregroundStyle(.secondary)
+                TimeField(minutes: $end)
+            }
         }
+        .frame(maxWidth: .infinity)
     }
 }
 

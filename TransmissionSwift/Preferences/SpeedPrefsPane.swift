@@ -47,13 +47,14 @@ struct SpeedPrefsPane: View {
     }
 
     private func limitRow(label: String, keyPath: WritableKeyPath<SessionSettings, Int>) -> some View {
-        Stepper(value: intBinding(keyPath), in: 1...100_000, step: 10) {
-            HStack {
-                Text(label)
+        LabeledContent(label) {
+            HStack(spacing: 4) {
                 TextField("", value: intBinding(keyPath), format: .number)
                     .frame(width: 60)
                     .multilineTextAlignment(.trailing)
                 Text("KB/s").foregroundStyle(.secondary)
+                Stepper("", value: intBinding(keyPath), in: 1...100_000, step: 10)
+                    .labelsHidden()
             }
         }
     }

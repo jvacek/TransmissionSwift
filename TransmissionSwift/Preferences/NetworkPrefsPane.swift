@@ -35,7 +35,7 @@ struct NetworkPrefsPane: View {
                             Text("Allow unencrypted").tag(EncryptionChoice.tolerated)
                         }
                         .labelsHidden()
-                        .frame(maxWidth: 200)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                     }
                     Toggle("Enable blocklist", isOn: boolBinding(\.blocklistEnabled))
                     if store.effectiveSessionSettings.blocklistEnabled {
@@ -66,13 +66,14 @@ struct NetworkPrefsPane: View {
                     }
                     Toggle("Treat idle torrents as stalled", isOn: boolBinding(\.queueStalledEnabled))
                     if store.effectiveSessionSettings.queueStalledEnabled {
-                        Stepper(value: intBinding(\.queueStalledMinutes), in: 1...1440, step: 5) {
-                            HStack {
-                                Text("Stalled after")
+                        LabeledContent("Stalled after") {
+                            HStack(spacing: 4) {
                                 TextField("", value: intBinding(\.queueStalledMinutes), format: .number)
                                     .frame(width: 60)
                                     .multilineTextAlignment(.trailing)
                                 Text("min").foregroundStyle(.secondary)
+                                Stepper("", value: intBinding(\.queueStalledMinutes), in: 1...1440, step: 5)
+                                    .labelsHidden()
                             }
                         }
                     }
@@ -110,12 +111,13 @@ struct NetworkPrefsPane: View {
     }
 
     private func queueSizeRow(label: String, keyPath: WritableKeyPath<SessionSettings, Int>) -> some View {
-        Stepper(value: intBinding(keyPath), in: 1...100, step: 1) {
-            HStack {
-                Text(label)
+        LabeledContent(label) {
+            HStack(spacing: 4) {
                 TextField("", value: intBinding(keyPath), format: .number)
                     .frame(width: 60)
                     .multilineTextAlignment(.trailing)
+                Stepper("", value: intBinding(keyPath), in: 1...100, step: 1)
+                    .labelsHidden()
             }
         }
     }
@@ -151,7 +153,7 @@ struct NetworkPrefsPane: View {
 #Preview("Network — Connected") {
     NetworkPrefsPane()
         .environment(prefsPreviewStore)
-        .frame(width: 480, height: 640)
+        .frame(width: 480, height: 1000)
 }
 
 #Preview("Session — Not Connected") {
