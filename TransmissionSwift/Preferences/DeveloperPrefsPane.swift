@@ -166,3 +166,10 @@ struct DeveloperPrefsPane: View {
         return "snapshot-\(formatter.string(from: Date())).json"
     }
 }
+
+#Preview("Developer — Connected") {
+    DeveloperPrefsPane()
+        .environment(prefsPreviewStore)
+        .environment(TagColorStore())
+        .frame(minWidth: 620, minHeight: 520)
+}

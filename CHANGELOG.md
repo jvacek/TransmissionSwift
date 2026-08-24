@@ -2,6 +2,17 @@
 
 All notable changes to TransmissionSwift.
 
+## 0.5.0
+
+24th August 2026
+
+- Redesign of the settings page
+- Implement RPC calls for controlling the daemon's config (via settings)
+  - Port checking
+  - Blocklist Updating
+  - Speed limits
+  - preview f
+
 ## 0.4.1
 
 24th August 2026

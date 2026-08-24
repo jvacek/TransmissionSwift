@@ -148,3 +148,15 @@ struct NetworkPrefsPane: View {
         store.binding(keyPath: keyPath)
     }
 }
+
+#Preview("Network — Connected") {
+    NetworkPrefsPane()
+        .environment(prefsPreviewStore)
+        .frame(width: 480, height: 640)
+}
+
+#Preview("Session — Not Connected") {
+    NetworkPrefsPane()
+        .environment(prefsDisconnectedPreviewStore)
+        .frame(width: 480, height: 360)
+}

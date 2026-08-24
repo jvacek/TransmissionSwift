@@ -39,3 +39,8 @@ struct RemotePrefsPane: View {
         .frame(minWidth: 460)
     }
 }
+
+#Preview("Remote") {
+    RemotePrefsPane()
+        .frame(width: 480, height: 400)
+}

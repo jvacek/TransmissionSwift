@@ -15,3 +15,8 @@ struct UpdatesPrefsPane: View {
         .frame(minWidth: 420)
     }
 }
+
+#Preview("Updates") {
+    UpdatesPrefsPane()
+        .frame(width: 480, height: 240)
+}

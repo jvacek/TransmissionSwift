@@ -126,3 +126,36 @@ extension TorrentStore {
         )
     }
 }
+
+// MARK: - Preview support
+
+/// Shared stores for the per-pane `#Preview`s (each pane's preview is defined in
+/// that pane's own file). Internal so any preferences file can reference them.
+/// Previews run on the main actor, so building the `@MainActor` stores at file
+/// scope is safe. The connected store backs a mock whose `sessionSettings` is
+/// `SessionSettings.sample`, so the connected previews render populated forms.
+
+let prefsPreviewStore: TorrentStore = {
+    let store = TorrentStore(service: MockTorrentService())
+    store.simulateConnection(.connected)
+    return store
+}()
+
+let prefsDisconnectedPreviewStore: TorrentStore = {
+    let store = TorrentStore(service: MockTorrentService())
+    store.simulateConnection(.disconnected(reason: "offline"))
+    // The store's init task auto-connects when the mock stream yields; pausing
+    // polling before the task runs keeps it in the disconnected state.
+    store.pausePolling()
+    return store
+}()
+
+let prefsPreviewProfileStore: ServerProfileStore = {
+    let store = ServerProfileStore(
+        fileURL: FileManager.default.temporaryDirectory
+            .appendingPathComponent("servers-preview-\(UUID().uuidString).json"))
+    try? store.add(ServerProfile(label: "Home NAS", host: "192.168.1.2", port: 9091))
+    try? store.add(ServerProfile(label: "Seedbox", host: "seedbox.example.com", port: 9091))
+    try? store.setActive(store.profiles.first!.id)
+    return store
+}()

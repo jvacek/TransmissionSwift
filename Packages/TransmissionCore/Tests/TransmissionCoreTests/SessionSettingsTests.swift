@@ -126,6 +126,12 @@ struct MockSessionSettingsTests {
         #expect(settings?.altSpeedEnabled == true)
         #expect(await service.isAlternativeSpeedEnabled() == true)
     }
+
+    @Test("mock reports the port as reachable")
+    func portOpen() async throws {
+        let service = MockTorrentService()
+        #expect(await service.isPortOpen() == true)
+    }
 }
 
 @Suite("TorrentStore.isConnected")

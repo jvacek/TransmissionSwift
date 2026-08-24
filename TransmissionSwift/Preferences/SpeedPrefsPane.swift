@@ -67,3 +67,9 @@ struct SpeedPrefsPane: View {
         store.binding(keyPath: keyPath)
     }
 }
+
+#Preview("Speed — Connected") {
+    SpeedPrefsPane()
+        .environment(prefsPreviewStore)
+        .frame(width: 480, height: 540)
+}

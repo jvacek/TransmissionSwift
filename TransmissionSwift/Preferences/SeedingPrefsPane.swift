@@ -59,3 +59,9 @@ struct SeedingPrefsPane: View {
         store.binding(keyPath: keyPath)
     }
 }
+
+#Preview("Seeding — Connected") {
+    SeedingPrefsPane()
+        .environment(prefsPreviewStore)
+        .frame(width: 480, height: 320)
+}

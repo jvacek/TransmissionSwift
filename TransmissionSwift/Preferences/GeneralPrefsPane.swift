@@ -63,3 +63,9 @@ struct GeneralPrefsPane: View {
         .frame(minWidth: 420)
     }
 }
+
+#Preview("General") {
+    GeneralPrefsPane()
+        .environment(FaviconStore())
+        .frame(width: 480, height: 480)
+}

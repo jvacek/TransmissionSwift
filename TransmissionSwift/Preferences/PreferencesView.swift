@@ -97,3 +97,12 @@ enum PrefsTab: String, Hashable, CaseIterable, Identifiable {
         }
     }
 }
+
+#Preview("Preferences — Connected") {
+    PreferencesView()
+        .environment(prefsPreviewProfileStore)
+        .environment(prefsPreviewStore)
+        .environment(FaviconStore())
+        .environment(TagColorStore())
+        .frame(width: 700, height: 560)
+}
