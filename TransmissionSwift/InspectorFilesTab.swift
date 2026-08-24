@@ -248,9 +248,12 @@ private struct FileRow: View {
         // fully under our control, so nothing can overlap — and hand that one
         // image to a native `Menu`. The native `.button` style supplies the
         // rounded-rect chrome, the click, and hover/pressed states.
+        // The glyph is drawn into a fixed-size slot so the baked image (and
+        // therefore the button) stays the same width no matter which priority
+        // glyph is shown — otherwise the chip would wobble on every change.
         let renderer = ImageRenderer(
             content:
-                HStack(spacing: 8) {
+                HStack(spacing: 4) {
                     Image(systemName: priority.systemImage)
                         .font(.callout)
                         .foregroundStyle(priority.displayColor)
@@ -260,9 +263,8 @@ private struct FileRow: View {
                             .font(.system(size: 9, weight: .semibold))
                             .foregroundStyle(.secondary)
                     }
-                    .frame(width: 18, height: 18)
+                    .frame(width: 14, height: 14)
                 }
-                .padding(.vertical, 1)
         )
         renderer.scale = 2
         let chip = renderer.nsImage ?? NSImage()
@@ -282,6 +284,8 @@ private struct FileRow: View {
         .menuIndicator(.hidden)
         .allowsHitTesting(actionsEnabled)
         .accessibilityLabel("Priority for \(file.displayName)")
+        .frame(width: 32, height: 18)
+        .padding(.trailing, 5)
     }
 }
 
