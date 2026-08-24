@@ -2,6 +2,17 @@
 
 All notable changes to TransmissionSwift.
 
+## 0.5.1
+
+25th August 2026
+
+- Redesign Torrent add menu
+- Make CMD+O open the Add torrent sheet
+- Fix colours that wouldn't change when triggering dark/light modes
+- Show active speed limits on the bottom status bar
+- Remove turtle mode toggle from the top nav
+- Move turtle mode toggle closer to the limits
+
 ## 0.5.0
 
 24th August 2026
