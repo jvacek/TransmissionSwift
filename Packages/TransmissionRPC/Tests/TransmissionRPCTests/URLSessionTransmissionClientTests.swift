@@ -54,6 +54,37 @@ struct URLSessionTransmissionClientTests {
         #expect(isOpen == true)
     }
 
+    @Test("sessionStats decodes cumulative and current stats blocks")
+    func sessionStats() async throws {
+        let host = "session-stats.test"
+        let fixture = try #require(
+            #"""
+            {"result":"success","arguments":{
+                "activeTorrentCount":2,"downloadSpeed":1024,"pausedTorrentCount":3,
+                "torrentCount":5,"uploadSpeed":2048,
+                "cumulative-stats":{"uploadedBytes":1099511627776,"downloadedBytes":549755813888,
+                    "filesAdded":42,"sessionCount":7,"secondsActive":90061},
+                "current-stats":{"uploadedBytes":1048576,"downloadedBytes":2097152,
+                    "filesAdded":4,"sessionCount":1,"secondsActive":3661}
+                }
+            }
+            """#
+            .data(using: .utf8))
+        StubURLProtocol.register(host: host) { request in
+            (makeHTTPResponse(url: request.url!, statusCode: 200), fixture)
+        }
+
+        let stats = try await makeClient(host: host).sessionStats()
+
+        #expect(stats.torrentCount == 5)
+        #expect(stats.activeTorrentCount == 2)
+        #expect(stats.downloadSpeed == 1024)
+        #expect(stats.cumulativeStats.uploadedBytes == 1_099_511_627_776)
+        #expect(stats.cumulativeStats.sessionCount == 7)
+        #expect(stats.currentStats.filesAdded == 4)
+        #expect(stats.currentStats.secondsActive == 3661)
+    }
+
     @Test("sessionGet retries once on 409, echoing the offered session ID")
     func handshake() async throws {
         let host = "handshake.test"

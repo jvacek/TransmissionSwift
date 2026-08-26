@@ -70,6 +70,9 @@ public final class TorrentStore {
     public var lastActionError: ActionError?
     /// Free space (bytes) on the daemon's download directory. Nil until the first poll completes.
     public private(set) var freeSpace: Int64? = nil
+    /// Current + lifetime transfer statistics (`session-stats`). Fetched on
+    /// demand when the status-bar stats popover opens; nil until then.
+    public private(set) var sessionStats: SessionStats? = nil
     /// Default download directory on the daemon host. Nil until the first session-get completes.
     public private(set) var downloadDirectory: String? = nil
 
@@ -554,6 +557,17 @@ public final class TorrentStore {
 
     public func refreshFreeSpace() async {
         freeSpace = await service.freeSpace()
+    }
+
+    /// Fetch current + lifetime transfer stats (`session-stats`) for the
+    /// status-bar popover. No-ops when disconnected; silently keeps stale
+    /// values if the fetch fails — a failed refresh just shows old numbers,
+    /// which doesn't warrant an alert.
+    public func refreshSessionStats() async {
+        guard isConnected else { return }
+        if let stats = await service.sessionStats() {
+            sessionStats = stats
+        }
     }
 
     /// Capture an anonymized snapshot of the current daemon state and write it

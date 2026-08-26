@@ -8,6 +8,7 @@ import TransmissionCore
 struct StatusBarView: View {
     @Environment(TorrentStore.self) private var store
     @Environment(ServerProfileStore.self) private var profileStore
+    @State private var showServerStats = false
 
     var body: some View {
         HStack(spacing: 14) {
@@ -46,6 +47,19 @@ struct StatusBarView: View {
 
     private var leftCluster: some View {
         HStack(spacing: 10) {
+            Button {
+                showServerStats.toggle()
+            } label: {
+                Image(systemName: "info.circle")
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            .help("Server statistics")
+            .foregroundStyle(Color(NSColor.secondaryLabelColor))
+            .accessibilityIdentifier("statusBar.serverStats")
+            .popover(isPresented: $showServerStats, arrowEdge: .bottom) {
+                ServerStatsPopoverView()
+            }
             Text("\(store.torrents.count) torrents · \(activeCount) active")
                 .foregroundStyle(.secondary)
                 .monospacedDigit()

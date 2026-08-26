@@ -1,4 +1,5 @@
 import Foundation
+import TransmissionRPC
 
 /// The service-level abstraction the UI consumes. Two implementations live
 /// behind this protocol — `MockTorrentService` (used by previews and the empty
@@ -88,6 +89,11 @@ public protocol TorrentService: Sendable {
     /// a transient failure). Default nil.
     func isPortOpen() async -> Bool?
 
+    /// Current + lifetime transfer statistics (`session-stats`). Returns nil
+    /// when the service can't answer (mock/replay services or a transient
+    /// failure). Default nil.
+    func sessionStats() async -> SessionStats?
+
     /// Add a new torrent. Exactly one of `fileURL` / `magnetURL` should be
     /// non-nil. Maps to `torrent-add` in slice 7.
     func add(
@@ -121,6 +127,7 @@ extension TorrentService {
     public func sessionSettings() async -> SessionSettings? { nil }
     public func applySessionSettings(_ patch: SessionSettingsPatch) async throws {}
     public func isPortOpen() async -> Bool? { nil }
+    public func sessionStats() async -> SessionStats? { nil }
     public func captureRawSnapshot() async throws -> SnapshotFile {
         throw SnapshotError.captureUnsupported
     }

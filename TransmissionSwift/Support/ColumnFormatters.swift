@@ -40,6 +40,22 @@ enum ColumnFormatters {
         )
     }
 
+    /// Renders a total active-time span ("3d 4h", "12m 30s") for stats displays.
+    static func humanizedDuration(_ totalSeconds: Int64) -> String {
+        let days = totalSeconds / 86400
+        let hours = (totalSeconds % 86400) / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        if days > 0 {
+            return "\(days)d \(hours)h"
+        } else if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        } else if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        }
+        return "\(seconds)s"
+    }
+
     static func humanizedETA(_ eta: TimeInterval?, status: TorrentStatus) -> String {
         guard let eta, eta.isFinite else {
             switch status {

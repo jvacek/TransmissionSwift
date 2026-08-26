@@ -633,6 +633,10 @@ struct RPCTorrentServiceTests {
             throw TransmissionError.serverError("not used in test")
         }
 
+        func sessionStats() async throws(TransmissionError) -> SessionStats {
+            throw TransmissionError.serverError("not used in test")
+        }
+
         func torrentGet(fields: [String], ids: [Int]?) async throws(TransmissionError)
             -> TorrentGetResponse
         {
@@ -731,6 +735,10 @@ struct RPCSetLabelsTests {
             return SessionInfo(
                 version: "test", rpcVersion: rpcVersion, rpcVersionMinimum: 16,
                 downloadDirFreeSpace: 0, altSpeedEnabled: false, downloadDir: "/x")
+        }
+
+        func sessionStats() async throws(TransmissionError) -> SessionStats {
+            throw TransmissionError.serverError("not used in test")
         }
 
         func torrentGet(fields: [String], ids: [Int]?) async throws(TransmissionError)

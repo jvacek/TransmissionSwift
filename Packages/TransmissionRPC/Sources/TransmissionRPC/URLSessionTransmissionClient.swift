@@ -47,6 +47,10 @@ public actor URLSessionTransmissionClient: TransmissionClient {
         try await send(method: "session-get", arguments: EmptyArguments())
     }
 
+    public func sessionStats() async throws(TransmissionError) -> SessionStats {
+        try await send(method: "session-stats", arguments: EmptyArguments())
+    }
+
     public func torrentGet(fields: [String], ids: [Int]?) async throws(TransmissionError) -> TorrentGetResponse {
         try await send(method: "torrent-get", arguments: TorrentGetArguments(fields: fields, ids: ids))
     }

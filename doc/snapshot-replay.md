@@ -299,7 +299,13 @@ via `--snapshot`.
   there's a real need.
 - **Replay actions.** Currently read-only. Mutating an in-memory copy (discarded
   on quit) is a natural later extension for exercising action bugs.
-- **`session-stats` (bandwidth history).** Not consumed by the UI today — skip.
+- **`session-stats` (bandwidth history).** Now consumed by the live UI — the
+  status-bar info popover shows cumulative + current-session stats (see
+  `ServerStatsPopoverView`). Intentionally **not** captured into snapshots: the
+  popover's data source (`TorrentService.sessionStats()`) returns `nil` under
+  `SnapshotTorrentService`, so replay shows "Statistics unavailable" rather than
+  stitching a fake history into the frozen state. No leak concern (it's aggregate
+  byte totals, not identifying), so capturing it later is low-risk if ever wanted.
 - **Daemon-side load** (start `transmission-daemon` with a snapshot). Explicitly
   out of scope — the app is the thing with launch flags, and loading torrents
   into a real daemon is a different, much harder problem.

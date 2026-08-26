@@ -7,6 +7,7 @@ All notable changes to TransmissionSwift.
 - Add favicons to tracker inspector
 - Wire up the RPC for comment, creator, dateCreated, isPrivate, downloadedEver, uploadedEver, activityDate, magnetLink.
 - Add the above to the torrent inspector
+- Add server stats under the (i) popover
 
 ## 0.5.1
 
