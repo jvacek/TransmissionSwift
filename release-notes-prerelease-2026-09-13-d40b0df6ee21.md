@@ -125,3 +125,13 @@ This is basically the first stable release. These are some of the things that wo
     - View details only
   - Verify local data
   - Delete (with or without data)
+
+# Changes since v0.5.2
+
+d40b0df Fix arm builds?
+1892fda Update README.md
+32c84ca Update README.md
+be55f74 Update README.md
+2222b60 Update README.md
+b9b9715 Update README.md
+3344bbb Add screenshots
