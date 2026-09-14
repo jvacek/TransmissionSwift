@@ -213,6 +213,58 @@ jobs:
           lipo -info "$arm_app/Contents/MacOS/TransmissionSwift"
           ditto -c -k --keepParent "$arm_app" "$ZIP_PATH_ARM64"
 
+      - name: Verify release artifacts
+        run: |
+          set -euo pipefail
+
+          # Re-verify the zipped artifacts, not just the build dirs, so a
+          # broken seal or a bad ditto round-trip fails the run instead of
+          # shipping. Gatekeeper triage from the 0.5.2 incident: a thin arm64
+          # binary with only the linker's ad-hoc stub and no sealed resources
+          # verifies as "code has no resources…" (Finder: damaged, no bypass),
+          # while the fat binary verifies as "not signed at all" (Finder:
+          # unverified developer, bypassable). Any verify failure here is the
+          # damaged state — fail loudly.
+          verify_artifact() {
+            local zip="$1"
+            local want="$2" # thin-arm64 | fat
+            local work
+            work="$(mktemp -d)"
+            ditto -x -k "$zip" "$work"
+            local app="$work/TransmissionSwift.app"
+            if [ ! -d "$app/Contents/_CodeSignature" ]; then
+              echo "$zip: missing _CodeSignature seal."
+              exit 1
+            fi
+            codesign --verify --deep --strict --verbose=2 "$app"
+            local archs
+            archs="$(lipo -info "$app/Contents/MacOS/TransmissionSwift")"
+            if [ "$want" = "thin-arm64" ]; then
+              if ! echo "$archs" | grep -q "Non-fat file"; then
+                echo "$zip: expected thin arm64 binary, got: $archs"
+                exit 1
+              fi
+            else
+              if ! echo "$archs" | grep -q "Architectures in the fat file"; then
+                echo "$zip: expected universal binary, got: $archs"
+                exit 1
+              fi
+            fi
+            if ! echo "$archs" | grep -q "arm64"; then
+              echo "$zip: arm64 slice missing: $archs"
+              exit 1
+            fi
+            if ! codesign -d --entitlements :- "$app" 2>/dev/null | grep -q "com.apple.security.app-sandbox"; then
+              echo "$zip: sandbox entitlements missing."
+              exit 1
+            fi
+            echo "$zip: OK ($archs)"
+            rm -rf "$work"
+          }
+
+          verify_artifact "$ZIP_PATH" fat
+          verify_artifact "$ZIP_PATH_ARM64" thin-arm64
+
       - name: Install Sparkle tools
         run: |
           set -euo pipefail
