@@ -57,9 +57,6 @@ struct ServerPathField: View {
     let defaultDirectory: String?
     let folders: [String]
     var placeholder: String = "Location on the server"
-    /// Torrent name shown at the end of the "Full path" line, so the destination
-    /// reads as a complete path. Nil (e.g. bulk Set Location) omits it.
-    var torrentName: String? = nil
     /// Defaults to expanded; Add Torrent starts collapsed.
     var initiallyExpanded: Bool = true
     var isDisabled: Bool = false
@@ -72,13 +69,11 @@ struct ServerPathField: View {
         resolveServerPath(path, relativeTo: defaultDirectory)
     }
 
-    /// The resolved path as a directory (always a trailing slash) with the
-    /// torrent name appended when known, so it's clear the location is the
-    /// folder the torrent's files land in.
+    /// The resolved path as a directory (always a trailing slash), so it's clear
+    /// the location is the folder the torrent's files land in.
     private var resolvedPathDisplay: String {
         var display = resolvedPath
         if !display.hasSuffix("/") { display += "/" }
-        if let torrentName, !torrentName.isEmpty { display += torrentName }
         return display
     }
 
@@ -102,12 +97,6 @@ struct ServerPathField: View {
                 .lineLimit(nil)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            if torrentName == nil {
-                Text("Torrents are created in this folder.")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
             if showKnownFolders {
                 KnownFoldersList(folders: folders) { path = $0 }
             }
@@ -154,8 +143,7 @@ struct ServerPathField: View {
         path: $path,
         defaultDirectory: "/downloads",
         folders: ["Linux ISOs", "Creative", "Movies/Marvel"],
-        placeholder: "Location on the server",
-        torrentName: "Some.Release.2026.1080p.mkv"
+        placeholder: "Location on the server"
     )
     .padding(20)
     .frame(width: 460)

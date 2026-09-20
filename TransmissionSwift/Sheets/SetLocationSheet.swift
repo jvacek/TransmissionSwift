@@ -30,7 +30,6 @@ struct SetLocationSheet: View {
                 path: $location,
                 defaultDirectory: store.downloadDirectory,
                 folders: suggestions,
-                torrentName: store.torrents.first { ids.contains($0.id) }?.name,
                 isDisabled: isSaving)
 
             Toggle("Move data to the new location", isOn: $moveData)
