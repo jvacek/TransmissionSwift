@@ -652,6 +652,13 @@ public final class TorrentStore {
         self.torrents = torrents
     }
 
+    /// Set the default download directory synchronously. Used by `#Preview`s
+    /// so path sheets resolve against a realistic base on the first frame —
+    /// without it an empty location previews as the filesystem root.
+    public func seedDownloadDirectory(_ directory: String?) {
+        self.downloadDirectory = directory
+    }
+
     // MARK: - Private helpers
 
     private func recordError(_ error: any Error) {

@@ -13,6 +13,7 @@ import TransmissionCore
 let previewTorrentStore: TorrentStore = {
     let store = TorrentStore(service: MockTorrentService())
     store.seedTorrents(MockFixtures.torrents())
+    store.seedDownloadDirectory("/downloads")
     store.simulateConnection(.connected)
     return store
 }()
