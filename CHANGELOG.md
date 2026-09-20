@@ -2,6 +2,16 @@
 
 All notable changes to TransmissionSwift.
 
+
+## 0.5.4
+
+20th September 2026
+
+- Fix torrent-table column restore logic
+- Fix missed sentinel value in ratio column
+- Fix "Known folders" in Set Location modal
+- Add "Known folders" dropdown to the "Add torrent" modal
+
 ## 0.5.3
 
 - Fix the signature of the thinned ARM-only release
