@@ -58,7 +58,14 @@ struct SetLocationSheet: View {
     private var initialLocation: String {
         let selected = store.torrents.filter { ids.contains($0.id) }
         if let first = selected.first {
-            return first.downloadFolder
+            let relative = relativeDownloadFolder(
+                first.downloadFolder, relativeTo: store.downloadDirectory)
+            // Empty means directly in the default dir — show the base itself
+            // so the field stays non-empty (empty disables Apply).
+            if relative.isEmpty {
+                return store.downloadDirectory ?? first.downloadFolder
+            }
+            return relative
         }
         return store.downloadDirectory ?? ""
     }

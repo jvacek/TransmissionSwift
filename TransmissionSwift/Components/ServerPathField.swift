@@ -142,12 +142,7 @@ struct ServerPathField: View {
     }
 
     private var explanation: String {
-        if let base = defaultDirectory, !base.isEmpty {
-            return
-                "Paths are relative to the default download dir (\(base)). Start with “/” to indicate an absolute path."
-        }
-        return
-            "Paths are relative to the default download dir. Start with “/” to indicate an absolute path."
+        "Paths are relative to the default download dir. Start with “/” for an absolute path."
     }
 }
 
