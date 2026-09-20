@@ -643,6 +643,15 @@ public final class TorrentStore {
         connection = state
     }
 
+    /// Replace the torrent list synchronously, bypassing the service stream.
+    /// Used by `#Preview`s (and tests) that need populated facets on the very
+    /// first draw — a mock service's async stream otherwise leaves the first
+    /// frame empty, so folder-dependent chrome (the "known folders" list) either
+    /// appears late or trips Xcode's preview view-replacement crash.
+    public func seedTorrents(_ torrents: [Torrent]) {
+        self.torrents = torrents
+    }
+
     // MARK: - Private helpers
 
     private func recordError(_ error: any Error) {
