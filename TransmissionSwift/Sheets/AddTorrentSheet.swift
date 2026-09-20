@@ -31,6 +31,7 @@ struct AddTorrentSheet: View {
     @State private var startWhenAdded: Bool = true
     @State private var showFileImporter: Bool = false
     @State private var isAdding: Bool = false
+    @State private var saveError: String? = nil
 
     var body: some View {
         // No outer ScrollView: the form is short and fixed-height, so scrolling
@@ -216,6 +217,17 @@ struct AddTorrentSheet: View {
             formRow("") {
                 Toggle("Start when added", isOn: $startWhenAdded)
             }
+            if let saveError {
+                Divider()
+                Text(saveError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+            }
         }
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -348,7 +360,8 @@ struct AddTorrentSheet: View {
     private func submit() async {
         isAdding = true
         defer { isAdding = false }
-        await store.add(
+        saveError = nil
+        let succeeded = await store.add(
             fileURL: mode == .file ? fileURL : nil,
             magnetURL: mode == .magnet ? magnetString : nil,
             destination: resolveServerPath(destination, relativeTo: store.downloadDirectory),
@@ -356,7 +369,11 @@ struct AddTorrentSheet: View {
             priority: priority,
             startWhenAdded: startWhenAdded
         )
-        isPresented = false
+        if succeeded {
+            isPresented = false
+        } else {
+            saveError = store.lastActionError?.localizedDescription ?? "Failed to add torrent."
+        }
     }
 }
 

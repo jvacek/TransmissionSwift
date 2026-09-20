@@ -13,6 +13,7 @@ All notable changes to TransmissionSwift.
 - Add "Known folders" dropdown to the "Add torrent" modal
 - Move known folders to drop-down
 - Try simplify UX for the relative path in set location field
+- Handle Add exceptions
 
 ## 0.5.3
 

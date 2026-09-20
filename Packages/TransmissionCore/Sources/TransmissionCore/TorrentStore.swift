@@ -504,6 +504,7 @@ public final class TorrentStore {
         }
     }
 
+    @discardableResult
     public func add(
         fileURL: URL?,
         magnetURL: String?,
@@ -511,7 +512,7 @@ public final class TorrentStore {
         labels: [String],
         priority: TorrentPriority,
         startWhenAdded: Bool
-    ) async {
+    ) async -> Bool {
         do {
             try await service.add(
                 fileURL: fileURL,
@@ -521,8 +522,10 @@ public final class TorrentStore {
                 priority: priority,
                 startWhenAdded: startWhenAdded
             )
+            return true
         } catch {
             recordError(error)
+            return false
         }
     }
 
