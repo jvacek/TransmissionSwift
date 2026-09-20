@@ -62,12 +62,12 @@ struct TorrentTableRepresentable: NSViewRepresentable {
 
         // Column layout persistence: NSTableView autosaves order, widths and
         // each column's isHidden state under autosaveName. All 20 columns are
-        // added up front (hidden-by-default ones start hidden per spec); on
-        // subsequent launches the autosave restores the user's layout over
-        // these defaults.
-        tableView.autosaveName = "torrentsTableColumns"
-        tableView.autosaveTableColumns = true
-
+        // added up front with their defaults (hidden-by-default ones start
+        // hidden per spec). The autosave properties are set *after* the columns
+        // exist: AppKit's restore pass runs when the autosave name is set and
+        // matches saved state to columns by identifier, so setting it before
+        // any columns exist makes the restore a no-op and leaves every column
+        // at its default on each launch.
         let coordinator = context.coordinator
         coordinator.tableView = tableView
         for spec in TorrentTableColumns.all {
@@ -75,6 +75,8 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             column.isHidden = spec.hiddenByDefault
             tableView.addTableColumn(column)
         }
+        tableView.autosaveName = "torrentsTableColumns"
+        tableView.autosaveTableColumns = true
 
         // Row context menu: NSTableView has NO menuForRows delegate method. The
         // canonical mechanism is tableView.menu + NSMenuDelegate.menuNeedsUpdate,
