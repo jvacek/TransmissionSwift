@@ -30,7 +30,6 @@ struct AddTorrentSheet: View {
     @State private var startWhenAdded: Bool = true
     @State private var showFileImporter: Bool = false
     @State private var isAdding: Bool = false
-    @State private var showKnownFolders: Bool = false
 
     var body: some View {
         // No outer ScrollView: the form is short and fixed-height, so scrolling
@@ -195,15 +194,12 @@ struct AddTorrentSheet: View {
     private var optionsSection: some View {
         VStack(spacing: 0) {
             formRow("Destination") {
-                destinationField
-            }
-            // Sits outside the row so expanding leaves the "Destination" row —
-            // and its label — at the exact same height; only the list below grows.
-            if showKnownFolders {
-                KnownFoldersList(folders: knownFolders) { destination = $0 }
-                    .padding(.leading, formLabelWidth + 12)
-                    .padding(.trailing, 16)
-                    .padding(.bottom, 10)
+                ServerPathField(
+                    path: $destination,
+                    defaultDirectory: store.downloadDirectory,
+                    folders: knownFolders,
+                    initiallyExpanded: false,
+                    configureField: { AnyView($0.monospaced()) })
             }
             Divider()
             formRow("Tags") {
@@ -234,34 +230,6 @@ struct AddTorrentSheet: View {
     /// Folders the daemon already knows about, offered as one-click destinations.
     private var knownFolders: [String] {
         knownFolderSuggestions(store.facets.folders.map(\.name))
-    }
-
-    /// Destination path box, with the known-folders disclosure docked inside its
-    /// trailing edge so it reads as part of the field.
-    private var destinationField: some View {
-        HStack(spacing: 6) {
-            TextField("", text: $destination)
-                .monospaced()
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .textFieldStyle(.plain)
-                .focused($focusedField, equals: .destination)
-            if !knownFolders.isEmpty {
-                KnownFoldersToggle(isExpanded: $showKnownFolders)
-            }
-        }
-        .padding(.leading, 6)
-        .padding(.trailing, 4)
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.secondary.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .stroke(Color.secondary.opacity(0.25))
-        )
-        .frame(maxWidth: .infinity)
     }
 
     private let formLabelWidth: CGFloat = 90
@@ -378,7 +346,7 @@ struct AddTorrentSheet: View {
         await store.add(
             fileURL: mode == .file ? fileURL : nil,
             magnetURL: mode == .magnet ? magnetString : nil,
-            destination: destination,
+            destination: resolveServerPath(destination, relativeTo: store.downloadDirectory),
             labels: tags,
             priority: priority,
             startWhenAdded: startWhenAdded
