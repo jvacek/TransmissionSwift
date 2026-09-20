@@ -182,7 +182,7 @@ struct MappingTemplateTests {
                 server: server,
                 password: "p@ss:word"
             )?.absoluteString
-                == "https://admin:p%40ss:word@nas.local/dl/My%20Torrent")
+                == "https://admin:p%40ss%3Aword@nas.local/dl/My%20Torrent")
     }
 
     @Test("{password-encoded} survives a slash that would break a raw password")
