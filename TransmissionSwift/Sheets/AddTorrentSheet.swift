@@ -30,6 +30,7 @@ struct AddTorrentSheet: View {
     @State private var startWhenAdded: Bool = true
     @State private var showFileImporter: Bool = false
     @State private var isAdding: Bool = false
+    @State private var showKnownFolders: Bool = false
 
     var body: some View {
         ScrollView {
@@ -188,21 +189,15 @@ struct AddTorrentSheet: View {
     private var optionsSection: some View {
         VStack(spacing: 0) {
             formRow("Destination") {
-                TextField("", text: $destination)
-                    .monospaced()
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .textFieldStyle(.plain)
-                    .padding(6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(Color.secondary.opacity(0.07))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .stroke(Color.secondary.opacity(0.25))
-                    )
-                    .focused($focusedField, equals: .destination)
+                destinationField
+            }
+            // Sits outside the row so expanding leaves the "Destination" row —
+            // and its label — at the exact same height; only the list below grows.
+            if showKnownFolders {
+                KnownFoldersList(folders: knownFolders) { destination = $0 }
+                    .padding(.leading, formLabelWidth + 12)
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 10)
             }
             Divider()
             formRow("Tags") {
@@ -230,11 +225,46 @@ struct AddTorrentSheet: View {
         )
     }
 
+    /// Folders the daemon already knows about, offered as one-click destinations.
+    private var knownFolders: [String] {
+        knownFolderSuggestions(store.facets.folders.map(\.name))
+    }
+
+    /// Destination path box, with the known-folders disclosure docked inside its
+    /// trailing edge so it reads as part of the field.
+    private var destinationField: some View {
+        HStack(spacing: 6) {
+            TextField("", text: $destination)
+                .monospaced()
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textFieldStyle(.plain)
+                .focused($focusedField, equals: .destination)
+            if !knownFolders.isEmpty {
+                KnownFoldersToggle(isExpanded: $showKnownFolders)
+            }
+        }
+        .padding(.leading, 6)
+        .padding(.trailing, 4)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.secondary.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(Color.secondary.opacity(0.25))
+        )
+        .frame(maxWidth: .infinity)
+    }
+
+    private let formLabelWidth: CGFloat = 90
+
     private func formRow(_ label: String, @ViewBuilder content: () -> some View) -> some View {
         HStack(spacing: 12) {
             Text(label)
                 .foregroundStyle(.primary)
-                .frame(width: 90, alignment: .leading)
+                .frame(width: formLabelWidth, alignment: .leading)
             content()
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -357,12 +387,12 @@ extension UTType {
 
 #Preview("Add Torrent") {
     AddTorrentSheet(isPresented: .constant(true))
-        .environment(TorrentStore(service: MockTorrentService()))
+        .environment(previewTorrentStore)
         .environment(TagColorStore())
 }
 
 #Preview("Magnet") {
     AddTorrentSheet(isPresented: .constant(true), initialMagnetMode: true)
-        .environment(TorrentStore(service: MockTorrentService()))
+        .environment(previewTorrentStore)
         .environment(TagColorStore())
 }
