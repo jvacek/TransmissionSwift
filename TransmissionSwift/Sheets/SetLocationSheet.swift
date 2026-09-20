@@ -46,7 +46,7 @@ struct SetLocationSheet: View {
                     Task { await apply() }
                 }
                 .buttonStyle(.glassProminent)
-                .disabled(isSaving || location.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(!canApply)
                 .keyboardShortcut(.defaultAction)
             }
         }
@@ -57,27 +57,22 @@ struct SetLocationSheet: View {
 
     private var initialLocation: String {
         let selected = store.torrents.filter { ids.contains($0.id) }
-        if let first = selected.first {
-            let relative = relativeDownloadFolder(
-                first.downloadFolder.trimmingCharacters(in: .whitespaces),
-                relativeTo: store.downloadDirectory?.trimmingCharacters(in: .whitespaces))
-            // Empty means directly in the default dir (trailing slashes
-            // normalized by relativeDownloadFolder) — empty resolves back to
-            // the base via resolveServerPath, so show empty.
-            if relative.isEmpty {
-                return ""
-            }
-            return relative
-        }
-        return store.downloadDirectory ?? ""
+        return initialServerPath(
+            existing: selected.first?.downloadFolder, relativeTo: store.downloadDirectory)
     }
 
     private var subtitle: String {
         ids.count == 1 ? "1 torrent selected" : "\(ids.count) torrents selected"
     }
 
+    /// Empty input resolves to the default dir, so it's a valid target as long
+    /// as we know the base. See `isSubmittableServerPath`.
+    private var canApply: Bool {
+        !isSaving && isSubmittableServerPath(location, relativeTo: store.downloadDirectory)
+    }
+
     private var suggestions: [String] {
-        knownFolderSuggestions(store.facets.folders.map(\.name))
+        serverPathSuggestions(from: store.facets)
     }
 
     private func apply() async {

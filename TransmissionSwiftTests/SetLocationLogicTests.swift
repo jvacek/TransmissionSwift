@@ -50,6 +50,42 @@ struct SetLocationLogicTests {
     @Test func suggestions_are_empty_when_no_other_folder_is_known() {
         #expect(knownFolderSuggestions([folderSentinel]).isEmpty)
     }
+
+    // MARK: - initialServerPath
+
+    @Test func initial_nested_path_shows_relative() {
+        #expect(initialServerPath(existing: "/downloads/Movies", relativeTo: "/downloads") == "Movies")
+    }
+
+    @Test func initial_default_dir_shows_empty() {
+        #expect(initialServerPath(existing: "/downloads", relativeTo: "/downloads") == "")
+        // Trailing slashes and whitespace don't change the outcome.
+        #expect(initialServerPath(existing: "/downloads/", relativeTo: "/downloads") == "")
+        #expect(initialServerPath(existing: "  /downloads  ", relativeTo: "/downloads") == "")
+    }
+
+    @Test func initial_outside_base_stays_absolute() {
+        #expect(initialServerPath(existing: "/other/path", relativeTo: "/downloads") == "/other/path")
+    }
+
+    @Test func initial_without_existing_or_base_is_empty() {
+        #expect(initialServerPath(existing: nil, relativeTo: "/downloads") == "")
+        #expect(initialServerPath(existing: "/downloads/Movies", relativeTo: nil) == "/downloads/Movies")
+    }
+
+    // MARK: - isSubmittableServerPath
+
+    @Test func submittable_empty_needs_a_base() {
+        #expect(isSubmittableServerPath("", relativeTo: "/downloads"))
+        #expect(!isSubmittableServerPath("", relativeTo: nil))
+        #expect(!isSubmittableServerPath("   ", relativeTo: "  "))
+    }
+
+    @Test func submittable_nonempty_always_submits() {
+        #expect(isSubmittableServerPath("Movies", relativeTo: "/downloads"))
+        #expect(isSubmittableServerPath("Movies", relativeTo: nil))
+        #expect(isSubmittableServerPath("/other/path", relativeTo: nil))
+    }
 }
 
 /// Mirrors `FolderFilter.defaultFolderName` — the empty relative path that marks

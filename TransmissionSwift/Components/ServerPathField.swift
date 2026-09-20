@@ -1,4 +1,5 @@
 import SwiftUI
+import TransmissionCore
 
 /// Resolve a torrent location path as the daemon would:
 /// - leading `/`  -> absolute from the daemon's root;
@@ -45,22 +46,55 @@ func resolveServerPath(_ input: String, relativeTo base: String?) -> String {
     return result
 }
 
+// MARK: - Shared destination logic
+
+/// The Set Location and Add Torrent sheets share one path contract — empty
+/// means the default download dir, anything else is relative to it (or absolute
+/// from `/`) — so the helpers below live here next to `resolveServerPath`
+/// instead of drifting apart per sheet.
+
+/// Display string for a destination field: `existing` made relative to `base`
+/// when nested inside it, `""` when it *is* the base (empty resolves back to
+/// the base on submit) or when there is no existing path (new torrent).
+/// Anything outside the base stays absolute. Trailing slashes are normalized
+/// by `relativeDownloadFolder`.
+func initialServerPath(existing: String?, relativeTo base: String?) -> String {
+    guard let existing else { return "" }
+    return relativeDownloadFolder(
+        existing.trimmingCharacters(in: .whitespaces),
+        relativeTo: base?.trimmingCharacters(in: .whitespaces))
+}
+
+/// Whether a destination field value is submittable: anything non-empty always
+/// is; empty resolves to the base, so it needs a known base.
+func isSubmittableServerPath(_ input: String, relativeTo base: String?) -> Bool {
+    guard input.trimmingCharacters(in: .whitespaces).isEmpty else { return true }
+    guard let base = base?.trimmingCharacters(in: .whitespaces) else { return false }
+    return !base.isEmpty
+}
+
+/// Known-folder suggestions from the sidebar facet rollup, dropping the
+/// default-folder sentinel. Takes the facets directly so both sheets share the
+/// mapping instead of each repeating it.
+func serverPathSuggestions(from facets: FilterFacets) -> [String] {
+    knownFolderSuggestions(facets.folders.map(\.name))
+}
+
 /// Server-side path input shared by the Set Location and Add Torrent sheets.
 ///
 /// Owns the whole path story so both sheets behave identically: a text field
-/// that accepts a path relative to the daemon's default download directory (or
-/// absolute when it starts with `/`), a one-line explanation, the resolved
-/// "Full path", and a known-folders menu docked in the field. The caller binds
-/// a raw string and, on submit, passes it through
-/// `resolveServerPath(_:relativeTo:)`.
+/// whose placeholder teaches the relative format by example, the resolved
+/// "Full path" underneath, and a known-folders menu docked in the field. The
+/// caller binds a raw string and, on submit, passes it through
+/// `resolveServerPath(_:relativeTo:)`. The relative-vs-absolute rule lives in
+/// the field's tooltip rather than a visible line — the Full-path preview
+/// already shows where the input lands.
 struct ServerPathField: View {
     @Binding var path: String
     let defaultDirectory: String?
     let folders: [String]
-    var placeholder: String = "Location on the server"
+    var placeholder: String = "relative/to/default-download-dir"
     var isDisabled: Bool = false
-    /// Optional format/validation hook, e.g. a monospaced destination style.
-    var configureField: (TextField<Text>) -> AnyView = { AnyView($0.textFieldStyle(.plain)) }
 
     private var resolvedPath: String {
         resolveServerPath(path, relativeTo: defaultDirectory)
@@ -83,10 +117,6 @@ struct ServerPathField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             field
-            Text(explanation)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
             Text("Full path: \(wrappedPathDisplay)")
                 .font(.caption.monospaced())
                 .foregroundStyle(.secondary)
@@ -98,15 +128,20 @@ struct ServerPathField: View {
     }
 
     /// The input box, with the known-folders menu docked inside its trailing edge
-    /// so it reads as part of the field.
+    /// so it reads as part of the field. The relative-vs-absolute rule lives in
+    /// the tooltip — the Full-path preview below already shows where the input
+    /// lands, so a visible explanation line would just repeat it.
     private var field: some View {
         HStack(spacing: 6) {
-            configureField(TextField(placeholder, text: $path))
+            TextField(placeholder, text: $path)
+                .textFieldStyle(.plain)
+                .monospaced()
                 .disabled(isDisabled)
             if !folders.isEmpty {
                 knownFoldersMenu
             }
         }
+        .help("Paths are relative to the default download dir. Start with “/” for an absolute path.")
         .padding(.leading, 8)
         .padding(.trailing, 4)
         .padding(.vertical, 4)
@@ -140,10 +175,6 @@ struct ServerPathField: View {
         .help("Use a known folder")
         .accessibilityLabel("Known folders")
     }
-
-    private var explanation: String {
-        "Paths are relative to the default download dir. Start with “/” for an absolute path."
-    }
 }
 
 #Preview("Server Path Field") {
@@ -151,8 +182,7 @@ struct ServerPathField: View {
     return ServerPathField(
         path: $path,
         defaultDirectory: "/downloads",
-        folders: ["Linux ISOs", "Creative", "Movies/Marvel"],
-        placeholder: "Location on the server"
+        folders: ["Linux ISOs", "Creative", "Movies/Marvel"]
     )
     .padding(20)
     .frame(width: 460)

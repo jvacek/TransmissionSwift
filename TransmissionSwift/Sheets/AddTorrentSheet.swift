@@ -48,9 +48,9 @@ struct AddTorrentSheet: View {
                 }
             }
             .onAppear {
-                if destination.isEmpty {
-                    destination = store.downloadDirectory ?? ""
-                }
+                // Destination stays empty by default — empty resolves to the
+                // default download dir via resolveServerPath, same as Set
+                // Location. The Full-path preview shows the real target.
                 mode = initialMagnetMode ? .magnet : .file
                 if let url = prefilledURL {
                     if url.scheme == "magnet" {
@@ -197,8 +197,7 @@ struct AddTorrentSheet: View {
                 ServerPathField(
                     path: $destination,
                     defaultDirectory: store.downloadDirectory,
-                    folders: knownFolders,
-                    configureField: { AnyView($0.monospaced()) })
+                    folders: knownFolders)
             }
             Divider()
             formRow("Tags") {
@@ -228,7 +227,7 @@ struct AddTorrentSheet: View {
 
     /// Folders the daemon already knows about, offered as one-click destinations.
     private var knownFolders: [String] {
-        knownFolderSuggestions(store.facets.folders.map(\.name))
+        serverPathSuggestions(from: store.facets)
     }
 
     private let formLabelWidth: CGFloat = 90
@@ -333,10 +332,12 @@ struct AddTorrentSheet: View {
     // MARK: - Logic
 
     private var isValid: Bool {
-        switch mode {
-        case .file: return fileURL != nil
-        case .magnet: return magnetString.hasPrefix("magnet:?xt=urn:btih:")
-        }
+        let sourceValid: Bool =
+            switch mode {
+            case .file: fileURL != nil
+            case .magnet: magnetString.hasPrefix("magnet:?xt=urn:btih:")
+            }
+        return sourceValid && isSubmittableServerPath(destination, relativeTo: store.downloadDirectory)
     }
 
     private func submit() async {
