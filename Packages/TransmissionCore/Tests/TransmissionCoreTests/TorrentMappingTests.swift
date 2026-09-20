@@ -12,6 +12,7 @@ private func makeWire(
     errorString: String = "",
     isFinished: Bool = false,
     eta: Int = -1,
+    uploadRatio: Double = 0.0,
     bandwidthPriority: Int = 0,
     pieceCount: Int = 100,
     pieceSize: Int64 = 1024,
@@ -49,7 +50,7 @@ private func makeWire(
             fromLpd: 0, fromLtep: 0, fromPex: 0, fromTracker: 0
         ),
         eta: eta,
-        uploadRatio: 0.0,
+        uploadRatio: uploadRatio,
         downloadDir: "/downloads",
         addedDate: 0,
         labels: labels,
@@ -269,6 +270,23 @@ struct ETAMappingTests {
 }
 
 // MARK: - Queue position mapping
+
+@Suite("TorrentMapping — ratio")
+struct RatioMappingTests {
+    @Test("uploadRatio -1 (TR_RATIO_NA) clamps to 0")
+    func ratioNotAvailable() { #expect(Torrent(wire: makeWire(uploadRatio: -1)).ratio == 0) }
+
+    @Test("uploadRatio -2 (TR_RATIO_INF) clamps to 0")
+    func ratioInfinite() { #expect(Torrent(wire: makeWire(uploadRatio: -2)).ratio == 0) }
+
+    @Test("Ratio 0 is preserved")
+    func ratioZero() { #expect(Torrent(wire: makeWire(uploadRatio: 0)).ratio == 0) }
+
+    @Test("Positive ratio is preserved")
+    func ratioPositive() {
+        #expect(Torrent(wire: makeWire(uploadRatio: 1.75)).ratio == 1.75)
+    }
+}
 
 @Suite("TorrentMapping — queuePosition")
 struct QueuePositionTests {

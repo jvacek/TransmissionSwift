@@ -394,8 +394,8 @@ extension TorrentCellContent {
     }
 
     private static func ratioContent(_ ratio: Double) -> (String, NSColor) {
-        if ratio == 0 { return ("\u{2014}", .secondaryLabelColor) }
-        let text = String(format: "%.2f", ratio)
+        guard ratio > 0 else { return (ColumnFormatters.ratio(ratio), .secondaryLabelColor) }
+        let text = ColumnFormatters.ratio(ratio)
         let color: NSColor
         if ratio >= 1.0 {
             color = .systemGreen

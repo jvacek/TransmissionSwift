@@ -52,7 +52,7 @@ struct InspectorGeneralTab: View {
                 row("Download", ColumnFormatters.humanizedSpeed(torrent.downloadSpeed))
                 row("Upload", ColumnFormatters.humanizedSpeed(torrent.uploadSpeed))
                 row("Time left", ColumnFormatters.humanizedETA(torrent.eta, status: torrent.status))
-                row("Ratio", torrent.ratio.formatted(.number.precision(.fractionLength(2))))
+                row("Ratio", ColumnFormatters.ratio(torrent.ratio))
                 row("Peers", peersSummary)
                 row("Downloaded", ColumnFormatters.humanizedSize(torrent.downloadedEver))
                 row("Uploaded", ColumnFormatters.humanizedSize(torrent.uploadedEver))

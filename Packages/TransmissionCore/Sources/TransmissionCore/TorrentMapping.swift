@@ -22,6 +22,12 @@ extension Torrent {
 
         let eta: TimeInterval? = wire.eta > 0 ? TimeInterval(wire.eta) : nil
 
+        // libtransmission reports TR_RATIO_NA (-1) and TR_RATIO_INF (-2) as
+        // sentinels for "no meaningful ratio yet". Clamp to the valid range so
+        // the model never carries a negative ratio (which would corrupt sorting
+        // and the aggregate ratio); the UI renders 0 as an em dash.
+        let ratio = max(0, wire.uploadRatio)
+
         let priority: TorrentPriority
         switch wire.bandwidthPriority {
         case -1: priority = .low
@@ -191,7 +197,7 @@ extension Torrent {
             availablePeerCount: wire.peersFrom.total,
             seedCount: 0,
             eta: eta,
-            ratio: wire.uploadRatio,
+            ratio: ratio,
             primaryTracker: primaryTracker,
             downloadFolder: wire.downloadDir,
             addedAt: Date(timeIntervalSince1970: TimeInterval(wire.addedDate)),

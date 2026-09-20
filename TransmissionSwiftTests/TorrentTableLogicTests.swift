@@ -107,4 +107,17 @@ struct TorrentTableLogicTests {
         // Zero renders as a dash with no unit; the split must not invent one.
         #expect(ColumnFormatters.speedParts(0) == ("\u{2014}", ""))
     }
+
+    @Test func ratio_zeroAndNegativeAreEmDash() {
+        // TR_RATIO_NA (-1) / TR_RATIO_INF (-2) clamp to 0 in the model; the
+        // formatter must render both, plus a genuine 0, as an em dash.
+        #expect(ColumnFormatters.ratio(0) == "\u{2014}")
+        #expect(ColumnFormatters.ratio(-1) == "\u{2014}")
+        #expect(ColumnFormatters.ratio(-2) == "\u{2014}")
+    }
+
+    @Test func ratio_positiveIsTwoDecimals() {
+        #expect(ColumnFormatters.ratio(1.755) == "1.75")
+        #expect(ColumnFormatters.ratio(0.4) == "0.40")
+    }
 }

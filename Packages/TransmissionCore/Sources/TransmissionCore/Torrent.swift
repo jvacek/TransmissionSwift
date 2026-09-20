@@ -16,6 +16,8 @@ public struct Torrent: Identifiable, Hashable, Sendable {
     public var seedCount: Int
     /// nil = unknown (paused, error, queued). `.infinity` = idle (seeding forever).
     public var eta: TimeInterval?
+    /// Upload/download ratio, always >= 0. 0 means "not available yet" (nothing
+    /// downloaded); the UI renders it as an em dash.
     public var ratio: Double
     public var primaryTracker: String
     public var downloadFolder: String

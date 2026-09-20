@@ -92,6 +92,14 @@ enum ColumnFormatters {
         position.map { "#\($0)" } ?? "\u{2014}"
     }
 
+    /// Ratios are non-negative; zero (unknown / not started) renders as an em
+    /// dash rather than a misleading "0.00". Negative values are treated the
+    /// same way defensively.
+    static func ratio(_ value: Double) -> String {
+        guard value > 0 else { return "\u{2014}" }
+        return String(format: "%.2f", value)
+    }
+
     static func piecesText(have: Int, total: Int) -> String {
         "\(have)/\(total)"
     }
