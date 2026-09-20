@@ -33,49 +33,55 @@ struct AddTorrentSheet: View {
     @State private var showKnownFolders: Bool = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading) {
-                modePicker
-                sourceSection
-                optionsSection
-            }
-            // Clear the floating glass header so content starts below it,
-            // then scrolls underneath its blur layer.
-            .padding(.top, 45)
-            .padding([.horizontal, .bottom], 20)
-        }
-        .overlay(alignment: .top) { headerBar }
-        .frame(width: 560)
-        .fileImporter(
-            isPresented: $showFileImporter,
-            allowedContentTypes: [.torrentFile]
-        ) { result in
-            if case .success(let url) = result {
-                fileURL = url
-            }
-        }
-        .onAppear {
-            if destination.isEmpty {
-                destination = store.downloadDirectory ?? ""
-            }
-            mode = initialMagnetMode ? .magnet : .file
-            if let url = prefilledURL {
-                if url.scheme == "magnet" {
-                    mode = .magnet
-                    magnetString = url.absoluteString
-                } else {
-                    mode = .file
+        // No outer ScrollView: the form is short and fixed-height, so scrolling
+        // it only produced rubber-band bounce. The sheet instead grows to fit
+        // its content, letting the known-folders list expand the sheet
+        // dynamically; only that list itself scrolls when it overflows.
+        sheetContent
+            .overlay(alignment: .top) { headerBar }
+            .frame(width: 560)
+            .fileImporter(
+                isPresented: $showFileImporter,
+                allowedContentTypes: [.torrentFile]
+            ) { result in
+                if case .success(let url) = result {
                     fileURL = url
                 }
             }
-            // Explicit focus so macOS doesn't auto-focus (and select-all) the
-            // Destination field. In magnet mode, focus the input so a paste lands
-            // immediately; in file mode, leave focus unset.
-            focusedField = mode == .magnet ? .magnet : nil
+            .onAppear {
+                if destination.isEmpty {
+                    destination = store.downloadDirectory ?? ""
+                }
+                mode = initialMagnetMode ? .magnet : .file
+                if let url = prefilledURL {
+                    if url.scheme == "magnet" {
+                        mode = .magnet
+                        magnetString = url.absoluteString
+                    } else {
+                        mode = .file
+                        fileURL = url
+                    }
+                }
+                // Explicit focus so macOS doesn't auto-focus (and select-all) the
+                // Destination field. In magnet mode, focus the input so a paste lands
+                // immediately; in file mode, leave focus unset.
+                focusedField = mode == .magnet ? .magnet : nil
+            }
+            .onChange(of: mode) { _, newMode in
+                focusedField = newMode == .magnet ? .magnet : nil
+            }
+    }
+
+    /// The sheet's form. Kept out of a scroll view — it always fits — with top
+    /// padding clearing the floating glass header.
+    private var sheetContent: some View {
+        VStack(alignment: .leading) {
+            modePicker
+            sourceSection
+            optionsSection
         }
-        .onChange(of: mode) { _, newMode in
-            focusedField = newMode == .magnet ? .magnet : nil
-        }
+        .padding(.top, 45)
+        .padding([.horizontal, .bottom], 20)
     }
 
     // MARK: - Sections
