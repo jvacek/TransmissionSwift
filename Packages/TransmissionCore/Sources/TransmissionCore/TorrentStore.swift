@@ -493,11 +493,14 @@ public final class TorrentStore {
         showSetLocation = true
     }
 
-    public func setLocation(_ ids: [Torrent.ID], location: String, move: Bool) async {
+    @discardableResult
+    public func setLocation(_ ids: [Torrent.ID], location: String, move: Bool) async -> Bool {
         do {
             try await service.setLocation(ids, location: location, move: move)
+            return true
         } catch {
             recordError(error)
+            return false
         }
     }
 

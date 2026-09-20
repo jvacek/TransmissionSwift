@@ -12,7 +12,7 @@ All notable changes to TransmissionSwift.
 - Fix "Known folders" in Set Location modal
 - Add "Known folders" dropdown to the "Add torrent" modal
 - Move known folders to drop-down
-- If path under default dir, show the relative in the set location input
+- Try simplify UX for the relative path in set location field
 
 ## 0.5.3
 

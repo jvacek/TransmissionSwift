@@ -16,6 +16,7 @@ struct AddTorrentSheet: View {
 
     var initialMagnetMode: Bool = false
     var prefilledURL: URL? = nil
+    var serverName: String? = nil
 
     private enum Field: Hashable { case magnet, destination }
 
@@ -193,11 +194,12 @@ struct AddTorrentSheet: View {
     /// card: fixed-width label column, vertical separator, control leading.
     private var optionsSection: some View {
         VStack(spacing: 0) {
-            formRow("Destination") {
+            formRow("Destination", alignLabelToTop: true) {
                 ServerPathField(
                     path: $destination,
                     defaultDirectory: store.downloadDirectory,
-                    folders: knownFolders)
+                    folders: knownFolders,
+                    serverName: serverName)
             }
             Divider()
             formRow("Tags") {
@@ -232,11 +234,14 @@ struct AddTorrentSheet: View {
 
     private let formLabelWidth: CGFloat = 90
 
-    private func formRow(_ label: String, @ViewBuilder content: () -> some View) -> some View {
-        HStack(spacing: 12) {
+    private func formRow(
+        _ label: String, alignLabelToTop: Bool = false, @ViewBuilder content: () -> some View
+    ) -> some View {
+        HStack(alignment: alignLabelToTop ? .top : .center, spacing: 12) {
             Text(label)
                 .foregroundStyle(.primary)
                 .frame(width: formLabelWidth, alignment: .leading)
+                .padding(.top, alignLabelToTop ? 4 : 0)
             content()
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }

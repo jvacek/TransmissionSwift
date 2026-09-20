@@ -62,7 +62,8 @@ struct MainWindow: View {
             AddTorrentSheet(
                 isPresented: $store.showAddTorrent,
                 initialMagnetMode: store.addTorrentStartInMagnetMode,
-                prefilledURL: store.addTorrentPrefilledURL
+                prefilledURL: store.addTorrentPrefilledURL,
+                serverName: profileStore.activeProfile?.label
             )
         }
         .sheet(isPresented: $store.showEditLabels) {
@@ -74,7 +75,8 @@ struct MainWindow: View {
         .sheet(isPresented: $store.showSetLocation) {
             SetLocationSheet(
                 isPresented: $store.showSetLocation,
-                ids: store.setLocationTargetIDs
+                ids: store.setLocationTargetIDs,
+                serverName: profileStore.activeProfile?.label
             )
         }
         .dropDestination(for: URL.self) { urls, _ in

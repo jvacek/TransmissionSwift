@@ -86,6 +86,66 @@ struct SetLocationLogicTests {
         #expect(isSubmittableServerPath("Movies", relativeTo: nil))
         #expect(isSubmittableServerPath("/other/path", relativeTo: nil))
     }
+
+    // MARK: - serverPathClimbsAboveBase
+
+    @Test func climb_relative_inside_base_is_not_a_climb() {
+        #expect(!serverPathClimbsAboveBase("Movies", relativeTo: "/downloads"))
+        #expect(!serverPathClimbsAboveBase("Movies/../Music", relativeTo: "/downloads"))
+        #expect(!serverPathClimbsAboveBase("", relativeTo: "/downloads"))
+    }
+
+    @Test func climb_relative_escaping_base_is_a_climb() {
+        #expect(serverPathClimbsAboveBase("../Music", relativeTo: "/downloads"))
+        #expect(serverPathClimbsAboveBase("../../etc", relativeTo: "/downloads"))
+    }
+
+    @Test func climb_absolute_only_on_excess_dotdot() {
+        #expect(!serverPathClimbsAboveBase("/other/path", relativeTo: "/downloads"))
+        #expect(serverPathClimbsAboveBase("/../etc", relativeTo: "/downloads"))
+        #expect(serverPathClimbsAboveBase("/data/../../..", relativeTo: "/downloads"))
+    }
+
+    // MARK: - serverPathIsNewFolder
+
+    @Test func newFolder_base_and_known_are_not_new() {
+        #expect(!serverPathIsNewFolder(resolved: "/downloads", relativeTo: "/downloads", folders: []))
+        #expect(
+            !serverPathIsNewFolder(
+                resolved: "/downloads/Movies", relativeTo: "/downloads", folders: ["Movies"]))
+        #expect(!serverPathIsNewFolder(resolved: "/", relativeTo: "/downloads", folders: []))
+    }
+
+    @Test func newFolder_unknown_subtree_is_new() {
+        #expect(
+            serverPathIsNewFolder(
+                resolved: "/downloads/Fresh", relativeTo: "/downloads", folders: ["Movies"]))
+        #expect(
+            serverPathIsNewFolder(
+                resolved: "/media/torrents", relativeTo: "/downloads", folders: ["Movies"]))
+    }
+
+    // MARK: - setLocationInitialState
+
+    @Test func initialState_single_folder_prefills_relative() {
+        let state = setLocationInitialState(
+            folders: ["/downloads/Movies"], relativeTo: "/downloads")
+        #expect(state.path == "Movies")
+        #expect(state.distinctCount == 1)
+    }
+
+    @Test func initialState_mixed_folders_starts_empty() {
+        let state = setLocationInitialState(
+            folders: ["/downloads/Movies", "/downloads/Music"], relativeTo: "/downloads")
+        #expect(state.path.isEmpty)
+        #expect(state.distinctCount == 2)
+    }
+
+    @Test func initialState_no_folders_starts_empty() {
+        let state = setLocationInitialState(folders: [], relativeTo: "/downloads")
+        #expect(state.path.isEmpty)
+        #expect(state.distinctCount == 0)
+    }
 }
 
 /// Mirrors `FolderFilter.defaultFolderName` — the empty relative path that marks

@@ -9,7 +9,7 @@ import TransmissionCore
 ///
 /// The result keeps a leading `/` whenever either the input or `base` is rooted,
 /// so a relative entry like `Movies` still yields a real full path
-/// (`/downloads/Movies`) — both for the "Full path" preview and for the RPC
+/// (`/downloads/Movies`) — both for the "On server" preview and for the RPC
 /// call, which needs an absolute path on the daemon.
 func resolveServerPath(_ input: String, relativeTo base: String?) -> String {
     let trimmed = input.trimmingCharacters(in: .whitespaces)
@@ -80,21 +80,96 @@ func serverPathSuggestions(from facets: FilterFacets) -> [String] {
     knownFolderSuggestions(facets.folders.map(\.name))
 }
 
+/// Whether a relative input escapes the default download directory (via `..`)
+/// or an absolute input tries to climb above the daemon's root (clamped to
+/// `/`). Absolute paths outside the base chosen explicitly (e.g.
+/// `/media/torrents`) are intentional, not climbs, so only excess `..` counts
+/// for them.
+func serverPathClimbsAboveBase(_ input: String, relativeTo base: String?) -> Bool {
+    let trimmed = input.trimmingCharacters(in: .whitespaces)
+    if trimmed.isEmpty { return false }
+    if trimmed.hasPrefix("/") {
+        var depth = 0
+        for component in trimmed.split(separator: "/", omittingEmptySubsequences: false) {
+            let part = String(component)
+            if part.isEmpty || part == "." { continue }
+            if part == ".." {
+                if depth == 0 { return true }
+                depth -= 1
+            } else {
+                depth += 1
+            }
+        }
+        return false
+    }
+    guard let baseTrimmed = base?.trimmingCharacters(in: .whitespaces), !baseTrimmed.isEmpty
+    else { return false }
+    let baseNorm = baseTrimmed.normalizedDownloadPath
+    let resolved = resolveServerPath(trimmed, relativeTo: base)
+    if resolved.normalizedDownloadPath == baseNorm { return false }
+    return !resolved.hasPrefix(baseNorm + "/")
+}
+
+/// Whether a resolved target looks like a folder the daemon hasn't used yet:
+/// not the base itself, not root, and not among the known relative folders.
+/// The daemon — not this client — decides writability, so callers show this as
+/// a neutral hint, never a block.
+func serverPathIsNewFolder(resolved: String, relativeTo base: String?, folders: [String]) -> Bool {
+    guard !resolved.isEmpty, resolved != "/" else { return false }
+    guard let baseTrimmed = base?.trimmingCharacters(in: .whitespaces), !baseTrimmed.isEmpty
+    else { return false }
+    let baseNorm = baseTrimmed.normalizedDownloadPath
+    if resolved.normalizedDownloadPath == baseNorm { return false }
+    let relative = relativeDownloadFolder(resolved, relativeTo: base)
+    if relative.hasPrefix("/") { return true }
+    if relative.isEmpty { return false }
+    return !folders.contains(relative)
+}
+
+/// Prefill for the Set Location sheet: the single shared folder made relative
+/// to the base, or empty when the selection spans several folders (or has no
+/// folder) so the field never implies they all live in one place.
+func setLocationInitialState(folders: [String], relativeTo base: String?) -> (
+    path: String, distinctCount: Int
+) {
+    let distinct = Set(folders.map { $0.normalizedDownloadPath })
+    guard distinct.count == 1, let only = distinct.first else {
+        return ("", distinct.count)
+    }
+    return (initialServerPath(existing: only, relativeTo: base), 1)
+}
+
 /// Server-side path input shared by the Set Location and Add Torrent sheets.
 ///
-/// Owns the whole path story so both sheets behave identically: a text field
-/// whose placeholder teaches the relative format by example, the resolved
-/// "Full path" underneath, and a known-folders menu docked in the field. The
-/// caller binds a raw string and, on submit, passes it through
-/// `resolveServerPath(_:relativeTo:)`. The relative-vs-absolute rule lives in
-/// the field's tooltip rather than a visible line — the Full-path preview
-/// already shows where the input lands.
+/// Owns the whole path story so both sheets behave identically: a text field,
+/// a visible caption naming the daemon-side contract, the resolved target
+/// underneath, and a known-folders menu. The caller binds a raw string and, on
+/// submit, passes it through `resolveServerPath(_:relativeTo:)`.
 struct ServerPathField: View {
     @Binding var path: String
     let defaultDirectory: String?
     let folders: [String]
-    var placeholder: String = "relative/to/default-download-dir"
+    var serverName: String? = nil
+    var placeholder: String = "ISOs or /media/torrents"
     var isDisabled: Bool = false
+
+    /// Whether the static path explainer is expanded. Persisted so experienced
+    /// users can collapse it once and stop seeing it; the resolved preview and
+    /// all warnings stay visible regardless.
+    @AppStorage("serverPathHelpExpanded") private var helpExpanded = true
+
+    private var trimmedInput: String {
+        path.trimmingCharacters(in: .whitespaces)
+    }
+
+    private var isEmptyInput: Bool { trimmedInput.isEmpty }
+
+    private var baseKnown: Bool {
+        guard let base = defaultDirectory?.trimmingCharacters(in: .whitespaces) else {
+            return false
+        }
+        return !base.isEmpty
+    }
 
     private var resolvedPath: String {
         resolveServerPath(path, relativeTo: defaultDirectory)
@@ -114,23 +189,107 @@ struct ServerPathField: View {
         resolvedPathDisplay.replacingOccurrences(of: "/", with: "/\u{200B}")
     }
 
+    private var contractLines: [String] {
+        let base = defaultDirectory?.trimmingCharacters(in: .whitespaces)
+        if baseKnown, let base, !base.isEmpty {
+            return [
+                "Paths are on \(serverScope)'s disk, not on this Mac.",
+                "Names without a leading / go under \(base).",
+                "A leading / starts from the server's root.",
+            ]
+        }
+        return [
+            "Paths are on \(serverScope)'s disk, not on this Mac.",
+            "The default folder is unknown — use an absolute path.",
+        ]
+    }
+
+    private var serverScope: String {
+        if let serverName, !serverName.isEmpty { return serverName }
+        return "the server"
+    }
+
+    private var climbsAboveBase: Bool {
+        serverPathClimbsAboveBase(path, relativeTo: defaultDirectory)
+    }
+
+    private var isRootTarget: Bool { resolvedPath == "/" }
+
+    private var isNewFolder: Bool {
+        !isEmptyInput && !climbsAboveBase && !isRootTarget
+            && serverPathIsNewFolder(
+                resolved: resolvedPath, relativeTo: defaultDirectory, folders: folders)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             field
-            Text("Full path: \(wrappedPathDisplay)")
-                .font(.caption.monospaced())
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-                .lineLimit(nil)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            DisclosureGroup(isExpanded: $helpExpanded) {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(contractLines, id: \.self) { line in
+                        Text(line)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    if baseKnown {
+                        Text("Leave it empty to use the default folder itself.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    Text("The folder must already exist and be writable by the daemon.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text("Preview: \(wrappedPathDisplay)")
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            } label: {
+                Button {
+                    withAnimation { helpExpanded.toggle() }
+                } label: {
+                    Text("Learn more")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(helpExpanded ? "Hide path help" : "Learn more about paths")
+            }
+            if climbsAboveBase {
+                Text("⚠ “..” climbs above the default folder — clamped to \(wrappedPathDisplay)")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if isRootTarget {
+                Text("⚠ The filesystem root is an unusual location.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if isNewFolder {
+                Text("New folder — it must exist and be writable by the daemon.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 
     /// The input box, with the known-folders menu docked inside its trailing edge
-    /// so it reads as part of the field. The relative-vs-absolute rule lives in
-    /// the tooltip — the Full-path preview below already shows where the input
-    /// lands, so a visible explanation line would just repeat it.
+    /// so it reads as part of the field.
     private var field: some View {
         HStack(spacing: 6) {
             TextField(placeholder, text: $path)
@@ -155,24 +314,27 @@ struct ServerPathField: View {
         )
     }
 
-    /// Native menu: the system owns anchoring, dismissal, keyboard traversal, and
-    /// scrolling. Picking a folder is an action that sets `path`, not a bound
-    /// selection, so a `Menu` models it more honestly than a `Picker`.
+    /// Labeled menu (not an icon alone) so the one-click jump to a folder the
+    /// daemon already uses is discoverable. Picking a folder is an action that
+    /// sets `path`, not a bound selection, so a `Menu` models it more honestly
+    /// than a `Picker`.
     private var knownFoldersMenu: some View {
         Menu {
             ForEach(folders, id: \.self) { folder in
                 Button(folder) { path = folder }
             }
         } label: {
-            Image(systemName: "folder")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 3) {
+                Image(systemName: "folder")
+                Text("Known folders")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
         .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
         .fixedSize()
         .disabled(isDisabled)
-        .help("Use a known folder")
+        .help("Jump to a folder the daemon already uses")
         .accessibilityLabel("Known folders")
     }
 }
@@ -182,7 +344,8 @@ struct ServerPathField: View {
     return ServerPathField(
         path: $path,
         defaultDirectory: "/downloads",
-        folders: ["Linux ISOs", "Creative", "Movies/Marvel"]
+        folders: ["Linux ISOs", "Creative", "Movies/Marvel"],
+        serverName: "Home NAS"
     )
     .padding(20)
     .frame(width: 460)
