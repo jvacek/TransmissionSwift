@@ -17,6 +17,7 @@ struct SetLocationSheet: View {
     @State private var location: String = ""
     @State private var moveData = true
     @State private var isSaving = false
+    @State private var showKnownFolders = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -27,8 +28,7 @@ struct SetLocationSheet: View {
                 .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 4) {
-                TextField("Location on the server", text: $location)
-                    .disabled(isSaving)
+                locationField
                 Text(pathExplanation)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -42,20 +42,8 @@ struct SetLocationSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            if !suggestions.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Known folders")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 3) {
-                            ForEach(suggestions, id: \.self) { folder in
-                                KnownFolderButton(folder: folder) { location = folder }
-                            }
-                        }
-                    }
-                    .frame(maxHeight: 120)
-                }
+            if showKnownFolders {
+                KnownFoldersList(folders: suggestions) { location = $0 }
             }
 
             Toggle("Move data to the new location", isOn: $moveData)
@@ -93,6 +81,30 @@ struct SetLocationSheet: View {
         ids.count == 1 ? "1 torrent selected" : "\(ids.count) torrents selected"
     }
 
+    /// Location box, with the known-folders disclosure docked inside its trailing
+    /// edge so it reads as part of the field.
+    private var locationField: some View {
+        HStack(spacing: 6) {
+            TextField("Location on the server", text: $location)
+                .textFieldStyle(.plain)
+                .disabled(isSaving)
+            if !suggestions.isEmpty {
+                KnownFoldersToggle(isExpanded: $showKnownFolders)
+            }
+        }
+        .padding(.leading, 8)
+        .padding(.trailing, 4)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.secondary.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(Color.secondary.opacity(0.25))
+        )
+    }
+
     private var resolvedPath: String {
         resolveServerPath(location, relativeTo: store.downloadDirectory)
     }
@@ -123,48 +135,6 @@ struct SetLocationSheet: View {
         let resolved = resolveServerPath(trimmed, relativeTo: store.downloadDirectory)
         await store.setLocation(ids, location: resolved, move: moveData)
         isPresented = false
-    }
-}
-
-/// One row in the "Known folders" list. A bordered, hover-highlighted pill so
-/// it reads as a tappable destination rather than a line of text.
-private struct KnownFolderButton: View {
-    let folder: String
-    let action: () -> Void
-
-    @State private var isHovering = false
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: "folder")
-                    .foregroundStyle(.secondary)
-                Text(folder)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .opacity(isHovering ? 1 : 0.4)
-            }
-            .font(.caption)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                isHovering ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.08),
-                in: RoundedRectangle(cornerRadius: 6)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(Color.secondary.opacity(isHovering ? 0.35 : 0.15))
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 6))
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovering = $0 }
-        .help("Use \(folder)")
     }
 }
 
@@ -213,19 +183,9 @@ func resolveServerPath(_ input: String, relativeTo base: String?) -> String {
     return result
 }
 
-/// Known-folder buttons for the Set Location field. `known` is the torrent
-/// folder rollup from `FilterFacets`. The default-download-dir sentinel (`""`)
-/// names the default folder itself, not a destination worth jumping to, so it is
-/// dropped. The result is deliberately independent of the typed path — every
-/// known folder stays one click away rather than being filtered as you type.
-func knownFolderSuggestions(_ known: [String]) -> [String] {
-    known.filter { !$0.isEmpty }
-}
-
 #Preview("Set Location") {
-    let store = TorrentStore(service: MockTorrentService())
-    return SetLocationSheet(isPresented: .constant(true), ids: [2])
-        .environment(store)
+    SetLocationSheet(isPresented: .constant(true), ids: [2])
+        .environment(previewTorrentStore)
         .environment(TagColorStore())
         .frame(width: 460)
 }
