@@ -198,7 +198,6 @@ struct AddTorrentSheet: View {
                     path: $destination,
                     defaultDirectory: store.downloadDirectory,
                     folders: knownFolders,
-                    initiallyExpanded: false,
                     configureField: { AnyView($0.monospaced()) })
             }
             Divider()

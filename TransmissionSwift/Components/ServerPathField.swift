@@ -50,20 +50,17 @@ func resolveServerPath(_ input: String, relativeTo base: String?) -> String {
 /// Owns the whole path story so both sheets behave identically: a text field
 /// that accepts a path relative to the daemon's default download directory (or
 /// absolute when it starts with `/`), a one-line explanation, the resolved
-/// "Full path", and the collapsible known-folders list. The caller binds a raw
-/// string and, on submit, passes it through `resolveServerPath(_:relativeTo:)`.
+/// "Full path", and a known-folders menu docked in the field. The caller binds
+/// a raw string and, on submit, passes it through
+/// `resolveServerPath(_:relativeTo:)`.
 struct ServerPathField: View {
     @Binding var path: String
     let defaultDirectory: String?
     let folders: [String]
     var placeholder: String = "Location on the server"
-    /// Defaults to expanded; Add Torrent starts collapsed.
-    var initiallyExpanded: Bool = true
     var isDisabled: Bool = false
     /// Optional format/validation hook, e.g. a monospaced destination style.
     var configureField: (TextField<Text>) -> AnyView = { AnyView($0.textFieldStyle(.plain)) }
-
-    @State private var showKnownFolders = false
 
     private var resolvedPath: String {
         resolveServerPath(path, relativeTo: defaultDirectory)
@@ -97,21 +94,17 @@ struct ServerPathField: View {
                 .lineLimit(nil)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            if showKnownFolders {
-                KnownFoldersList(folders: folders) { path = $0 }
-            }
         }
-        .onAppear { showKnownFolders = initiallyExpanded }
     }
 
-    /// The input box, with the known-folders disclosure docked inside its
-    /// trailing edge so it reads as part of the field.
+    /// The input box, with the known-folders menu docked inside its trailing edge
+    /// so it reads as part of the field.
     private var field: some View {
         HStack(spacing: 6) {
             configureField(TextField(placeholder, text: $path))
                 .disabled(isDisabled)
             if !folders.isEmpty {
-                KnownFoldersToggle(isExpanded: $showKnownFolders)
+                knownFoldersMenu
             }
         }
         .padding(.leading, 8)
@@ -125,6 +118,27 @@ struct ServerPathField: View {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .stroke(Color.secondary.opacity(0.25))
         )
+    }
+
+    /// Native menu: the system owns anchoring, dismissal, keyboard traversal, and
+    /// scrolling. Picking a folder is an action that sets `path`, not a bound
+    /// selection, so a `Menu` models it more honestly than a `Picker`.
+    private var knownFoldersMenu: some View {
+        Menu {
+            ForEach(folders, id: \.self) { folder in
+                Button(folder) { path = folder }
+            }
+        } label: {
+            Image(systemName: "folder")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .disabled(isDisabled)
+        .help("Use a known folder")
+        .accessibilityLabel("Known folders")
     }
 
     private var explanation: String {
