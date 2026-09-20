@@ -11,6 +11,8 @@ All notable changes to TransmissionSwift.
 - Fix missed sentinel value in ratio column
 - Fix "Known folders" in Set Location modal
 - Add "Known folders" dropdown to the "Add torrent" modal
+- Move known folders to drop-down
+- If path under default dir, show the relative in the set location input
 
 ## 0.5.3
 
