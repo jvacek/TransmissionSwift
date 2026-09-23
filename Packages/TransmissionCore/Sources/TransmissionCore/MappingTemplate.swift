@@ -102,7 +102,17 @@ public enum MappingTemplate {
             return nil
         }
         components.user = authorityComponents.user
-        components.password = authorityComponents.password
+        // Preserve the substituted password byte-for-byte instead of decoding
+        // and re-encoding it: URLComponents' password encoding (notably `:`)
+        // differs across OS releases, which made `{password-encoded}` output
+        // version-dependent.
+        if let password = Self.encodedPasswordSubstring(in: authority),
+            Self.isFullyEncoded(password)
+        {
+            components.percentEncodedPassword = String(password)
+        } else {
+            components.password = authorityComponents.password
+        }
         components.host = authorityComponents.host
         components.port = authorityComponents.port
         components.path = Self.expandTildeIfNeeded(
@@ -130,6 +140,37 @@ public enum MappingTemplate {
         set.insert(charactersIn: "-._~")
         return set
     }()
+
+    /// The password text between the first `:` and the last `@` in an
+    /// authority string, or nil when there is no `user:password@` userinfo.
+    /// Returned raw so the caller can preserve its percent-encoding exactly.
+    private static func encodedPasswordSubstring(in authority: String) -> Substring? {
+        guard let atSign = authority.lastIndex(of: "@"),
+            let colon = authority.firstIndex(of: ":"),
+            colon < atSign
+        else { return nil }
+        return authority[authority.index(after: colon)..<atSign]
+    }
+
+    /// True when the string needs no further encoding — every character is
+    /// unreserved or part of a valid `%HH` triplet — i.e. it is safe for
+    /// `percentEncodedPassword` (which traps on anything else).
+    private static func isFullyEncoded(_ value: Substring) -> Bool {
+        var index = value.startIndex
+        while index < value.endIndex {
+            if value[index] == "%" {
+                guard let hexEnd = value.index(index, offsetBy: 3, limitedBy: value.endIndex),
+                    value[value.index(after: index)..<hexEnd].allSatisfy(\.isHexDigit)
+                else { return false }
+                index = hexEnd
+            } else if value[index].unicodeScalars.allSatisfy({ Self.urlUnreserved.contains($0) }) {
+                index = value.index(after: index)
+            } else {
+                return false
+            }
+        }
+        return true
+    }
 
     /// `{folder}` = the torrent's download folder relative to the daemon's
     /// default download directory; basename when that's not computable.

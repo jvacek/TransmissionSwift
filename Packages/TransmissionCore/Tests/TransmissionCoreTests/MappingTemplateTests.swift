@@ -198,6 +198,19 @@ struct MappingTemplateTests {
                 == "https://admin:p%2Fss%20word@nas.local/dl")
     }
 
+    @Test("raw {password} with a stray % falls back without trapping")
+    func rawPasswordWithStrayPercent() {
+        let server = ServerProfile(label: "x", host: "nas.local", username: "admin")
+        #expect(
+            expand(
+                "https://{user}:{password}@{host}/dl",
+                downloadFolder: "/dl",
+                server: server,
+                password: "100%"
+            )?.absoluteString
+                == "https://admin:100%25@nas.local/dl")
+    }
+
     @Test("nil password substitutes as empty for both password placeholders")
     func nilPassword() {
         let server = ServerProfile(label: "x", host: "nas.local", username: "admin")
