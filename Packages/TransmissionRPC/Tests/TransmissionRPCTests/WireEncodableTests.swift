@@ -54,6 +54,49 @@ struct WireEncodableTests {
         #expect(object["trackerStats"] == nil)
     }
 
+    @Test("peerLimit round-trips through the hyphenated peer-limit key")
+    func peerLimitUsesHyphenatedKey() throws {
+        var torrent = WireTorrent(
+            id: 7,
+            name: "Test",
+            hashString: "abc",
+            totalSize: 1024,
+            status: 4,
+            error: 0,
+            errorString: "",
+            isFinished: false,
+            percentDone: 0.5,
+            rateDownload: 1,
+            rateUpload: 2,
+            peersConnected: 1,
+            peersSendingToUs: 1,
+            peersGettingFromUs: 0,
+            peersFrom: WirePeersFrom(
+                fromCache: 1, fromDht: 0, fromIncoming: 0,
+                fromLpd: 0, fromLtep: 0, fromPex: 0, fromTracker: 0
+            ),
+            eta: 10,
+            uploadRatio: 0.1,
+            downloadDir: "/x",
+            addedDate: 100,
+            labels: nil,
+            bandwidthPriority: 0,
+            pieceCount: 10,
+            pieceSize: 1024,
+            haveValid: 512,
+            queuePosition: 0,
+            trackers: nil
+        )
+        torrent.peerLimit = 80
+        let data = try JSONEncoder().encode(torrent)
+        let object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(object["peer-limit"] as? Int == 80)
+        #expect(object["peerLimit"] == nil)
+
+        let decoded = try JSONDecoder().decode(WireTorrent.self, from: data)
+        #expect(decoded.peerLimit == 80)
+    }
+
     @Test("SessionInfo re-encodes with kebab-case keys")
     func sessionReencodesWithKebabKeys() throws {
         let session = SessionInfo(

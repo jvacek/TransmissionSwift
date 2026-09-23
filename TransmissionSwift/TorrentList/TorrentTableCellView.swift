@@ -35,6 +35,16 @@ struct TorrentRowDisplay: Equatable {
             && lhs.torrent.primaryTracker == rhs.torrent.primaryTracker
             && lhs.torrent.downloadFolder == rhs.torrent.downloadFolder
             && lhs.torrent.addedAt == rhs.torrent.addedAt
+            && lhs.torrent.completedAt == rhs.torrent.completedAt
+            && lhs.torrent.startedAt == rhs.torrent.startedAt
+            && lhs.torrent.lastActivityAt == rhs.torrent.lastActivityAt
+            && lhs.torrent.downloadedEver == rhs.torrent.downloadedEver
+            && lhs.torrent.uploadedEver == rhs.torrent.uploadedEver
+            && lhs.torrent.leftUntilDone == rhs.torrent.leftUntilDone
+            && lhs.torrent.sizeWhenDone == rhs.torrent.sizeWhenDone
+            && lhs.torrent.secondsDownloading == rhs.torrent.secondsDownloading
+            && lhs.torrent.secondsSeeding == rhs.torrent.secondsSeeding
+            && lhs.torrent.options == rhs.torrent.options
             && lhs.torrent.labels == rhs.torrent.labels
             && lhs.torrent.priority == rhs.torrent.priority
             && lhs.torrent.pieces == rhs.torrent.pieces
@@ -184,6 +194,12 @@ extension TorrentCellContent {
                 alignment: .right,
                 toolTip: row.torrent.addedAt.formatted(date: .abbreviated, time: .complete),
                 accessibilityLabel: row.torrent.addedAt.formatted(date: .abbreviated, time: .shortened))
+        case .completedAt:
+            return optionalDateContent(row.torrent.completedAt)
+        case .startedAt:
+            return optionalDateContent(row.torrent.startedAt)
+        case .lastActivityAt:
+            return optionalDateContent(row.torrent.lastActivityAt)
         case .primaryTracker:
             if row.torrent.primaryTracker.isEmpty {
                 return TorrentCellContent(
@@ -357,7 +373,146 @@ extension TorrentCellContent {
                 alignment: .left,
                 toolTip: row.torrent.hash,
                 accessibilityLabel: row.torrent.hash)
+        case .downloadedEver:
+            return totalContent(row.torrent.downloadedEver, label: "downloaded")
+        case .uploadedEver:
+            return totalContent(row.torrent.uploadedEver, label: "uploaded")
+        case .leftUntilDone:
+            let text = ColumnFormatters.humanizedSize(row.torrent.leftUntilDone)
+            return TorrentCellContent(
+                shape: .text,
+                text: text,
+                font: monoDigitFont,
+                color: .secondaryLabelColor,
+                alignment: .right,
+                toolTip: nil,
+                accessibilityLabel: "\(text) remaining")
+        case .sizeWhenDone:
+            let text = ColumnFormatters.humanizedSize(row.torrent.sizeWhenDone)
+            return TorrentCellContent(
+                shape: .text,
+                text: text,
+                font: monoDigitFont,
+                color: .secondaryLabelColor,
+                alignment: .right,
+                toolTip: nil,
+                accessibilityLabel: "\(text) when done")
+        case .secondsDownloading:
+            return durationContent(row.torrent.secondsDownloading, label: "downloading")
+        case .secondsSeeding:
+            return durationContent(row.torrent.secondsSeeding, label: "seeding")
+        case .downloadLimit:
+            return limitContent(
+                limited: row.torrent.options.downloadLimited,
+                text: row.torrent.options.downloadLimited
+                    ? ColumnFormatters.humanizedSpeed(Int64(row.torrent.options.downloadLimitKBps) * 1024) : nil,
+                label: "download limit")
+        case .uploadLimit:
+            return limitContent(
+                limited: row.torrent.options.uploadLimited,
+                text: row.torrent.options.uploadLimited
+                    ? ColumnFormatters.humanizedSpeed(Int64(row.torrent.options.uploadLimitKBps) * 1024) : nil,
+                label: "upload limit")
+        case .seedRatioLimit:
+            return limitContent(
+                limited: row.torrent.options.seedRatioLimited,
+                text: row.torrent.options.seedRatioLimited
+                    ? ColumnFormatters.ratio(row.torrent.options.seedRatioLimit) : nil,
+                label: "ratio limit")
+        case .seedIdleLimit:
+            return limitContent(
+                limited: row.torrent.options.seedIdleLimited,
+                text: row.torrent.options.seedIdleLimited
+                    ? "\(row.torrent.options.seedIdleMinutes)m" : nil,
+                label: "idle limit")
+        case .peerLimit:
+            let text = "\(row.torrent.options.peerLimit)"
+            return TorrentCellContent(
+                shape: .text,
+                text: text,
+                font: monoDigitFont,
+                color: .secondaryLabelColor,
+                alignment: .right,
+                toolTip: nil,
+                accessibilityLabel: "\(text) peers")
         }
+    }
+
+    private static func optionalDateContent(_ date: Date?) -> TorrentCellContent {
+        guard let date else {
+            return TorrentCellContent(
+                shape: .text,
+                text: "\u{2014}",
+                font: monoDigitFont,
+                color: .tertiaryLabelColor,
+                alignment: .right,
+                toolTip: nil,
+                accessibilityLabel: "never")
+        }
+        let text = ColumnFormatters.relativeDate(date)
+        return TorrentCellContent(
+            shape: .text,
+            text: text,
+            font: monoDigitFont,
+            color: .secondaryLabelColor,
+            alignment: .right,
+            toolTip: date.formatted(date: .abbreviated, time: .complete),
+            accessibilityLabel: date.formatted(date: .abbreviated, time: .shortened))
+    }
+
+    private static func totalContent(_ bytes: Int64, label: String) -> TorrentCellContent {
+        let text = ColumnFormatters.humanizedSize(bytes)
+        return TorrentCellContent(
+            shape: .text,
+            text: text,
+            font: monoDigitFont,
+            color: .secondaryLabelColor,
+            alignment: .right,
+            toolTip: nil,
+            accessibilityLabel: "\(text) \(label)")
+    }
+
+    private static func durationContent(_ seconds: Int64, label: String) -> TorrentCellContent {
+        guard seconds > 0 else {
+            return TorrentCellContent(
+                shape: .text,
+                text: "\u{2014}",
+                font: monoDigitFont,
+                color: .tertiaryLabelColor,
+                alignment: .right,
+                toolTip: nil,
+                accessibilityLabel: "no time \(label)")
+        }
+        let text = ColumnFormatters.humanizedDuration(seconds)
+        return TorrentCellContent(
+            shape: .text,
+            text: text,
+            font: monoDigitFont,
+            color: .secondaryLabelColor,
+            alignment: .right,
+            toolTip: nil,
+            accessibilityLabel: "\(text) \(label)")
+    }
+
+    private static func limitContent(limited: Bool, text: String?, label: String) -> TorrentCellContent {
+        guard limited, let text else {
+            return TorrentCellContent(
+                shape: .text,
+                text: "\u{2014}",
+                font: monoDigitFont,
+                color: .tertiaryLabelColor,
+                alignment: .right,
+                toolTip: nil,
+                accessibilityLabel: "no \(label)")
+        }
+        return TorrentCellContent(
+            shape: .text,
+            text: text,
+            font: monoDigitFont,
+            color: .secondaryLabelColor,
+            alignment: .right,
+            toolTip: nil,
+            accessibilityLabel: "\(text) \(label)")
     }
 
     private static func speedContent(_ bytesPerSecond: Int64, color: NSColor) -> TorrentCellContent {

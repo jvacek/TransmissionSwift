@@ -56,12 +56,18 @@ struct TorrentTableLogicTests {
         // a poll that only changed, say, a file list would refresh every row.
         #expect(TorrentRowDisplay(makeTorrent(pieceSize: 99)) == TorrentRowDisplay(base))
         #expect(
-            TorrentRowDisplay(makeTorrent(options: TorrentOptions(peerLimit: 999)))
-                == TorrentRowDisplay(base))
-        #expect(
             TorrentRowDisplay(
                 makeTorrent(files: [TorrentFile(id: 1, name: "f.bin", size: 1, progress: 0)]))
                 == TorrentRowDisplay(base))
+    }
+
+    @Test func displayEquality_tracksRenderedOptionFields() {
+        // Per-torrent limits render in the Limits column group, so an options
+        // change must flip the poll guard.
+        let base = makeTorrent()
+        #expect(
+            TorrentRowDisplay(makeTorrent(options: TorrentOptions(peerLimit: 999)))
+                != TorrentRowDisplay(base))
     }
 
     // MARK: - classifyChange

@@ -28,7 +28,23 @@ private func makeWire(
     downloadedEver: Int64? = nil,
     uploadedEver: Int64? = nil,
     activityDate: Int64? = nil,
-    magnetLink: String? = nil
+    magnetLink: String? = nil,
+    doneDate: Int64? = nil,
+    startDate: Int64? = nil,
+    secondsDownloading: Int64? = nil,
+    secondsSeeding: Int64? = nil,
+    leftUntilDone: Int64? = nil,
+    sizeWhenDone: Int64? = nil,
+    downloadLimit: Int? = nil,
+    downloadLimited: Bool? = nil,
+    uploadLimit: Int? = nil,
+    uploadLimited: Bool? = nil,
+    honorsSessionLimits: Bool? = nil,
+    seedRatioLimit: Double? = nil,
+    seedRatioMode: Int? = nil,
+    seedIdleLimit: Int? = nil,
+    seedIdleMode: Int? = nil,
+    peerLimit: Int? = nil
 ) -> WireTorrent {
     WireTorrent(
         id: 1,
@@ -59,6 +75,22 @@ private func makeWire(
         pieceSize: pieceSize,
         haveValid: haveValid,
         queuePosition: queuePosition,
+        doneDate: doneDate,
+        startDate: startDate,
+        secondsDownloading: secondsDownloading,
+        secondsSeeding: secondsSeeding,
+        leftUntilDone: leftUntilDone,
+        sizeWhenDone: sizeWhenDone,
+        downloadLimit: downloadLimit,
+        downloadLimited: downloadLimited,
+        uploadLimit: uploadLimit,
+        uploadLimited: uploadLimited,
+        honorsSessionLimits: honorsSessionLimits,
+        seedRatioLimit: seedRatioLimit,
+        seedRatioMode: seedRatioMode,
+        seedIdleLimit: seedIdleLimit,
+        seedIdleMode: seedIdleMode,
+        peerLimit: peerLimit,
         comment: comment,
         creator: creator,
         dateCreated: dateCreated,
@@ -901,6 +933,68 @@ struct MetadataMappingTests {
         #expect(t.magnetLink == nil)
     }
 
+    @Test("completion and lifetime fields map onto the model")
+    func lifetimeFieldsMap() {
+        let t = Torrent(
+            wire: makeWire(
+                doneDate: 1_700_002_000,
+                startDate: 1_700_000_100,
+                secondsDownloading: 3_600,
+                secondsSeeding: 7_200,
+                leftUntilDone: 1_024,
+                sizeWhenDone: 204_800
+            ))
+        #expect(t.completedAt == Date(timeIntervalSince1970: 1_700_002_000))
+        #expect(t.startedAt == Date(timeIntervalSince1970: 1_700_000_100))
+        #expect(t.secondsDownloading == 3_600)
+        #expect(t.secondsSeeding == 7_200)
+        #expect(t.leftUntilDone == 1_024)
+        #expect(t.sizeWhenDone == 204_800)
+    }
+
+    @Test("zero doneDate and startDate collapse to nil; absent counters default to 0")
+    func lifetimeDefaults() {
+        let t = Torrent(wire: makeWire(doneDate: 0, startDate: 0))
+        #expect(t.completedAt == nil)
+        #expect(t.startedAt == nil)
+        #expect(t.secondsDownloading == 0)
+        #expect(t.secondsSeeding == 0)
+        #expect(t.leftUntilDone == 0)
+        #expect(t.sizeWhenDone == 0)
+    }
+
+    @Test("limit fields map onto options; seed modes collapse to limited flags")
+    func limitFieldsMapToOptions() {
+        let t = Torrent(
+            wire: makeWire(
+                downloadLimit: 2_000,
+                downloadLimited: true,
+                uploadLimit: 500,
+                uploadLimited: false,
+                honorsSessionLimits: false,
+                seedRatioLimit: 2.5,
+                seedRatioMode: 1,
+                seedIdleLimit: 45,
+                seedIdleMode: 0,
+                peerLimit: 80
+            ))
+        #expect(t.options.downloadLimited)
+        #expect(t.options.downloadLimitKBps == 2_000)
+        #expect(!t.options.uploadLimited)
+        #expect(!t.options.honorsSessionLimits)
+        #expect(t.options.seedRatioLimited)
+        #expect(t.options.seedRatioLimit == 2.5)
+        #expect(!t.options.seedIdleLimited)
+        #expect(t.options.seedIdleMinutes == 45)
+        #expect(t.options.peerLimit == 80)
+    }
+
+    @Test("absent limit fields fall back to option defaults")
+    func limitDefaults() {
+        let t = Torrent(wire: makeWire())
+        #expect(t.options == TorrentOptions())
+    }
+
     @Test("mergingMetadata overlays metadata but keeps live transfer state")
     func mergingMetadataOverlays() {
         var live = Torrent(wire: makeWire(status: 4))
@@ -920,5 +1014,44 @@ struct MetadataMappingTests {
 
         // nil detail → unchanged.
         #expect(live.mergingMetadata(from: nil).comment == nil)
+    }
+}
+
+// MARK: - Column sort keys (sentinel handling)
+
+@Suite("Torrent — column sort keys")
+struct ColumnSortKeyTests {
+    @Test("missing dates (zero daemon timestamps) sort after real dates")
+    func missingDatesSortLast() {
+        let dated = Torrent(
+            wire: makeWire(activityDate: 1_700_000_000, doneDate: 1_700_000_000, startDate: 1_700_000_000))
+        let missing = Torrent(wire: makeWire())
+        #expect(dated.completedAtSortKey < missing.completedAtSortKey)
+        #expect(dated.startedAtSortKey < missing.startedAtSortKey)
+        #expect(dated.lastActivityAtSortKey < missing.lastActivityAtSortKey)
+    }
+
+    @Test("unlimited limits sort after explicit limits")
+    func unlimitedLimitsSortLast() {
+        let capped = Torrent(
+            wire: makeWire(
+                downloadLimit: 500, downloadLimited: true,
+                uploadLimit: 100, uploadLimited: true,
+                seedRatioLimit: 2.0, seedRatioMode: 1,
+                seedIdleLimit: 30, seedIdleMode: 1
+            ))
+        let open = Torrent(wire: makeWire())
+        #expect(capped.downloadLimitSortKey < open.downloadLimitSortKey)
+        #expect(capped.uploadLimitSortKey < open.uploadLimitSortKey)
+        #expect(capped.seedRatioLimitSortKey < open.seedRatioLimitSortKey)
+        #expect(capped.seedIdleLimitSortKey < open.seedIdleLimitSortKey)
+    }
+
+    @Test("seed mode 2 (unlimited) is not a limit")
+    func seedModeUnlimitedIsNotLimited() {
+        let t = Torrent(
+            wire: makeWire(seedRatioLimit: 5.0, seedRatioMode: 2, seedIdleLimit: 60, seedIdleMode: 2))
+        #expect(!t.options.seedRatioLimited)
+        #expect(!t.options.seedIdleLimited)
     }
 }

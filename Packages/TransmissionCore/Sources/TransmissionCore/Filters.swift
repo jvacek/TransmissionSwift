@@ -261,4 +261,17 @@ extension Torrent {
 
     /// Sortable key for the Queue column.
     public var queuePositionSortKey: Int { queuePosition ?? Int.max }
+
+    /// Sortable keys for the optional date columns. Missing dates (incomplete /
+    /// never started / never active) sort to the bottom in both directions.
+    public var completedAtSortKey: Date { completedAt ?? .distantFuture }
+    public var startedAtSortKey: Date { startedAt ?? .distantFuture }
+    public var lastActivityAtSortKey: Date { lastActivityAt ?? .distantFuture }
+
+    /// Sortable keys for the limit columns. Unlimited sorts below any explicit
+    /// limit when ascending, so capped torrents group together at the top.
+    public var downloadLimitSortKey: Int { options.downloadLimited ? options.downloadLimitKBps : Int.max }
+    public var uploadLimitSortKey: Int { options.uploadLimited ? options.uploadLimitKBps : Int.max }
+    public var seedRatioLimitSortKey: Double { options.seedRatioLimited ? options.seedRatioLimit : .infinity }
+    public var seedIdleLimitSortKey: Int { options.seedIdleLimited ? options.seedIdleMinutes : Int.max }
 }

@@ -33,6 +33,17 @@ public struct Torrent: Identifiable, Hashable, Sendable {
     public var queuePosition: Int?
     public var errorMessage: String?
     public var options: TorrentOptions
+    /// Daemon timestamps, mapped from `doneDate` / `startDate`. nil = not yet
+    /// (incomplete / never started); the UI renders an em dash.
+    public var completedAt: Date?
+    public var startedAt: Date?
+    /// Lifetime counters in seconds, from `secondsDownloading` / `secondsSeeding`.
+    public var secondsDownloading: Int64
+    public var secondsSeeding: Int64
+    /// Bytes still missing (`leftUntilDone`) and total wanted size
+    /// (`sizeWhenDone`); 0 remaining means complete.
+    public var leftUntilDone: Int64
+    public var sizeWhenDone: Int64
     public var files: [TorrentFile]
     public var peers: [Peer]
     public var trackers: [Tracker]
@@ -72,6 +83,12 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         queuePosition: Int? = nil,
         errorMessage: String? = nil,
         options: TorrentOptions = TorrentOptions(),
+        completedAt: Date? = nil,
+        startedAt: Date? = nil,
+        secondsDownloading: Int64 = 0,
+        secondsSeeding: Int64 = 0,
+        leftUntilDone: Int64 = 0,
+        sizeWhenDone: Int64 = 0,
         files: [TorrentFile] = [],
         peers: [Peer] = [],
         trackers: [Tracker] = [],
@@ -108,6 +125,12 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         self.queuePosition = queuePosition
         self.errorMessage = errorMessage
         self.options = options
+        self.completedAt = completedAt
+        self.startedAt = startedAt
+        self.secondsDownloading = secondsDownloading
+        self.secondsSeeding = secondsSeeding
+        self.leftUntilDone = leftUntilDone
+        self.sizeWhenDone = sizeWhenDone
         self.files = files
         self.peers = peers
         self.trackers = trackers

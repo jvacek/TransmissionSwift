@@ -61,7 +61,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         tableView.setAccessibilityIdentifier("torrents.table")
 
         // Column layout persistence: NSTableView autosaves order, widths and
-        // each column's isHidden state under autosaveName. All 20 columns are
+        // each column's isHidden state under autosaveName. All columns are
         // added up front with their defaults (hidden-by-default ones start
         // hidden per spec). The autosave properties are set *after* the columns
         // exist: AppKit's restore pass runs when the autosave name is set and
@@ -75,6 +75,13 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             column.isHidden = spec.hiddenByDefault
             tableView.addTableColumn(column)
         }
+        // Grouped visibility menu: the native AppKit header menu is a flat
+        // list, unfindable at 30+ columns, so the header gets a custom menu
+        // with one submenu per `TorrentTableColumnGroup`. Toggling flips the
+        // real column's isHidden, so autosave persistence keeps working.
+        let headerMenu = coordinator.makeHeaderMenu()
+        coordinator.headerMenu = headerMenu
+        tableView.headerView?.menu = headerMenu
         tableView.autosaveName = "torrentsTableColumns"
         tableView.autosaveTableColumns = true
 
@@ -163,6 +170,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         var mappings: [OpenMapping] = []
         var onOpenMapping: ((OpenMapping, [Torrent.ID]) -> Void)?
         weak var rowMenu: NSMenu?
+        weak var headerMenu: NSMenu?
 
         private(set) var displayedRows: [TorrentRowDisplay] = []
         private var lastDownloadDirectoryBase: String?
@@ -330,6 +338,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         private static let editLabelsItemTag = 2
         private static let openMappingItemTag = 3
         private static let setLocationItemTag = 4
+        private static let hideColumnItemTag = 5
 
         /// Title + SF-symbol glyph for a torrent-priority context-menu item.
         /// Mirrors the priority column's glyphs (TorrentPriority.systemImage).
@@ -478,6 +487,127 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             return column
         }
 
+        /// Builds the grouped header visibility menu: one submenu per column
+        /// group, each item toggling its column's isHidden, plus a trailing
+        /// hide/reset section. States refresh in `menuNeedsUpdate` just before
+        /// the menu pops.
+        func makeHeaderMenu() -> NSMenu {
+            let menu = NSMenu()
+            menu.delegate = self
+            for group in TorrentTableColumnGroup.allCases {
+                let submenu = NSMenu()
+                for spec in TorrentTableColumns.all where spec.group == group {
+                    let item = NSMenuItem(
+                        title: spec.title,
+                        action: #selector(TorrentTableRepresentable.Coordinator.toggleColumnVisibility(_:)),
+                        keyEquivalent: "")
+                    item.target = self
+                    item.representedObject = spec.column.rawValue
+                    submenu.addItem(item)
+                }
+                let groupItem = NSMenuItem(title: group.rawValue, action: nil, keyEquivalent: "")
+                groupItem.submenu = submenu
+                menu.addItem(groupItem)
+            }
+            menu.addItem(.separator())
+            let hideItem = NSMenuItem(
+                title: "Hide This Column",
+                action: #selector(TorrentTableRepresentable.Coordinator.hideClickedColumn(_:)),
+                keyEquivalent: "")
+            hideItem.target = self
+            hideItem.tag = Self.hideColumnItemTag
+            menu.addItem(hideItem)
+            let resetItem = NSMenuItem(
+                title: "Reset Columns",
+                action: #selector(TorrentTableRepresentable.Coordinator.resetColumnsToDefaults(_:)),
+                keyEquivalent: "")
+            resetItem.target = self
+            menu.addItem(resetItem)
+            return menu
+        }
+
+        @objc func toggleColumnVisibility(_ sender: NSMenuItem) {
+            guard let tableView,
+                let rawValue = sender.representedObject as? String
+            else { return }
+            let identifier = NSUserInterfaceItemIdentifier(rawValue)
+            guard let column = tableView.tableColumns.first(where: { $0.identifier == identifier }) else { return }
+            // Never hide the last visible column — an empty table gives no
+            // header to right-click back from.
+            let visibleCount = tableView.tableColumns.count(where: { !$0.isHidden })
+            if !column.isHidden, visibleCount <= 1 { return }
+            column.isHidden.toggle()
+        }
+
+        /// Hides the header cell the menu was invoked from (`clickedColumn` is
+        /// valid in `menuNeedsUpdate`, where the target is captured).
+        @objc func hideClickedColumn(_ sender: NSMenuItem) {
+            guard let tableView,
+                let rawValue = sender.representedObject as? String
+            else { return }
+            let identifier = NSUserInterfaceItemIdentifier(rawValue)
+            guard let column = tableView.tableColumns.first(where: { $0.identifier == identifier }),
+                !column.isHidden
+            else { return }
+            let visibleCount = tableView.tableColumns.count(where: { !$0.isHidden })
+            if visibleCount <= 1 { return }
+            column.isHidden = true
+        }
+
+        /// Restores the spec defaults: visibility, widths, and column order.
+        /// Autosave persists the restored state, so it survives relaunches.
+        /// Sort order is untouched — that lives in the store, not the table.
+        @objc func resetColumnsToDefaults(_ sender: NSMenuItem) {
+            guard let tableView else { return }
+            for (index, spec) in TorrentTableColumns.all.enumerated() {
+                guard
+                    let column = tableView.tableColumns.first(where: {
+                        $0.identifier == spec.identifier
+                    })
+                else { continue }
+                column.isHidden = spec.hiddenByDefault
+                column.width = spec.idealWidth
+                let currentIndex = tableView.column(withIdentifier: spec.identifier)
+                if currentIndex != -1, currentIndex != index {
+                    tableView.moveColumn(currentIndex, toColumn: index)
+                }
+            }
+        }
+
+        /// Refreshes each header-menu item's checkmark from its column's
+        /// isHidden, disabling the sole visible column so it can't be hidden.
+        /// Also retargets the "Hide …" item at the right-clicked column.
+        private func refreshHeaderMenu() {
+            guard let menu = headerMenu, let tableView else { return }
+            let visibleCount = tableView.tableColumns.count(where: { !$0.isHidden })
+            for groupItem in menu.items {
+                guard let submenu = groupItem.submenu else { continue }
+                for item in submenu.items {
+                    guard let rawValue = item.representedObject as? String else { continue }
+                    let identifier = NSUserInterfaceItemIdentifier(rawValue)
+                    guard let column = tableView.tableColumns.first(where: { $0.identifier == identifier })
+                    else { continue }
+                    item.state = column.isHidden ? .off : .on
+                    item.isEnabled = column.isHidden || visibleCount > 1
+                }
+            }
+            guard let hideItem = menu.items.first(where: { $0.tag == Self.hideColumnItemTag }) else { return }
+            let clicked = tableView.clickedColumn
+            if clicked >= 0, tableView.tableColumns.indices.contains(clicked) {
+                let column = tableView.tableColumns[clicked]
+                let title =
+                    TorrentTableColumns.all.first(where: { $0.identifier == column.identifier })?.title
+                    ?? column.identifier.rawValue
+                hideItem.title = "Hide “\(title)”"
+                hideItem.representedObject = column.identifier.rawValue
+                hideItem.isEnabled = !column.isHidden && visibleCount > 1
+            } else {
+                hideItem.title = "Hide This Column"
+                hideItem.representedObject = nil
+                hideItem.isEnabled = false
+            }
+        }
+
         private func restoreSelection() {
             guard let tableView else { return }
             let selection = selectionBinding.wrappedValue
@@ -605,6 +735,8 @@ extension TorrentTableRepresentable.Coordinator: NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         if menu === rowMenu {
             rebuildRowMenu()
+        } else if menu === headerMenu {
+            refreshHeaderMenu()
         }
     }
 

@@ -2,6 +2,29 @@
 
 All notable changes to TransmissionSwift.
 
+## 0.5.5
+
+23 Sept 2026
+
+- Group the items in the column menu
+- Add a bunch of new columns
+  - Dates & Time (existing: Added)
+    - Completed
+    - Started
+    - Last Active
+    - Download Time
+    - Seeding Time
+  - Totals (new group)
+    - Total DL
+    - Total UL
+    - Remaining
+    - Size When Done
+  - Limits (new group)
+    - DL Limit
+    - UL Limit
+    - Ratio Limit
+    - Idle Limit
+    - Peer Limit
 
 ## 0.5.4
 

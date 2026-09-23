@@ -92,7 +92,25 @@ public struct WireTorrent: Codable, Sendable {
     public var pieceSize: Int64
     public var haveValid: Int64
     public var queuePosition: Int
-    // Static metadata + cumulative stats — requested with inspectorFields only.
+    // Completion / lifetime stats — requested with listFields.
+    public var doneDate: Int64? = nil
+    public var startDate: Int64? = nil
+    public var secondsDownloading: Int64? = nil
+    public var secondsSeeding: Int64? = nil
+    public var leftUntilDone: Int64? = nil
+    public var sizeWhenDone: Int64? = nil
+    // Per-torrent limits — requested with listFields; absent on old daemons.
+    public var downloadLimit: Int? = nil
+    public var downloadLimited: Bool? = nil
+    public var uploadLimit: Int? = nil
+    public var uploadLimited: Bool? = nil
+    public var honorsSessionLimits: Bool? = nil
+    public var seedRatioLimit: Double? = nil
+    public var seedRatioMode: Int? = nil
+    public var seedIdleLimit: Int? = nil
+    public var seedIdleMode: Int? = nil
+    public var peerLimit: Int? = nil
+    // Static metadata + cumulative stats — requested with listFields.
     public var comment: String? = nil
     public var creator: String? = nil
     public var dateCreated: Int64? = nil
@@ -107,6 +125,63 @@ public struct WireTorrent: Codable, Sendable {
     public var fileStats: [WireFileStat]? = nil
     public var peers: [WirePeer]? = nil
     public var trackerStats: [WireTrackerStat]? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case hashString
+        case totalSize
+        case status
+        case error
+        case errorString
+        case isFinished
+        case percentDone
+        case rateDownload
+        case rateUpload
+        case peersConnected
+        case peersSendingToUs
+        case peersGettingFromUs
+        case peersFrom
+        case eta
+        case uploadRatio
+        case downloadDir
+        case addedDate
+        case labels
+        case bandwidthPriority
+        case pieceCount
+        case pieceSize
+        case haveValid
+        case queuePosition
+        case doneDate
+        case startDate
+        case secondsDownloading
+        case secondsSeeding
+        case leftUntilDone
+        case sizeWhenDone
+        case downloadLimit
+        case downloadLimited
+        case uploadLimit
+        case uploadLimited
+        case honorsSessionLimits
+        case seedRatioLimit
+        case seedRatioMode
+        case seedIdleLimit
+        case seedIdleMode
+        case peerLimit = "peer-limit"
+        case comment
+        case creator
+        case dateCreated
+        case isPrivate
+        case downloadedEver
+        case uploadedEver
+        case activityDate
+        case magnetLink
+        case trackers
+        case files
+        case fileStats
+        case peers
+        case trackerStats
+    }
 }
 
 struct TorrentGetArguments: Encodable {
@@ -133,6 +208,14 @@ extension TorrentGetResponse {
         "labels", "bandwidthPriority",
         "pieceCount", "pieceSize", "haveValid",
         "queuePosition", "trackers", "trackerStats",
+        "doneDate", "startDate", "secondsDownloading", "secondsSeeding",
+        "leftUntilDone", "sizeWhenDone",
+        "downloadedEver", "uploadedEver", "activityDate",
+        "comment", "creator", "dateCreated", "isPrivate",
+        "downloadLimit", "downloadLimited", "uploadLimit", "uploadLimited",
+        "honorsSessionLimits",
+        "seedRatioLimit", "seedRatioMode", "seedIdleLimit", "seedIdleMode",
+        "peer-limit",
     ]
 
     /// Extra fields fetched for the inspector — only requested for the selected
@@ -141,8 +224,6 @@ extension TorrentGetResponse {
         "files", "fileStats",
         "peers",
         "trackerStats",
-        "comment", "creator", "dateCreated", "isPrivate",
-        "downloadedEver", "uploadedEver", "activityDate",
         "magnetLink",
     ]
 }

@@ -9,6 +9,9 @@ public enum TableColumn: String, CaseIterable, Identifiable, Hashable, Sendable,
     case eta
     case ratio
     case addedAt
+    case completedAt
+    case startedAt
+    case lastActivityAt
     case primaryTracker
     case connectedPeers
     case availablePeers
@@ -21,6 +24,17 @@ public enum TableColumn: String, CaseIterable, Identifiable, Hashable, Sendable,
     case pieces
     case downloadFolder
     case hash
+    case downloadedEver
+    case uploadedEver
+    case leftUntilDone
+    case sizeWhenDone
+    case secondsDownloading
+    case secondsSeeding
+    case downloadLimit
+    case uploadLimit
+    case seedRatioLimit
+    case seedIdleLimit
+    case peerLimit
 
     public var id: String { rawValue }
 
@@ -39,6 +53,9 @@ extension TableColumn {
         case .eta: return KeyPathComparator(\Torrent.etaSortKey, order: order)
         case .ratio: return KeyPathComparator(\Torrent.ratio, order: order)
         case .addedAt: return KeyPathComparator(\Torrent.addedAt, order: order)
+        case .completedAt: return KeyPathComparator(\Torrent.completedAtSortKey, order: order)
+        case .startedAt: return KeyPathComparator(\Torrent.startedAtSortKey, order: order)
+        case .lastActivityAt: return KeyPathComparator(\Torrent.lastActivityAtSortKey, order: order)
         case .primaryTracker: return KeyPathComparator(\Torrent.primaryTracker, order: order)
         case .connectedPeers: return KeyPathComparator(\Torrent.connectedPeerCount, order: order)
         case .availablePeers: return KeyPathComparator(\Torrent.availablePeerCount, order: order)
@@ -51,6 +68,17 @@ extension TableColumn {
         case .pieces: return KeyPathComparator(\Torrent.havePieces, order: order)
         case .downloadFolder: return KeyPathComparator(\Torrent.downloadFolder, order: order)
         case .hash: return KeyPathComparator(\Torrent.hash, order: order)
+        case .downloadedEver: return KeyPathComparator(\Torrent.downloadedEver, order: order)
+        case .uploadedEver: return KeyPathComparator(\Torrent.uploadedEver, order: order)
+        case .leftUntilDone: return KeyPathComparator(\Torrent.leftUntilDone, order: order)
+        case .sizeWhenDone: return KeyPathComparator(\Torrent.sizeWhenDone, order: order)
+        case .secondsDownloading: return KeyPathComparator(\Torrent.secondsDownloading, order: order)
+        case .secondsSeeding: return KeyPathComparator(\Torrent.secondsSeeding, order: order)
+        case .downloadLimit: return KeyPathComparator(\Torrent.downloadLimitSortKey, order: order)
+        case .uploadLimit: return KeyPathComparator(\Torrent.uploadLimitSortKey, order: order)
+        case .seedRatioLimit: return KeyPathComparator(\Torrent.seedRatioLimitSortKey, order: order)
+        case .seedIdleLimit: return KeyPathComparator(\Torrent.seedIdleLimitSortKey, order: order)
+        case .peerLimit: return KeyPathComparator(\Torrent.options.peerLimit, order: order)
         }
     }
 }

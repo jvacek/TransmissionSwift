@@ -184,6 +184,23 @@ extension Torrent {
 
         let resolvedPeers: [Peer] = (wire.peers ?? []).map { Peer(wire: $0) }
 
+        // Per-torrent limits ride the list poll now (they back the Limits
+        // column group). Seed-mode tri-states collapse to the two the UI
+        // exposes, mirroring `TorrentOptions` semantics; missing keys (old
+        // daemons, old snapshots) fall back to the struct defaults.
+        let options = TorrentOptions(
+            honorsSessionLimits: wire.honorsSessionLimits ?? true,
+            downloadLimited: wire.downloadLimited ?? false,
+            downloadLimitKBps: wire.downloadLimit ?? 2000,
+            uploadLimited: wire.uploadLimited ?? false,
+            uploadLimitKBps: wire.uploadLimit ?? 500,
+            seedRatioLimited: (wire.seedRatioMode ?? 0) == 1,
+            seedRatioLimit: wire.seedRatioLimit ?? 2.0,
+            seedIdleLimited: (wire.seedIdleMode ?? 0) == 1,
+            seedIdleMinutes: wire.seedIdleLimit ?? 30,
+            peerLimit: wire.peerLimit ?? 60
+        )
+
         self.init(
             id: wire.id,
             name: wire.name,
@@ -208,7 +225,13 @@ extension Torrent {
             havePieces: havePieces,
             queuePosition: queuePosition,
             errorMessage: errorMessage,
-            options: TorrentOptions(),
+            options: options,
+            completedAt: wire.doneDate.flatMap { $0 > 0 ? Date(timeIntervalSince1970: TimeInterval($0)) : nil },
+            startedAt: wire.startDate.flatMap { $0 > 0 ? Date(timeIntervalSince1970: TimeInterval($0)) : nil },
+            secondsDownloading: wire.secondsDownloading ?? 0,
+            secondsSeeding: wire.secondsSeeding ?? 0,
+            leftUntilDone: wire.leftUntilDone ?? 0,
+            sizeWhenDone: wire.sizeWhenDone ?? 0,
             files: resolvedFiles,
             peers: resolvedPeers,
             trackers: resolvedTrackers,
