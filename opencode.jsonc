@@ -1,8 +1,10 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "xcode": {
-      "enabled": true,
-    },
-  },
+    "servers": {
+      "xcode": {
+        "disabled": false
+      }
+    }
+  }
 }
