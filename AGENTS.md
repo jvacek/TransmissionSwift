@@ -24,38 +24,9 @@ If anything in this file contradicts `ARCHITECTURE.md`, treat `ARCHITECTURE.md` 
 
 ## Build & test commands
 
-```bash
-# Format Swift sources in-place (uses bundled swift-format).
-swift format --in-place --recursive .
+Use `just <recipe>` (`just --list` to see them) — the `justfile` wraps common commands. Consult this if you want to test/run/daemon etc.
 
-# Format lint (CI-style — no writes, exits non-zero on diff).
-swift format lint --strict --recursive .
-
-# Build & test individual packages (fast).
-cd Packages/TransmissionRPC && swift test
-cd Packages/TransmissionCore && swift test
-
-# IMPORTANT: the default `swift` on this machine uses the Command Line Tools SDK,
-# which does NOT ship Swift Testing's `Testing` module. Plain `swift test` fails
-# with "no such module 'Testing'" even though the code is correct. Prefix every
-# package-test invocation with the full Xcode toolchain:
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-cd Packages/TransmissionCore && swift test
-
-# Build the macOS app target (slow; prefer the `xcode` MCP server's `BuildProject`).
-xcodebuild -project TransmissionSwift.xcodeproj -scheme TransmissionSwift build | xcbeautify
-
-# Run the macOS app's tests.
-# The scheme's TestAction uses the "UI Testing" build configuration, which
-# builds the app-under-test with bundle ID jvacek.TransmissionSwift.uitesting —
-# a separate app with its own sandbox container. UI tests therefore never clash
-# with a TransmissionSwift instance you already have running, and never touch
-# the real app's prefs/profiles.
-xcodebuild -project TransmissionSwift.xcodeproj -scheme TransmissionSwift test | xcbeautify
-
-# Run all pre-commit hooks across the repo (uses prek).
-prek run --all-files
-```
+For linting and formatting, prek is also available.
 
 When invoked from inside Xcode via Claude Code: prefer the `xcode` MCP server (`BuildProject`, `XcodeRefreshCodeIssuesInFile`, `RunSomeTests`) over raw `xcodebuild`. The MCP tools pre-parse output and save context.
 
