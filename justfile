@@ -37,7 +37,7 @@ test-core:
 # Package tests with -warnings-as-errors (matches CI).
 test-packages-strict:
     cd Packages/TransmissionRPC && DEVELOPER_DIR="{{ xcode_toolchain }}" swift test --enable-code-coverage -Xswiftc -warnings-as-errors
-    cd ../TransmissionCore && DEVELOPER_DIR="{{ xcode_toolchain }}" swift test --enable-code-coverage -Xswiftc -warnings-as-errors
+    cd Packages/TransmissionCore && DEVELOPER_DIR="{{ xcode_toolchain }}" swift test --enable-code-coverage -Xswiftc -warnings-as-errors
 
 # Build the macOS app (Debug).
 build:
