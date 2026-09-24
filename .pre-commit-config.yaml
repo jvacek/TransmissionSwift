@@ -3,9 +3,17 @@
 # One-time setup:
 #   brew install prek
 #   prek install
+#   prek install --hook-type pre-push
 #
 # Manual run across the whole repo:
 #   prek run --all-files
+#
+# Manual run of the pre-push suite without pushing:
+#   prek run --stage pre-push --all-files
+
+# Keep the hygiene/format hooks commit-only by default; the unit-test
+# hook below opts into `pre-push` explicitly.
+default_stages: [pre-commit]
 
 repos:
   # Standard hygiene hooks.
@@ -33,3 +41,15 @@ repos:
         files: \.swift$
         # Exclude generated files and Xcode project descriptors.
         exclude: ^(Packages/.*/\.build/|.*\.xcodeproj/)
+
+  # Unit tests on push. `just test-packages-strict` mirrors CI
+  # (package tests with -warnings-as-errors).
+  - repo: local
+    hooks:
+      - id: swift-package-tests
+        name: swift package unit tests
+        entry: just test-packages-strict
+        language: system
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false
