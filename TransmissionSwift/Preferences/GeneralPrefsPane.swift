@@ -4,9 +4,8 @@ import TransmissionCore
 struct GeneralPrefsPane: View {
     @AppStorage("showAddDialogBeforeAdding") private var showAddDialog = true
     @AppStorage("startMinimized") private var startMinimized = false
-    @AppStorage("badgeAppIcon") private var badgeAppIcon = true
+    @AppStorage("badgeAppIcon") private var badgeAppIcon = false
     @AppStorage("confirmRemove") private var confirmRemove = true
-    @AppStorage("downloadFolder") private var downloadFolder = "~/Downloads"
     @AppStorage("pollingIntervalSeconds") private var pollingInterval: Double = 5.0
     @AppStorage("freeSpaceIntervalSeconds") private var freeSpaceInterval: Double = 60.0
     @AppStorage("fetchTrackerFavicons") private var fetchFavicons = true
@@ -15,22 +14,13 @@ struct GeneralPrefsPane: View {
     var body: some View {
         Form {
             Section("Downloads") {
-                LabeledContent("Default folder") {
-                    Text(downloadFolder)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
                 Toggle("Show dialog before adding a torrent", isOn: $showAddDialog)
-                    .disabled(true)
             }
             Section("Connection") {
                 LabeledContent("Refresh interval") {
                     HStack {
                         TextField("", value: $pollingInterval, format: .number)
                             .frame(width: 52)
-                        Stepper("", value: $pollingInterval, in: 1...60, step: 1)
-                            .labelsHidden()
                         Text("seconds")
                             .foregroundStyle(.secondary)
                     }
@@ -39,8 +29,6 @@ struct GeneralPrefsPane: View {
                     HStack {
                         TextField("", value: $freeSpaceInterval, format: .number)
                             .frame(width: 52)
-                        Stepper("", value: $freeSpaceInterval, in: 10...3600, step: 10)
-                            .labelsHidden()
                         Text("seconds")
                             .foregroundStyle(.secondary)
                     }
@@ -57,7 +45,6 @@ struct GeneralPrefsPane: View {
                 Toggle("Start minimized", isOn: $startMinimized)
                 Toggle("Confirm before removing", isOn: $confirmRemove)
             }
-            .disabled(true)
         }
         .formStyle(.grouped)
     }

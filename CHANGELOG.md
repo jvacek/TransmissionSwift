@@ -2,6 +2,14 @@
 
 All notable changes to TransmissionSwift.
 
+## 0.6.0
+
+24th septh 2026
+
+- Split settings page into two: Application and server settings
+- Implement server settings
+- Fix UI bugs in settings pages
+
 ## 0.5.6
 
 24th Sept 2026

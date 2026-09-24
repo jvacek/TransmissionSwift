@@ -21,15 +21,24 @@ private let prefsPendingTabKey = "prefsPendingNavTab"
 /// the window. `onAppear` handles the fresh-open case; `onChange` handles the
 /// already-visible case.
 struct PreferencesView: View {
+    @Environment(ServerProfileStore.self) private var profileStore
     @State private var selection: PrefsTab = .general
     @AppStorage(prefsPendingTabKey) private var pendingTab: String = ""
 
     var body: some View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
             List(selection: $selection) {
-                ForEach(PrefsTab.allCases) { tab in
-                    Label(tab.title, systemImage: tab.systemImage)
-                        .tag(tab)
+                Section("Application") {
+                    ForEach(PrefsTab.applicationTabs) { tab in
+                        Label(tab.title, systemImage: tab.systemImage)
+                            .tag(tab)
+                    }
+                }
+                Section(serverSectionTitle) {
+                    ForEach(PrefsTab.serverTabs) { tab in
+                        Label(tab.title, systemImage: tab.systemImage)
+                            .tag(tab)
+                    }
                 }
             }
             .listStyle(.sidebar)
@@ -49,7 +58,7 @@ struct PreferencesView: View {
                 }
         }
         .navigationSplitViewStyle(.balanced)
-        .frame(minWidth: 660, minHeight: 480)
+        .frame(minWidth: 760, minHeight: 480)
         .onAppear {
             if let tab = PrefsTab(rawValue: pendingTab) {
                 selection = tab
@@ -69,21 +78,33 @@ struct PreferencesView: View {
         case .general: GeneralPrefsPane()
         case .servers: ServersPrefsPane()
         case .speed: SpeedPrefsPane()
-        case .seeding: SeedingPrefsPane()
+        case .transfers: TransfersPrefsPane()
         case .network: NetworkPrefsPane()
-        case .remote: RemotePrefsPane()
         case .updates: UpdatesPrefsPane()
         case .developer: DeveloperPrefsPane()
         case .tags: TagsPrefsPane()
         }
     }
+
+    /// "Server (Home NAS)" — the server panes act on the active profile.
+    private var serverSectionTitle: String {
+        if let label = profileStore.activeProfile?.label, !label.isEmpty {
+            return "Server (\(label))"
+        }
+        return "Server"
+    }
 }
 
-/// The preferences sidebar categories, in display order. Persisted by raw value
+/// The preferences sidebar categories. Persisted by raw value
 /// so "Server Settings…" can deep-link to a specific pane without depending on
 /// the sidebar order.
 enum PrefsTab: String, Hashable, CaseIterable, Identifiable {
-    case general, servers, speed, seeding, network, remote, updates, developer, tags
+    case general, servers, speed, transfers, network, updates, developer, tags
+
+    /// App-local prefs, with the server list last.
+    static var applicationTabs: [PrefsTab] { [.general, .tags, .updates, .developer, .servers] }
+    /// Daemon-side settings for the active server.
+    static var serverTabs: [PrefsTab] { [.speed, .transfers, .network] }
 
     var id: String { rawValue }
 
@@ -92,9 +113,8 @@ enum PrefsTab: String, Hashable, CaseIterable, Identifiable {
         case .general: return "General"
         case .servers: return "Servers"
         case .speed: return "Speed"
-        case .seeding: return "Seeding"
+        case .transfers: return "Transfers"
         case .network: return "Network"
-        case .remote: return "Remote"
         case .updates: return "Updates"
         case .developer: return "Developer"
         case .tags: return "Tags"
@@ -105,10 +125,9 @@ enum PrefsTab: String, Hashable, CaseIterable, Identifiable {
         switch self {
         case .general: return "gearshape"
         case .servers: return "server.rack"
-        case .speed: return "tortoise"
-        case .seeding: return "gauge"
+        case .speed: return "gauge"
+        case .transfers: return "arrow.up.arrow.down"
         case .network: return "globe"
-        case .remote: return "antenna.radiowaves.left.and.right"
         case .updates: return "arrow.down.circle"
         case .developer: return "wrench.and.screwdriver"
         case .tags: return "tag"

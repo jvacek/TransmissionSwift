@@ -8,7 +8,8 @@ import Testing
 struct SessionSettingsTests {
     @Test("wire mapping decodes values and defaults absent fields")
     func wireMapping() {
-        var wire = SessionInfo(version: "4.0.6", rpcVersion: 17, rpcVersionMinimum: 14)
+        var wire = SessionInfo(
+            version: "4.0.6", rpcVersion: 17, rpcVersionMinimum: 14, downloadDir: "/downloads")
         wire.speedLimitDown = 1000
         wire.speedLimitDownEnabled = true
         wire.altSpeedDown = 50
@@ -38,6 +39,7 @@ struct SessionSettingsTests {
         #expect(settings.seedRatioLimited == true)
         #expect(settings.idleSeedingLimitMinutes == 30)
         #expect(settings.idleSeedingLimitEnabled == false)
+        #expect(settings.downloadDirectory == "/downloads")
         // Defaults for absent fields.
         #expect(settings.utpEnabled == true)
         #expect(settings.blocklistEnabled == false)
@@ -83,6 +85,7 @@ struct SessionSettingsPatchTests {
         var updated = before
         updated.peerPort = 9090
         updated.encryption = .tolerated
+        updated.downloadDirectory = "/media/torrents"
         SessionSettingsPatch(before: before, updated: updated).apply(to: &args)
 
         let data = try JSONEncoder().encode(args)
@@ -90,6 +93,7 @@ struct SessionSettingsPatchTests {
 
         #expect(json["peer-port"] as? Int == 9090)
         #expect(json["encryption"] as? String == "tolerated")
+        #expect(json["download-dir"] as? String == "/media/torrents")
         #expect(json["speed-limit-down"] == nil)
         #expect(json["utp-enabled"] == nil)
     }

@@ -53,7 +53,7 @@ struct MainToolbar: ToolbarContent {
         }
         ToolbarItem(placement: .primaryAction) {
             Button("Remove", systemImage: "trash", role: .destructive) {
-                Task { await store.remove(Array(store.selectedTorrentIDs)) }
+                store.requestRemove(Array(store.selectedTorrentIDs))
             }
             .disabled(!store.actionsEnabled || store.selectedTorrentIDs.isEmpty)
             .help("Remove selected torrents")

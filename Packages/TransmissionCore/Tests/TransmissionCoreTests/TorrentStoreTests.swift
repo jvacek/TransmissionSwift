@@ -408,6 +408,87 @@ struct TorrentStoreTests {
         #expect(store.selectedTorrentIDs == [1, 3])
     }
 
+    @Test("requestRemove stages a confirmation when the pref is on")
+    @MainActor
+    func requestRemoveStagesConfirmation() async throws {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+
+        store.requestRemove([1], deleteLocalData: true, confirm: true)
+        let pending = try #require(store.pendingRemoval)
+        #expect(pending.ids == [1])
+        #expect(pending.deleteLocalData == true)
+        // Staged, not yet removed.
+        #expect(store.torrents.contains { $0.id == 1 })
+    }
+
+    @Test("requestRemove removes immediately when the pref is off")
+    @MainActor
+    func requestRemoveSkipsConfirmation() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+
+        store.requestRemove([1], confirm: false)
+        #expect(store.pendingRemoval == nil)
+        await waitFor { !store.torrents.contains { $0.id == 1 } }
+        #expect(!store.torrents.contains { $0.id == 1 })
+    }
+
+    @Test("confirmPendingRemoval removes and clears the pending state")
+    @MainActor
+    func confirmPendingRemovalRemoves() async throws {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+
+        store.requestRemove([1, 2], confirm: true)
+        try #require(store.pendingRemoval)
+        store.confirmPendingRemoval()
+        #expect(store.pendingRemoval == nil)
+        await waitFor { !store.torrents.contains { $0.id == 1 } }
+        #expect(!store.torrents.contains { $0.id == 2 })
+    }
+
+    @Test("cancelPendingRemoval drops the pending state without removing")
+    @MainActor
+    func cancelPendingRemovalKeepsTorrents() async throws {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+
+        store.requestRemove([1], confirm: true)
+        try #require(store.pendingRemoval)
+        store.cancelPendingRemoval()
+        #expect(store.pendingRemoval == nil)
+        #expect(store.torrents.contains { $0.id == 1 })
+    }
+
+    @Test("addFromExternalURL opens the sheet when the dialog pref is on")
+    @MainActor
+    func addFromExternalURLShowsDialog() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+        let count = store.torrents.count
+
+        store.addFromExternalURL(URL(string: "magnet:?xt=urn:btih:abc123")!, showDialog: true)
+        #expect(store.showAddTorrent)
+        #expect(store.torrents.count == count)
+    }
+
+    @Test("addFromExternalURL adds immediately when the dialog pref is off")
+    @MainActor
+    func addFromExternalURLAddsDirectly() async {
+        let service = MockTorrentService(initial: [])
+        let store = TorrentStore(service: service)
+        store.addFromExternalURL(URL(string: "magnet:?xt=urn:btih:abc123")!, showDialog: false)
+        #expect(!store.showAddTorrent)
+        await waitFor { !store.torrents.isEmpty }
+        #expect(store.torrents.count == 1)
+    }
+
     @Test("setLabels replaces labels on the selected torrents")
     @MainActor
     func setLabelsAction() async {

@@ -54,32 +54,6 @@ struct NetworkPrefsPane: View {
                 } header: {
                     Text("Protocol")
                 }
-
-                Section {
-                    Toggle("Limit simultaneous downloads", isOn: boolBinding(\.downloadQueueEnabled))
-                    if store.effectiveSessionSettings.downloadQueueEnabled {
-                        queueSizeRow(label: "Download queue", keyPath: \.downloadQueueSize)
-                    }
-                    Toggle("Limit simultaneous seeds", isOn: boolBinding(\.seedQueueEnabled))
-                    if store.effectiveSessionSettings.seedQueueEnabled {
-                        queueSizeRow(label: "Seed queue", keyPath: \.seedQueueSize)
-                    }
-                    Toggle("Treat idle torrents as stalled", isOn: boolBinding(\.queueStalledEnabled))
-                    if store.effectiveSessionSettings.queueStalledEnabled {
-                        LabeledContent("Stalled after") {
-                            HStack(spacing: 4) {
-                                TextField("", value: intBinding(\.queueStalledMinutes), format: .number)
-                                    .frame(width: 60)
-                                    .multilineTextAlignment(.trailing)
-                                Text("min").foregroundStyle(.secondary)
-                                Stepper("", value: intBinding(\.queueStalledMinutes), in: 1...1440, step: 5)
-                                    .labelsHidden()
-                            }
-                        }
-                    }
-                } header: {
-                    Text("Queue")
-                }
             }
             .formStyle(.grouped)
         } else {
@@ -107,18 +81,6 @@ struct NetworkPrefsPane: View {
                     .labelStyle(.titleAndIcon)
             }
             .controlSize(.small)
-        }
-    }
-
-    private func queueSizeRow(label: String, keyPath: WritableKeyPath<SessionSettings, Int>) -> some View {
-        LabeledContent(label) {
-            HStack(spacing: 4) {
-                TextField("", value: intBinding(keyPath), format: .number)
-                    .frame(width: 60)
-                    .multilineTextAlignment(.trailing)
-                Stepper("", value: intBinding(keyPath), in: 1...100, step: 1)
-                    .labelsHidden()
-            }
         }
     }
 

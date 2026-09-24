@@ -31,9 +31,9 @@ struct TorrentListView: View {
                     case .setPriority(let priority): await store.setPriority(ids, priority: priority)
                     case .verify: await store.verify(ids)
                     case .reannounce: await store.reannounce(ids)
-                    case .remove: await store.remove(ids)
+                    case .remove: store.requestRemove(ids)
                     case .removeAndDeleteData:
-                        await store.remove(ids, deleteLocalData: true)
+                        store.requestRemove(ids, deleteLocalData: true)
                     case .editLabels:
                         store.openEditLabels(for: ids)
                     case .setLocation:

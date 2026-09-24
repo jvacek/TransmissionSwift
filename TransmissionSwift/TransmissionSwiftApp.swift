@@ -20,7 +20,12 @@ struct TransmissionSwiftApp: App {
     private let updateService = UpdateService()
 
     init() {
-        UserDefaults.standard.register(defaults: ["pollingIntervalSeconds": 5.0])
+        UserDefaults.standard.register(defaults: [
+            "pollingIntervalSeconds": 5.0,
+            "showAddDialogBeforeAdding": true,
+            "confirmRemove": true,
+            "badgeAppIcon": false,
+        ])
         #if PRERELEASE
         UserDefaults.standard.register(defaults: ["includePrereleases": true])
         #endif
@@ -105,13 +110,10 @@ struct TransmissionSwiftApp: App {
                 .onOpenURL { url in
                     // Fires for both magnet: links (CFBundleURLTypes) and
                     // double-clicked / "Open With" .torrent files
-                    // (CFBundleDocumentTypes). Reuses the same add-sheet flow as
-                    // drag-and-drop in MainWindow.
-                    if url.scheme == "magnet" {
-                        torrentStore.openAddSheet(magnetMode: true, prefilledURL: url)
-                    } else if url.isFileURL {
-                        torrentStore.openAddSheet(prefilledURL: url)
-                    }
+                    // (CFBundleDocumentTypes). Reuses the same add flow as
+                    // drag-and-drop in MainWindow, honouring the "Show dialog
+                    // before adding" pref.
+                    torrentStore.addFromExternalURL(url)
                 }
         }
         .commands {
@@ -140,7 +142,7 @@ struct TransmissionSwiftApp: App {
                 .environment(torrentStore)
                 .environment(tagColorStore)
         }
-        .defaultSize(width: 700, height: 520)
+        .defaultSize(width: 880, height: 580)
     }
 }
 

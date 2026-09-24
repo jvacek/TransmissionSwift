@@ -9,6 +9,7 @@ struct StatusBarView: View {
     @Environment(TorrentStore.self) private var store
     @Environment(ServerProfileStore.self) private var profileStore
     @Environment(\.openURL) private var openURL
+    @AppStorage("badgeAppIcon") private var badgeAppIcon = false
     @State private var showServerStats = false
 
     var body: some View {
@@ -45,6 +46,9 @@ struct StatusBarView: View {
         .frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28)
         .background(.regularMaterial)
         .overlay(alignment: .top) { Divider() }
+        .onAppear { updateDockBadge() }
+        .onChange(of: activeCount) { _, _ in updateDockBadge() }
+        .onChange(of: badgeAppIcon) { _, _ in updateDockBadge() }
     }
 
     private var reportBugButton: some View {
@@ -148,6 +152,12 @@ struct StatusBarView: View {
 
     private var activeCount: Int {
         store.torrents.filter { $0.status == .downloading || $0.status == .seeding }.count
+    }
+
+    /// Mirrors the active-torrent count onto the Dock icon when the
+    /// "Badge app icon" pref is on; cleared otherwise.
+    private func updateDockBadge() {
+        NSApp.dockTile.badgeLabel = (badgeAppIcon && activeCount > 0) ? "\(activeCount)" : ""
     }
     private var totalDown: Int64 { store.torrents.reduce(0) { $0 + $1.downloadSpeed } }
     private var totalUp: Int64 { store.torrents.reduce(0) { $0 + $1.uploadSpeed } }

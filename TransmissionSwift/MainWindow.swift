@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import TransmissionCore
 
@@ -15,10 +16,12 @@ private enum Layout {
 struct MainWindow: View {
     @Environment(TorrentStore.self) private var store
     @Environment(ServerProfileStore.self) private var profileStore
-    @Environment(\.openSettings) private var openSettings
-    @AppStorage("prefsPendingNavTab") private var pendingNavTab: Int = -1
+    @Environment(\.openWindow) private var openWindow
+    @AppStorage("prefsPendingNavTab") private var pendingNavTab: String = ""
     @AppStorage("inspectorWidth") private var storedInspectorWidth: Double = Double(Layout.inspectorIdeal)
+    @AppStorage("startMinimized") private var startMinimized = false
     @State private var windowWidth: CGFloat = Layout.windowMin
+    @State private var didApplyStartMinimized = false
 
     /// No profile configured — the window shows the "No Servers" onboarding
     /// empty state instead of torrent content.
@@ -58,6 +61,19 @@ struct MainWindow: View {
         } action: {
             windowWidth = $0
         }
+        .onAppear {
+            // "Start minimized": miniaturize once on launch. Done here (rather
+            // than the app delegate) so it targets the actual main window.
+            if startMinimized, !didApplyStartMinimized {
+                didApplyStartMinimized = true
+                NSApp.keyWindow?.miniaturize(nil)
+            }
+        }
+        .onChange(of: hasNoServer) { _, noServer in
+            // The status bar (which owns the Dock badge) is hidden with no
+            // server configured — clear any stale count.
+            if noServer { NSApp.dockTile.badgeLabel = "" }
+        }
         .sheet(isPresented: $store.showAddTorrent) {
             AddTorrentSheet(
                 isPresented: $store.showAddTorrent,
@@ -83,9 +99,22 @@ struct MainWindow: View {
             guard let url = urls.first else { return false }
             let accepted = url.pathExtension == "torrent" || url.scheme == "magnet"
             if accepted {
-                store.openAddSheet(magnetMode: url.scheme == "magnet", prefilledURL: url)
+                store.addFromExternalURL(url)
             }
             return accepted
+        }
+        .confirmationDialog(
+            removeDialogTitle,
+            isPresented: Binding(
+                get: { store.pendingRemoval != nil },
+                set: { if !$0 { store.cancelPendingRemoval() } }
+            ),
+            presenting: store.pendingRemoval
+        ) { _ in
+            Button("Remove", role: .destructive) { store.confirmPendingRemoval() }
+            Button("Cancel", role: .cancel) { store.cancelPendingRemoval() }
+        } message: { pending in
+            Text(removeDialogMessage(for: pending))
         }
         .alert(
             store.lastActionError?.title ?? "Action Failed",
@@ -137,6 +166,26 @@ struct MainWindow: View {
 
     // MARK: - Server switcher
 
+    /// Opens Preferences on the Servers pane. The pane reads
+    /// `prefsPendingNavTab` on appear / on change.
+    private func openServerSettings() {
+        pendingNavTab = PrefsTab.servers.rawValue
+        openWindow(id: "preferences")
+    }
+
+    /// Title / message for the remove confirmation dialog.
+    private var removeDialogTitle: String {
+        guard let pending = store.pendingRemoval else { return "Remove Torrents" }
+        return pending.ids.count == 1 ? "Remove Torrent?" : "Remove \(pending.ids.count) Torrents?"
+    }
+
+    private func removeDialogMessage(for pending: PendingRemoval) -> String {
+        if pending.deleteLocalData {
+            return "The torrents and their downloaded data will be deleted from the server."
+        }
+        return "The torrents will be removed from the list. Downloaded data stays on the server."
+    }
+
     private var serverSwitcherMenu: some View {
         Menu {
             ForEach(profileStore.profiles) { profile in
@@ -151,8 +200,7 @@ struct MainWindow: View {
             }
             Divider()
             Button("Server Settings…") {
-                pendingNavTab = 4
-                openSettings()
+                openServerSettings()
             }
         } label: {
             if profileStore.profiles.count > 1 {
@@ -249,8 +297,7 @@ struct MainWindow: View {
             }
             .buttonStyle(.glassProminent)
             Button("Server Settings…") {
-                pendingNavTab = 4
-                openSettings()
+                openServerSettings()
             }
         }
     }
@@ -274,8 +321,7 @@ struct MainWindow: View {
             Text("Add a Transmission server in Settings to connect and start managing torrents.")
         } actions: {
             Button("Add Server…") {
-                pendingNavTab = 4
-                openSettings()
+                openServerSettings()
             }
             .buttonStyle(.glassProminent)
         }

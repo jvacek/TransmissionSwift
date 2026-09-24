@@ -58,12 +58,8 @@ struct DeveloperPrefsPane: View {
                 Toggle("Limit torrent count", isOn: $limitEnabled)
                 if limitEnabled {
                     LabeledContent("Max torrents") {
-                        HStack {
-                            TextField("", value: $limitValue, format: .number)
-                                .frame(width: 52)
-                            Stepper("", value: $limitValue, in: 1...500, step: 1)
-                                .labelsHidden()
-                        }
+                        TextField("", value: $limitValue, format: .number)
+                            .frame(width: 52)
                     }
                 }
             } header: {

@@ -233,6 +233,7 @@ public actor MockTorrentService: TorrentService {
         value.seedRatioLimit = patch.seedRatioLimit ?? value.seedRatioLimit
         value.idleSeedingLimitEnabled = patch.idleSeedingLimitEnabled ?? value.idleSeedingLimitEnabled
         value.idleSeedingLimitMinutes = patch.idleSeedingLimitMinutes ?? value.idleSeedingLimitMinutes
+        value.downloadDirectory = patch.downloadDirectory ?? value.downloadDirectory
         return value
     }
 

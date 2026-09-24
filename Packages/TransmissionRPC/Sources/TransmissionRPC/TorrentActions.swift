@@ -198,6 +198,7 @@ public struct SessionSetArguments: Encodable, Sendable {
     public var blocklistURL: String?
 
     public var dhtEnabled: Bool?
+    public var downloadDir: String?
     public var downloadQueueEnabled: Bool?
     public var downloadQueueSize: Int?
 
@@ -240,6 +241,7 @@ public struct SessionSetArguments: Encodable, Sendable {
         case blocklistURL = "blocklist-url"
 
         case dhtEnabled = "dht-enabled"
+        case downloadDir = "download-dir"
         case downloadQueueEnabled = "download-queue-enabled"
         case downloadQueueSize = "download-queue-size"
 
@@ -280,6 +282,7 @@ public struct SessionSetArguments: Encodable, Sendable {
         blocklistEnabled: Bool? = nil,
         blocklistURL: String? = nil,
         dhtEnabled: Bool? = nil,
+        downloadDir: String? = nil,
         downloadQueueEnabled: Bool? = nil,
         downloadQueueSize: Int? = nil,
         encryption: String? = nil,
@@ -312,6 +315,7 @@ public struct SessionSetArguments: Encodable, Sendable {
         self.blocklistEnabled = blocklistEnabled
         self.blocklistURL = blocklistURL
         self.dhtEnabled = dhtEnabled
+        self.downloadDir = downloadDir
         self.downloadQueueEnabled = downloadQueueEnabled
         self.downloadQueueSize = downloadQueueSize
         self.encryption = encryption

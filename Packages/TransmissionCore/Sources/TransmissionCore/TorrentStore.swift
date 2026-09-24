@@ -32,6 +32,14 @@ public enum ActionError: Error, Identifiable, Sendable {
     }
 }
 
+/// A removal awaiting user confirmation. Identifiable so it can drive
+/// SwiftUI `.confirmationDialog(item:)` directly.
+public struct PendingRemoval: Identifiable, Sendable {
+    public let id = UUID()
+    public let ids: [Torrent.ID]
+    public let deleteLocalData: Bool
+}
+
 /// The single source of truth the UI binds to. Wraps a `TorrentService`,
 /// owns selection / search / filter / inspector state, and derives the
 /// sidebar facets and visible-row set.
@@ -117,6 +125,9 @@ public final class TorrentStore {
     // Set-location popup
     public var showSetLocation: Bool = false
     public var setLocationTargetIDs: [Torrent.ID] = []
+
+    // Remove confirmation
+    public var pendingRemoval: PendingRemoval? = nil
 
     public private(set) var facets = FilterFacets(torrents: [])
     public private(set) var visibleTorrents: [Torrent] = []
@@ -416,6 +427,33 @@ public final class TorrentStore {
         selectedTorrentIDs.subtract(ids)
     }
 
+    /// Request a removal, honouring the "Confirm before removing" app pref.
+    /// With confirmation on, stages a `PendingRemoval` for the view to confirm;
+    /// with it off, removes immediately. No-ops when nothing is selected.
+    /// `confirm` defaults to the app pref so tests can inject it directly
+    /// (parallel tests can't safely share `UserDefaults`).
+    public func requestRemove(
+        _ ids: [Torrent.ID], deleteLocalData: Bool = false,
+        confirm: Bool = UserDefaults.standard.bool(forKey: "confirmRemove")
+    ) {
+        guard actionsEnabled, !ids.isEmpty else { return }
+        if confirm {
+            pendingRemoval = PendingRemoval(ids: ids, deleteLocalData: deleteLocalData)
+        } else {
+            Task { await remove(ids, deleteLocalData: deleteLocalData) }
+        }
+    }
+
+    public func confirmPendingRemoval() {
+        guard let pending = pendingRemoval else { return }
+        pendingRemoval = nil
+        Task { await remove(pending.ids, deleteLocalData: pending.deleteLocalData) }
+    }
+
+    public func cancelPendingRemoval() {
+        pendingRemoval = nil
+    }
+
     public func verify(_ ids: [Torrent.ID]) async {
         do { try await service.verify(ids) } catch { recordError(error) }
     }
@@ -497,6 +535,35 @@ public final class TorrentStore {
         addTorrentStartInMagnetMode = magnetMode
         addTorrentPrefilledURL = prefilledURL
         showAddTorrent = true
+    }
+
+    /// Entry point for adds that already carry a payload (dropped file, magnet
+    /// link, "Open With"). Honours the "Show dialog before adding" app pref:
+    /// with the dialog on (the default) the sheet opens prefilled; with it off
+    /// the torrent is added immediately with the sheet's defaults (daemon's
+    /// default folder, no labels, normal priority, start on). `showDialog`
+    /// defaults to the app pref so tests can inject it directly.
+    public func addFromExternalURL(
+        _ url: URL, showDialog: Bool = UserDefaults.standard.bool(forKey: "showAddDialogBeforeAdding")
+    ) {
+        guard actionsEnabled else { return }
+        let isMagnet = url.scheme == "magnet"
+        guard isMagnet || url.isFileURL else { return }
+        guard showDialog else {
+            Task {
+                if isMagnet {
+                    await add(
+                        fileURL: nil, magnetURL: url.absoluteString, destination: "",
+                        labels: [], priority: .normal, startWhenAdded: true)
+                } else {
+                    await add(
+                        fileURL: url, magnetURL: nil, destination: "",
+                        labels: [], priority: .normal, startWhenAdded: true)
+                }
+            }
+            return
+        }
+        openAddSheet(magnetMode: isMagnet, prefilledURL: url)
     }
     public func openEditLabels(for ids: [Torrent.ID]) {
         guard actionsEnabled, supportsLabels, !ids.isEmpty else { return }

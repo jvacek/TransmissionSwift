@@ -53,8 +53,6 @@ struct SpeedPrefsPane: View {
                     .frame(width: 60)
                     .multilineTextAlignment(.trailing)
                 Text("KB/s").foregroundStyle(.secondary)
-                Stepper("", value: intBinding(keyPath), in: 1...100_000, step: 10)
-                    .labelsHidden()
             }
         }
     }

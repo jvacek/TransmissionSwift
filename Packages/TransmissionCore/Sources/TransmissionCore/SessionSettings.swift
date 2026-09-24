@@ -52,6 +52,10 @@ public struct SessionSettings: Sendable, Equatable {
     public var idleSeedingLimitEnabled: Bool
     public var idleSeedingLimitMinutes: Int
 
+    /// The daemon's default download directory (`download-dir`). Editable via
+    /// `session-set`; new torrents land here unless given another destination.
+    public var downloadDirectory: String
+
     public init(
         downLimited: Bool = false,
         downLimitKBps: Int = 1000,
@@ -83,7 +87,8 @@ public struct SessionSettings: Sendable, Equatable {
         seedRatioLimited: Bool = true,
         seedRatioLimit: Double = 1.0,
         idleSeedingLimitEnabled: Bool = false,
-        idleSeedingLimitMinutes: Int = 30
+        idleSeedingLimitMinutes: Int = 30,
+        downloadDirectory: String = ""
     ) {
         self.downLimited = downLimited
         self.downLimitKBps = downLimitKBps
@@ -116,6 +121,7 @@ public struct SessionSettings: Sendable, Equatable {
         self.seedRatioLimit = seedRatioLimit
         self.idleSeedingLimitEnabled = idleSeedingLimitEnabled
         self.idleSeedingLimitMinutes = idleSeedingLimitMinutes
+        self.downloadDirectory = downloadDirectory
     }
 
     /// Maps a `session-get` wire payload, defaulting absent optional fields.
@@ -151,7 +157,8 @@ public struct SessionSettings: Sendable, Equatable {
             seedRatioLimited: wire.seedRatioLimited ?? true,
             seedRatioLimit: wire.seedRatioLimit ?? 1.0,
             idleSeedingLimitEnabled: wire.idleSeedingLimitEnabled ?? false,
-            idleSeedingLimitMinutes: wire.idleSeedingLimit ?? 30
+            idleSeedingLimitMinutes: wire.idleSeedingLimit ?? 30,
+            downloadDirectory: wire.downloadDir ?? ""
         )
     }
 
@@ -223,6 +230,8 @@ public struct SessionSettingsPatch: Sendable, Equatable {
     public var idleSeedingLimitEnabled: Bool?
     public var idleSeedingLimitMinutes: Int?
 
+    public var downloadDirectory: String?
+
     public init() {}
 
     /// Builds a patch containing only the fields that changed between `before`
@@ -291,6 +300,10 @@ public struct SessionSettingsPatch: Sendable, Equatable {
         if before.idleSeedingLimitMinutes != updated.idleSeedingLimitMinutes {
             idleSeedingLimitMinutes = updated.idleSeedingLimitMinutes
         }
+
+        if before.downloadDirectory != updated.downloadDirectory {
+            downloadDirectory = updated.downloadDirectory
+        }
     }
 
     /// True when every field is nil (no change to send).
@@ -337,5 +350,7 @@ public struct SessionSettingsPatch: Sendable, Equatable {
         args.seedRatioLimit = seedRatioLimit
         args.idleSeedingLimitEnabled = idleSeedingLimitEnabled
         args.idleSeedingLimit = idleSeedingLimitMinutes
+
+        args.downloadDir = downloadDirectory
     }
 }

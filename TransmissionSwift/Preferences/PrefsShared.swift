@@ -3,7 +3,7 @@ import TransmissionCore
 
 // MARK: - Session-not-connected gate
 
-/// Shown in place of the Speed / Network / Seeding form while there is no live
+/// Shown in place of the Speed / Network / Transfers form while there is no live
 /// daemon connection to read or write session settings from.
 struct SessionNotConnectedView: View {
     var body: some View {
