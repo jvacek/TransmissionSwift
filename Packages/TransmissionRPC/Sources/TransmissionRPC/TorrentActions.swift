@@ -178,6 +178,30 @@ public struct TorrentAddResponse: Decodable, Sendable {
     }
 }
 
+// MARK: - torrent-rename-path
+//
+// Spec §3.7: `ids` must contain exactly one torrent. `path` is the existing
+// file/folder path to rename (the torrent's name for a root rename), `name`
+// is the new single-component name. Response carries `path`, `name`, `id`.
+
+public struct TorrentRenamePathArguments: Encodable, Sendable {
+    public var ids: [Int]
+    public var path: String
+    public var name: String
+
+    public init(ids: [Int], path: String, name: String) {
+        self.ids = ids
+        self.path = path
+        self.name = name
+    }
+}
+
+public struct TorrentRenamePathResponse: Decodable, Sendable {
+    public let id: Int
+    public let path: String
+    public let name: String
+}
+
 // MARK: - session-set
 
 public struct SessionSetArguments: Encodable, Sendable {

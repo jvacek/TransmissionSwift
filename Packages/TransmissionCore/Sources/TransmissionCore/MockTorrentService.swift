@@ -180,6 +180,16 @@ public actor MockTorrentService: TorrentService {
         broadcast()
     }
 
+    public func renamePath(_ id: Torrent.ID, path: String, newName: String) async throws {
+        guard let index = state.firstIndex(where: { $0.id == id }) else { return }
+        if state[index].name == path {
+            state[index].name = newName
+        } else if let fileIndex = state[index].files.firstIndex(where: { $0.name == path }) {
+            state[index].files[fileIndex].name = newName
+        }
+        broadcast()
+    }
+
     public func setAlternativeSpeedEnabled(_ enabled: Bool) async throws {
         altSpeed = enabled
         sessionSettingsValue.altSpeedEnabled = enabled

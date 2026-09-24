@@ -212,6 +212,36 @@ struct TorrentAddArgumentsEncodeTests {
     }
 }
 
+// MARK: - TorrentRenamePathArguments encode / TorrentRenamePathResponse decode
+
+@Suite("TorrentRenamePath encode/decode")
+struct TorrentRenamePathTests {
+    @Test("encodes ids, path, and name with correct keys")
+    func encode() throws {
+        let args = TorrentRenamePathArguments(ids: [5], path: "Old Name", name: "New Name")
+        let data = try JSONEncoder().encode(args)
+        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        #expect(json["ids"] as? [Int] == [5])
+        #expect(json["path"] as? String == "Old Name")
+        #expect(json["name"] as? String == "New Name")
+    }
+
+    @Test("decodes path, name, and id from the response arguments")
+    func decode() throws {
+        let json = """
+            {
+              "result": "success",
+              "arguments": { "id": 5, "path": "Old Name", "name": "New Name" }
+            }
+            """
+        let data = try #require(json.data(using: .utf8))
+        let response = try JSONDecoder().decode(RPCResponse<TorrentRenamePathResponse>.self, from: data)
+        #expect(response.arguments.id == 5)
+        #expect(response.arguments.path == "Old Name")
+        #expect(response.arguments.name == "New Name")
+    }
+}
+
 // MARK: - SessionSetArguments encode
 
 @Suite("SessionSetArguments encode")

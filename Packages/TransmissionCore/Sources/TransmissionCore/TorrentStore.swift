@@ -126,6 +126,11 @@ public final class TorrentStore {
     public var showSetLocation: Bool = false
     public var setLocationTargetIDs: [Torrent.ID] = []
 
+    // Rename-torrent popup (single-torrent only — `torrent-rename-path`
+    // requires exactly one id)
+    public var showRenameTorrent: Bool = false
+    public var renameTorrentTargetID: Torrent.ID?
+
     // Remove confirmation
     public var pendingRemoval: PendingRemoval? = nil
 
@@ -575,6 +580,28 @@ public final class TorrentStore {
         guard actionsEnabled, !ids.isEmpty else { return }
         setLocationTargetIDs = ids
         showSetLocation = true
+    }
+
+    public func openRenameTorrent(for id: Torrent.ID) {
+        guard actionsEnabled else { return }
+        renameTorrentTargetID = id
+        showRenameTorrent = true
+    }
+
+    /// Rename a torrent's root (its display name). `newName` must be a single
+    /// path component — no `/`. Returns true on success; surfaces daemon
+    /// errors via `lastActionError` like every other mutation.
+    @discardableResult
+    public func renameTorrent(_ id: Torrent.ID, newName: String) async -> Bool {
+        guard let current = torrents.first(where: { $0.id == id }) else { return false }
+        do {
+            try await service.renamePath(id, path: current.name, newName: newName)
+            await refreshInspectorIfCurrent(id)
+            return true
+        } catch {
+            recordError(error)
+            return false
+        }
     }
 
     @discardableResult

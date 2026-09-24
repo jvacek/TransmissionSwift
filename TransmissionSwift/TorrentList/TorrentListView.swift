@@ -38,6 +38,8 @@ struct TorrentListView: View {
                         store.openEditLabels(for: ids)
                     case .setLocation:
                         store.openSetLocation(for: ids)
+                    case .rename:
+                        if let id = ids.first { store.openRenameTorrent(for: id) }
                     }
                 }
             },

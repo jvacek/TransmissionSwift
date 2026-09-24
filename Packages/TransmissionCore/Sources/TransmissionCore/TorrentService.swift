@@ -76,6 +76,12 @@ public protocol TorrentService: Sendable {
     /// not the Mac running this app.
     func setLocation(_ ids: [Torrent.ID], location: String, move: Bool) async throws
 
+    /// Rename a file/folder inside a torrent. Maps 1:1 to RPC
+    /// `torrent-rename-path` (which requires exactly one torrent id). For a
+    /// root rename pass the torrent's current name as `path` and the new
+    /// single-component name as `newName`.
+    func renamePath(_ id: Torrent.ID, path: String, newName: String) async throws
+
     /// Session-wide alt-speed (turtle) toggle. Reads/writes `session-set`'s
     /// `alt-speed-enabled` field.
     func setAlternativeSpeedEnabled(_ enabled: Bool) async throws

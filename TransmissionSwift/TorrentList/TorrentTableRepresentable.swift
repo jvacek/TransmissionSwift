@@ -12,6 +12,7 @@ enum TorrentRowAction {
     case removeAndDeleteData
     case editLabels
     case setLocation
+    case rename
 }
 
 struct TorrentTableRepresentable: NSViewRepresentable {
@@ -339,6 +340,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         private static let openMappingItemTag = 3
         private static let setLocationItemTag = 4
         private static let hideColumnItemTag = 5
+        private static let renameItemTag = 6
 
         /// Title + SF-symbol glyph for a torrent-priority context-menu item.
         /// Mirrors the priority column's glyphs (TorrentPriority.systemImage).
@@ -429,6 +431,9 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             let setLocationItem = item("Set Location…", "folder", .setLocation)
             setLocationItem.tag = Self.setLocationItemTag
             menu.addItem(setLocationItem)
+            let renameItem = item("Rename…", "pencil", .rename)
+            renameItem.tag = Self.renameItemTag
+            menu.addItem(renameItem)
             menu.addItem(.separator())
             menu.addItem(destructiveItem("Remove\u{2026}", "trash", .remove))
             menu.addItem(
@@ -441,6 +446,9 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                     menuItem.isEnabled = actionsEnabled && ids.count == 1
                 case Self.setLocationItemTag:
                     menuItem.isEnabled = canAct
+                case Self.renameItemTag:
+                    // `torrent-rename-path` takes exactly one torrent.
+                    menuItem.isEnabled = canAct && ids.count == 1
                 default:
                     menuItem.isEnabled = canAct
                 }

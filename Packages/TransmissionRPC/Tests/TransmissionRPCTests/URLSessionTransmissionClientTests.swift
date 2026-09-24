@@ -66,6 +66,32 @@ struct URLSessionTransmissionClientTests {
         #expect(arguments["move"] as? Bool == true)
     }
 
+    @Test("torrentRenamePath sends the method and decodes the reply")
+    func torrentRenamePath() async throws {
+        let host = "rename-path.test"
+        let recorded = Mutex<Data?>(nil)
+        let body = Data(
+            #"{"result":"success","arguments":{"id":5,"path":"Old Name","name":"New Name"}}"#.utf8)
+        StubURLProtocol.register(host: host) { request in
+            recorded.withLock { $0 = requestBodyData(request) }
+            return (makeHTTPResponse(url: request.url!, statusCode: 200), body)
+        }
+
+        let reply = try await makeClient(host: host).torrentRenamePath(
+            TorrentRenamePathArguments(ids: [5], path: "Old Name", name: "New Name"))
+
+        #expect(reply.id == 5)
+        #expect(reply.path == "Old Name")
+        #expect(reply.name == "New Name")
+        let requestBody = try #require(recorded.withLock { $0 })
+        let envelope = try JSONSerialization.jsonObject(with: requestBody) as! [String: Any]
+        #expect(envelope["method"] as? String == "torrent-rename-path")
+        let arguments = try #require(envelope["arguments"] as? [String: Any])
+        #expect(arguments["ids"] as? [Int] == [5])
+        #expect(arguments["path"] as? String == "Old Name")
+        #expect(arguments["name"] as? String == "New Name")
+    }
+
     @Test("sessionGet decodes version fields on 200")
     func happyPath() async throws {
         let host = "happy-path.test"

@@ -100,6 +100,9 @@ public actor SnapshotTorrentService: TorrentService {
     public func setLocation(_ ids: [Torrent.ID], location: String, move: Bool) async throws {
         throw SnapshotError.replayReadOnly
     }
+    public func renamePath(_ id: Torrent.ID, path: String, newName: String) async throws {
+        throw SnapshotError.replayReadOnly
+    }
     public func setAlternativeSpeedEnabled(_ enabled: Bool) async throws {
         throw SnapshotError.replayReadOnly
     }

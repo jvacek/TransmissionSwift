@@ -304,6 +304,15 @@ struct MockTorrentServiceTests {
         #expect(after.first { $0.id == 2 }?.labels == [])
     }
 
+    @Test("renamePath renames the torrent root when path matches its name")
+    func renameRoot() async throws {
+        let service = MockTorrentService()
+        let before = try await service.torrents().first { $0.id == 2 }!
+        try await service.renamePath(2, path: before.name, newName: "Renamed Torrent")
+        let after = try await service.torrents().first { $0.id == 2 }!
+        #expect(after.name == "Renamed Torrent")
+    }
+
     @Test("setOptions replaces the torrent's options")
     func options() async throws {
         let service = MockTorrentService()
@@ -499,6 +508,27 @@ struct TorrentStoreTests {
         await store.setLabels([2, 5], labels: ["Archive"])
         await waitFor { store.torrents.first { $0.id == 2 }?.labels == ["Archive"] }
         #expect(store.torrents.first { $0.id == 5 }?.labels == ["Archive"])
+    }
+
+    @Test("renameTorrent renames through the service and reports success")
+    @MainActor
+    func renameTorrentAction() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.torrents.isEmpty }
+
+        let succeeded = await store.renameTorrent(2, newName: "Renamed via Store")
+        #expect(succeeded)
+        await waitFor { store.torrents.first { $0.id == 2 }?.name == "Renamed via Store" }
+    }
+
+    @Test("openRenameTorrent stages the sheet target")
+    @MainActor
+    func openRenameTorrent() async {
+        let store = TorrentStore(service: MockTorrentService())
+        store.openRenameTorrent(for: 2)
+        #expect(store.showRenameTorrent)
+        #expect(store.renameTorrentTargetID == 2)
     }
 
     @Test("setPriority action updates the selected torrents through the stream")

@@ -95,6 +95,11 @@ struct MainWindow: View {
                 serverName: profileStore.activeProfile?.label
             )
         }
+        .sheet(isPresented: $store.showRenameTorrent) {
+            if let id = store.renameTorrentTargetID {
+                RenameTorrentSheet(isPresented: $store.showRenameTorrent, id: id)
+            }
+        }
         .dropDestination(for: URL.self) { urls, _ in
             guard let url = urls.first else { return false }
             let accepted = url.pathExtension == "torrent" || url.scheme == "magnet"

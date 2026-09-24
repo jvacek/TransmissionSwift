@@ -222,6 +222,12 @@ public actor RPCTorrentService: TorrentService {
         await refreshAfterMutation()
     }
 
+    public func renamePath(_ id: Torrent.ID, path: String, newName: String) async throws {
+        let args = TorrentRenamePathArguments(ids: [id], path: path, name: newName)
+        _ = try await client.torrentRenamePath(args)
+        await refreshAfterMutation()
+    }
+
     public func setAlternativeSpeedEnabled(_ enabled: Bool) async throws {
         try await client.sessionSet(SessionSetArguments(altSpeedEnabled: enabled))
     }

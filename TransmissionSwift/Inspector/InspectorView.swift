@@ -68,15 +68,29 @@ struct InspectorView: View {
 private struct InspectorHeader: View {
     let torrent: Torrent
     let selectionCount: Int
+    @Environment(TorrentStore.self) private var store
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             StatusDot(status: torrent.status, size: 10)
                 .padding(.top, 5)
             VStack(alignment: .leading, spacing: 2) {
-                Text(torrent.name)
-                    .font(.headline)
-                    .lineLimit(2)
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(torrent.name)
+                        .font(.headline)
+                        .lineLimit(2)
+                    if store.actionsEnabled {
+                        Button {
+                            store.openRenameTorrent(for: torrent.id)
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Rename torrent")
+                        .help("Rename torrent")
+                    }
+                }
                 Text(subtitle)
                     .font(.callout)
                     .foregroundStyle(.secondary)
