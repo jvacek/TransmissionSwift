@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import TransmissionCore
 
@@ -9,12 +10,12 @@ private let prefsPendingTabKey = "prefsPendingNavTab"
 /// `TransmissionSwiftApp`).
 ///
 /// A `NavigationSplitView` — a Liquid Glass `List` sidebar on the left and the
-/// selected pane on the right. The sidebar's collapse toggle is removed
-/// (`.toolbar(removing: .sidebarToggle)` + ``columnVisibility == .all``) so the
-/// window reads like System Settings / Xcode's settings. The detail's pane
-/// title is a material inset bar at the top of the content (not a ToolbarItem,
-/// which Tahoe would wrap in a glass capsule) — the window title stays blank
-/// so the two never double up.
+/// selected pane on the right. Full-height sidebar styling (traffic lights
+/// inside the sidebar's glass card) comes from the plain `Window` scene plus
+/// the absence of a window title — not from toolbar tricks. The pane title is
+/// drawn by `PrefsToolbarHost`'s hand-built AppKit toolbar: SwiftUI
+/// `ToolbarItem`s get auto-wrapped in a glass capsule on Tahoe with no
+/// opt-out, so the title bypasses them entirely.
 ///
 /// `pendingTab` is written by any "Server Settings…" call-site before opening
 /// the window. `onAppear` handles the fresh-open case; `onChange` handles the
@@ -41,25 +42,16 @@ struct PreferencesView: View {
                 }
             }
             .listStyle(.sidebar)
-            .toolbar(removing: .sidebarToggle)
             .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
         } detail: {
             pane(for: selection)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                // Title lives here, not in a ToolbarItem: Tahoe wraps every
-                // toolbar item in a glass capsule with no opt-out. This inset
-                // bar wears the toolbar material directly, so scrolled content
-                // stays legible behind plain 20pt text.
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    Text(selection.title)
-                        .font(.system(size: 22, weight: .semibold))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading, 20)
-                        .padding(.vertical, 10)
-                        .background(.bar)
-                }
         }
         .navigationSplitViewStyle(.balanced)
+        // Plain-text pane title via a hand-built AppKit toolbar (see
+        // PrefsToolbarHost) — no SwiftUI ToolbarItems anywhere in this window,
+        // so Tahoe has nothing to wrap in glass.
+        .background(PrefsToolbarHost(title: selection.title))
         .frame(minWidth: 760, minHeight: 480)
         .onAppear {
             if let tab = PrefsTab(rawValue: pendingTab) {
@@ -94,6 +86,97 @@ struct PreferencesView: View {
             return "Server (\(label))"
         }
         return "Server"
+    }
+}
+
+/// Installs a hand-built AppKit toolbar carrying the plain-text pane title.
+///
+/// SwiftUI wraps every `ToolbarItem` in a Liquid Glass capsule with no
+/// opt-out (verified: placement changes, `.glassEffect(.identity)`, even
+/// AppKit-hosted content all still pill). A real `NSToolbarItem` renders
+/// exactly the view it's given, so the 22pt title stays plain text on the
+/// toolbar's own material — the Xcode-settings look.
+///
+/// Deliberately the only toolbar in this window: no SwiftUI `.toolbar`
+/// modifiers anywhere here, so nothing fights the install. Re-installs if
+/// something replaces the toolbar out from under it.
+private struct PrefsToolbarHost: NSViewRepresentable {
+    let title: String
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        // `window` isn't set during make — defer to the next runloop.
+        DispatchQueue.main.async { context.coordinator.install(into: view.window, title: title) }
+        return view
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        context.coordinator.install(into: view.window, title: title)
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator: NSObject, NSToolbarDelegate {
+        private static let titleID = NSToolbarItem.Identifier("paneTitle")
+
+        private let titleField: NSTextField = {
+            let field = NSTextField(labelWithString: "")
+            field.font = .systemFont(ofSize: 22, weight: .semibold)
+            return field
+        }()
+
+        private lazy var titleItem: NSToolbarItem = {
+            let item = NSToolbarItem(itemIdentifier: Self.titleID)
+            item.view = titleField
+            return item
+        }()
+
+        private weak var installedToolbar: NSToolbar?
+
+        func install(into window: NSWindow?, title: String) {
+            guard let window else { return }
+            if !isInstalled(window.toolbar) {
+                let toolbar = NSToolbar(identifier: "preferences")
+                toolbar.delegate = self
+                toolbar.allowsUserCustomization = false
+                toolbar.autosavesConfiguration = false
+                toolbar.displayMode = .labelOnly
+                window.toolbar = toolbar
+                installedToolbar = toolbar
+            }
+            setTitle(title)
+        }
+
+        private func isInstalled(_ toolbar: NSToolbar?) -> Bool {
+            guard let toolbar, let installedToolbar else { return false }
+            return toolbar === installedToolbar
+        }
+
+        private func setTitle(_ title: String) {
+            titleField.stringValue = title
+            titleField.sizeToFit()
+            let size = titleField.fittingSize
+            titleItem.minSize = size
+            titleItem.maxSize = NSSize(width: 4000, height: size.height)
+        }
+
+        // MARK: NSToolbarDelegate
+
+        func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+            [Self.titleID]
+        }
+
+        func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+            [Self.titleID]
+        }
+
+        func toolbar(
+            _ toolbar: NSToolbar,
+            itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
+            willBeInsertedIntoToolbar flag: Bool
+        ) -> NSToolbarItem? {
+            itemIdentifier == Self.titleID ? titleItem : nil
+        }
     }
 }
 
