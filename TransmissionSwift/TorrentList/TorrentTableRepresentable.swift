@@ -577,7 +577,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         /// Refreshes each header-menu item's checkmark from its column's
         /// isHidden, disabling the sole visible column so it can't be hidden.
         /// Also retargets the "Hide …" item at the right-clicked column.
-        private func refreshHeaderMenu() {
+        func refreshHeaderMenu() {
             guard let menu = headerMenu, let tableView else { return }
             let visibleCount = tableView.tableColumns.count(where: { !$0.isHidden })
             for groupItem in menu.items {
@@ -592,20 +592,39 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                 }
             }
             guard let hideItem = menu.items.first(where: { $0.tag == Self.hideColumnItemTag }) else { return }
-            let clicked = tableView.clickedColumn
-            if clicked >= 0, tableView.tableColumns.indices.contains(clicked) {
-                let column = tableView.tableColumns[clicked]
-                let title =
-                    TorrentTableColumns.all.first(where: { $0.identifier == column.identifier })?.title
-                    ?? column.identifier.rawValue
-                hideItem.title = "Hide “\(title)”"
-                hideItem.representedObject = column.identifier.rawValue
-                hideItem.isEnabled = !column.isHidden && visibleCount > 1
-            } else {
+            guard let index = invokedHeaderColumnIndex(in: tableView) else {
                 hideItem.title = "Hide This Column"
                 hideItem.representedObject = nil
                 hideItem.isEnabled = false
+                return
             }
+            let column = tableView.tableColumns[index]
+            let title =
+                TorrentTableColumns.all.first(where: { $0.identifier == column.identifier })?.title
+                ?? column.identifier.rawValue
+            hideItem.title = "Hide “\(title)”"
+            hideItem.representedObject = column.identifier.rawValue
+            hideItem.isEnabled = !column.isHidden && visibleCount > 1
+        }
+
+        /// Index of the header column the visibility menu was invoked from.
+        /// Hit-tests the current right-click in the header: `clickedColumn` is
+        /// only updated for row clicks, so it stays -1 here and the Hide item
+        /// would never arm. Falls back to `clickedColumn` for keyboard-invoked
+        /// menus, where there is no mouse event.
+        func invokedHeaderColumnIndex(in tableView: NSTableView) -> Int? {
+            if let headerView = tableView.headerView, let event = NSApp.currentEvent {
+                let point = headerView.convert(event.locationInWindow, from: nil)
+                if headerView.bounds.contains(point) {
+                    let column = headerView.column(at: point)
+                    if column >= 0, tableView.tableColumns.indices.contains(column) {
+                        return column
+                    }
+                }
+            }
+            let clicked = tableView.clickedColumn
+            if clicked >= 0, tableView.tableColumns.indices.contains(clicked) { return clicked }
+            return nil
         }
 
         private func restoreSelection() {
