@@ -1,0 +1,67 @@
+name: Bug report
+description: Something isn't working as expected.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting a bug. Just fill in what you can — a guess is better than blank.
+
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: Find it under TransmissionSwift > About.
+      placeholder: "e.g. 0.4.0"
+    validations:
+      required: true
+
+  - type: input
+    id: daemon-version
+    attributes:
+      label: Remote daemon version
+      description: Run `transmission-daemon --version` on the server, or check your Docker image tag.
+      placeholder: "e.g. 4.0.6 (or 'don't know')"
+    validations:
+      required: true
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      description: Find it under Apple menu > About This Mac. Pre-filled when reporting from the app. If this is empty I will assume you're running the latest macOS.
+      placeholder: "e.g. Version 26.1 (Build 25B78)"
+    validations:
+      required: false
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you see, what did you expect, and how do we reproduce it?
+      placeholder: |
+        Clicked Start on a paused torrent, got "Server error: ...". Expected it to start.
+        1. Connect to daemon
+        2. Select a paused torrent
+        3. Click Start
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and screenshots (optional)
+      description: Paste Console.app output (filter for TransmissionSwift) or drag in a screenshot. Remove hostnames/IPs first.
+    validations:
+      required: false
+
+  - type: textarea
+    id: snapshot
+    attributes:
+      label: Snapshot file (optional)
+      description: |
+        If the bug involves your torrent list or server state, attach a snapshot: open Preferences → Developer → Capture Snapshot… and drag the saved JSON file into this box.
+        IMPORTANT: open the file and verify its contents before uploading — it will be publicly visible on GitHub and may still contain names or other personal information you don't want to share.
+      render: text
+    validations:
+      required: false

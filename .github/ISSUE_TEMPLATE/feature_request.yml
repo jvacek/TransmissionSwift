@@ -1,0 +1,56 @@
+name: Feature request
+description: Suggest an idea or improvement.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature. Keeping the *problem* separate from the
+        *solution* helps us pick the best fix — even if it's different from
+        what you proposed.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: |
+        What problem are you facing? Describe your workflow, what you tried,
+        and why it falls short. A concrete example helps, e.g. "every morning I
+        manually sort 50 torrents because...".
+      placeholder: |
+        I manage a seedbox with hundreds of torrents and I can't quickly find
+        the ones that stalled overnight, so I have to scroll the whole list.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: |
+        How would you like it to work? Describe the behaviour you'd like to see,
+        not the code. Mockups or examples from transgui / other clients are welcome.
+      placeholder: |
+        Add a sidebar filter for "Stalled" torrents, similar to transgui's status filter.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: |
+        Any workarounds or alternative solutions you've tried? What did you like
+        or dislike about them? Put "None" if there aren't any.
+      placeholder: Sorting by "Last active" column, but it resets on restart.
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else — daemon version if relevant, screenshots, links to similar features elsewhere.
+    validations:
+      required: false
