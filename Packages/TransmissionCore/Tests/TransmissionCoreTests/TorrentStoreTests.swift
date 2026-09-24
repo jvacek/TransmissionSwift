@@ -444,7 +444,7 @@ struct TorrentStoreTests {
         await waitFor { !store.torrents.isEmpty }
 
         store.requestRemove([1, 2], confirm: true)
-        try #require(store.pendingRemoval)
+        try #require(store.pendingRemoval != nil)
         store.confirmPendingRemoval()
         #expect(store.pendingRemoval == nil)
         await waitFor { !store.torrents.contains { $0.id == 1 } }
@@ -459,7 +459,7 @@ struct TorrentStoreTests {
         await waitFor { !store.torrents.isEmpty }
 
         store.requestRemove([1], confirm: true)
-        try #require(store.pendingRemoval)
+        try #require(store.pendingRemoval != nil)
         store.cancelPendingRemoval()
         #expect(store.pendingRemoval == nil)
         #expect(store.torrents.contains { $0.id == 1 })
