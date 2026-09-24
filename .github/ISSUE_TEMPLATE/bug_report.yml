@@ -4,7 +4,23 @@ labels: ["bug"]
 body:
   - type: markdown
     attributes:
-      value: Thanks for reporting a bug. Just fill in what you can — a guess is better than blank.
+      value: |
+        Thanks for reporting a bug. Just fill in what you can — a guess is better than blank.
+
+        The bug reporting function from the app will pre-fill the versions for you.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you see, what did you expect, and how do we reproduce it?
+      placeholder: |
+        Clicked Start on a paused torrent, got "Server error: ...". Expected it to start.
+        1. Connect to daemon
+        2. Select a paused torrent
+        3. Click Start
+    validations:
+      required: true
 
   - type: input
     id: app-version
@@ -19,8 +35,8 @@ body:
     id: daemon-version
     attributes:
       label: Remote daemon version
-      description: Run `transmission-daemon --version` on the server, or check your Docker image tag.
-      placeholder: "e.g. 4.0.6 (or 'don't know')"
+      description: You can get this from Settings -> Servers -> Test Connection. Or run `transmission-daemon --version` on the server, check your Docker image tag, etc.
+      placeholder: 'e.g. 4.0.6 (or "don''t know")'
     validations:
       required: true
 
@@ -32,19 +48,6 @@ body:
       placeholder: "e.g. Version 26.1 (Build 25B78)"
     validations:
       required: false
-
-  - type: textarea
-    id: what-happened
-    attributes:
-      label: What happened?
-      description: What did you see, what did you expect, and how do we reproduce it?
-      placeholder: |
-        Clicked Start on a paused torrent, got "Server error: ...". Expected it to start.
-        1. Connect to daemon
-        2. Select a paused torrent
-        3. Click Start
-    validations:
-      required: true
 
   - type: textarea
     id: logs
