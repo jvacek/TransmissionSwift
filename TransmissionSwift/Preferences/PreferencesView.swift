@@ -46,9 +46,9 @@ struct PreferencesView: View {
             pane(for: selection)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 // Title as a material inset bar, not a toolbar item: Tahoe
-                // wraps every ToolbarItem in a glass capsule (no opt-out) and
-                // an NSToolbar lone item won't pin to the detail's leading
-                // edge. Regular content has neither problem.
+                // wraps every ToolbarItem in a glass capsule (no opt-out),
+                // and AppKit toolbar packing won't pin an item to the
+                // detail's leading edge either. Regular content sidesteps both.
                 .safeAreaInset(edge: .top, spacing: 0) {
                     Text(selection.title)
                         .font(.system(size: 22, weight: .semibold))
