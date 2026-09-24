@@ -201,6 +201,16 @@ extension Torrent {
             peerLimit: wire.peerLimit ?? 60
         )
 
+        // Transmission 4.0 removed torrent-level seeders/leechers from the RPC
+        // ("use trackerStats instead"), so swarm totals are aggregated from
+        // the resolved trackers. Sums can double-count peers shared across
+        // trackers, but it's the closest the daemon offers to the Seeds/Peers
+        // totals other clients show. `peersFrom` is only a discovery-source
+        // breakdown, not swarm size — it reads 0 on idle seeds while the
+        // swarm is healthy — so it must not feed these columns.
+        let seedTotal = resolvedTrackers.reduce(0) { $0 + $1.seedCount }
+        let swarmTotal = resolvedTrackers.reduce(0) { $0 + $1.seedCount + $1.leechCount }
+
         self.init(
             id: wire.id,
             name: wire.name,
@@ -211,8 +221,8 @@ extension Torrent {
             downloadSpeed: wire.rateDownload,
             uploadSpeed: wire.rateUpload,
             connectedPeerCount: wire.peersConnected,
-            availablePeerCount: wire.peersFrom.total,
-            seedCount: 0,
+            availablePeerCount: swarmTotal,
+            seedCount: seedTotal,
             eta: eta,
             ratio: ratio,
             primaryTracker: primaryTracker,

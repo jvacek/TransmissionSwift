@@ -402,28 +402,52 @@ struct TrackerHostTests {
     }
 }
 
-// MARK: - peersFrom sum
+// MARK: - Swarm totals from trackerStats
 
-@Suite("TorrentMapping — availablePeerCount")
-struct PeersFromTests {
-    @Test("availablePeerCount is the sum of all peersFrom sub-fields")
-    func sum() {
-        let wire = WireTorrent(
-            id: 1, name: "T", hashString: "x", totalSize: 0,
-            status: 4, error: 0, errorString: "", isFinished: false,
-            percentDone: 0, rateDownload: 0, rateUpload: 0,
-            peersConnected: 5, peersSendingToUs: 0, peersGettingFromUs: 0,
-            peersFrom: WirePeersFrom(
-                fromCache: 1, fromDht: 2, fromIncoming: 3,
-                fromLpd: 4, fromLtep: 5, fromPex: 6, fromTracker: 7
-            ),
-            eta: -1, uploadRatio: 0, downloadDir: "/", addedDate: 0,
-            labels: nil, bandwidthPriority: 0,
-            pieceCount: 1, pieceSize: 1024, haveValid: 0,
-            queuePosition: 0, trackers: nil
+@Suite("TorrentMapping — seeds/peers totals")
+struct SwarmTotalsTests {
+    private func makeStat(seederCount: Int, leecherCount: Int) -> WireTrackerStat {
+        WireTrackerStat(
+            id: 1, tier: 0, host: "tracker.example.com:443",
+            lastAnnounceResult: "", lastAnnounceTime: 0,
+            lastAnnounceSucceeded: true, hasAnnounced: true,
+            announceState: 3, seederCount: seederCount, leecherCount: leecherCount,
+            downloadCount: 0, isBackup: false
         )
+    }
+
+    @Test("seedCount is the sum of tracker seederCounts")
+    func seedTotal() {
+        let t = Torrent(wire: makeWire(trackerStats: [makeStat(seederCount: 24, leecherCount: 8)]))
+        #expect(t.seedCount == 24)
+    }
+
+    @Test("availablePeerCount is the seeder + leecher swarm total")
+    func swarmTotal() {
+        var wire = makeWire(trackerStats: [makeStat(seederCount: 24, leecherCount: 8)])
+        wire.peersConnected = 5
         let t = Torrent(wire: wire)
-        #expect(t.availablePeerCount == 1 + 2 + 3 + 4 + 5 + 6 + 7)
+        #expect(t.availablePeerCount == 32)
+        #expect(t.connectedPeerCount == 5)
+    }
+
+    @Test("totals sum across trackers")
+    func multiTracker() {
+        let t = Torrent(
+            wire: makeWire(trackerStats: [
+                makeStat(seederCount: 71, leecherCount: 22),
+                makeStat(seederCount: 54, leecherCount: 18),
+            ]))
+        #expect(t.seedCount == 125)
+        #expect(t.availablePeerCount == 165)
+    }
+
+    @Test("no trackerStats yields zero totals even with nonzero peersFrom")
+    func noStats() {
+        // makeWire carries nonzero peersFrom; totals still come from trackers.
+        let t = Torrent(wire: makeWire())
+        #expect(t.seedCount == 0)
+        #expect(t.availablePeerCount == 0)
     }
 }
 

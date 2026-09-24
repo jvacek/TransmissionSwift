@@ -7,7 +7,7 @@ All notable changes to TransmissionSwift.
 24th Sept 2026
 
 - Add a button and menu item to open a new github issue with the versions pre-filled
-
+- Fix the seedcount column
 
 ## 0.5.5
 
