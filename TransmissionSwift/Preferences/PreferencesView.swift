@@ -11,11 +11,10 @@ private let prefsPendingTabKey = "prefsPendingNavTab"
 /// A `NavigationSplitView` — a Liquid Glass `List` sidebar on the left and the
 /// selected pane on the right. The sidebar's collapse toggle is removed
 /// (`.toolbar(removing: .sidebarToggle)` + ``columnVisibility == .all``) so the
-/// window reads like System Settings / Xcode's settings. The detail's toolbar
-/// item (pane title, leading-aligned) gives the window a unified toolbar, which
-/// lets the sidebar's glass card run the full height of the window with the
-/// traffic lights inside it — the `Settings` scene would otherwise show a
-/// centred "<App> Settings" title we can't remove.
+/// window reads like System Settings / Xcode's settings. The detail's pane
+/// title is a material inset bar at the top of the content (not a ToolbarItem,
+/// which Tahoe would wrap in a glass capsule) — the window title stays blank
+/// so the two never double up.
 ///
 /// `pendingTab` is written by any "Server Settings…" call-site before opening
 /// the window. `onAppear` handles the fresh-open case; `onChange` handles the
@@ -47,14 +46,17 @@ struct PreferencesView: View {
         } detail: {
             pane(for: selection)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .toolbar(removing: .title)
-                .toolbar {
-                    ToolbarItem(placement: .navigation) {
-                        Text(selection.title)
-                            .font(.title3.weight(.semibold))
-                            .padding(.leading, 20)
-                    }
-                    .sharedBackgroundVisibility(.hidden)
+                // Title lives here, not in a ToolbarItem: Tahoe wraps every
+                // toolbar item in a glass capsule with no opt-out. This inset
+                // bar wears the toolbar material directly, so scrolled content
+                // stays legible behind plain 20pt text.
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    Text(selection.title)
+                        .font(.system(size: 22, weight: .semibold))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.leading, 20)
+                        .padding(.vertical, 10)
+                        .background(.bar)
                 }
         }
         .navigationSplitViewStyle(.balanced)

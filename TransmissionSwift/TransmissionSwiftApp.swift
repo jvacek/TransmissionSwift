@@ -132,10 +132,11 @@ struct TransmissionSwiftApp: App {
 
         // A plain Window (not the Settings scene): on macOS 26 the Settings scene
         // always renders an unremovable "<App name> Settings" centered title. A
-        // regular titled window hosting PreferencesView's NavigationSplitView gets
-        // the Xcode-Settings look for free — traffic lights inside the sidebar's
-        // glass card, and the pane title in the title bar via .navigationTitle.
-        Window("Preferences", id: "preferences") {
+        // regular window hosting PreferencesView's NavigationSplitView gets the
+        // Xcode-Settings look — traffic lights inside the sidebar's glass card.
+        // The title is blank: the detail column draws its own pane title in a
+        // material inset bar, so a window title would just double it.
+        Window("", id: "preferences") {
             PreferencesView()
                 .environment(profileStore)
                 .environment(faviconStore)
