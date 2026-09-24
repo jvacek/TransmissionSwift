@@ -5,6 +5,7 @@ import TransmissionRPC
 
 private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category: "inspector")
 private let tablePreferencesSortKey = "tablePreferencesSort"
+private let inspectorVisibleKey = "inspectorVisible"
 
 /// Surfaced to the UI when a user-initiated action fails. Identifiable so it
 /// can drive SwiftUI `.alert(item:)` directly.
@@ -95,7 +96,13 @@ public final class TorrentStore {
             }
         }
     }
-    public var inspectorVisible: Bool = true
+    public var inspectorVisible: Bool = true {
+        didSet {
+            if oldValue != inspectorVisible {
+                UserDefaults.standard.set(inspectorVisible, forKey: inspectorVisibleKey)
+            }
+        }
+    }
     public var inspectorTab: InspectorTab = .general
 
     // Add-torrent sheet
@@ -175,6 +182,9 @@ public final class TorrentStore {
     public init(service: any TorrentService) {
         self.service = service
         self.actionsEnabled = service.supportsActions
+        if UserDefaults.standard.object(forKey: inspectorVisibleKey) != nil {
+            self.inspectorVisible = UserDefaults.standard.bool(forKey: inspectorVisibleKey)
+        }
         startStream()
     }
 

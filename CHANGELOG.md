@@ -8,6 +8,7 @@ All notable changes to TransmissionSwift.
 
 - Add a button and menu item to open a new github issue with the versions pre-filled
 - Fix the seedcount column
+- Preserve inspector closed/open state
 
 ## 0.5.5
 
