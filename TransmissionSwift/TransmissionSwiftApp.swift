@@ -143,6 +143,9 @@ struct TransmissionSwiftApp: App {
                 .environment(torrentStore)
                 .environment(tagColorStore)
         }
+        // Unified: titlebar and toolbar share one row, so the blank window
+        // title doesn't render as a dead strip above the lights/title row.
+        .windowToolbarStyle(.unified)
         .defaultSize(width: 880, height: 580)
     }
 }
