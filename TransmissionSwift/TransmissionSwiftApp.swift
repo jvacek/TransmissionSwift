@@ -119,6 +119,7 @@ struct TransmissionSwiftApp: App {
             AboutCommands(updateService: updateService)
             PreferencesCommands()
             ServerCommands(profileStore: profileStore)
+            HelpCommands(torrentStore: torrentStore)
         }
 
         Window("About TransmissionSwift", id: "about") {
@@ -194,6 +195,58 @@ private struct PreferencesCommands: Commands {
                 openWindow(id: "preferences")
             }
             .keyboardShortcut(",", modifiers: .command)
+        }
+    }
+}
+
+// MARK: - Help commands
+
+/// Opens the GitHub bug-report form with the app and daemon versions
+/// pre-filled where known. Shared by the Help menu item and the status-bar
+/// ladybug button — both read through this one URL builder.
+enum BugReport {
+    static var appVersion: String? {
+        let info = Bundle.main.infoDictionary
+        let short = (info?["CFBundleShortVersionString"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        let build = (info?["CFBundleVersion"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        if let short, let build {
+            return "\(short) (\(build))"
+        }
+        return short ?? build
+    }
+
+    static func url(daemonVersion: String?) -> URL? {
+        var components = URLComponents(
+            string: "https://github.com/jvacek/TransmissionSwift/issues/new")
+        var items = [URLQueryItem(name: "template", value: "bug_report.yml")]
+        if let appVersion {
+            items.append(URLQueryItem(name: "app-version", value: appVersion))
+        }
+        if let daemonVersion, !daemonVersion.isEmpty {
+            items.append(URLQueryItem(name: "daemon-version", value: daemonVersion))
+        }
+        items.append(URLQueryItem(name: "macos-version", value: macOSVersion))
+        components?.queryItems = items
+        return components?.url
+    }
+
+    private static var macOSVersion: String {
+        ProcessInfo.processInfo.operatingSystemVersionString
+    }
+}
+
+private struct HelpCommands: Commands {
+    let torrentStore: TorrentStore
+    @Environment(\.openURL) private var openURL
+
+    var body: some Commands {
+        CommandGroup(after: .help) {
+            Button("Report Bug…") {
+                if let url = BugReport.url(daemonVersion: torrentStore.daemonVersion) {
+                    openURL(url)
+                }
+            }
+            .accessibilityIdentifier("help.reportBug")
         }
     }
 }

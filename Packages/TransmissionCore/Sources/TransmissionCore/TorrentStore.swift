@@ -70,6 +70,10 @@ public final class TorrentStore {
     public var lastActionError: ActionError?
     /// Free space (bytes) on the daemon's download directory. Nil until the first poll completes.
     public private(set) var freeSpace: Int64? = nil
+    /// The daemon's long version string (e.g. `"4.1.2 (f234716f3e)"`). Nil until
+    /// the first session-poll completes, or when disconnected. Pre-fills the
+    /// bug-report template.
+    public private(set) var daemonVersion: String? = nil
     /// Current + lifetime transfer statistics (`session-stats`). Fetched on
     /// demand when the status-bar stats popover opens; nil until then.
     public private(set) var sessionStats: SessionStats? = nil
@@ -202,6 +206,7 @@ public final class TorrentStore {
         actionsEnabled = service.supportsActions
         connection = .connecting
         freeSpace = nil
+        daemonVersion = nil
         downloadDirectory = nil
         sessionSettings = nil
         supportsLabels = true
@@ -275,6 +280,7 @@ public final class TorrentStore {
             guard !Task.isCancelled else { return }
             // freeSpace() also warms the session cache in RPCTorrentService.
             self.freeSpace = await capturedService.freeSpace()
+            self.daemonVersion = await capturedService.daemonVersion()
             self.downloadDirectory = await capturedService.downloadDirectory()
             // Sync alt-speed state from the now-warm cache — avoids showing the
             // wrong turtle toggle state if alt speed was enabled before launch.
@@ -309,6 +315,7 @@ public final class TorrentStore {
                 try? await Task.sleep(for: .seconds(interval))
                 guard !Task.isCancelled else { break }
                 self.freeSpace = await capturedService.freeSpace()
+                self.daemonVersion = await capturedService.daemonVersion()
                 self.supportsLabels = await capturedService.supportsLabels()
                 self.sessionSettings = await capturedService.sessionSettings()
             }
@@ -642,6 +649,7 @@ public final class TorrentStore {
         connection = .awaitingKeychain
         torrents = []
         freeSpace = nil
+        daemonVersion = nil
     }
 
     /// Override the connection state — used by the debug menu (slice 6).

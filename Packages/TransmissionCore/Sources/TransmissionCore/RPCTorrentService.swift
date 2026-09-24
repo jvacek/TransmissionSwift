@@ -230,6 +230,10 @@ public actor RPCTorrentService: TorrentService {
         cachedSession?.altSpeedEnabled ?? false
     }
 
+    public func daemonVersion() async -> String? {
+        cachedSession?.version
+    }
+
     public func sessionSettings() async -> SessionSettings? {
         if let cached = cachedSession {
             return SessionSettings(wire: cached)

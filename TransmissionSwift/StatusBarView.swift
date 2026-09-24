@@ -8,10 +8,12 @@ import TransmissionCore
 struct StatusBarView: View {
     @Environment(TorrentStore.self) private var store
     @Environment(ServerProfileStore.self) private var profileStore
+    @Environment(\.openURL) private var openURL
     @State private var showServerStats = false
 
     var body: some View {
         HStack(spacing: 14) {
+            reportBugButton
             switch store.connection {
             case .connecting:
                 let name = profileStore.activeProfile?.label ?? "server"
@@ -43,6 +45,21 @@ struct StatusBarView: View {
         .frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28)
         .background(.regularMaterial)
         .overlay(alignment: .top) { Divider() }
+    }
+
+    private var reportBugButton: some View {
+        Button {
+            if let url = BugReport.url(daemonVersion: store.daemonVersion) {
+                openURL(url)
+            }
+        } label: {
+            Image(systemName: "ladybug")
+        }
+        .buttonStyle(.borderless)
+        .controlSize(.small)
+        .help("Report a bug on GitHub")
+        .foregroundStyle(Color(NSColor.secondaryLabelColor))
+        .accessibilityIdentifier("statusBar.reportBug")
     }
 
     private var leftCluster: some View {

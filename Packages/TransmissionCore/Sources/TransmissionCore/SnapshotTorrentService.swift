@@ -56,6 +56,8 @@ public actor SnapshotTorrentService: TorrentService {
 
     public func isAlternativeSpeedEnabled() async -> Bool { session.altSpeedEnabled }
 
+    public func daemonVersion() async -> String? { session.version }
+
     /// Read-only: the captured session's settings, so the Speed/Network panes
     /// render the frozen values.
     public func sessionSettings() async -> SessionSettings? { SessionSettings(wire: session) }

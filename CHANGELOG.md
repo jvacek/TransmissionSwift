@@ -2,6 +2,13 @@
 
 All notable changes to TransmissionSwift.
 
+## 0.5.6
+
+24th Sept 2026
+
+- Add a button and menu item to open a new github issue with the versions pre-filled
+
+
 ## 0.5.5
 
 23 Sept 2026

@@ -87,6 +87,11 @@ public protocol TorrentService: Sendable {
     /// and the no-server placeholder render populated controls.
     func sessionSettings() async -> SessionSettings?
 
+    /// The daemon's long version string (e.g. `"4.1.2 (f234716f3e)"`), or nil
+    /// when unknown (mock / disconnected / not yet polled). Used to pre-fill
+    /// the bug-report template. Default nil.
+    func daemonVersion() async -> String?
+
     /// Applies a partial `session-set` write. Default no-op for read-only /
     /// snapshot services; `RPCTorrentService` maps the patch and sends it.
     func applySessionSettings(_ patch: SessionSettingsPatch) async throws
@@ -132,6 +137,7 @@ extension TorrentService {
     public func freeSpace() async -> Int64? { nil }
     public func downloadDirectory() async -> String? { nil }
     public func sessionSettings() async -> SessionSettings? { nil }
+    public func daemonVersion() async -> String? { nil }
     public func applySessionSettings(_ patch: SessionSettingsPatch) async throws {}
     public func isPortOpen() async -> Bool? { nil }
     public func sessionStats() async -> SessionStats? { nil }
