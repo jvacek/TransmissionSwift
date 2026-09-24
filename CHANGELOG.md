@@ -2,6 +2,12 @@
 
 All notable changes to TransmissionSwift.
 
+## 0.6.1
+
+25th septh 2026
+
+- Implement torrent renaming
+
 ## 0.6.0
 
 24th septh 2026
