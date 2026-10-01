@@ -44,3 +44,4 @@ reference/
 # Claude Code — local-only overrides
 CLAUDE.local.md
 .claude/settings.local.json
+**/__pycache__/**

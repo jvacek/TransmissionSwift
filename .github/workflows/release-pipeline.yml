@@ -153,6 +153,8 @@ jobs:
           # is disabled above (no certs on CI), so embed the equivalent set
           # explicitly when ad-hoc signing. Mirrors the Debug entitlements
           # minus Debug-only keys (get-task-allow, / read exception).
+          # The mach-lookup names need the literal bundle id: raw codesign
+          # does not expand $(PRODUCT_BUNDLE_IDENTIFIER).
           cat > build/Release.entitlements <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -166,6 +168,11 @@ jobs:
               <true/>
               <key>com.apple.security.network.client</key>
               <true/>
+              <key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+              <array>
+                  <string>jvacek.TransmissionSwift-spks</string>
+                  <string>jvacek.TransmissionSwift-spki</string>
+              </array>
           </dict>
           </plist>
           EOF

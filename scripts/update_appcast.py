@@ -83,11 +83,16 @@ def add_item(
     ET.SubElement(item, _sparkle("version")).text = build_version
     ET.SubElement(item, _sparkle("shortVersionString")).text = short_version
 
+    # Sparkle treats multiple enclosure nodes as localized variants and picks
+    # one by xml:lang; without the attribute it logs an error per node and
+    # assumes "en". sparkle:arch is not (yet) read by Sparkle, so the first
+    # enclosure — the universal build — is what every client downloads.
     # Universal / x86_64 enclosure
     enclosure_attrs = {
         "url": download_url,
         "length": str(length),
         "type": "application/octet-stream",
+        "xml:lang": "en",
         _sparkle("edSignature"): signature,
     }
     if download_url_arm64:
@@ -103,6 +108,7 @@ def add_item(
                 "url": download_url_arm64,
                 "length": str(length_arm64),
                 "type": "application/octet-stream",
+                "xml:lang": "en",
                 _sparkle("edSignature"): signature_arm64,
                 _sparkle("arch"): "arm64",
             },
@@ -114,13 +120,25 @@ def add_item(
         ET.SubElement(item, _sparkle("releaseNotesLink")).text = release_notes_url
 
     if full_release_notes_url:
-        ET.SubElement(item, _sparkle("fullReleaseNotesLink")).text = full_release_notes_url
+        ET.SubElement(
+            item, _sparkle("fullReleaseNotesLink")
+        ).text = full_release_notes_url
 
     if channel_name:
         ET.SubElement(item, _sparkle("channel")).text = channel_name
 
     pub_date = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S %z")
     ET.SubElement(item, "pubDate").text = pub_date
+
+
+def backfill_enclosure_languages(channel):
+    # Items published before xml:lang was emitted still parse (Sparkle assumes
+    # "en") but log an error per enclosure on every check. Normalize the whole
+    # feed so only new-item code needs to set the attribute.
+    for item in channel.findall("item"):
+        for enclosure in item.findall("enclosure"):
+            if "xml:lang" not in enclosure.attrib:
+                enclosure.set("xml:lang", "en")
 
 
 def main():
@@ -146,7 +164,9 @@ def main():
 
     has_arm64 = bool(args.download_url_arm64)
     if has_arm64 and not (args.signature_arm64 and args.length_arm64):
-        parser.error("--signature-arm64 and --length-arm64 are required with --download-url-arm64")
+        parser.error(
+            "--signature-arm64 and --length-arm64 are required with --download-url-arm64"
+        )
 
     add_item(
         channel,
@@ -163,6 +183,8 @@ def main():
         signature_arm64=args.signature_arm64 or None,
         length_arm64=args.length_arm64 or None,
     )
+
+    backfill_enclosure_languages(channel)
 
     tree.write(args.appcast_path, xml_declaration=True, encoding="utf-8")
 

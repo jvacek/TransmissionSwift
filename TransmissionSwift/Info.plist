@@ -60,6 +60,13 @@
 	<string>yOx9DTZyOyDSed94L5kAT1cXbakXVwJGcCLXZEr/uQg=</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
+	<!-- Sandboxed app: let the Installer XPC service (embedded in
+	     Sparkle.framework) run the install outside the sandbox. Without this
+	     Sparkle installs in-process, and the sandbox denies the required
+	     authorization right ("Failed to gain authorization required to
+	     update target"). Needs the -spks/-spki mach-lookup entitlements. -->
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
 	<!-- Handle magnet: links opened from a browser. Routed through the same
 	     .onOpenURL handler as .torrent files. -->
 	<key>CFBundleURLTypes</key>

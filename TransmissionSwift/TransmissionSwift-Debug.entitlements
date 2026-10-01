@@ -12,6 +12,14 @@
 	<true/>
 	<key>com.apple.security.network.client</key>
 	<true/>
+	<!-- Sparkle's installer runs outside the sandbox and registers these mach
+	     services, which the sandboxed app dials to track the install. Required
+	     in addition to SUEnableInstallerLauncherService in Info.plist. -->
+	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+	<array>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spks</string>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spki</string>
+	</array>
 	<!-- Debug-only: lets `--snapshot` replay the committed fixture from the
 	     repo checkout. Read-only, never shipped (Release keeps its sandbox). -->
 	<key>com.apple.security.temporary-exception.files.absolute-path.read-only</key>

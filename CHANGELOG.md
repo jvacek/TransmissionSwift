@@ -2,6 +2,21 @@
 
 All notable changes to TransmissionSwift.
 
+---
+
+**My sincere apologies, versions on or below 0.6.1 need to be manually updated to 0.6.2 or above**. There was a bug in the updater, and you will need to work around it yourself.
+
+Please visit the [release page](https://github.com/jvacek/TransmissionSwift/releases), download TransmissionSwift and replace the current install.
+
+---
+
+## 0.6.2
+
+1st Oct 2026
+
+- Fix in-app updates failing to install on sandboxed builds (Sparkle's Installer XPC service was never enabled).
+  - Note: **versions ≤ 0.6.1 must update to this release manually once**; automatic updates resume after that.
+
 ## 0.6.1
 
 25th septh 2026
