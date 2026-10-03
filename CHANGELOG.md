@@ -10,6 +10,13 @@ Please visit the [release page](https://github.com/jvacek/TransmissionSwift/rele
 
 ---
 
+## 0.6.4
+
+3rd Oct 2026
+
+- Add option to remove .torrent files after deletion
+- Persist the .torrent delete option from settings and have the add sheet read from it
+
 ## 0.6.3
 
 3rd Oct 2026
