@@ -555,15 +555,18 @@ public final class TorrentStore {
         let isMagnet = url.scheme == "magnet"
         guard isMagnet || url.isFileURL else { return }
         guard showDialog else {
+            let deleteAfterAdding = UserDefaults.standard.bool(forKey: "deleteTorrentFileAfterAdding")
             Task {
                 if isMagnet {
                     await add(
                         fileURL: nil, magnetURL: url.absoluteString, destination: "",
-                        labels: [], priority: .normal, startWhenAdded: true)
+                        labels: [], priority: .normal, startWhenAdded: true,
+                        deleteFileAfterAdding: deleteAfterAdding)
                 } else {
                     await add(
                         fileURL: url, magnetURL: nil, destination: "",
-                        labels: [], priority: .normal, startWhenAdded: true)
+                        labels: [], priority: .normal, startWhenAdded: true,
+                        deleteFileAfterAdding: deleteAfterAdding)
                 }
             }
             return
@@ -622,7 +625,8 @@ public final class TorrentStore {
         destination: String,
         labels: [String],
         priority: TorrentPriority,
-        startWhenAdded: Bool
+        startWhenAdded: Bool,
+        deleteFileAfterAdding: Bool = false
     ) async -> Bool {
         do {
             try await service.add(
@@ -633,10 +637,33 @@ public final class TorrentStore {
                 priority: priority,
                 startWhenAdded: startWhenAdded
             )
+            if deleteFileAfterAdding, let fileURL {
+                deleteLocalTorrentFile(fileURL)
+            }
             return true
         } catch {
             recordError(error)
             return false
+        }
+    }
+
+    /// Best-effort cleanup of the source `.torrent` file after the daemon
+    /// accepted it. Restricted to `.torrent` files so a caller mistake can't
+    /// delete arbitrary user data; a failure (locked file, lost sandbox
+    /// access) is logged and leaves the file in place — the add itself
+    /// already succeeded.
+    private func deleteLocalTorrentFile(_ url: URL) {
+        guard url.isFileURL, url.pathExtension.lowercased() == "torrent" else { return }
+        // `.fileImporter` URLs are security-scoped; re-claim access for the
+        // deletion (the read inside the service already released its scope).
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do {
+            try FileManager.default.removeItem(at: url)
+        } catch {
+            logger.error(
+                "Added torrent but failed to delete \(url.path, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
         }
     }
 

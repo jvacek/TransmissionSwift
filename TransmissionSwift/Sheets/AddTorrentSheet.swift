@@ -29,6 +29,8 @@ struct AddTorrentSheet: View {
     @State private var tags: [String] = []
     @State private var priority: TorrentPriority = .normal
     @State private var startWhenAdded: Bool = true
+    @AppStorage("deleteTorrentFileAfterAdding") private var deleteTorrentFileByDefault = false
+    @State private var deleteSourceFile: Bool = false
     @State private var showFileImporter: Bool = false
     @State private var isAdding: Bool = false
     @State private var saveError: String? = nil
@@ -54,6 +56,8 @@ struct AddTorrentSheet: View {
                 // default download dir via resolveServerPath, same as Set
                 // Location. The Full-path preview shows the real target.
                 mode = initialMagnetMode ? .magnet : .file
+                // Per-add override, seeded from the Settings default.
+                deleteSourceFile = deleteTorrentFileByDefault
                 if let url = prefilledURL {
                     if url.scheme == "magnet" {
                         mode = .magnet
@@ -217,6 +221,14 @@ struct AddTorrentSheet: View {
             formRow("") {
                 Toggle("Start when added", isOn: $startWhenAdded)
             }
+            // Magnets have no local file, so the cleanup option only makes
+            // sense — and only shows — for file adds.
+            if mode == .file {
+                Divider()
+                formRow("") {
+                    Toggle("Delete .torrent file after adding", isOn: $deleteSourceFile)
+                }
+            }
             if let saveError {
                 Divider()
                 Text(saveError)
@@ -367,7 +379,8 @@ struct AddTorrentSheet: View {
             destination: resolveServerPath(destination, relativeTo: store.downloadDirectory),
             labels: tags,
             priority: priority,
-            startWhenAdded: startWhenAdded
+            startWhenAdded: startWhenAdded,
+            deleteFileAfterAdding: mode == .file && deleteSourceFile
         )
         if succeeded {
             isPresented = false

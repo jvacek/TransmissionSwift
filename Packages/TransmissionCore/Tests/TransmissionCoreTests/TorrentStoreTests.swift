@@ -498,6 +498,52 @@ struct TorrentStoreTests {
         #expect(store.torrents.count == 1)
     }
 
+    @Test("add deletes the .torrent file after a successful add when asked")
+    @MainActor
+    func addDeletesSourceFile() async throws {
+        let service = MockTorrentService(initial: [])
+        let store = TorrentStore(service: service)
+        let file = FileManager.default.temporaryDirectory
+            .appendingPathComponent("delete-after-add-\(UUID().uuidString).torrent")
+        try Data("not really bencoded".utf8).write(to: file)
+        try #require(FileManager.default.fileExists(atPath: file.path))
+
+        let added = await store.add(
+            fileURL: file, magnetURL: nil, destination: "",
+            labels: [], priority: .normal, startWhenAdded: true,
+            deleteFileAfterAdding: true)
+
+        #expect(added)
+        #expect(!FileManager.default.fileExists(atPath: file.path))
+    }
+
+    @Test("add keeps the file when cleanup is off, and never touches non-torrent files")
+    @MainActor
+    func addKeepsSourceFile() async throws {
+        let service = MockTorrentService(initial: [])
+        let store = TorrentStore(service: service)
+        let torrent = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keep-after-add-\(UUID().uuidString).torrent")
+        let other = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keep-after-add-\(UUID().uuidString).txt")
+        try Data("fake torrent".utf8).write(to: torrent)
+        try Data("notes".utf8).write(to: other)
+
+        await store.add(
+            fileURL: torrent, magnetURL: nil, destination: "",
+            labels: [], priority: .normal, startWhenAdded: true,
+            deleteFileAfterAdding: false)
+        // The extension guard is the last line of defence against a caller
+        // asking us to delete something that isn't a torrent file.
+        await store.add(
+            fileURL: other, magnetURL: nil, destination: "",
+            labels: [], priority: .normal, startWhenAdded: true,
+            deleteFileAfterAdding: true)
+
+        #expect(FileManager.default.fileExists(atPath: torrent.path))
+        #expect(FileManager.default.fileExists(atPath: other.path))
+    }
+
     @Test("setLabels replaces labels on the selected torrents")
     @MainActor
     func setLabelsAction() async {

@@ -3,6 +3,7 @@ import TransmissionCore
 
 struct GeneralPrefsPane: View {
     @AppStorage("showAddDialogBeforeAdding") private var showAddDialog = true
+    @AppStorage("deleteTorrentFileAfterAdding") private var deleteTorrentFileAfterAdding = false
     @AppStorage("startMinimized") private var startMinimized = false
     @AppStorage("badgeAppIcon") private var badgeAppIcon = false
     @AppStorage("confirmRemove") private var confirmRemove = true
@@ -13,8 +14,15 @@ struct GeneralPrefsPane: View {
 
     var body: some View {
         Form {
-            Section("Downloads") {
+            Section {
                 Toggle("Show dialog before adding a torrent", isOn: $showAddDialog)
+                Toggle("Delete .torrent file after adding", isOn: $deleteTorrentFileAfterAdding)
+            } header: {
+                Text("Downloads")
+            } footer: {
+                Text(
+                    "Applies to .torrent files added from this Mac — drag & drop and “Open With” included. Magnet links have no file to delete."
+                )
             }
             Section("Connection") {
                 LabeledContent("Refresh interval") {
