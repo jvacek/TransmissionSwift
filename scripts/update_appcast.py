@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """
-Update the Sparkle appcast.xml with a new release entry.
+Update a Sparkle appcast feed with a new release entry.
+
+Each feed is architecture-specific (universal or arm64), so an entry has
+exactly one enclosure. The app picks its feed via SPUUpdaterDelegate's
+feedURLStringForUpdater:.
 
 Usage:
   update_appcast.py \
@@ -13,9 +17,10 @@ Usage:
     --length "1234567" \
     --release-notes-url "https://.../release-notes.md" \
     [--full-release-notes-url "https://.../changelog.md"] \
-    [--channel "beta"]
+    [--channel "beta"] \
+    [--hardware-requirements "arm64"]
 
-If appcast.xml does not exist, a new one is created.
+If the appcast does not exist, a new one is created.
 The file is modified in-place.
 """
 
@@ -25,6 +30,9 @@ from datetime import datetime, timezone
 
 SPARKLE_NS = "http://www.andymatuschak.org/xml-namespaces/sparkle"
 DC_NS = "http://purl.org/dc/elements/1.1/"
+# ElementTree exposes parsed xml:lang attributes under the XML namespace, not
+# the literal "xml:lang" key; using the qualified name keeps set/check in sync.
+XML_LANG = "{http://www.w3.org/XML/1998/namespace}lang"
 
 ET.register_namespace("sparkle", SPARKLE_NS)
 ET.register_namespace("dc", DC_NS)
@@ -73,9 +81,7 @@ def add_item(
     full_release_notes_url=None,
     channel_name=None,
     minimum_system_version="26.0",
-    download_url_arm64=None,
-    signature_arm64=None,
-    length_arm64=None,
+    hardware_requirements=None,
 ):
     item = ET.SubElement(channel, "item")
 
@@ -83,38 +89,27 @@ def add_item(
     ET.SubElement(item, _sparkle("version")).text = build_version
     ET.SubElement(item, _sparkle("shortVersionString")).text = short_version
 
-    # Sparkle treats multiple enclosure nodes as localized variants and picks
-    # one by xml:lang; without the attribute it logs an error per node and
-    # assumes "en". sparkle:arch is not (yet) read by Sparkle, so the first
-    # enclosure — the universal build — is what every client downloads.
-    # Universal / x86_64 enclosure
-    enclosure_attrs = {
-        "url": download_url,
-        "length": str(length),
-        "type": "application/octet-stream",
-        "xml:lang": "en",
-        _sparkle("edSignature"): signature,
-    }
-    if download_url_arm64:
-        enclosure_attrs[_sparkle("arch")] = "x86_64"
-    ET.SubElement(item, "enclosure", attrib=enclosure_attrs)
-
-    # Arm64-only enclosure (optional)
-    if download_url_arm64 and signature_arm64 and length_arm64 is not None:
-        ET.SubElement(
-            item,
-            "enclosure",
-            attrib={
-                "url": download_url_arm64,
-                "length": str(length_arm64),
-                "type": "application/octet-stream",
-                "xml:lang": "en",
-                _sparkle("edSignature"): signature_arm64,
-                _sparkle("arch"): "arm64",
-            },
-        )
+    # One enclosure per item; the feed is architecture-specific. xml:lang is
+    # set so a feed with legacy multi-enclosure items parses without errors.
+    ET.SubElement(
+        item,
+        "enclosure",
+        attrib={
+            "url": download_url,
+            "length": str(length),
+            "type": "application/octet-stream",
+            XML_LANG: "en",
+            _sparkle("edSignature"): signature,
+        },
+    )
 
     ET.SubElement(item, _sparkle("minimumSystemVersion")).text = minimum_system_version
+
+    # Guardrail on the arm64 feed: Sparkle refuses the item on Intel Macs.
+    if hardware_requirements:
+        ET.SubElement(
+            item, _sparkle("hardwareRequirements")
+        ).text = hardware_requirements
 
     if release_notes_url:
         ET.SubElement(item, _sparkle("releaseNotesLink")).text = release_notes_url
@@ -137,8 +132,8 @@ def backfill_enclosure_languages(channel):
     # feed so only new-item code needs to set the attribute.
     for item in channel.findall("item"):
         for enclosure in item.findall("enclosure"):
-            if "xml:lang" not in enclosure.attrib:
-                enclosure.set("xml:lang", "en")
+            if XML_LANG not in enclosure.attrib:
+                enclosure.set(XML_LANG, "en")
 
 
 def main():
@@ -155,18 +150,10 @@ def main():
     parser.add_argument("--release-notes-url", default="")
     parser.add_argument("--full-release-notes-url", default="")
     parser.add_argument("--channel", default="")
-    parser.add_argument("--download-url-arm64", default="")
-    parser.add_argument("--signature-arm64", default="")
-    parser.add_argument("--length-arm64", type=int, default=0)
+    parser.add_argument("--hardware-requirements", default="")
     args = parser.parse_args()
 
     tree, root, channel = ensure_appcast(args.appcast_path)
-
-    has_arm64 = bool(args.download_url_arm64)
-    if has_arm64 and not (args.signature_arm64 and args.length_arm64):
-        parser.error(
-            "--signature-arm64 and --length-arm64 are required with --download-url-arm64"
-        )
 
     add_item(
         channel,
@@ -179,9 +166,7 @@ def main():
         release_notes_url=args.release_notes_url,
         full_release_notes_url=args.full_release_notes_url or None,
         channel_name=args.channel or None,
-        download_url_arm64=args.download_url_arm64 or None,
-        signature_arm64=args.signature_arm64 or None,
-        length_arm64=args.length_arm64 or None,
+        hardware_requirements=args.hardware_requirements or None,
     )
 
     backfill_enclosure_languages(channel)

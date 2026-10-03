@@ -98,7 +98,7 @@ jobs:
             ZIP_BASENAME="TransmissionSwift-${TAG}"
           fi
 
-          ZIP_PATH="build/${ZIP_BASENAME}.zip"
+          ZIP_PATH="build/${ZIP_BASENAME}-universal.zip"
           ZIP_PATH_ARM64="build/${ZIP_BASENAME}-arm64.zip"
 
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
@@ -377,15 +377,18 @@ jobs:
             --notes-file build/changelog.md \
             $PRERELEASE_FLAG
 
-      - name: Fetch existing appcast
+      - name: Fetch existing appcasts
         run: |
           set -euo pipefail
 
           curl -sL \
             "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/gh-pages/appcast.xml" \
             -o build/appcast/appcast.xml || true
+          curl -sL \
+            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/gh-pages/appcast-arm64.xml" \
+            -o build/appcast/appcast-arm64.xml || true
 
-      - name: Update appcast
+      - name: Update appcasts
         run: |
           set -euo pipefail
 
@@ -399,10 +402,20 @@ jobs:
             --length "$ED_LENGTH" \
             --release-notes-url "$RELEASE_NOTES_URL" \
             --full-release-notes-url "$FULL_RELEASE_NOTES_URL" \
+            --channel "$CHANNEL"
+
+          python3 scripts/update_appcast.py \
+            --appcast-path build/appcast/appcast-arm64.xml \
+            --download-url "$DOWNLOAD_URL_ARM64" \
+            --title "$APPCAST_TITLE" \
+            --short-version "$SHORT_VERSION" \
+            --build-version "$RELEASE_BUILD_VERSION" \
+            --signature "$SIGNATURE_ARM64" \
+            --length "$ED_LENGTH_ARM64" \
+            --release-notes-url "$RELEASE_NOTES_URL" \
+            --full-release-notes-url "$FULL_RELEASE_NOTES_URL" \
             --channel "$CHANNEL" \
-            --download-url-arm64 "$DOWNLOAD_URL_ARM64" \
-            --signature-arm64 "$SIGNATURE_ARM64" \
-            --length-arm64 "$ED_LENGTH_ARM64"
+            --hardware-requirements arm64
 
       - name: Deploy appcast to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
