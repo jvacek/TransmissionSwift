@@ -29,8 +29,10 @@ struct AddTorrentSheet: View {
     @State private var tags: [String] = []
     @State private var priority: TorrentPriority = .normal
     @State private var startWhenAdded: Bool = true
+    /// Read-only mirror of the Settings default. The row below flips the
+    /// `@State` copy for this add only — it must never write back.
     @AppStorage("deleteTorrentFileAfterAdding") private var deleteTorrentFileByDefault = false
-    @State private var deleteSourceFile: Bool = false
+    @State private var deleteSourceFile = false
     @State private var showFileImporter: Bool = false
     @State private var isAdding: Bool = false
     @State private var saveError: String? = nil
@@ -56,7 +58,8 @@ struct AddTorrentSheet: View {
                 // default download dir via resolveServerPath, same as Set
                 // Location. The Full-path preview shows the real target.
                 mode = initialMagnetMode ? .magnet : .file
-                // Per-add override, seeded from the Settings default.
+                // Seed the per-add option from the Settings default; the
+                // toggle below never writes back.
                 deleteSourceFile = deleteTorrentFileByDefault
                 if let url = prefilledURL {
                     if url.scheme == "magnet" {

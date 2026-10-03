@@ -16,12 +16,12 @@ struct GeneralPrefsPane: View {
         Form {
             Section {
                 Toggle("Show dialog before adding a torrent", isOn: $showAddDialog)
-                Toggle("Delete .torrent file after adding", isOn: $deleteTorrentFileAfterAdding)
+                Toggle("Delete .torrent file after adding by default", isOn: $deleteTorrentFileAfterAdding)
             } header: {
                 Text("Downloads")
             } footer: {
                 Text(
-                    "Applies to .torrent files added from this Mac — drag & drop and “Open With” included. Magnet links have no file to delete."
+                    "The Add Torrent dialog starts with this option checked; you can turn it off for a single add. Adds that skip the dialog — drag & drop and “Open With” — follow this default directly. Magnet links have no file to delete."
                 )
             }
             Section("Connection") {
