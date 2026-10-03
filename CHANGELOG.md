@@ -4,11 +4,19 @@ All notable changes to TransmissionSwift.
 
 ---
 
-**My sincere apologies, versions on or below 0.6.1 need to be manually updated to 0.6.2 or above**. There was a bug in the updater, and you will need to work around it yourself.
+**Versions on or below 0.6.1 need to be manually updated to 0.6.2 or above**. There was a bug in the updater, and you will need to work around it yourself. My sincere apoologies for the inconvenience.
 
 Please visit the [release page](https://github.com/jvacek/TransmissionSwift/releases), download TransmissionSwift and replace the current install.
 
 ---
+
+## 0.6.3
+
+3rd Oct 2026
+
+- Label the universal binary release
+- Separate appcasts for universal and arm64 releases
+  - **If you used the auto-updater from an arm64 release, it installed the universal over it, just FYI**
 
 ## 0.6.2
 
