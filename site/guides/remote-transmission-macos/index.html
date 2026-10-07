@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>How to Connect to a Remote Transmission Daemon on macOS</title>
+<meta name="description" content="Enable remote access on your Transmission daemon and connect from macOS with TransmissionSwift — including authentication, firewall and SSH tunnel tips.">
+<link rel="canonical" href="https://transmissionswift.jvacek.eu/guides/remote-transmission-macos/">
+<meta name="robots" content="index, follow">
+<meta name="author" content="Jonas Vacek">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="TransmissionSwift">
+<meta property="og:title" content="How to connect to a remote Transmission daemon on macOS">
+<meta property="og:description" content="Enable remote access on your Transmission daemon and connect from macOS over RPC.">
+<meta property="og:url" content="https://transmissionswift.jvacek.eu/guides/remote-transmission-macos/">
+<meta property="og:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
+<meta property="og:image:alt" content="TransmissionSwift — a native Transmission remote for macOS">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="en">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="How to connect to a remote Transmission daemon on macOS">
+<meta name="twitter:description" content="Enable remote access on your Transmission daemon and connect from macOS over RPC.">
+<meta name="twitter:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
+
+<meta name="theme-color" content="#1c1c1e">
+<link rel="icon" href="/imgs/icon.png" type="image/png">
+<link rel="apple-touch-icon" href="/imgs/icon.png">
+<link rel="stylesheet" href="/style.css">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "How to connect to a remote Transmission daemon on macOS",
+      "description": "Enable remote access on a Transmission BitTorrent daemon and connect to it from macOS over the RPC API.",
+      "datePublished": "2026-10-07",
+      "dateModified": "2026-10-07",
+      "image": "https://transmissionswift.jvacek.eu/imgs/og.jpg",
+      "author": { "@type": "Person", "name": "Jonas Vacek", "url": "https://github.com/jvacek" },
+      "mainEntityOfPage": "https://transmissionswift.jvacek.eu/guides/remote-transmission-macos/"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "TransmissionSwift", "item": "https://transmissionswift.jvacek.eu/" },
+        { "@type": "ListItem", "position": 2, "name": "Remote Transmission on macOS", "item": "https://transmissionswift.jvacek.eu/guides/remote-transmission-macos/" }
+      ]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <img src="/imgs/icon.png" alt="" width="28" height="28">
+      TransmissionSwift
+    </a>
+    <nav class="main">
+      <a href="/#features">Features</a>
+      <a href="/comparison/">Compare</a>
+      <a href="/guides/remote-transmission-macos/" class="active">Setup</a>
+      <a href="/faq/">FAQ</a>
+      <a class="btn small" href="https://github.com/jvacek/TransmissionSwift/releases/latest">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap prose">
+
+  <p class="crumbs"><a href="/">TransmissionSwift</a> / Guides / Remote Transmission on macOS</p>
+
+  <h1>How to connect to a remote Transmission daemon on macOS</h1>
+
+  <p class="lede">
+    TransmissionSwift is a client, not a server: it drives a Transmission
+    BitTorrent daemon that is already running — on a seedbox, a NAS, a home
+    server or a Raspberry Pi. This guide shows how to switch on the daemon's
+    remote API and connect to it from your Mac.
+  </p>
+
+  <div class="callout">
+    <p><strong>In short:</strong> enable the RPC interface on the daemon, give it
+      a username and password, make the port reachable (preferably through a VPN
+      or SSH tunnel), then add the server in TransmissionSwift.</p>
+  </div>
+
+  <h2>1. Enable the RPC interface on the daemon</h2>
+  <p>Transmission exposes its remote API over HTTP on port <code>9091</code> by
+    default. Edit <code>settings.json</code> in the daemon's config directory
+    (commonly <code>~/.config/transmission-daemon/</code> on Linux,
+    <code>~/Library/Application Support/Transmission/</code> on macOS, or the
+    directory you passed with <code>-g</code>):</p>
+
+  <pre><code>{
+  "rpc-enabled": true,
+  "rpc-bind-address": "0.0.0.0",
+  "rpc-port": 9091,
+  "rpc-authentication-required": true,
+  "rpc-username": "youruser",
+  "rpc-password": "a-strong-password",
+  "rpc-whitelist-enabled": false
+}</code></pre>
+
+  <p>Stop the daemon before editing the file — it rewrites
+    <code>settings.json</code> on exit and would otherwise overwrite your
+    changes.</p>
+
+  <h2>2. Or start it with the right flags</h2>
+  <p>The equivalent command-line flags are handy for a quick test or a service
+    unit:</p>
+
+  <pre><code>transmission-daemon \
+  --auth \
+  --username youruser \
+  --password 'a-strong-password' \
+  --port 9091 \
+  --download-dir /var/lib/transmission-daemon/downloads</code></pre>
+
+  <h2>3. Make the port reachable</h2>
+  <ul>
+    <li><strong>Same network:</strong> connect to the machine's LAN address, for
+      example <code>192.168.1.20:9091</code>. No router changes needed.</li>
+    <li><strong>Over the internet:</strong> forward the port on your router, or
+      use the seedbox provider's host and port.</li>
+    <li><strong>Recommended — keep it private:</strong> tunnel with SSH instead
+      of exposing the port publicly:
+      <pre><code>ssh -L 9091:localhost:9091 user@your-server</code></pre>
+      Then connect TransmissionSwift to <code>127.0.0.1:9091</code>. The traffic
+      is encrypted and nothing is exposed to the internet.</li>
+  </ul>
+
+  <h2>4. Add the server in TransmissionSwift</h2>
+  <ol>
+    <li>Open TransmissionSwift and choose <em>Add Server</em>.</li>
+    <li>Enter the host and port (for example <code>127.0.0.1</code> and
+      <code>9091</code> when using an SSH tunnel).</li>
+    <li>Enter the RPC username and password. TransmissionSwift keeps the password
+      in the macOS Keychain.</li>
+    <li>If your daemon serves the API under a custom path, set the URL path
+      (the default is <code>/transmission/</code>).</li>
+    <li>Connect — your torrents, labels and server stats load straight from the
+      daemon.</li>
+  </ol>
+
+  <h2>Security checklist</h2>
+  <ul>
+    <li>Always set a username and password before exposing the RPC port.</li>
+    <li>Prefer a VPN or SSH tunnel over opening the port to the internet.</li>
+    <li>If you must expose it, put it behind a reverse proxy with HTTPS.</li>
+    <li>Keep the daemon updated, and restrict access with a firewall where
+      possible.</li>
+  </ul>
+
+  <h2>Next steps</h2>
+  <p>Once you are connected, set up path mapping to open downloads in
+    Cyberduck, Finder or another app, and check the
+    <a href="/faq/">FAQ</a> for common questions. If you are moving from
+    Transmission Remote GUI, see the
+    <a href="/comparison/">transgui comparison</a>.</p>
+
+  <div class="actions">
+    <a class="btn" href="https://github.com/jvacek/TransmissionSwift/releases/latest">Download TransmissionSwift</a>
+    <a class="btn secondary" href="/#features">See all features</a>
+  </div>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="links">
+      <a href="/">Home</a>
+      <a href="/comparison/">Transmission Remote GUI comparison</a>
+      <a href="/faq/">FAQ</a>
+      <a href="https://github.com/jvacek/TransmissionSwift/releases">Releases</a>
+      <a href="/changelog.md">Changelog</a>
+      <a href="/appcast.xml">Appcast</a>
+      <a href="https://github.com/jvacek/TransmissionSwift">GitHub</a>
+    </div>
+    <p>TransmissionSwift — a native Transmission remote for macOS.</p>
+  </div>
+</footer>
+
+</body>
+</html>

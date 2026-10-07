@@ -5,30 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <title>TransmissionSwift — Native Transmission Remote for macOS</title>
-<meta name="description" content="A free, native SwiftUI macOS client for a remote Transmission BitTorrent daemon. Manage torrents, labels, files and server settings over RPC — a modern alternative to Transmission Remote GUI (transgui).">
+<meta name="description" content="A free, native Transmission remote for macOS. Manage torrents, labels and server settings over RPC — a modern alternative to Transmission Remote GUI.">
 <link rel="canonical" href="https://transmissionswift.jvacek.eu/">
 <meta name="robots" content="index, follow">
+<meta name="author" content="Jonas Vacek">
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="TransmissionSwift">
 <meta property="og:title" content="TransmissionSwift — Native Transmission Remote for macOS">
 <meta property="og:description" content="A free, native SwiftUI macOS client for a remote Transmission BitTorrent daemon. A modern alternative to Transmission Remote GUI (transgui).">
 <meta property="og:url" content="https://transmissionswift.jvacek.eu/">
-<meta property="og:image" content="https://transmissionswift.jvacek.eu/imgs/main.png">
-<meta property="og:image:alt" content="TransmissionSwift main window showing a list of torrents">
-<meta property="og:image:width" content="3244">
-<meta property="og:image:height" content="2082">
+<meta property="og:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
+<meta property="og:image:alt" content="TransmissionSwift — a native Transmission remote for macOS">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:locale" content="en">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="TransmissionSwift — Native Transmission Remote for macOS">
 <meta name="twitter:description" content="A free, native SwiftUI macOS client for a remote Transmission BitTorrent daemon. A modern alternative to Transmission Remote GUI (transgui).">
-<meta name="twitter:image" content="https://transmissionswift.jvacek.eu/imgs/main.png">
-<meta name="twitter:image:alt" content="TransmissionSwift main window showing a list of torrents">
+<meta name="twitter:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
+<meta name="twitter:image:alt" content="TransmissionSwift — a native Transmission remote for macOS">
 
 <meta name="theme-color" content="#1c1c1e">
-<link rel="icon" href="imgs/icon.png" type="image/png">
-<link rel="apple-touch-icon" href="imgs/icon.png">
+<link rel="icon" href="/imgs/icon.png" type="image/png">
+<link rel="apple-touch-icon" href="/imgs/icon.png">
+<link rel="stylesheet" href="/style.css">
 
 <script type="application/ld+json">
 {
@@ -36,97 +38,224 @@
   "@type": "SoftwareApplication",
   "name": "TransmissionSwift",
   "applicationCategory": "UtilitiesApplication",
+  "applicationSubCategory": "BitTorrent client",
   "operatingSystem": "macOS 26+",
   "description": "A free, native SwiftUI macOS client for a remote Transmission BitTorrent daemon. A modern alternative to Transmission Remote GUI (transgui).",
   "url": "https://transmissionswift.jvacek.eu/",
   "downloadUrl": "https://github.com/jvacek/TransmissionSwift/releases/latest",
   "image": "https://transmissionswift.jvacek.eu/imgs/icon.png",
   "screenshot": "https://transmissionswift.jvacek.eu/imgs/main.png",
+  "softwareRequirements": "macOS 26 or later",
+  "isAccessibleForFree": true,
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-  "author": { "@type": "Person", "name": "Jonas Vacek", "url": "https://github.com/jvacek" }
+  "author": { "@type": "Person", "name": "Jonas Vacek", "url": "https://github.com/jvacek" },
+  "sameAs": "https://github.com/jvacek/TransmissionSwift",
+  "featureList": [
+    "Manage torrents: start, pause, delete with or without data, verify, update tracker",
+    "Add torrents from .torrent files or magnet links",
+    "Edit server settings: slow mode, speed limits, networking and seeding",
+    "Combine sidebar filters and organise torrents with colour-coded labels",
+    "Path mapping to open downloads in Cyberduck, Finder or a custom app",
+    "Automation via Shortcuts.app, Spotlight and Siri",
+    "Self-updating via Sparkle"
+  ]
 }
 </script>
-
-<style>
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    line-height: 1.6;
-    color: #f2f2f7;
-    background: #1c1c1e;
-  }
-  main { max-width: 880px; margin: 0 auto; padding: 4rem 1.25rem 6rem; }
-  h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.15; margin: 0 0 .5rem; }
-  h2 { margin-top: 3rem; font-size: 1.5rem; }
-  p { color: #c7c7cc; }
-  .icon { width: 120px; height: 120px; border-radius: 26px; }
-  .actions { display: flex; gap: .75rem; flex-wrap: wrap; margin: 1.5rem 0; }
-  .btn {
-    display: inline-block; padding: .7rem 1.25rem; border-radius: 10px;
-    font-weight: 600; text-decoration: none; background: #0a84ff; color: #fff;
-  }
-  .btn.secondary { background: #2c2c2e; color: #f2f2f7; }
-  ul { color: #c7c7cc; }
-  img.shot { width: 100%; height: auto; border-radius: 12px; border: 1px solid #3a3a3c; margin: 1rem 0; }
-  code { background: #2c2c2e; padding: .15em .4em; border-radius: 5px; font-size: .9em; }
-  footer { margin-top: 4rem; color: #8e8e93; font-size: .9rem; }
-  a { color: #64d2ff; }
-</style>
 </head>
 <body>
-<main>
-  <img class="icon" src="imgs/icon.png" alt="TransmissionSwift app icon" width="120" height="120">
-  <h1>TransmissionSwift — a native Transmission remote for macOS</h1>
-  <p>
-    TransmissionSwift is a free, native SwiftUI macOS client for a remote
-    Transmission BitTorrent daemon. Connect over RPC and manage your torrents
-    from your Mac — no browser, no web UI. It is a modern alternative to
-    Transmission Remote GUI (transgui).
-  </p>
 
-  <div class="actions">
-    <a class="btn" href="https://github.com/jvacek/TransmissionSwift/releases/latest">Download for macOS</a>
-    <a class="btn secondary" href="https://github.com/jvacek/TransmissionSwift">View on GitHub</a>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <img src="/imgs/icon.png" alt="" width="28" height="28">
+      TransmissionSwift
+    </a>
+    <nav class="main">
+      <a href="/#features">Features</a>
+      <a href="/comparison/">Compare</a>
+      <a href="/guides/remote-transmission-macos/">Setup</a>
+      <a href="/faq/">FAQ</a>
+      <a class="btn small" href="https://github.com/jvacek/TransmissionSwift/releases/latest">Download</a>
+    </nav>
   </div>
+</header>
 
-  <img class="shot" src="imgs/main.png" alt="TransmissionSwift main window showing a list of torrents" width="3244" height="2082">
+<main class="wrap">
 
-  <h2>Features</h2>
-  <ul>
-    <li>Manage active torrents: start/pause, delete (with or without data), verify, update tracker, set priority and unwanted files, change download location</li>
-    <li>Add new torrents from <code>.torrent</code> files (drag &amp; drop or handler) or magnet links</li>
-    <li>Change server settings, including slow mode, networking and seeding config</li>
-    <li>Combine filters in the sidebar, manage torrent labels and colour coding</li>
-    <li>Path mapping via custom URI patterns and ready-made presets (Cyberduck, Finder, default app, Swizzin)</li>
-    <li>Self-updating via Sparkle</li>
-  </ul>
-
-  <h2>Requirements</h2>
-  <p>
-    macOS 26 or later. The app is a ~4&nbsp;MB universal binary (Apple
-    silicon and Intel) written in Swift and SwiftUI.
-  </p>
-
-  <h2>Installing an unsigned build</h2>
-  <p>
-    Releases are currently unsigned, so macOS Gatekeeper will block the first
-    launch. Open the app once, choose <em>Done</em> rather than <em>Move to
-    Trash</em>, then open <em>System Settings → Privacy &amp; Security</em> and
-    click <em>Open Anyway</em>. The
-    <a href="https://github.com/jvacek/TransmissionSwift#how-to-open-it">README</a>
-    walks through it with screenshots.
-  </p>
-
-  <footer>
-    <p>
-      <a href="https://github.com/jvacek/TransmissionSwift">github.com/jvacek/TransmissionSwift</a>
-      · <a href="https://github.com/jvacek/TransmissionSwift/releases">Releases</a>
-      · <a href="changelog.md">Changelog</a>
-      · <a href="appcast.xml">Appcast</a>
+  <section class="hero">
+    <img class="icon" src="/imgs/icon.png" alt="TransmissionSwift app icon" width="112" height="112">
+    <h1>TransmissionSwift — a native Transmission remote for macOS</h1>
+    <p class="lede">
+      A free, native SwiftUI macOS client for a remote Transmission BitTorrent
+      daemon. Connect over RPC and manage your torrents from your Mac — no
+      browser, no web UI, no Electron.
     </p>
-  </footer>
+    <div class="actions">
+      <a class="btn" href="https://github.com/jvacek/TransmissionSwift/releases/latest">Download for macOS</a>
+      <a class="btn secondary" href="https://github.com/jvacek/TransmissionSwift">View source on GitHub</a>
+    </div>
+    <p class="meta">Free · macOS 26+ · ~4&nbsp;MB universal binary (Apple silicon &amp; Intel)</p>
+  </section>
+
+  <img class="shot" src="/imgs/main.png" alt="TransmissionSwift — a native Transmission remote for macOS with the sidebar filters and inspector" width="1600" height="1027" fetchpriority="high" decoding="async">
+
+  <section id="features">
+    <h2>Everything you need to run a remote daemon</h2>
+    <p>TransmissionSwift is a full remote control for a Transmission BitTorrent
+      daemon, built with Swift and SwiftUI so it feels at home on macOS.</p>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Full torrent control</h3>
+        <p>Start and pause, delete with or without data, verify local data, update
+          trackers, set priorities and mark files unwanted.</p>
+      </div>
+      <div class="card">
+        <h3>Add torrents your way</h3>
+        <p>Drop in <code>.torrent</code> files, register the file handler, or paste
+          a magnet link — adding paused, choosing a destination and labels.</p>
+      </div>
+      <div class="card">
+        <h3>Server settings</h3>
+        <p>Change daemon configuration from the app: slow (turtle) mode, speed
+          limits, networking, port checking and seeding rules.</p>
+      </div>
+      <div class="card">
+        <h3>Labels &amp; filters</h3>
+        <p>Combine filters in the sidebar and organise torrents with multi-tag,
+          colour-coded labels.</p>
+      </div>
+      <div class="card">
+        <h3>Path mapping</h3>
+        <p>Open a download in Cyberduck, Finder (mounted or not), VLC or any app
+          via custom URI patterns, with ready-made presets.</p>
+      </div>
+      <div class="card">
+        <h3>Automation</h3>
+        <p>Drive it from Shortcuts.app, Spotlight and Siri: add torrents, get stats
+          and free space, pause or resume, and toggle turtle mode.</p>
+      </div>
+      <div class="card">
+        <h3>Self-updating</h3>
+        <p>Built-in updates via Sparkle keep you on the latest release without
+          hunting for downloads.</p>
+      </div>
+      <div class="card">
+        <h3>Native and tiny</h3>
+        <p>A ~4&nbsp;MB universal binary written in Swift and SwiftUI — no
+          Electron, no browser, minimal resource use.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="comparison">
+    <h2>TransmissionSwift vs Transmission Remote GUI</h2>
+    <p>If you are looking for a native replacement for transgui on modern macOS,
+      here is how they compare.</p>
+    <div class="table-scroll">
+      <table class="compare">
+        <thead>
+          <tr>
+            <th scope="col">&nbsp;</th>
+            <th scope="col" class="col-hi">TransmissionSwift</th>
+            <th scope="col">Transmission Remote GUI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Native macOS interface</td>
+            <td class="col-hi yes">Yes — SwiftUI &amp; AppKit</td>
+            <td>Cross-platform toolkit</td>
+          </tr>
+          <tr>
+            <td>Apple silicon (native binary)</td>
+            <td class="col-hi yes">Universal (arm64 + x86_64)</td>
+            <td>Intel build, Rosetta</td>
+          </tr>
+          <tr>
+            <td>Colour-coded labels</td>
+            <td class="col-hi yes">Yes</td>
+            <td class="limited">Limited</td>
+          </tr>
+          <tr>
+            <td>Shortcuts, Spotlight &amp; Siri</td>
+            <td class="col-hi yes">Yes — App Intents</td>
+            <td class="no">No</td>
+          </tr>
+          <tr>
+            <td>Open downloads in external apps</td>
+            <td class="col-hi yes">Yes — URI presets</td>
+            <td class="limited">Limited</td>
+          </tr>
+          <tr>
+            <td>Automatic updates</td>
+            <td class="col-hi yes">Sparkle</td>
+            <td class="limited">Manual</td>
+          </tr>
+          <tr>
+            <td>Price</td>
+            <td class="col-hi">Free</td>
+            <td>Free</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Comparison reflects Transmission Remote GUI 5.x on macOS and
+      may change as upstream evolves. See the
+      <a href="/comparison/">full comparison</a>.</p>
+  </section>
+
+  <section id="faq">
+    <h2>Common questions</h2>
+
+    <details class="faq">
+      <summary>Is TransmissionSwift free?</summary>
+      <p>Yes. TransmissionSwift is free to download and use, and the source is
+        published on <a href="https://github.com/jvacek/TransmissionSwift">GitHub</a>.</p>
+    </details>
+    <details class="faq">
+      <summary>Which Transmission versions does it support?</summary>
+      <p>It talks to the classic Transmission RPC endpoint exposed by Transmission
+        2.x through 4.x, so it works with an existing remote daemon without
+        changes on the server side.</p>
+    </details>
+    <details class="faq">
+      <summary>Does it run on Intel Macs?</summary>
+      <p>Yes. Releases are universal binaries that run natively on Apple silicon
+        and Intel. macOS 26 or later is required.</p>
+    </details>
+    <p><a href="/faq/">Read all questions →</a></p>
+  </section>
+
+  <section id="install">
+    <h2>Installing</h2>
+    <p>Releases are currently unsigned, so macOS Gatekeeper blocks the first
+      launch. Open the app once, choose <em>Done</em> rather than <em>Move to
+      Trash</em>, then open <em>System Settings → Privacy &amp; Security</em> and
+      click <em>Open Anyway</em>. The
+      <a href="/faq/">FAQ</a> and the
+      <a href="https://github.com/jvacek/TransmissionSwift#how-to-open-it">README</a>
+      walk through it with screenshots. Once it is installed, the
+      <a href="/guides/remote-transmission-macos/">remote setup guide</a> shows
+      how to connect it to your daemon.</p>
+  </section>
+
 </main>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="links">
+      <a href="/comparison/">Transmission Remote GUI comparison</a>
+      <a href="/guides/remote-transmission-macos/">Remote setup guide</a>
+      <a href="/faq/">FAQ</a>
+      <a href="https://github.com/jvacek/TransmissionSwift/releases">Releases</a>
+      <a href="/changelog.md">Changelog</a>
+      <a href="/appcast.xml">Appcast</a>
+      <a href="https://github.com/jvacek/TransmissionSwift">GitHub</a>
+    </div>
+    <p>TransmissionSwift — a native Transmission remote for macOS.</p>
+  </div>
+</footer>
+
 </body>
 </html>

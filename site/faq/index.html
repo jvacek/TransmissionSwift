@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>TransmissionSwift FAQ — macOS Transmission remote</title>
+<meta name="description" content="TransmissionSwift FAQ: Gatekeeper and unsigned builds, supported Transmission versions, seedboxes, magnet links, Shortcuts and macOS requirements.">
+<link rel="canonical" href="https://transmissionswift.jvacek.eu/faq/">
+<meta name="robots" content="index, follow">
+<meta name="author" content="Jonas Vacek">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="TransmissionSwift">
+<meta property="og:title" content="TransmissionSwift FAQ">
+<meta property="og:description" content="Gatekeeper, supported Transmission versions, seedboxes, automation and macOS requirements.">
+<meta property="og:url" content="https://transmissionswift.jvacek.eu/faq/">
+<meta property="og:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
+<meta property="og:image:alt" content="TransmissionSwift — a native Transmission remote for macOS">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="en">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="TransmissionSwift FAQ">
+<meta name="twitter:description" content="Gatekeeper, supported Transmission versions, seedboxes, automation and macOS requirements.">
+<meta name="twitter:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
+
+<meta name="theme-color" content="#1c1c1e">
+<link rel="icon" href="/imgs/icon.png" type="image/png">
+<link rel="apple-touch-icon" href="/imgs/icon.png">
+<link rel="stylesheet" href="/style.css">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is TransmissionSwift free?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. TransmissionSwift is free to download and use. The source is published on GitHub." }
+        },
+        {
+          "@type": "Question",
+          "name": "Why does macOS say the app cannot be opened?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Releases are currently unsigned, so Gatekeeper blocks the first launch. Open the app once, choose Done rather than Move to Trash, then go to System Settings, Privacy & Security and click Open Anyway." }
+        },
+        {
+          "@type": "Question",
+          "name": "Which Transmission versions are supported?",
+          "acceptedAnswer": { "@type": "Answer", "text": "TransmissionSwift uses the classic Transmission RPC API, which is exposed by Transmission 2.x through 4.x. No changes are needed on the daemon side." }
+        },
+        {
+          "@type": "Question",
+          "name": "Does it work with a seedbox?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Point it at your seedbox host, RPC port and credentials. Because it is a remote client, the daemon can run anywhere — a seedbox, a NAS or a home server." }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I add magnet links?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Add torrents from magnet links, .torrent files (drag and drop or the registered file handler), choosing priority, destination and labels." }
+        },
+        {
+          "@type": "Question",
+          "name": "Does it support Shortcuts, Spotlight and Siri?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. App Intents expose actions to Shortcuts.app, Spotlight and Siri — add torrents, get stats and free space, pause or resume, and toggle turtle mode." }
+        },
+        {
+          "@type": "Question",
+          "name": "Does it run on Intel Macs?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Releases are universal binaries that run natively on Apple silicon and Intel Macs. macOS 26 or later is required." }
+        },
+        {
+          "@type": "Question",
+          "name": "Where are my server passwords stored?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Passwords are stored in the macOS Keychain, not in a plain file. Everything else lives in local preferences on your Mac." }
+        },
+        {
+          "@type": "Question",
+          "name": "Is there an iPhone or iPad version?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Not yet. The app is macOS-only today; an iPhone version is on the roadmap." }
+        },
+        {
+          "@type": "Question",
+          "name": "What macOS version do I need?",
+          "acceptedAnswer": { "@type": "Answer", "text": "macOS 26 or later. The app is a ~4 MB universal binary written in Swift and SwiftUI." }
+        }
+      ]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "TransmissionSwift", "item": "https://transmissionswift.jvacek.eu/" },
+        { "@type": "ListItem", "position": 2, "name": "FAQ", "item": "https://transmissionswift.jvacek.eu/faq/" }
+      ]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <img src="/imgs/icon.png" alt="" width="28" height="28">
+      TransmissionSwift
+    </a>
+    <nav class="main">
+      <a href="/#features">Features</a>
+      <a href="/comparison/">Compare</a>
+      <a href="/guides/remote-transmission-macos/">Setup</a>
+      <a href="/faq/" class="active">FAQ</a>
+      <a class="btn small" href="https://github.com/jvacek/TransmissionSwift/releases/latest">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap prose">
+
+  <p class="crumbs"><a href="/">TransmissionSwift</a> / FAQ</p>
+
+  <h1>Frequently asked questions</h1>
+
+  <details class="faq" open>
+    <summary>Is TransmissionSwift free?</summary>
+    <p>Yes. TransmissionSwift is free to download and use, and the source is
+      published on <a href="https://github.com/jvacek/TransmissionSwift">GitHub</a>.</p>
+  </details>
+
+  <details class="faq">
+    <summary>Why does macOS say the app cannot be opened?</summary>
+    <p>Releases are currently unsigned, so Gatekeeper blocks the first launch.
+      Open the app once and choose <em>Done</em> — do <strong>not</strong> choose
+      <em>Move to Trash</em>:</p>
+    <img src="/imgs/security_bypass/step1.png" alt="macOS Gatekeeper blocking the unsigned TransmissionSwift app on first launch" width="744" height="724" loading="lazy" decoding="async">
+    <p>Then open <em>System Settings → Privacy &amp; Security</em>, find the
+      Security section and click <em>Open Anyway</em>:</p>
+    <img src="/imgs/security_bypass/step2.png" alt="macOS Privacy and Security settings showing the Open Anyway button for TransmissionSwift" width="1200" height="1051" loading="lazy" decoding="async">
+    <p>Confirm with your password and open the app again. The same steps are in
+      Apple's
+      <a href="https://support.apple.com/en-gb/guide/mac-help/mh40616/mac">support
+      article</a> and the project
+      <a href="https://github.com/jvacek/TransmissionSwift#how-to-open-it">README</a>.</p>
+  </details>
+
+  <details class="faq">
+    <summary>Which Transmission versions are supported?</summary>
+    <p>TransmissionSwift talks to the classic Transmission RPC API, exposed by
+      Transmission 2.x through 4.x. You do not need to change anything on the
+      daemon — see the
+      <a href="/guides/remote-transmission-macos/">remote setup guide</a>.</p>
+  </details>
+
+  <details class="faq">
+    <summary>Does it work with a seedbox?</summary>
+    <p>Yes. Because TransmissionSwift is a remote client, the daemon can run
+      anywhere — a seedbox, a NAS or a home server. Point it at the host, RPC
+      port and credentials.</p>
+  </details>
+
+  <details class="faq">
+    <summary>Can I add magnet links?</summary>
+    <p>Yes. Add torrents from magnet links or <code>.torrent</code> files — by
+      drag and drop or through the registered file handler — choosing priority,
+      destination folder and labels.</p>
+  </details>
+
+  <details class="faq">
+    <summary>Does it support Shortcuts, Spotlight and Siri?</summary>
+    <p>Yes. <a href="https://developer.apple.com/documentation/appintents">App
+      Intents</a> expose actions to Shortcuts.app, Spotlight and Siri: add
+      torrents, get server and torrent stats, read free space, pause or resume,
+      remove, verify, re-announce, and toggle turtle mode.</p>
+  </details>
+
+  <details class="faq">
+    <summary>Does it run on Intel Macs?</summary>
+    <p>Yes. Releases are universal binaries (arm64 + x86_64) that run natively on
+      Apple silicon and Intel Macs. macOS 26 or later is required.</p>
+  </details>
+
+  <details class="faq">
+    <summary>Where are my server passwords stored?</summary>
+    <p>Passwords are kept in the macOS Keychain rather than a plain file.
+      Everything else lives in local preferences on your Mac.</p>
+  </details>
+
+  <details class="faq">
+    <summary>Is there an iPhone or iPad version?</summary>
+    <p>Not yet. The app is macOS-only today; an iPhone version is on the
+      roadmap.</p>
+  </details>
+
+  <details class="faq">
+    <summary>What macOS version do I need?</summary>
+    <p>macOS 26 or later. The app is a ~4&nbsp;MB universal binary written in
+      Swift and SwiftUI, with minimal resource use.</p>
+  </details>
+
+  <div class="actions" style="margin-top:2rem">
+    <a class="btn" href="https://github.com/jvacek/TransmissionSwift/releases/latest">Download TransmissionSwift</a>
+    <a class="btn secondary" href="https://github.com/jvacek/TransmissionSwift/issues">Ask on GitHub</a>
+  </div>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="links">
+      <a href="/">Home</a>
+      <a href="/comparison/">Transmission Remote GUI comparison</a>
+      <a href="/guides/remote-transmission-macos/">Remote setup guide</a>
+      <a href="https://github.com/jvacek/TransmissionSwift/releases">Releases</a>
+      <a href="/changelog.md">Changelog</a>
+      <a href="/appcast.xml">Appcast</a>
+      <a href="https://github.com/jvacek/TransmissionSwift">GitHub</a>
+    </div>
+    <p>TransmissionSwift — a native Transmission remote for macOS.</p>
+  </div>
+</footer>
+
+</body>
+</html>
