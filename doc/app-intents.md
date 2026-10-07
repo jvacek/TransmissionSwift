@@ -379,6 +379,7 @@ prefixed form in test code; only the shell/justfile sets the prefixed name.)
 | Symptom | Cause | Fix |
 |---|---|---|
 | Shortcuts: **"Could not communicate with app"** | Ad-hoc-signed app (no team) and/or the bundle id resolves to a stale install without App Intents metadata. | Sign app + test runner with the same `DEVELOPMENT_TEAM`; install one current build to `/Applications`; remove duplicate registrations. |
+| Shortcuts: server picker empty / **"No Transmission servers are configured"** in a *downloaded* build, while the app shows profiles | The released app is ad-hoc signed (no `TeamIdentifier`), so App Intents can't reach it (`AppIntentsServicesSecurityErrorDomain Code=800`); the app's own profiles are invisible to Shortcuts. | Team-sign the release. The pipeline now signs with the Apple Development cert and `verify_artifact` fails on ad-hoc zips. |
 | AppIntentsTesting: `AppIntentsServicesSecurityErrorDomain Code=800 "Your app does not have permission to perform this."` | Same root cause: no signing team. | Set `DEVELOPMENT_TEAM` on the Debug app + UI test targets (needs a `Mac Development` cert). |
 | AppIntentsTesting: `AppIntentsServicesMetadataErrorDomain … "<bundle id> is not present"` | The system resolved the bundle id to a copy without intent metadata (e.g. a stale `/Applications` app), or nothing registered yet. | Ensure the current build is the installed one; run it once; `lsregister -gc` to drop stale copies. |
 | Opt-in test **silently skips** | Reading `TEST_RUNNER_<X>` instead of the stripped `<X>` in test code. | Read the stripped name; keep the prefix only in the shell/justfile. |
@@ -399,10 +400,15 @@ security find-identity -v -p codesigning                       # is there a usab
 
 ## Environment requirements & gotchas
 
-- **Code signing is mandatory.** App Intents require the app and any invoking
-  process (Shortcuts, the AppIntentsTesting runner) to share a development team.
-  Ad-hoc builds fail with the security error above. The Debug app config has no
-  `DEVELOPMENT_TEAM` (only Release does); add one on machines with a cert.
+- **Code signing is mandatory, including for the shipped build.** App Intents
+  require the app to carry a team identity, so an ad-hoc release has a Shortcuts
+  surface that is silently dead: the server picker is empty and actions report
+  "No Transmission servers are configured" even though the app itself is full of
+  profiles. The release pipeline imports the Apple Development certificate (the
+  same `APP_INTENTS_*` secrets the AppIntentsTesting lane uses) and signs with
+  it, and `verify_artifact` fails the run if the zipped app still reports
+  `TeamIdentifier=not set`. The Debug app config has no `DEVELOPMENT_TEAM`
+  (only Release does); add one on machines with a cert.
 - **One install per bundle id.** `jvacek.TransmissionSwift` should resolve to a
   single, current app (ideally in `/Applications`). DerivedData, temp, and trash
   copies all register under the same id and confuse resolution.

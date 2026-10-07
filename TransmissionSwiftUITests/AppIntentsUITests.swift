@@ -100,7 +100,13 @@ final class AppIntentsUITests: XCTestCase {
             _ = try await definitions.intents["PauseTorrentsIntent"].makeIntent().run()
             XCTFail("Snapshot replay is read-only; pausing should have failed")
         } catch {
-            // Expected: the replay service refuses the mutation.
+            // Must be the read-only rejection, not an unrelated "no servers" /
+            // "couldn't reach" failure — otherwise this passes for the wrong
+            // reason and green-lights a broken launch.
+            let detail = String(describing: error)
+            XCTAssertTrue(
+                detail.contains("read-only"),
+                "Expected the read-only rejection, got a different failure: \(detail)")
         }
     }
 

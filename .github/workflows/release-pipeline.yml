@@ -148,6 +148,28 @@ jobs:
       - name: Install xcbeautify
         run: brew install xcbeautify
 
+      - name: Import signing certificate
+        # App Intents refuse ad-hoc apps, so the shipped build must carry a team
+        # identity. Reuses the same Apple Development certificate as the App
+        # Intents test lane (APP_INTENTS_* secrets), passed down by the caller's
+        # `secrets: inherit`.
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.APP_INTENTS_CERT_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.APP_INTENTS_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APP_INTENTS_KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          CERT_PATH="$RUNNER_TEMP/build_certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security find-identity -p codesigning -v
+
       - name: Build universal app
         run: |
           set -euo pipefail
@@ -175,13 +197,24 @@ jobs:
             exit 1
           fi
 
+          # Sign with the imported team identity — ad-hoc signatures make App
+          # Intents unusable, which is the whole point of shipping them. Nested
+          # code is signed with the same identity.
+          IDENTITY="$(security find-identity -v -p codesigning \
+            | sed -nE 's/.*"(Apple Development[^"]*)".*/\1/p' | head -1)"
+          if [ -z "$IDENTITY" ]; then
+            echo "No Apple Development signing identity found."
+            exit 1
+          fi
+          echo "Signing with: $IDENTITY"
+
           # Release sandbox entitlements. The Release config derives these from
           # build settings at sign time (ENABLE_APP_SANDBOX etc.), but signing
-          # is disabled above (no certs on CI), so embed the equivalent set
-          # explicitly when ad-hoc signing. Mirrors the Debug entitlements
-          # minus Debug-only keys (get-task-allow, / read exception).
-          # The mach-lookup names need the literal bundle id: raw codesign
-          # does not expand $(PRODUCT_BUNDLE_IDENTIFIER).
+          # is disabled above (CODE_SIGNING_ALLOWED=NO), so embed the equivalent
+          # set explicitly here. Mirrors the Debug entitlements minus Debug-only
+          # keys (get-task-allow, / read exception). The mach-lookup names need
+          # the literal bundle id: raw codesign does not expand
+          # $(PRODUCT_BUNDLE_IDENTIFIER).
           cat > build/Release.entitlements <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -218,10 +251,10 @@ jobs:
               | sort -r \
               | while IFS= read -r nested; do
                 if [ "$nested" != "$bundle" ]; then
-                  codesign --force --sign - --preserve-metadata=entitlements "$nested"
+                  codesign --force --sign "$IDENTITY" --preserve-metadata=entitlements "$nested"
                 fi
               done
-            codesign --force --sign - --entitlements build/Release.entitlements "$bundle"
+            codesign --force --sign "$IDENTITY" --entitlements build/Release.entitlements "$bundle"
             codesign --verify --deep --strict --verbose=2 "$bundle"
           }
 
@@ -240,7 +273,7 @@ jobs:
             if lipo -info "$f" 2>/dev/null | grep -q "Architectures in the fat file"; then
               thin_out="$f.thin"
               lipo "$f" -thin arm64 -output "$thin_out" && mv "$thin_out" "$f"
-              codesign --force --sign - --preserve-metadata=entitlements "$f"
+              codesign --force --sign "$IDENTITY" --preserve-metadata=entitlements "$f"
             fi
           done
           seal_bundle "$arm_app"
@@ -290,6 +323,13 @@ jobs:
             fi
             if ! codesign -d --entitlements :- "$app" 2>/dev/null | grep -q "com.apple.security.app-sandbox"; then
               echo "$zip: sandbox entitlements missing."
+              exit 1
+            fi
+            # App Intents require a team identity; an ad-hoc release ships with
+            # Shortcuts actions that can't reach the app (Code=800). Tripwire so
+            # that class of broken release fails here instead of on a user's Mac.
+            if codesign -dv "$app" 2>&1 | grep -q "TeamIdentifier=not set"; then
+              echo "$zip: ad-hoc signed (no TeamIdentifier); App Intents will not work."
               exit 1
             fi
             echo "$zip: OK ($archs)"
