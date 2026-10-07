@@ -41,6 +41,10 @@ jobs:
       # resolves them on the fly.
       - name: Install uv
         uses: astral-sh/setup-uv@v10.2.0
+        with:
+          # Dependencies live inline in the script (PEP 723), so key uv's cache
+          # to it: changing them invalidates the cache instead of never.
+          cache-dependency-glob: scripts/build_site.py
 
       - name: Build site
         run: uv run --no-project scripts/build_site.py
