@@ -7,7 +7,9 @@ import Sentry
 ///
 /// 1. A DSN is present. It is injected at build time through the `SENTRY_DSN`
 ///    build setting, which `Info.plist` expands into the `SentryDSN` key. A
-///    build without the setting (e.g. a local one) leaves the SDK inert.
+///    DSN is committed for Debug and Release, so every local build is also
+///    configured and offers the first-run consent splash; a build whose value
+///    is unexpanded or missing leaves the SDK inert.
 /// 2. The user enabled "Send anonymous crash reports" (default off).
 ///
 /// Deliberately narrow: no PII and no auto session tracking, so a report can
