@@ -1,5 +1,7 @@
 # TransmissionSwift
 
+**A native Transmission remote control for macOS.** A lightweight, SwiftUI-based alternative to Transmission Remote GUI (transgui) for managing a remote Transmission BitTorrent daemon.
+
 [![Release](https://img.shields.io/github/v/release/jvacek/TransmissionSwift?display_name=release&logo=github)](https://github.com/jvacek/TransmissionSwift/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/jvacek/TransmissionSwift/ci.yml?branch=main&logo=github)](https://github.com/jvacek/TransmissionSwift/actions)
 [![Stars](https://img.shields.io/github/stars/jvacek/TransmissionSwift?logo=github)](https://github.com/jvacek/TransmissionSwift)
@@ -7,11 +9,14 @@
 [![Swift](https://img.shields.io/badge/Swift-6-orange?logo=swift&logoColor=white)](https://developer.apple.com/swift/)
 <!--[![Downloads](https://img.shields.io/github/downloads/jvacek/TransmissionSwift/latest/total?logo=github)](https://github.com/jvacek/TransmissionSwift/releases)-->
 
-<img src="imgs/icon.png" alt="logo" width="256">
+<img src="imgs/icon.png" alt="TransmissionSwift app icon" width="256">
 
-## What is it
+## Transmission remote control for macOS
 
-This app lets you connect to a remote Transmission instance over RPC.
+TransmissionSwift is a native macOS Transmission remote client. It connects to a
+remote Transmission BitTorrent daemon over RPC, so you can manage your torrents
+from your Mac without a browser or a web UI — a modern replacement for
+Transmission Remote GUI (transgui).
 
 <details>
 <summary>Features</summary>
@@ -28,7 +33,7 @@ This app lets you connect to a remote Transmission instance over RPC.
   - magnets links via UI
 - Change server settings
   - Enable slow mode
-  - Netowrking config
+  - Networking config
   - Seeding config
 - Combining filters in the sidebar
 - Managing torrent labels and assigning colour coding to them
@@ -38,23 +43,23 @@ This app lets you connect to a remote Transmission instance over RPC.
 
 </details>
 
-It is written in Swift and SwiftUI, zipping down to a ~4MB app with minimal resource use.
+It is written in Swift and SwiftUI, compiling down to a ~4MB app with minimal resource use.
 
-![image](imgs/main.png)
+![TransmissionSwift main window showing a list of torrents](imgs/main.png)
 
-## How to open it it
+## How to open it
 
 1. [Download latest unsigned release](https://github.com/jvacek/TransmissionSwift/releases)
 1. Find in your downloads, and unzip
 1. Try to open the unsigned app (it will fail). **Do not move to trash**, just select "Done"
     <details>
     <summary>Screenshot</summary>
-    <img src="imgs/security_bypass/step1.png" width="600">
+    <img src="imgs/security_bypass/step1.png" alt="macOS Gatekeeper blocking the unsigned TransmissionSwift app on first launch" width="600">
     </details>
 1. Follow [instructions here](https://support.apple.com/en-gb/guide/mac-help/mh40616/mac) to bypass the verification (duplicated below for the lazy)
     <details>
     <summary>Screenshot + Instructions</summary>
-    <img src="imgs/security_bypass/step2.png" width="600">
+    <img src="imgs/security_bypass/step2.png" alt="macOS Privacy & Security settings with Open Anyway button" width="600">
 
     > 1. On your Mac, choose Apple menu > System Settings, then click Privacy & Security in the sidebar. (You may need to scroll down.)
     > 2. Go to Security, then click Open.
@@ -65,10 +70,6 @@ It is written in Swift and SwiftUI, zipping down to a ~4MB app with minimal reso
 1. Open again
 
 Alternatively, you can open the project in Xcode and build it from there.
-
-## What doesn't work yet
-
-- Changing server settings from the settings page
 
 ## What's being planned
 
