@@ -18,6 +18,11 @@ remote Transmission BitTorrent daemon over RPC, so you can manage your torrents
 from your Mac without a browser or a web UI — a modern replacement for
 Transmission Remote GUI (transgui).
 
+There's a [remote setup guide](https://transmissionswift.jvacek.eu/guides/remote-transmission-macos/),
+an [FAQ](https://transmissionswift.jvacek.eu/faq/) and a
+[comparison with Transmission Remote GUI](https://transmissionswift.jvacek.eu/comparison/)
+on the project site.
+
 <details>
 <summary>Features</summary>
 
