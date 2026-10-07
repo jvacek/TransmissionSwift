@@ -45,9 +45,9 @@ final class AppIntentsUITests: XCTestCase {
             """)
     }
 
-    /// `GetServerStatsIntent` runs end-to-end and returns a summary. Snapshot
-    /// replay carries no `session-stats`, so this also exercises the
-    /// torrent-derived fallback.
+    /// `GetServerStatsIntent` runs end-to-end and returns structured stats.
+    /// Snapshot replay carries no `session-stats`, so this also exercises the
+    /// torrent-derived fallback (10 fixture torrents).
     @MainActor
     func testGetServerStatsFromSnapshot() async throws {
         try launchOnSnapshot()
@@ -57,10 +57,9 @@ final class AppIntentsUITests: XCTestCase {
             .makeIntent()
             .run()
 
-        let summary: String = try result.value
-        XCTAssertTrue(
-            summary.contains("torrents"),
-            "Expected a stats summary, got: \(summary)")
+        let stats: AnyTransientAppEntity = try result.value
+        let count: Int = try stats.torrentCount
+        XCTAssertEqual(count, 10, "Expected the 10 fixture torrents")
     }
 
     /// The server-selection contract: the entity query lists the app's
