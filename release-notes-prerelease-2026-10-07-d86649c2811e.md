@@ -227,3 +227,21 @@ This is basically the first stable release. These are some of the things that wo
     - View details only
   - Verify local data
   - Delete (with or without data)
+
+# Changes since v0.6.3
+
+d86649c ci: fold App Intents tests into the xcode-27 build job
+90e38a9 Add more App Intents
+7bcaeb8 Deploy Pages from Actions, keep Sparkle feed on gh-pages
+77b61b3 build: make 'just test-appintents' self-provision the signing cert
+ce8b23d ci: fix non-blocking App Intents lane (reusable-workflow limit)
+82d1788 ci: block App Intents only on stable releases
+142e9a5 ci: don't let the AppIntentsTesting lane block PRs
+ade188b fix(ci): use the app-under-test bundle id in AppIntentsTesting
+e6ea739 ci: add signed AppIntentsTesting lane and macOS 26/27 matrix
+8e220d9 Add app intents with one server stats action
+765009d Some updates for SEO
+ad015e0 Serve tracker favicons from the disk cache on startup
+ba87337 Update CHANGELOG.md
+28f102d Clarify default v ad-hoc behaviour
+344b3a5 Add option to remove .torrent after adding file
