@@ -25,7 +25,12 @@ import XCTest
 /// `AppEnvironment` — deterministic, no daemon, no credentials.
 @available(macOS 27.0, *)
 final class AppIntentsUITests: XCTestCase {
-    private let bundleIdentifier = "jvacek.TransmissionSwift"
+    // The app target's "UI Testing" build configuration (which the scheme's Test
+    // action builds) sets PRODUCT_BUNDLE_IDENTIFIER to this value, so the app
+    // under test is a different bundle id from the shipping app. IntentDefinitions
+    // must look up the app that is actually running, or the framework reports
+    // AppIntentsServicesMetadataErrorDomain "… is not present".
+    private let bundleIdentifier = "jvacek.TransmissionSwift.uitesting"
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -67,14 +72,10 @@ final class AppIntentsUITests: XCTestCase {
 
         let definitions = IntentDefinitions(bundleIdentifier: bundleIdentifier)
         let entities = try await definitions.entities["ServerEntity"].suggestedEntities()
-        XCTAssertFalse(entities.isEmpty, "Expected at least the snapshot profile")
-
-        let labels = try entities.map { (entity: AnyAppEntity) -> String in
-            try entity.label
-        }
-        XCTAssertTrue(
-            labels.contains { $0.hasPrefix("Snapshot") },
-            "Expected the synthetic snapshot profile, got: \(labels)")
+        // Snapshot replay registers exactly one synthetic server profile. (Entity
+        // properties aren't queryable via dynamic lookup unless the entity declares
+        // them, so this asserts on the count, not the label.)
+        XCTAssertEqual(entities.count, 1, "Expected the single snapshot profile")
     }
 
     // MARK: - Helpers
