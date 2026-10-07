@@ -63,7 +63,7 @@ public actor FaviconService {
 
     /// Returns cached-or-fetched favicon data for `host`, or `nil` when no
     /// usable icon could be resolved. `forceRevalidate` issues a conditional GET
-    /// even when the cache is still fresh (used for the startup update check).
+    /// even when the cache is still fresh, to force an update check.
     public func icon(for host: String, forceRevalidate: Bool = false) async -> Data? {
         guard !host.isEmpty, let base = URL(string: "https://" + host) else { return nil }
         logger.info("Fetching favicon for host: \(host, privacy: .public) (forceRevalidate: \(forceRevalidate))")

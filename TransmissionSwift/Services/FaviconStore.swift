@@ -82,18 +82,15 @@ final class FaviconStore {
     func image(for host: String) -> NSImage? { images[host] }
 
     /// Fetch favicons for the given tracker hosts. Hosts already in memory are
-    /// skipped unless `forceRevalidate` is set. Runs entirely off the main
-    /// thread; images are published as they arrive, served from the disk cache
-    /// when fresh.
-    func refresh(hosts: [String], forceRevalidate: Bool = false) async {
+    /// skipped. Runs entirely off the main thread; images are published as they
+    /// arrive, served from the disk cache when fresh.
+    func refresh(hosts: [String]) async {
         guard enabled else { return }
         guard !isRefreshing else { return }
         let hostsSet = Set(hosts)
         for host in hostsSet { knownHosts.insert(host) }
-        let toFetch = forceRevalidate ? hostsSet : hostsSet.subtracting(images.keys)
-        logger.info(
-            "Favicon refresh: \(hosts.count) hosts requested, \(toFetch.count) to fetch (forceRevalidate: \(forceRevalidate))"
-        )
+        let toFetch = hostsSet.subtracting(images.keys)
+        logger.info("Favicon refresh: \(hosts.count) hosts requested, \(toFetch.count) to fetch")
         guard !toFetch.isEmpty else { return }
         isRefreshing = true
         defer { isRefreshing = false }
@@ -101,7 +98,7 @@ final class FaviconStore {
         await withTaskGroup(of: (String, Data?).self) { group in
             for host in toFetch {
                 group.addTask { [service] in
-                    let data = await service.icon(for: host, forceRevalidate: forceRevalidate)
+                    let data = await service.icon(for: host)
                     return (host, data)
                 }
             }
