@@ -10,15 +10,19 @@ import Testing
 private actor CacheStubClient: TransmissionClient {
     private let rpcVersion: Int
     private let altSpeedEnabled: Bool
+    private let sessionGetError: TransmissionError?
     private(set) var sessionGetCount = 0
     private(set) var lastAddLabels: [String]?
+    private(set) var torrentSetCalls: [TorrentSetArguments] = []
 
-    init(rpcVersion: Int, altSpeedEnabled: Bool) {
+    init(rpcVersion: Int, altSpeedEnabled: Bool, sessionGetError: TransmissionError? = nil) {
         self.rpcVersion = rpcVersion
         self.altSpeedEnabled = altSpeedEnabled
+        self.sessionGetError = sessionGetError
     }
 
     func sessionGet() async throws(TransmissionError) -> SessionInfo {
+        if let sessionGetError { throw sessionGetError }
         sessionGetCount += 1
         return SessionInfo(
             version: "test", rpcVersion: rpcVersion, rpcVersionMinimum: 16,
@@ -37,7 +41,9 @@ private actor CacheStubClient: TransmissionClient {
 
     func torrentAction(_ method: String, ids: [Int]) async throws(TransmissionError) {}
     func torrentRemove(ids: [Int], deleteLocalData: Bool) async throws(TransmissionError) {}
-    func torrentSet(_ args: TorrentSetArguments) async throws(TransmissionError) {}
+    func torrentSet(_ args: TorrentSetArguments) async throws(TransmissionError) {
+        torrentSetCalls.append(args)
+    }
 
     func torrentAdd(_ args: TorrentAddArguments) async throws(TransmissionError)
         -> TorrentAddResponse
@@ -94,6 +100,41 @@ struct RPCSessionCacheWarmTests {
             destination: "", labels: ["Linux"], priority: .normal, startWhenAdded: true)
 
         #expect(await stub.lastAddLabels == nil)
+    }
+
+    @Test("add fails instead of silently dropping labels when the session is unreadable")
+    func addThrowsWhenSessionUnknown() async {
+        let stub = CacheStubClient(
+            rpcVersion: 17, altSpeedEnabled: false, sessionGetError: .serverError("offline"))
+        let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
+
+        await #expect(throws: TransmissionError.self) {
+            try await service.add(
+                fileURL: nil, magnetURL: "magnet:?xt=urn:btih:abc",
+                destination: "", labels: ["Linux"], priority: .normal, startWhenAdded: true)
+        }
+        #expect(await stub.lastAddLabels == nil)
+    }
+
+    @Test("setSpeedLimits sends one torrent-set for every id with only the changed fields")
+    func setSpeedLimitsBatches() async throws {
+        let stub = CacheStubClient(rpcVersion: 17, altSpeedEnabled: false)
+        let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
+
+        var patch = TorrentSpeedLimitPatch()
+        patch.downloadLimited = true
+        patch.downloadLimitKBps = 99
+        try await service.setSpeedLimits([1, 2, 3], patch)
+
+        let calls = await stub.torrentSetCalls
+        #expect(calls.count == 1)
+        #expect(calls.first?.ids == [1, 2, 3])
+        #expect(calls.first?.downloadLimited == true)
+        #expect(calls.first?.downloadLimit == 99)
+        // Untouched fields stay off the wire, so per-torrent settings survive.
+        #expect(calls.first?.uploadLimited == nil)
+        #expect(calls.first?.uploadLimit == nil)
+        #expect(calls.first?.honorsSessionLimits == nil)
     }
 }
 
