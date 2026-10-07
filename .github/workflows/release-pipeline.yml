@@ -106,14 +106,19 @@ jobs:
           RELEASE_SHA="$(git rev-parse HEAD)"
 
           if [ "$PRERELEASE" = "true" ]; then
-            TAG="prerelease-${RELEASE_DATE}-${SHORT_SHA}"
-            TITLE="Pre-release ${RELEASE_DATE} ${SHORT_SHA}"
-            APPCAST_TITLE="Pre-release ${RELEASE_DATE}"
+            # Per-day ordinal so several pre-releases on the same day sort by
+            # number rather than by commit hash. Runs are serialised by the
+            # release-pipeline concurrency group and the tag is only created at
+            # the end, so the count never races another run.
+            PRERELEASE_SEQ="$(printf '%02d' "$(( $(git tag -l "prerelease-${RELEASE_DATE}-*" | wc -l | tr -d ' ') + 1 ))")"
+            TAG="prerelease-${RELEASE_DATE}-${PRERELEASE_SEQ}-${SHORT_SHA}"
+            TITLE="Pre-release ${RELEASE_DATE} ${PRERELEASE_SEQ} (${SHORT_SHA})"
+            APPCAST_TITLE="Pre-release ${RELEASE_DATE} (${PRERELEASE_SEQ})"
             SHORT_VERSION="0.1"
             CHANNEL="beta"
             PRERELEASE_FLAG="--prerelease"
             BUILD_EXTRA_FLAGS="SWIFT_ACTIVE_COMPILATION_CONDITIONS=PRERELEASE"
-            ZIP_BASENAME="TransmissionSwift-${RELEASE_DATE}-${SHORT_SHA}"
+            ZIP_BASENAME="TransmissionSwift-${RELEASE_DATE}-${PRERELEASE_SEQ}-${SHORT_SHA}"
           else
             TAG="v${VERSION}"
             TITLE="TransmissionSwift ${VERSION}"
