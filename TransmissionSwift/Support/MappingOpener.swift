@@ -24,7 +24,19 @@ enum MappingOpener {
     ) async {
         // The password lives in the Keychain, not on the profile. Reading it is
         // a user-initiated action, so a transient keychain prompt is acceptable.
-        let password = (try? KeychainStore().password(for: profile.id)) ?? nil
+        // Only fail the whole open when the template actually needs it — a locked
+        // Keychain shouldn't block a password-less mapping.
+        let password: String?
+        do {
+            password = try KeychainStore().password(for: profile.id)
+        } catch {
+            if MappingTemplate.needsPassword(mapping.template) {
+                store.lastActionError = .failed(
+                    message: "Couldn't read the saved password from the Keychain.")
+                return
+            }
+            password = nil
+        }
         // From the torrent list the file list isn't fetched; `{file}` needs it
         // to tell a single-file torrent (open the file) from a multi-file one
         // (open the folder), so resolve it on demand.

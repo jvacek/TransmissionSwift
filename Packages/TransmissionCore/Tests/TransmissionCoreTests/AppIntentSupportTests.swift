@@ -195,6 +195,15 @@ struct TransmissionServiceFactoryTests {
     }
 }
 
+@Suite("KeychainStore — credentials")
+struct KeychainCredentialsTests {
+    @Test("an anonymous profile has no credentials (and no Keychain read)")
+    func anonymousProfile() throws {
+        let profile = ServerProfile(label: "x", host: "nas.local")
+        #expect(try KeychainStore().credentials(for: profile) == nil)
+    }
+}
+
 @Suite("ServerProfileStore — readProfiles")
 struct ReadProfilesTests {
     private func tempFileURL() -> URL {

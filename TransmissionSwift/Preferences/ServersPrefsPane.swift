@@ -367,7 +367,13 @@ struct ServerProfileForm: View {
             if !password.isEmpty {
                 pwd = password
             } else if case .edit(let profile) = mode {
-                pwd = (try? keychain.password(for: profile.id)) ?? ""
+                do {
+                    pwd = try keychain.password(for: profile.id) ?? ""
+                } catch {
+                    testResultIsFailure = true
+                    testResultMessage = "Couldn't read the saved password from the Keychain."
+                    return
+                }
             } else {
                 pwd = ""
             }

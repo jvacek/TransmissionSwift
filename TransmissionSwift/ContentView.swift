@@ -96,17 +96,25 @@ struct ContentView: View {
         if case .connected = torrentStore.connection, connectedProfileID == profile.id { return }
 
         var credentials: Credentials?
-        if let username = profile.username, !username.isEmpty {
+        if profile.username?.isEmpty == false {
             // Cancel the mock stream and show "waiting for keychain" before
             // the macOS dialog blocks — prevents the mock from racing back.
             torrentStore.beginKeychainWait()
-            let profileID = profile.id
             let kc = keychain
-            let password = await Task.detached(priority: .userInitiated) {
-                (try? kc.password(for: profileID)) ?? ""
+            let resolved = await Task.detached(priority: .userInitiated) {
+                Result { try kc.credentials(for: profile) }
             }.value
             guard !Task.isCancelled else { return }
-            credentials = Credentials(username: username, password: password)
+            switch resolved {
+            case .success(let credentialsForProfile):
+                credentials = credentialsForProfile
+            case .failure:
+                // A locked Keychain or cancelled prompt must not look like a
+                // wrong password, which is what connecting blank would produce.
+                torrentStore.setConnectionFailed(
+                    reason: "Couldn't read the saved password from the Keychain.")
+                return
+            }
         }
         guard let service = TransmissionServiceFactory.make(for: profile, credentials: credentials)
         else {

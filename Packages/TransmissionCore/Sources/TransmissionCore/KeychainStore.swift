@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import TransmissionRPC
 
 public struct KeychainError: Error, Sendable, Equatable {
     public let status: OSStatus
@@ -73,5 +74,18 @@ public struct KeychainStore: Sendable {
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainError(status: status)
         }
+    }
+}
+
+extension KeychainStore {
+    /// Credentials for `profile`, or nil when it has no username (anonymous
+    /// access). A missing Keychain entry is an empty password — the app never
+    /// stores an empty one, so a username with no password is a valid setup.
+    /// A read *failure* throws, so a locked Keychain is never mistaken for a
+    /// wrong password.
+    public func credentials(for profile: ServerProfile) throws(KeychainError) -> Credentials? {
+        guard let username = profile.username, !username.isEmpty else { return nil }
+        let password = try password(for: profile.id) ?? ""
+        return Credentials(username: username, password: password)
     }
 }

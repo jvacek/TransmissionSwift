@@ -571,4 +571,11 @@ struct MappingTemplateMockOutputsTests {
                 == "sftp://dev@nas.local/Linux ISOs/Debian 12.6 — netinst (multi-arch) collection/debian-12.6.0-amd64-netinst.iso"
         )
     }
+
+    @Test("needsPassword matches both password placeholders but nothing else")
+    func needsPasswordPlaceholders() {
+        #expect(MappingTemplate.needsPassword("ftp://{user}:{password}@host/"))
+        #expect(MappingTemplate.needsPassword("ftp://{user}:{password-encoded}@host/"))
+        #expect(!MappingTemplate.needsPassword("ftp://{user}@{host}:{port}/{file}"))
+    }
 }

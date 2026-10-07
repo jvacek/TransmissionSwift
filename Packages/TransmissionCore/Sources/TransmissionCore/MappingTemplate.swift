@@ -41,6 +41,13 @@ import Foundation
 /// home-relative paths, common for local daemons) is expanded to this Mac's
 /// home directory; remote schemes keep `~` literal.
 public enum MappingTemplate {
+    /// Whether `template` substitutes the server password (`{password}` or
+    /// `{password-encoded}`). Callers that read the Keychain only when it's
+    /// needed use this to decide whether a read failure should fail the mapping.
+    public static func needsPassword(_ template: String) -> Bool {
+        template.contains("{password")
+    }
+
     public static func expand(
         _ template: String,
         torrent: Torrent,
