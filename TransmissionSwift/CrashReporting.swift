@@ -14,12 +14,12 @@ import Sentry
 /// never carry a daemon host, torrent name, or credentials.
 enum CrashReporting {
     /// `UserDefaults` key behind the General-pane opt-in toggle.
-    static let preferenceKey = "sendCrashReports"
+    nonisolated static let preferenceKey = "sendCrashReports"
     /// Set once the first-run splash is answered, so it shows only on the very
     /// first launch. Presence of the key (not its value) is the signal.
-    static let consentKey = "crashReportingConsentAnswered"
+    nonisolated static let consentKey = "crashReportingConsentAnswered"
     /// One-line privacy statement shared by the splash and the settings footer.
-    static let privacySummary =
+    nonisolated static let privacySummary =
         "Reports carry a backtrace and the app version — never torrent names, tracker hosts, or server addresses."
 
     /// Whether this build was shipped with a DSN (see `Info.plist`). Without one
