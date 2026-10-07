@@ -101,26 +101,61 @@ jobs:
             -destination 'platform=macOS' \
             build | xcbeautify --renderer github-actions
 
+      - name: Import signing certificate
+        # Only on the xcode-27 leg with the App Intents lane enabled, so the
+        # UI-test build below is signed and the intents tests can run.
+        if: matrix.os == 'xcode-27' && vars.APP_INTENTS_CI == '1'
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.APP_INTENTS_CERT_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.APP_INTENTS_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APP_INTENTS_KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          CERT_PATH="$RUNNER_TEMP/build_certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security find-identity -p codesigning -v
+
       - name: Test
+        env:
+          # Sign the build only when the certificate was imported above.
+          SIGNING_ARGS: ${{ matrix.os == 'xcode-27' && vars.APP_INTENTS_CI == '1' && '-allowProvisioningUpdates DEVELOPMENT_TEAM=JK45236K44' || '' }}
+        run: |
+          set -o pipefail
+          # shellcheck disable=SC2086  # SIGNING_ARGS is intentionally word-split.
+          xcodebuild \
+            -project TransmissionSwift.xcodeproj \
+            -scheme TransmissionSwift \
+            -destination 'platform=macOS' \
+            $SIGNING_ARGS \
+            test | xcbeautify --renderer github-actions
+
+      - name: App Intents tests
+        # Deduped with the Test step: test-without-building reuses that build
+        # instead of a separate job rebuilding the app. The runner has no
+        # TRANSMISSION_APPINTENTS env in the Test step, so the suite skips these
+        # there; this step sets it and runs just the AppIntentsTests.
+        # Non-blocking in CI — the lane is enforced on the stable-release path
+        # (release-pipeline.yml).
+        if: matrix.os == 'xcode-27' && vars.APP_INTENTS_CI == '1'
+        continue-on-error: true
+        env:
+          # xcodebuild strips the TEST_RUNNER_ prefix when forwarding to the
+          # runner, which reads TRANSMISSION_APPINTENTS.
+          TEST_RUNNER_TRANSMISSION_APPINTENTS: "1"
         run: |
           set -o pipefail
           xcodebuild \
             -project TransmissionSwift.xcodeproj \
             -scheme TransmissionSwift \
             -destination 'platform=macOS' \
-            test | xcbeautify --renderer github-actions
-
-  app-intents:
-    name: App Intents (AppIntentsTesting)
-    # Informational in CI: it never blocks a PR or a push to main. It is enforced
-    # only on the stable-release path (see release-pipeline.yml). Enable with the
-    # repository variable APP_INTENTS_CI=1 and the signing secrets
-    # (APP_INTENTS_CERT_P12_BASE64 / APP_INTENTS_CERT_PASSWORD /
-    # APP_INTENTS_KEYCHAIN_PASSWORD); otherwise the job is skipped.
-    if: ${{ vars.APP_INTENTS_CI == '1' }}
-    uses: ./.github/workflows/app-intents.yml
-    with:
-      # Informational in CI: report failures but never block a PR or main push.
-      # Enforced on the stable-release path (see release-pipeline.yml).
-      allow-failure: true
-    secrets: inherit
+            -allowProvisioningUpdates \
+            DEVELOPMENT_TEAM=JK45236K44 \
+            test-without-building -only-testing:TransmissionSwiftUITests/AppIntentsUITests \
+            | xcbeautify --renderer github-actions
