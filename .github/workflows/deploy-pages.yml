@@ -21,25 +21,29 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Assemble site
-        run: |
-          set -euo pipefail
-          mkdir -p build/site
-          cp -R site/. build/site/
-          cp -R imgs build/site/imgs
-
       # The Sparkle feed lives on the gh-pages branch (its history is the
-      # backup). Mirror it to the Pages root: existing installs hardcode the
-      # appcast URL, and the release notes are linked from the feed.
+      # backup). Mirror it into a staging dir: existing installs hardcode the
+      # appcast URL, and the release notes are linked from the feed. The build
+      # copies these into the published root.
       - name: Mirror feed from gh-pages
         run: |
           set -euo pipefail
+          mkdir -p build/feeds
           git fetch origin gh-pages:refs/remotes/origin/gh-pages
           git ls-tree -r --name-only origin/gh-pages \
             | grep -E '^(appcast(-arm64)?\.xml|changelog\.md|release-notes-.*\.md)$' \
             | while IFS= read -r f; do
-                git show "origin/gh-pages:${f}" > "build/site/${f}"
+                git show "origin/gh-pages:${f}" > "build/feeds/${f}"
               done
+
+      # Render the site into build/site, folding in the feed mirrored above.
+      # The script declares its own dependencies inline (PEP 723), so uv
+      # resolves them on the fly.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9
+
+      - name: Build site
+        run: uv run --no-project scripts/build_site.py
 
       - uses: actions/configure-pages@v6
 

@@ -1,37 +1,11 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<title>Download TransmissionSwift for macOS</title>
-<meta name="description" content="Download TransmissionSwift, a free native Transmission remote for macOS. Universal (Apple silicon + Intel) or Apple silicon only, plus how to open the unsigned build.">
-<link rel="canonical" href="https://transmissionswift.jvacek.eu/download/">
-<meta name="robots" content="index, follow">
-<meta name="author" content="Jonas Vacek">
-
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="TransmissionSwift">
-<meta property="og:title" content="Download TransmissionSwift for macOS">
-<meta property="og:description" content="Free · macOS 26+ · Universal or Apple silicon only. One-time Gatekeeper approval to open.">
-<meta property="og:url" content="https://transmissionswift.jvacek.eu/download/">
-<meta property="og:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
-<meta property="og:image:alt" content="TransmissionSwift, a native Transmission remote for macOS">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:locale" content="en">
-
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Download TransmissionSwift for macOS">
-<meta name="twitter:description" content="Free · macOS 26+ · Universal or Apple silicon only. One-time Gatekeeper approval to open.">
-<meta name="twitter:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
-<meta name="twitter:image:alt" content="TransmissionSwift, a native Transmission remote for macOS">
-
-<meta name="theme-color" content="#1c1c1e">
-<link rel="icon" href="/imgs/icon.png" type="image/png">
-<link rel="apple-touch-icon" href="/imgs/icon.png">
-<link rel="stylesheet" href="/style.css">
-
+{% extends "_layouts/base.html" %}
+{% set page = "download" %}
+{% set path = "/download/" %}
+{% set sitemap = {"changefreq": "monthly", "priority": "0.9"} %}
+{% set title = "Download TransmissionSwift for macOS" %}
+{% set description = "Download TransmissionSwift, a free native Transmission remote for macOS. Universal (Apple Silicon + Intel) or Apple Silicon only, plus how to open the unsigned build." %}
+{% set og_description = "Free · macOS 26+ · Universal or Apple Silicon only. One-time Gatekeeper approval to open." %}
+{% block head %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -42,39 +16,21 @@
   ]
 }
 </script>
-</head>
-<body>
-
-<header class="site">
-  <div class="wrap">
-    <a class="brand" href="/">
-      <img src="/imgs/icon.png" alt="" width="28" height="28">
-      TransmissionSwift
-    </a>
-    <nav class="main">
-      <a href="/#features">Features</a>
-      <a href="/comparison/">Compare</a>
-      <a href="/guides/remote-transmission-macos/">Setup</a>
-      <a href="/faq/">FAQ</a>
-      <a href="/donate/" class="donate">Donate ♥</a>
-      <a class="btn small" href="/download/">Download</a>
-    </nav>
-  </div>
-</header>
-
-<main class="wrap prose">
-
+{% endblock %}
+{% block main_class %} prose{% endblock %}
+{% block content %}
   <p class="crumbs"><a href="/">TransmissionSwift</a> / Download</p>
 
   <h1>Download TransmissionSwift</h1>
   <p>Free · macOS 26+ · ~4&nbsp;MB. Pick a build:</p>
 
-  <div class="actions" style="margin:1.5rem 0">
-    <a class="btn" id="dl-universal" href="https://github.com/jvacek/TransmissionSwift/releases/latest">Download universal (Apple silicon + Intel)</a>
-    <a class="btn secondary" id="dl-arm64" href="https://github.com/jvacek/TransmissionSwift/releases/latest">Download Apple silicon only</a>
+  <div class="actions space-y">
+    <a class="btn" id="dl-universal" href="{{ download_url_universal }}">Download Universal</a>
+    <a class="btn secondary" id="dl-arm64" href="{{ download_url_arm64 }}">Download Apple Silicon</a>
   </div>
-  <p class="note">The universal build runs on any Mac and is the safe choice. The
-    Apple-silicon-only build is smaller and fine on any M-series Mac. Both
+  <p class="note">{% if version %}Latest release {{ version }} · {% endif %}<a href="/changelog/">Changelog</a></p>
+  <p class="note">The Universal build runs on any Mac and is the safe choice. The
+    Apple Silicon build is smaller and fine on any M-series Mac. Both
     self-update via Sparkle.</p>
 
   <h2>How to open it</h2>
@@ -104,52 +60,4 @@
 
   <p>Prefer to browse all releases? See the
     <a href="https://github.com/jvacek/TransmissionSwift/releases">GitHub releases</a>.</p>
-
-</main>
-
-<footer class="site">
-  <div class="wrap">
-    <div class="links">
-      <a href="/">Home</a>
-      <a href="/comparison/">Transmission Remote GUI comparison</a>
-      <a href="/guides/remote-transmission-macos/">Remote setup guide</a>
-      <a href="/faq/">FAQ</a>
-      <a href="https://github.com/jvacek/TransmissionSwift/releases">Releases</a>
-      <a href="/changelog.md">Changelog</a>
-      <a href="/appcast.xml">Appcast</a>
-      <a href="https://github.com/jvacek/TransmissionSwift">GitHub</a>
-      <a href="/donate/" class="donate">Donate ♥</a>
-    </div>
-    <p>TransmissionSwift, a native Transmission remote for macOS.</p>
-  </div>
-</footer>
-
-<script>
-  // Asset names embed the release tag, so point the buttons at whatever the
-  // Sparkle feeds currently advertise (mirrored to the site root) instead of
-  // hardcoding a version. Falls back to the releases page if this fails.
-  async function appcastURL(feed) {
-    try {
-      const res = await fetch(feed, { cache: "no-cache" });
-      if (!res.ok) return null;
-      const doc = new DOMParser().parseFromString(await res.text(), "application/xml");
-      const all = [...doc.querySelectorAll("item")];
-      const isChannel = (node, name) => node.getElementsByTagNameNS(
-        "http://www.andymatuschak.org/xml-namespaces/sparkle", name).length > 0;
-      // Items are appended oldest-first; prefer the newest stable (non-beta) one.
-      const stable = all.filter((it) => !isChannel(it, "channel"));
-      const item = (stable.length ? stable : all).pop();
-      return item?.querySelector("enclosure")?.getAttribute("url") ?? null;
-    } catch {
-      return null;
-    }
-  }
-  for (const [id, feed] of [["dl-universal", "/appcast.xml"], ["dl-arm64", "/appcast-arm64.xml"]]) {
-    appcastURL(feed).then((url) => {
-      if (url) document.getElementById(id).href = url;
-    });
-  }
-</script>
-
-</body>
-</html>
+{% endblock %}

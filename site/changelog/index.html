@@ -1,0 +1,24 @@
+{% extends "_layouts/base.html" %}
+{% set page = "changelog" %}
+{% set path = "/changelog/" %}
+{% set sitemap = {"changefreq": "weekly", "priority": "0.6"} %}
+{% set title = "TransmissionSwift changelog" %}
+{% set description = "Release notes and version history for TransmissionSwift, a free native Transmission remote for macOS." %}
+{% set og_description = "Release notes and version history for TransmissionSwift." %}
+{% block head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "TransmissionSwift", "item": "https://transmissionswift.jvacek.eu/" },
+    { "@type": "ListItem", "position": 2, "name": "Changelog", "item": "https://transmissionswift.jvacek.eu/changelog/" }
+  ]
+}
+</script>
+{% endblock %}
+{% block main_class %} prose{% endblock %}
+{% block content %}
+  <p class="crumbs"><a href="/">TransmissionSwift</a> / Changelog</p>
+  {{ changelog | safe }}
+{% endblock %}

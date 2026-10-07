@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>{{ title }}</title>
+<meta name="description" content="{{ description }}">
+<link rel="canonical" href="{{ site_url }}{{ path }}">
+<meta name="robots" content="index, follow">
+<meta name="author" content="Jonas Vacek">
+
+<meta property="og:type" content="{{ og_type | default('website') }}">
+<meta property="og:site_name" content="TransmissionSwift">
+<meta property="og:title" content="{{ og_title | default(title) }}">
+<meta property="og:description" content="{{ og_description | default(description) }}">
+<meta property="og:url" content="{{ site_url }}{{ path }}">
+<meta property="og:image" content="{{ site_url }}/imgs/og.jpg">
+<meta property="og:image:alt" content="TransmissionSwift, a native Transmission remote for macOS">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="en">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ og_title | default(title) }}">
+<meta name="twitter:description" content="{{ og_description | default(description) }}">
+<meta name="twitter:image" content="{{ site_url }}/imgs/og.jpg">
+<meta name="twitter:image:alt" content="TransmissionSwift, a native Transmission remote for macOS">
+
+<meta name="theme-color" content="#1c1c1e">
+<link rel="icon" href="/imgs/icon.png" type="image/png">
+<link rel="apple-touch-icon" href="/imgs/icon.png">
+<link rel="stylesheet" href="/style.css">
+{% block head %}{% endblock %}
+</head>
+<body>
+
+{% include "_includes/header.html" %}
+
+<main class="wrap{% block main_class %}{% endblock %}">
+{% block content %}{% endblock %}
+</main>
+
+{% include "_includes/footer.html" %}
+
+</body>
+</html>

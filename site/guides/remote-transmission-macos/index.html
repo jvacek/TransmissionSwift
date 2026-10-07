@@ -1,36 +1,13 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<title>How to Connect to a Remote Transmission Daemon on macOS</title>
-<meta name="description" content="Enable remote access on your Transmission daemon and connect from macOS with TransmissionSwift, including authentication, firewall and SSH tunnel tips.">
-<link rel="canonical" href="https://transmissionswift.jvacek.eu/guides/remote-transmission-macos/">
-<meta name="robots" content="index, follow">
-<meta name="author" content="Jonas Vacek">
-
-<meta property="og:type" content="article">
-<meta property="og:site_name" content="TransmissionSwift">
-<meta property="og:title" content="How to connect to a remote Transmission daemon on macOS">
-<meta property="og:description" content="Enable remote access on your Transmission daemon and connect from macOS over RPC.">
-<meta property="og:url" content="https://transmissionswift.jvacek.eu/guides/remote-transmission-macos/">
-<meta property="og:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
-<meta property="og:image:alt" content="TransmissionSwift, a native Transmission remote for macOS">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:locale" content="en">
-
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="How to connect to a remote Transmission daemon on macOS">
-<meta name="twitter:description" content="Enable remote access on your Transmission daemon and connect from macOS over RPC.">
-<meta name="twitter:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
-
-<meta name="theme-color" content="#1c1c1e">
-<link rel="icon" href="/imgs/icon.png" type="image/png">
-<link rel="apple-touch-icon" href="/imgs/icon.png">
-<link rel="stylesheet" href="/style.css">
-
+{% extends "_layouts/base.html" %}
+{% set page = "guides" %}
+{% set path = "/guides/remote-transmission-macos/" %}
+{% set sitemap = {"changefreq": "monthly", "priority": "0.8"} %}
+{% set title = "How to Connect to a Remote Transmission Daemon on macOS" %}
+{% set description = "Enable remote access on your Transmission daemon and connect from macOS with TransmissionSwift, including authentication, firewall and SSH tunnel tips." %}
+{% set og_type = "article" %}
+{% set og_title = "How to connect to a remote Transmission daemon on macOS" %}
+{% set og_description = "Enable remote access on your Transmission daemon and connect from macOS over RPC." %}
+{% block head %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -55,28 +32,9 @@
   ]
 }
 </script>
-</head>
-<body>
-
-<header class="site">
-  <div class="wrap">
-    <a class="brand" href="/">
-      <img src="/imgs/icon.png" alt="" width="28" height="28">
-      TransmissionSwift
-    </a>
-    <nav class="main">
-      <a href="/#features">Features</a>
-      <a href="/comparison/">Compare</a>
-      <a href="/guides/remote-transmission-macos/" class="active">Setup</a>
-      <a href="/faq/">FAQ</a>
-      <a href="/donate/" class="donate">Donate ♥</a>
-      <a class="btn small" href="/download/">Download</a>
-    </nav>
-  </div>
-</header>
-
-<main class="wrap prose">
-
+{% endblock %}
+{% block main_class %} prose{% endblock %}
+{% block content %}
   <p class="crumbs"><a href="/">TransmissionSwift</a> / Guides / Remote Transmission on macOS</p>
 
   <h1>How to connect to a remote Transmission daemon on macOS</h1>
@@ -172,24 +130,4 @@
     <a class="btn" href="/download/">Download TransmissionSwift</a>
     <a class="btn secondary" href="/#features">See all features</a>
   </div>
-
-</main>
-
-<footer class="site">
-  <div class="wrap">
-    <div class="links">
-      <a href="/">Home</a>
-      <a href="/comparison/">Transmission Remote GUI comparison</a>
-      <a href="/faq/">FAQ</a>
-      <a href="https://github.com/jvacek/TransmissionSwift/releases">Releases</a>
-      <a href="/changelog.md">Changelog</a>
-      <a href="/appcast.xml">Appcast</a>
-      <a href="https://github.com/jvacek/TransmissionSwift">GitHub</a>
-      <a href="/donate/" class="donate">Donate ♥</a>
-    </div>
-    <p>TransmissionSwift, a native Transmission remote for macOS.</p>
-  </div>
-</footer>
-
-</body>
-</html>
+{% endblock %}

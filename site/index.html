@@ -1,37 +1,11 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<title>TransmissionSwift: Native Transmission Remote for macOS</title>
-<meta name="description" content="A free, native Transmission remote for macOS. Manage torrents, labels and server settings over RPC. A modern alternative to Transmission Remote GUI.">
-<link rel="canonical" href="https://transmissionswift.jvacek.eu/">
-<meta name="robots" content="index, follow">
-<meta name="author" content="Jonas Vacek">
-
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="TransmissionSwift">
-<meta property="og:title" content="TransmissionSwift: Native Transmission Remote for macOS">
-<meta property="og:description" content="A free, native SwiftUI macOS client for a remote Transmission BitTorrent daemon. A modern alternative to Transmission Remote GUI (transgui).">
-<meta property="og:url" content="https://transmissionswift.jvacek.eu/">
-<meta property="og:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
-<meta property="og:image:alt" content="TransmissionSwift, a native Transmission remote for macOS">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:locale" content="en">
-
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="TransmissionSwift: Native Transmission Remote for macOS">
-<meta name="twitter:description" content="A free, native SwiftUI macOS client for a remote Transmission BitTorrent daemon. A modern alternative to Transmission Remote GUI (transgui).">
-<meta name="twitter:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
-<meta name="twitter:image:alt" content="TransmissionSwift, a native Transmission remote for macOS">
-
-<meta name="theme-color" content="#1c1c1e">
-<link rel="icon" href="/imgs/icon.png" type="image/png">
-<link rel="apple-touch-icon" href="/imgs/icon.png">
-<link rel="stylesheet" href="./style.css">
-
+{% extends "_layouts/base.html" %}
+{% set page = "home" %}
+{% set path = "/" %}
+{% set sitemap = {"changefreq": "weekly", "priority": "1.0"} %}
+{% set title = "TransmissionSwift: Native Transmission Remote for macOS" %}
+{% set description = "A free, native Transmission remote for macOS. Manage torrents, labels and server settings over RPC. A modern alternative to Transmission Remote GUI." %}
+{% set og_description = "A free, native SwiftUI macOS client for a remote Transmission BitTorrent daemon. A modern alternative to Transmission Remote GUI (transgui)." %}
+{% block head %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -61,28 +35,8 @@
   ]
 }
 </script>
-</head>
-<body>
-
-<header class="site">
-  <div class="wrap">
-    <a class="brand" href="/">
-      <img src="/imgs/icon.png" alt="" width="28" height="28">
-      TransmissionSwift
-    </a>
-    <nav class="main">
-      <a href="/#features">Features</a>
-      <a href="/comparison/">Compare</a>
-      <a href="/guides/remote-transmission-macos/">Setup</a>
-      <a href="/faq/">FAQ</a>
-      <a href="/donate/" class="donate">Donate ♥</a>
-      <a class="btn small" href="/download/">Download</a>
-    </nav>
-  </div>
-</header>
-
-<main class="wrap">
-
+{% endblock %}
+{% block content %}
   <section class="hero">
     <img class="icon" src="/imgs/icon.png" alt="TransmissionSwift app icon" width="112" height="112">
     <h1>TransmissionSwift</h1>
@@ -96,7 +50,7 @@
       <a class="btn" href="/download/">Download for macOS</a>
       <a class="btn secondary" href="https://github.com/jvacek/TransmissionSwift">View source on GitHub</a>
     </div>
-    <p class="meta">Free · macOS 26+ · ~4&nbsp;MB universal binary (Apple silicon &amp; Intel)</p>
+    <p class="meta">Free · macOS 26+ · ~4&nbsp;MB universal binary (Apple Silicon &amp; Intel) · <a href="/changelog/">{% if version %}What's new in {{ version }}{% else %}What's new{% endif %}</a></p>
   </section>
 
   <img class="shot" src="/imgs/main.png" alt="TransmissionSwift, a native Transmission remote for macOS with the sidebar filters and inspector" width="1600" height="1027" fetchpriority="high" decoding="async">
@@ -170,7 +124,7 @@
             <td>Cross-platform toolkit</td>
           </tr>
           <tr>
-            <td>Apple silicon (native binary)</td>
+            <td>Apple Silicon (native binary)</td>
             <td class="col-hi yes">Universal (arm64 + x86_64)</td>
             <td>Intel build, Rosetta</td>
           </tr>
@@ -223,7 +177,7 @@
     </details>
     <details class="faq">
       <summary>Does it run on Intel Macs?</summary>
-      <p>Yes. Releases are universal binaries that run natively on Apple silicon
+      <p>Yes. Releases are universal binaries that run natively on Apple Silicon
         and Intel. macOS 26 or later is required.</p>
     </details>
     <p><a href="/faq/">Read all questions →</a></p>
@@ -241,24 +195,4 @@
       <a href="/guides/remote-transmission-macos/">remote setup guide</a> shows
       how to connect it to your daemon.</p>
   </section>
-
-</main>
-
-<footer class="site">
-  <div class="wrap">
-    <div class="links">
-      <a href="/comparison/">Transmission Remote GUI comparison</a>
-      <a href="/guides/remote-transmission-macos/">Remote setup guide</a>
-      <a href="/faq/">FAQ</a>
-      <a href="https://github.com/jvacek/TransmissionSwift/releases">Releases</a>
-      <a href="/changelog.md">Changelog</a>
-      <a href="/appcast.xml">Appcast</a>
-      <a href="https://github.com/jvacek/TransmissionSwift">GitHub</a>
-      <a href="/donate/" class="donate">Donate ♥</a>
-    </div>
-    <p>TransmissionSwift, a native Transmission remote for macOS.</p>
-  </div>
-</footer>
-
-</body>
-</html>
+{% endblock %}

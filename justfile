@@ -73,6 +73,11 @@ test-appintents team="JK45236K44":
 run-snapshot snapshot="{{ snapshot_fixture }}":
     open Build/Products/Debug/TransmissionSwift.app --args --snapshot {{ snapshot }}
 
+# Preview the Pages site locally: render into build/site, then serve it.
+serve:
+    uv run --no-project scripts/build_site.py
+    python3 -m http.server 4000 --directory build/site
+
 # Fast verification: formatting + package tests.
 check: lint test-packages
 

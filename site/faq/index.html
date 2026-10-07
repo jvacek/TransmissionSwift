@@ -1,36 +1,12 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<title>TransmissionSwift FAQ: macOS Transmission remote</title>
-<meta name="description" content="TransmissionSwift FAQ: Gatekeeper and unsigned builds, supported Transmission versions, seedboxes, magnet links, Shortcuts and macOS requirements.">
-<link rel="canonical" href="https://transmissionswift.jvacek.eu/faq/">
-<meta name="robots" content="index, follow">
-<meta name="author" content="Jonas Vacek">
-
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="TransmissionSwift">
-<meta property="og:title" content="TransmissionSwift FAQ">
-<meta property="og:description" content="Gatekeeper, supported Transmission versions, seedboxes, automation and macOS requirements.">
-<meta property="og:url" content="https://transmissionswift.jvacek.eu/faq/">
-<meta property="og:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
-<meta property="og:image:alt" content="TransmissionSwift, a native Transmission remote for macOS">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:locale" content="en">
-
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="TransmissionSwift FAQ">
-<meta name="twitter:description" content="Gatekeeper, supported Transmission versions, seedboxes, automation and macOS requirements.">
-<meta name="twitter:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
-
-<meta name="theme-color" content="#1c1c1e">
-<link rel="icon" href="/imgs/icon.png" type="image/png">
-<link rel="apple-touch-icon" href="/imgs/icon.png">
-<link rel="stylesheet" href="/style.css">
-
+{% extends "_layouts/base.html" %}
+{% set page = "faq" %}
+{% set path = "/faq/" %}
+{% set sitemap = {"changefreq": "monthly", "priority": "0.7"} %}
+{% set title = "TransmissionSwift FAQ: macOS Transmission remote" %}
+{% set description = "TransmissionSwift FAQ: Gatekeeper and unsigned builds, supported Transmission versions, seedboxes, magnet links, Shortcuts and macOS requirements." %}
+{% set og_title = "TransmissionSwift FAQ" %}
+{% set og_description = "Gatekeeper, supported Transmission versions, seedboxes, automation and macOS requirements." %}
+{% block head %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -71,7 +47,7 @@
         {
           "@type": "Question",
           "name": "Does it run on Intel Macs?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Releases are universal binaries that run natively on Apple silicon and Intel Macs. macOS 26 or later is required." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Releases are universal binaries that run natively on Apple Silicon and Intel Macs. macOS 26 or later is required." }
         },
         {
           "@type": "Question",
@@ -100,28 +76,9 @@
   ]
 }
 </script>
-</head>
-<body>
-
-<header class="site">
-  <div class="wrap">
-    <a class="brand" href="/">
-      <img src="/imgs/icon.png" alt="" width="28" height="28">
-      TransmissionSwift
-    </a>
-    <nav class="main">
-      <a href="/#features">Features</a>
-      <a href="/comparison/">Compare</a>
-      <a href="/guides/remote-transmission-macos/">Setup</a>
-      <a href="/faq/" class="active">FAQ</a>
-      <a href="/donate/" class="donate">Donate ♥</a>
-      <a class="btn small" href="/download/">Download</a>
-    </nav>
-  </div>
-</header>
-
-<main class="wrap prose">
-
+{% endblock %}
+{% block main_class %} prose{% endblock %}
+{% block content %}
   <p class="crumbs"><a href="/">TransmissionSwift</a> / FAQ</p>
 
   <h1>Frequently asked questions</h1>
@@ -181,7 +138,7 @@
   <details class="faq">
     <summary>Does it run on Intel Macs?</summary>
     <p>Yes. Releases are universal binaries (arm64 + x86_64) that run natively on
-      Apple silicon and Intel Macs. macOS 26 or later is required.</p>
+      Apple Silicon and Intel Macs. macOS 26 or later is required.</p>
   </details>
 
   <details class="faq">
@@ -202,28 +159,11 @@
       Swift and SwiftUI, with minimal resource use.</p>
   </details>
 
-  <div class="actions" style="margin-top:2rem">
+  <p>Looking for what has changed? See the
+    <a href="/changelog/">changelog</a>.</p>
+
+  <div class="actions space-top">
     <a class="btn" href="/download/">Download TransmissionSwift</a>
     <a class="btn secondary" href="https://github.com/jvacek/TransmissionSwift/issues">Ask on GitHub</a>
   </div>
-
-</main>
-
-<footer class="site">
-  <div class="wrap">
-    <div class="links">
-      <a href="/">Home</a>
-      <a href="/comparison/">Transmission Remote GUI comparison</a>
-      <a href="/guides/remote-transmission-macos/">Remote setup guide</a>
-      <a href="https://github.com/jvacek/TransmissionSwift/releases">Releases</a>
-      <a href="/changelog.md">Changelog</a>
-      <a href="/appcast.xml">Appcast</a>
-      <a href="https://github.com/jvacek/TransmissionSwift">GitHub</a>
-      <a href="/donate/" class="donate">Donate ♥</a>
-    </div>
-    <p>TransmissionSwift, a native Transmission remote for macOS.</p>
-  </div>
-</footer>
-
-</body>
-</html>
+{% endblock %}

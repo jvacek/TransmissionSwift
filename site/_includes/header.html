@@ -1,0 +1,16 @@
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <img src="/imgs/icon.png" alt="" width="28" height="28">
+      TransmissionSwift
+    </a>
+    <nav class="main">
+      <a href="/#features">Features</a>
+      <a href="/comparison/"{% if page == "comparison" %} class="active"{% endif %}>Compare</a>
+      <a href="/guides/remote-transmission-macos/"{% if page == "guides" %} class="active"{% endif %}>Setup</a>
+      <a href="/faq/"{% if page == "faq" %} class="active"{% endif %}>FAQ</a>
+      <a href="/donate/" class="donate{% if page == "donate" %} active{% endif %}">Donate ♥</a>
+      <a class="btn small" href="/download/">Download</a>
+    </nav>
+  </div>
+</header>
