@@ -180,8 +180,10 @@ Launch flag: `--snapshot <path>`, parsed in `TransmissionSwiftApp.init`
 alongside `--ephemeral-profiles`:
 
 - Boots `SnapshotTorrentService(fileURL:)` into the existing `TorrentStore`.
-- Seeds a synthetic in-memory `ServerProfile` ("Snapshot — <filename>") so the
-  toolbar title menu / status bar have something sensible; never persisted.
+- Seeds a synthetic in-memory `ServerProfile` so the toolbar title menu / status
+  bar have something sensible; never persisted. Its label prefers the file's
+  optional `source.serverName` (test fixtures set a friendly name), falling back
+  to "Snapshot — <filename>" for captures that don't carry one.
 - Routes to `MainWindow` like mock mode does.
 
 `SnapshotTorrentService` (new file in TransmissionCore):
@@ -241,8 +243,9 @@ scene, button disabled until connected. Replay landed same day:
   `supportsActions == false`. Mutations throw `SnapshotError.replayReadOnly`.
 - `--snapshot <path>` (also `--snapshot=<path>`) in `TransmissionSwiftApp.init`:
   forces ephemeral profiles, seeds a synthetic in-memory `ServerProfile`
-  ("Snapshot — <filename>") so the toolbar title /
-  status bar have a label, and boots `SnapshotTorrentService` into the store.
+  (labelled from the file's optional `source.serverName`, else
+  "Snapshot — <filename>") so the toolbar title / status bar have a label, and
+  boots `SnapshotTorrentService` into the store.
   `ContentView` routes to `MainWindow` like mock mode but skips the connect task.
   If the file fails to decode, it logs "Snapshot load failed" and falls back to
   the empty mock.

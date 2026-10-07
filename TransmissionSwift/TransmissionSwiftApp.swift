@@ -55,8 +55,8 @@ struct TransmissionSwiftApp: App {
         self.snapshotPath = snapshotPath
 
         // --- profile store
-        // Snapshot replay implies ephemeral profiles so the synthetic
-        // "Snapshot — <name>" profile never lands in the real servers.json.
+        // Snapshot replay implies ephemeral profiles so the synthetic replay
+        // profile never lands in the real servers.json.
         let ephemeral = args.contains("--ephemeral-profiles") || snapshotPath != nil
         // Snapshot replay, ephemeral test profiles and the crash-test hooks are
         // non-interactive: never interrupt them with the first-run consent splash.
@@ -73,14 +73,6 @@ struct TransmissionSwiftApp: App {
                 ?? FileManager.default.temporaryDirectory.appendingPathComponent("servers.json")
         }
         let profileStore = ServerProfileStore(fileURL: profileURL)
-        if let snapshotPath {
-            let label =
-                URL(fileURLWithPath: snapshotPath).deletingPathExtension().lastPathComponent
-            try? profileStore.add(
-                ServerProfile(label: "Snapshot — \(label)", host: "snapshot", port: 0)
-            )
-        }
-        self._profileStore = State(wrappedValue: profileStore)
 
         // --- torrent store
         // Snapshot mode decodes the captured file through SnapshotTorrentService
@@ -88,6 +80,7 @@ struct TransmissionSwiftApp: App {
         // RPC-backed service lands in slice 7 of doc/ui-buildout.md.
         let service: any TorrentService
         var snapshotTagColors: [String: TagColor] = [:]
+        var snapshotServerName: String?
         if let snapshotPath {
             do {
                 let snapshotService = try SnapshotTorrentService(
@@ -95,6 +88,7 @@ struct TransmissionSwiftApp: App {
                 // Colours are captured in the snapshot, so replay shows the same
                 // assignments without touching the user's real prefs.
                 snapshotTagColors = snapshotService.tagColors
+                snapshotServerName = snapshotService.displayServerName
                 service = snapshotService
             } catch {
                 NSLog("Snapshot load failed: \(error.localizedDescription)")
@@ -105,6 +99,18 @@ struct TransmissionSwiftApp: App {
         }
         let store = TorrentStore(service: service)
         self._torrentStore = State(wrappedValue: store)
+
+        // Snapshot replay seeds a synthetic profile so the title bar / server
+        // switcher have a label. Prefer the name the snapshot carries (tests set a
+        // friendly one); fall back to the filename for captures that don't.
+        if let snapshotPath {
+            let filename =
+                URL(fileURLWithPath: snapshotPath).deletingPathExtension().lastPathComponent
+            let label =
+                snapshotServerName.flatMap { $0.isEmpty ? nil : $0 } ?? "Snapshot — \(filename)"
+            try? profileStore.add(ServerProfile(label: label, host: "snapshot", port: 0))
+        }
+        self._profileStore = State(wrappedValue: profileStore)
 
         // Shared with the App Intents (see AppEnvironment). Snapshot replay is
         // the deterministic dataset the intent tests run against.

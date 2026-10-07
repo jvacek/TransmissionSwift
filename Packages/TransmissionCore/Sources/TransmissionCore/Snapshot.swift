@@ -47,11 +47,16 @@ public struct SnapshotSourceInfo: Codable, Sendable, Equatable {
     public var rpcVersion: Int
     /// True once the redaction pass has run. A raw capture has `false`.
     public var redacted: Bool
+    /// Display name for the server this snapshot replays as. Optional: captures
+    /// don't set it (the real hostname is identifying), so replay falls back to
+    /// the filename. Tests hand it a friendly name.
+    public var serverName: String?
 
-    public init(daemonVersion: String, rpcVersion: Int, redacted: Bool) {
+    public init(daemonVersion: String, rpcVersion: Int, redacted: Bool, serverName: String? = nil) {
         self.daemonVersion = daemonVersion
         self.rpcVersion = rpcVersion
         self.redacted = redacted
+        self.serverName = serverName
     }
 }
 

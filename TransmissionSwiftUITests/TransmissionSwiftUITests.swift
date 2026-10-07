@@ -84,6 +84,13 @@ final class TransmissionSwiftUITests: XCTestCase {
             table.cells.firstMatch.waitForExistence(timeout: 10),
             "Expected snapshot data to populate at least one table row")
 
+        // Replay takes its server name from the file's `source.serverName`, so
+        // test fixtures show a friendly title instead of "Snapshot — <file>".
+        XCTAssertTrue(
+            app.windows.matching(NSPredicate(format: "title == %@", "My remote server"))
+                .firstMatch.waitForExistence(timeout: 10),
+            "Expected the snapshot's server name in the window title")
+
         // The fixture's first torrent must have decoded through the wire mapping.
         let firstRow = table.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", "Ubuntu 24.04.2 Desktop")

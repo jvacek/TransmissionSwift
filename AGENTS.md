@@ -87,8 +87,9 @@ Gotchas:
   passes the checkout path straight to `--snapshot`: when built for UI testing,
   Xcode injects `com.apple.security.temporary-exception.files.absolute-path.read-only = /`
   into the app's entitlements, so the sandbox doesn't block reading the repo.
-- `--snapshot` forces ephemeral profiles (the synthetic "Snapshot — <name>"
-  profile is never persisted to the real `servers.json`).
+- `--snapshot` forces ephemeral profiles (the synthetic replay profile — labelled
+  from the file's `source.serverName`, else the filename — is never persisted to
+  the real `servers.json`).
 - If the file fails to decode, the app logs `Snapshot load failed: …` and falls
   back to an empty list — check the console.
 - Implementation: `SnapshotTorrentService` (TransmissionCore) decodes through

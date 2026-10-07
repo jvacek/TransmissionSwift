@@ -121,6 +121,26 @@ struct SnapshotTorrentServiceTests {
         }
     }
 
+    @Test("exposes the server name the snapshot should replay as")
+    func exposesServerName() throws {
+        var file = SnapshotFixtures.rawSnapshot()
+        file.source.serverName = "My remote server"
+        let url = try writeFixture(file)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let service = try SnapshotTorrentService(fileURL: url)
+        #expect(service.displayServerName == "My remote server")
+    }
+
+    @Test("has no server name when the file carries none")
+    func noServerNameWhenAbsent() throws {
+        let url = try writeFixture()
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let service = try SnapshotTorrentService(fileURL: url)
+        #expect(service.displayServerName == nil)
+    }
+
     @Test("exposes the captured tag colours for seeding the replay store")
     func exposesTagColors() throws {
         let url = try writeFixture()

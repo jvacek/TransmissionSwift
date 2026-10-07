@@ -14,6 +14,7 @@ public actor SnapshotTorrentService: TorrentService {
     private let session: SessionInfo
     private let domainTorrents: [Torrent]
     private let colors: [String: TagColor]
+    private let serverName: String?
 
     public init(fileURL: URL) throws {
         let data = try Data(contentsOf: fileURL)
@@ -24,11 +25,15 @@ public actor SnapshotTorrentService: TorrentService {
         self.session = file.session
         self.domainTorrents = file.torrents.map { Torrent(wire: $0) }
         self.colors = file.tagColors ?? [:]
+        self.serverName = file.source.serverName
     }
 
     /// Tag→colour assignments captured with the snapshot, for seeding the
     /// replay's `TagColorStore` so colours render identically to the capture.
     public nonisolated var tagColors: [String: TagColor] { colors }
+
+    /// The server name the snapshot should replay as, if it carries one.
+    public nonisolated var displayServerName: String? { serverName }
 
     // MARK: - TorrentService
 
