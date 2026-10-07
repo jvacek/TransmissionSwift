@@ -98,6 +98,7 @@ nav.main a.donate:hover { color: var(--heart); }
   border-radius: 26px;
   margin-bottom: 1.2rem;
 }
+.hero .subtitle { font-size: clamp(1.15rem, 2.6vw, 1.5rem); font-weight: 500; color: var(--muted); margin: 0 0 1.25rem; }
 .hero .lede { max-width: 46rem; margin: 0 auto 1.5rem; }
 .hero .actions { justify-content: center; }
 .meta { font-size: 0.9rem; color: var(--dim); margin-top: 1.1rem; }

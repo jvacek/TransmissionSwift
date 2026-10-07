@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <title>How to Connect to a Remote Transmission Daemon on macOS</title>
-<meta name="description" content="Enable remote access on your Transmission daemon and connect from macOS with TransmissionSwift — including authentication, firewall and SSH tunnel tips.">
+<meta name="description" content="Enable remote access on your Transmission daemon and connect from macOS with TransmissionSwift, including authentication, firewall and SSH tunnel tips.">
 <link rel="canonical" href="https://transmissionswift.jvacek.eu/guides/remote-transmission-macos/">
 <meta name="robots" content="index, follow">
 <meta name="author" content="Jonas Vacek">
@@ -16,7 +16,7 @@
 <meta property="og:description" content="Enable remote access on your Transmission daemon and connect from macOS over RPC.">
 <meta property="og:url" content="https://transmissionswift.jvacek.eu/guides/remote-transmission-macos/">
 <meta property="og:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
-<meta property="og:image:alt" content="TransmissionSwift — a native Transmission remote for macOS">
+<meta property="og:image:alt" content="TransmissionSwift, a native Transmission remote for macOS">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="en">
@@ -83,7 +83,7 @@
 
   <p class="lede">
     TransmissionSwift is a client, not a server: it drives a Transmission
-    BitTorrent daemon that is already running — on a seedbox, a NAS, a home
+    BitTorrent daemon that is already running, on a seedbox, a NAS, a home
     server or a Raspberry Pi. This guide shows how to switch on the daemon's
     remote API and connect to it from your Mac.
   </p>
@@ -111,7 +111,7 @@
   "rpc-whitelist-enabled": false
 }</code></pre>
 
-  <p>Stop the daemon before editing the file — it rewrites
+  <p>Stop the daemon before editing the file: it rewrites
     <code>settings.json</code> on exit and would otherwise overwrite your
     changes.</p>
 
@@ -132,7 +132,7 @@
       example <code>192.168.1.20:9091</code>. No router changes needed.</li>
     <li><strong>Over the internet:</strong> forward the port on your router, or
       use the seedbox provider's host and port.</li>
-    <li><strong>Recommended — keep it private:</strong> tunnel with SSH instead
+    <li><strong>Recommended for privacy:</strong> tunnel with SSH instead
       of exposing the port publicly:
       <pre><code>ssh -L 9091:localhost:9091 user@your-server</code></pre>
       Then connect TransmissionSwift to <code>127.0.0.1:9091</code>. The traffic
@@ -148,7 +148,7 @@
       in the macOS Keychain.</li>
     <li>If your daemon serves the API under a custom path, set the URL path
       (the default is <code>/transmission/</code>).</li>
-    <li>Connect — your torrents, labels and server stats load straight from the
+    <li>Connect. Your torrents, labels and server stats load straight from the
       daemon.</li>
   </ol>
 
@@ -187,7 +187,7 @@
       <a href="https://github.com/jvacek/TransmissionSwift">GitHub</a>
       <a href="/donate/" class="donate">Donate ♥</a>
     </div>
-    <p>TransmissionSwift — a native Transmission remote for macOS.</p>
+    <p>TransmissionSwift, a native Transmission remote for macOS.</p>
   </div>
 </footer>
 

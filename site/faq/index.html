@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>TransmissionSwift FAQ — macOS Transmission remote</title>
+<title>TransmissionSwift FAQ: macOS Transmission remote</title>
 <meta name="description" content="TransmissionSwift FAQ: Gatekeeper and unsigned builds, supported Transmission versions, seedboxes, magnet links, Shortcuts and macOS requirements.">
 <link rel="canonical" href="https://transmissionswift.jvacek.eu/faq/">
 <meta name="robots" content="index, follow">
@@ -16,7 +16,7 @@
 <meta property="og:description" content="Gatekeeper, supported Transmission versions, seedboxes, automation and macOS requirements.">
 <meta property="og:url" content="https://transmissionswift.jvacek.eu/faq/">
 <meta property="og:image" content="https://transmissionswift.jvacek.eu/imgs/og.jpg">
-<meta property="og:image:alt" content="TransmissionSwift — a native Transmission remote for macOS">
+<meta property="og:image:alt" content="TransmissionSwift, a native Transmission remote for macOS">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="en">
@@ -56,7 +56,7 @@
         {
           "@type": "Question",
           "name": "Does it work with a seedbox?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Point it at your seedbox host, RPC port and credentials. Because it is a remote client, the daemon can run anywhere — a seedbox, a NAS or a home server." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Point it at your seedbox host, RPC port and credentials. Because it is a remote client, the daemon can run anywhere: a seedbox, a NAS or a home server." }
         },
         {
           "@type": "Question",
@@ -66,7 +66,7 @@
         {
           "@type": "Question",
           "name": "Does it support Shortcuts, Spotlight and Siri?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Yes. App Intents expose actions to Shortcuts.app, Spotlight and Siri — add torrents, get stats and free space, pause or resume, and toggle turtle mode." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. App Intents expose actions to Shortcuts.app, Spotlight and Siri: add torrents, get stats and free space, pause or resume, and toggle turtle mode." }
         },
         {
           "@type": "Question",
@@ -135,7 +135,7 @@
   <details class="faq">
     <summary>Why does macOS say the app cannot be opened?</summary>
     <p>Releases are currently unsigned, so Gatekeeper blocks the first launch.
-      Open the app once and choose <em>Done</em> — do <strong>not</strong> choose
+      Open the app once and choose <em>Done</em>, do <strong>not</strong> choose
       <em>Move to Trash</em>:</p>
     <img src="/imgs/security_bypass/step1.png" alt="macOS Gatekeeper blocking the unsigned TransmissionSwift app on first launch" width="744" height="724" loading="lazy" decoding="async">
     <p>Then open <em>System Settings → Privacy &amp; Security</em>, find the
@@ -152,21 +152,21 @@
     <summary>Which Transmission versions are supported?</summary>
     <p>TransmissionSwift talks to the classic Transmission RPC API, exposed by
       Transmission 2.x through 4.x. You do not need to change anything on the
-      daemon — see the
+      daemon. See the
       <a href="/guides/remote-transmission-macos/">remote setup guide</a>.</p>
   </details>
 
   <details class="faq">
     <summary>Does it work with a seedbox?</summary>
     <p>Yes. Because TransmissionSwift is a remote client, the daemon can run
-      anywhere — a seedbox, a NAS or a home server. Point it at the host, RPC
+      anywhere: a seedbox, a NAS or a home server. Point it at the host, RPC
       port and credentials.</p>
   </details>
 
   <details class="faq">
     <summary>Can I add magnet links?</summary>
-    <p>Yes. Add torrents from magnet links or <code>.torrent</code> files — by
-      drag and drop or through the registered file handler — choosing priority,
+    <p>Yes. Add torrents from magnet links or <code>.torrent</code> files, by
+      drag and drop or through the registered file handler, choosing priority,
       destination folder and labels.</p>
   </details>
 
@@ -221,7 +221,7 @@
       <a href="https://github.com/jvacek/TransmissionSwift">GitHub</a>
       <a href="/donate/" class="donate">Donate ♥</a>
     </div>
-    <p>TransmissionSwift — a native Transmission remote for macOS.</p>
+    <p>TransmissionSwift, a native Transmission remote for macOS.</p>
   </div>
 </footer>
 
