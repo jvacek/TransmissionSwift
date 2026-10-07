@@ -549,13 +549,14 @@ public final class TorrentStore {
     /// default folder, no labels, normal priority, start on). `showDialog`
     /// defaults to the app pref so tests can inject it directly.
     public func addFromExternalURL(
-        _ url: URL, showDialog: Bool = UserDefaults.standard.bool(forKey: "showAddDialogBeforeAdding")
+        _ url: URL, showDialog: Bool = UserDefaults.standard.bool(forKey: PreferenceKeys.showAddDialogBeforeAdding)
     ) {
         guard actionsEnabled else { return }
         let isMagnet = url.scheme == "magnet"
         guard isMagnet || url.isFileURL else { return }
         guard showDialog else {
-            let deleteAfterAdding = UserDefaults.standard.bool(forKey: "deleteTorrentFileAfterAdding")
+            let deleteAfterAdding = UserDefaults.standard.bool(
+                forKey: PreferenceKeys.deleteTorrentFileAfterAdding)
             Task {
                 if isMagnet {
                     await add(

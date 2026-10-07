@@ -31,7 +31,7 @@ struct AddTorrentSheet: View {
     @State private var startWhenAdded: Bool = true
     /// Read-only mirror of the Settings default. The row below flips the
     /// `@State` copy for this add only — it must never write back.
-    @AppStorage("deleteTorrentFileAfterAdding") private var deleteTorrentFileByDefault = false
+    @AppStorage(PreferenceKeys.deleteTorrentFileAfterAdding) private var deleteTorrentFileByDefault = false
     @State private var deleteSourceFile = false
     @State private var showFileImporter: Bool = false
     @State private var isAdding: Bool = false

@@ -23,8 +23,8 @@ struct TransmissionSwiftApp: App {
     init() {
         UserDefaults.standard.register(defaults: [
             "pollingIntervalSeconds": 5.0,
-            "showAddDialogBeforeAdding": true,
-            "deleteTorrentFileAfterAdding": false,
+            PreferenceKeys.showAddDialogBeforeAdding: true,
+            PreferenceKeys.deleteTorrentFileAfterAdding: false,
             "confirmRemove": true,
             "badgeAppIcon": false,
             "sendCrashReports": false,

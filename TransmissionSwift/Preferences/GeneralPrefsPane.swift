@@ -2,8 +2,8 @@ import SwiftUI
 import TransmissionCore
 
 struct GeneralPrefsPane: View {
-    @AppStorage("showAddDialogBeforeAdding") private var showAddDialog = true
-    @AppStorage("deleteTorrentFileAfterAdding") private var deleteTorrentFileAfterAdding = false
+    @AppStorage(PreferenceKeys.showAddDialogBeforeAdding) private var showAddDialog = true
+    @AppStorage(PreferenceKeys.deleteTorrentFileAfterAdding) private var deleteTorrentFileAfterAdding = false
     @AppStorage("startMinimized") private var startMinimized = false
     @AppStorage("badgeAppIcon") private var badgeAppIcon = false
     @AppStorage("confirmRemove") private var confirmRemove = true
