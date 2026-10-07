@@ -22,8 +22,19 @@ permissions:
   contents: write
 
 jobs:
+  app-intents:
+    name: App Intents (AppIntentsTesting)
+    # A stable release must pass the App Intents integration lane; a pre-release
+    # tolerates a failure. Kill switch: unset the APP_INTENTS_CI repository
+    # variable (the job is then skipped and the release proceeds).
+    if: ${{ vars.APP_INTENTS_CI == '1' }}
+    continue-on-error: ${{ inputs.prerelease }}
+    uses: ./.github/workflows/app-intents.yml
+    secrets: inherit
+
   build-release:
     name: Build and publish
+    needs: app-intents
     runs-on: macos-26
     concurrency:
       # Serialize stable and pre-release runs: they all write the same gh-pages

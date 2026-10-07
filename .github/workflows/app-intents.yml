@@ -1,0 +1,56 @@
+name: App Intents (AppIntentsTesting)
+
+# Reusable lane used by CI (informational, non-blocking) and by the release
+# pipeline (blocking for stable releases). Runs the AppIntentsTesting integration
+# tests, which need the app and test runner signed with the same team, so it
+# imports an Apple Development certificate from repository secrets.
+#
+# Callers forward secrets with `secrets: inherit`.
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    name: AppIntentsTesting
+    # AppIntentsTesting ships only in the macOS 27 SDK / Xcode 27 image.
+    runs-on: xcode-27
+    env:
+      # xcodebuild forwards TEST_RUNNER_-prefixed vars to the runner with the
+      # prefix stripped; the test reads TRANSMISSION_APPINTENTS.
+      TEST_RUNNER_TRANSMISSION_APPINTENTS: "1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install xcbeautify
+        run: brew install xcbeautify
+
+      - name: Import signing certificate
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.APP_INTENTS_CERT_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.APP_INTENTS_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APP_INTENTS_KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          CERT_PATH="$RUNNER_TEMP/build_certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security find-identity -p codesigning -v
+
+      - name: Run App Intents tests
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project TransmissionSwift.xcodeproj \
+            -scheme TransmissionSwift \
+            -destination 'platform=macOS' \
+            -allowProvisioningUpdates \
+            DEVELOPMENT_TEAM=JK45236K44 \
+            test -only-testing:TransmissionSwiftUITests/AppIntentsUITests \
+            | xcbeautify --renderer github-actions
