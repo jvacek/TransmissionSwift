@@ -1,0 +1,75 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, off-peak — the cadence default setup used before this workflow
+    # replaced it.
+    - cron: "31 4 * * 1"
+  workflow_dispatch:
+
+# Advanced setup replaces the dynamic "CodeQL" job that default setup runs, so
+# default setup has to be disabled (see the CodeQL analysis settings).
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+  # Required to fetch CodeQL packs on private repositories.
+  packages: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+            build-mode: none
+            runner: ubuntu-latest
+          - language: python
+            build-mode: none
+            runner: ubuntu-latest
+          - language: swift
+            build-mode: manual
+            runner: macos-26
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Build Swift packages
+        # Scope: the security-relevant code is in the packages (TransmissionRPC
+        # protocol parsing, TransmissionCore storage/Keychain), not the SwiftUI
+        # layer. One explicit build gives both packages, no Xcode project, and
+        # no remote dependencies to resolve.
+        #
+        # Autobuild can't be used here: it counts an Xcode target's sources
+        # through its per-file build phases, and the app target uses Xcode 16
+        # synchronized file groups, so autobuild sees no app target, falls back
+        # to "some Swift package", and builds only the first one it finds.
+        #
+        # Note: the tracer can still stall for minutes on SwiftPM's
+        # "Resolve Package Graph" step under build tracing (github/codeql#22121).
+        # If that cost is unacceptable, dropping Swift from the matrix is the
+        # only known fix.
+        if: matrix.language == 'swift'
+        run: swift build --package-path Packages/TransmissionCore --arch arm64
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
