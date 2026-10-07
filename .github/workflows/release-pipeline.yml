@@ -17,9 +17,21 @@ on:
       SPARKLE_PRIVATE_KEY:
         required: true
 
+# Serialise with the Pages workflow, which also deploys the Pages site.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 permissions:
   actions: read
   contents: write
+  pages: write
+  id-token: write
+
+env:
+  # Public base URL the Pages site is served from; the appcast's release-notes
+  # links point here. Switch to the custom domain once HTTPS is enforced.
+  SITE_BASE_URL: https://jvacek.github.io/TransmissionSwift
 
 jobs:
   app-intents:
@@ -41,7 +53,7 @@ jobs:
     needs: app-intents
     runs-on: macos-26
     concurrency:
-      # Serialize stable and pre-release runs: they all write the same gh-pages
+      # Serialize stable and pre-release runs: they all write the same
       # appcast, so concurrent runs could clobber each other.
       group: release-pipeline
       cancel-in-progress: false
@@ -373,8 +385,8 @@ jobs:
             ' CHANGELOG.md > build/changelog.md
           fi
 
-          release_notes_url="https://jvacek.github.io/TransmissionSwift/release-notes-${TAG}.md"
-          full_release_notes_url="https://jvacek.github.io/TransmissionSwift/changelog.md"
+          release_notes_url="${SITE_BASE_URL}/release-notes-${TAG}.md"
+          full_release_notes_url="${SITE_BASE_URL}/changelog.md"
           echo "RELEASE_NOTES_URL=$release_notes_url" >> "$GITHUB_ENV"
           echo "FULL_RELEASE_NOTES_URL=$full_release_notes_url" >> "$GITHUB_ENV"
 
@@ -392,16 +404,17 @@ jobs:
             --notes-file build/changelog.md \
             $PRERELEASE_FLAG
 
-      - name: Fetch existing appcasts
+      # The feed lives on the gh-pages branch (history = backups). Read the
+      # branch tip directly rather than raw.githubusercontent.com, which is
+      # CDN-cached and can serve a stale feed to back-to-back releases.
+      - name: Fetch previous appcasts
         run: |
           set -euo pipefail
-
-          curl -sL \
-            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/gh-pages/appcast.xml" \
-            -o build/appcast/appcast.xml || true
-          curl -sL \
-            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/gh-pages/appcast-arm64.xml" \
-            -o build/appcast/appcast-arm64.xml || true
+          git fetch origin gh-pages:refs/remotes/origin/gh-pages
+          for f in appcast.xml appcast-arm64.xml; do
+            git show "origin/gh-pages:${f}" > "build/appcast/${f}" \
+              || echo "no ${f} on gh-pages yet"
+          done
 
       - name: Update appcasts
         run: |
@@ -432,9 +445,19 @@ jobs:
             --channel "$CHANNEL" \
             --hardware-requirements arm64
 
-      - name: Deploy appcast to GitHub Pages
+      # Persist the feed to gh-pages. keep_files preserves previously published
+      # release-notes-*.md files, which this run does not republish.
+      - name: Deploy feed to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build/appcast
+          publish_branch: gh-pages
           keep_files: true
+
+  # The site is built from one place (deploy-pages.yml); this job just points
+  # it at the feed the build job just pushed.
+  deploy-pages:
+    name: Deploy Pages
+    needs: build-release
+    uses: ./.github/workflows/deploy-pages.yml

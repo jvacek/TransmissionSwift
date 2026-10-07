@@ -1,0 +1,51 @@
+name: Deploy Pages
+
+# Reusable Pages deploy: assembles the landing page with the Sparkle feed
+# (which lives on the gh-pages branch) and publishes it via the Pages artifact
+# API. Callers must grant pages: write and id-token: write.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Assemble site
+        run: |
+          set -euo pipefail
+          mkdir -p build/site
+          cp -R site/. build/site/
+          cp -R imgs build/site/imgs
+
+      # The Sparkle feed lives on the gh-pages branch (its history is the
+      # backup). Mirror it to the Pages root: existing installs hardcode the
+      # appcast URL, and the release notes are linked from the feed.
+      - name: Mirror feed from gh-pages
+        run: |
+          set -euo pipefail
+          git fetch origin gh-pages:refs/remotes/origin/gh-pages
+          git ls-tree -r --name-only origin/gh-pages \
+            | grep -E '^(appcast(-arm64)?\.xml|changelog\.md|release-notes-.*\.md)$' \
+            | while IFS= read -r f; do
+                git show "origin/gh-pages:${f}" > "build/site/${f}"
+              done
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: build/site
+
+      - id: deployment
+        uses: actions/deploy-pages@v5
