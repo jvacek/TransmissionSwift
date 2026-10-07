@@ -42,8 +42,8 @@ RELEASES_LATEST = f"{REPO}/releases/latest"
 RELEASES_PAGE = f"{REPO}/releases"
 
 
-def newest_stable(feed: Path) -> tuple[str | None, str | None]:
-    """Return (shortVersionString, enclosure url) for the newest stable item.
+def newest_stable(feed: Path) -> dict[str, str | None] | None:
+    """Return the newest stable item as {version, url, notes}, or None.
 
     Items are appended oldest-first and beta items carry a sparkle:channel
     child, so the newest stable one is the last item without it.
@@ -51,38 +51,53 @@ def newest_stable(feed: Path) -> tuple[str | None, str | None]:
     try:
         channel = ET.parse(feed).getroot().find("channel")
     except (OSError, ET.ParseError):
-        return None, None
+        return None
     if channel is None:
-        return None, None
+        return None
     stable = [
         it
         for it in channel.findall("item")
         if it.find(f"{{{SPARKLE_NS}}}channel") is None
     ]
     if not stable:
-        return None, None
+        return None
     item = stable[-1]
     enclosure = item.find("enclosure")
-    url = enclosure.get("url") if enclosure is not None else None
-    return item.findtext(f"{{{SPARKLE_NS}}}shortVersionString"), url
-
-
-def download_context(feeds: Path) -> dict[str, str]:
-    # version + asset URLs come from the newest stable appcast item, i.e. the
-    # release Sparkle itself would offer. Both feeds carry the same version.
-    version, universal_url = newest_stable(feeds / "appcast.xml")
-    arm64_version, arm64_url = newest_stable(feeds / "appcast-arm64.xml")
     return {
-        "version": version or arm64_version or "",
-        "download_url_universal": universal_url or RELEASES_LATEST,
-        "download_url_arm64": arm64_url or RELEASES_LATEST,
+        "version": item.findtext(f"{{{SPARKLE_NS}}}shortVersionString"),
+        "url": enclosure.get("url") if enclosure is not None else None,
+        "notes": item.findtext(f"{{{SPARKLE_NS}}}releaseNotesLink"),
     }
 
 
-def changelog_html(feeds: Path) -> str:
-    # The deploy job mirrors the published changelog off gh-pages; fall back to
-    # the repo copy so local previews show the real notes.
-    for candidate in (feeds / "changelog.md", ROOT / "CHANGELOG.md"):
+def download_context(universal: dict | None, arm64: dict | None) -> dict[str, str]:
+    # version + asset URLs come from the newest stable appcast item, i.e. the
+    # release Sparkle itself would offer. Both feeds carry the same version.
+    return {
+        "version": (universal or arm64 or {}).get("version") or "",
+        "download_url_universal": (universal or {}).get("url") or RELEASES_LATEST,
+        "download_url_arm64": (arm64 or {}).get("url") or RELEASES_LATEST,
+    }
+
+
+def changelog_html(feeds: Path, stable: dict | None) -> str:
+    """Render the changelog as of the latest stable release.
+
+    The repo's CHANGELOG.md is often written ahead of the release, so prefer the
+    snapshot that release itself published (its sparkle:releaseNotesLink, which
+    deploy-pages.yml mirrors off gh-pages). Fall back to the accumulated
+    changelog only when there is no stable release to anchor to yet.
+    """
+    candidates = []
+    notes = (stable or {}).get("notes")
+    if notes:
+        candidates.append(feeds / notes.rsplit("/", 1)[-1])
+    version = (stable or {}).get("version")
+    if version:
+        candidates.append(feeds / f"release-notes-v{version}.md")
+    candidates += [feeds / "changelog.md", ROOT / "CHANGELOG.md"]
+
+    for candidate in candidates:
         if candidate.exists():
             return markdown.markdown(candidate.read_text(encoding="utf-8"))
     return f'<p>The changelog is on <a href="{RELEASES_PAGE}">GitHub releases</a>.</p>'
@@ -130,10 +145,12 @@ def render(site: Path, feeds: Path, out: Path, imgs: Path) -> None:
         undefined=jinja2.StrictUndefined,
         keep_trailing_newline=True,
     )
+    universal = newest_stable(feeds / "appcast.xml")
+    arm64 = newest_stable(feeds / "appcast-arm64.xml")
     context = {
         "site_url": SITE_URL,
-        "changelog": changelog_html(feeds),
-        **download_context(feeds),
+        "changelog": changelog_html(feeds, universal or arm64),
+        **download_context(universal, arm64),
     }
 
     pages = []
@@ -170,15 +187,18 @@ def render(site: Path, feeds: Path, out: Path, imgs: Path) -> None:
                 shutil.copy2(feed, out / feed.name)
 
 
-def _feed(version: str, url: str, beta: bool) -> str:
+def _feed(version: str, url: str, beta: bool, notes: str | None = None) -> str:
     channel = "<sparkle:channel>beta</sparkle:channel>" if beta else ""
+    release_notes = (
+        f"<sparkle:releaseNotesLink>{notes}</sparkle:releaseNotesLink>" if notes else ""
+    )
     return (
         '<?xml version="1.0"?>'
         f'<rss xmlns:sparkle="{SPARKLE_NS}" version="2.0"><channel>'
         f"<item><title>x</title>"
         f"<sparkle:shortVersionString>{version}</sparkle:shortVersionString>"
         f'<enclosure url="{url}" length="1" type="application/octet-stream"/>'
-        f"{channel}</item></channel></rss>"
+        f"{release_notes}{channel}</item></channel></rss>"
     )
 
 
@@ -215,12 +235,28 @@ def self_test() -> None:
         (site / "moved" / "index.html").write_text("<html><body>moved</body></html>")
         (site / "style.css").write_text("body{}")
         (feeds / "appcast.xml").write_text(
-            _feed("0.7.0", "https://e/u.zip", beta=False)
+            _feed(
+                "0.7.0",
+                "https://e/u.zip",
+                beta=False,
+                notes="https://e/release-notes-v0.7.0.md",
+            )
         )
         (feeds / "appcast-arm64.xml").write_text(
-            _feed("0.7.0", "https://e/a.zip", beta=False)
+            _feed(
+                "0.7.0",
+                "https://e/a.zip",
+                beta=False,
+                notes="https://e/release-notes-v0.7.0.md",
+            )
         )
-        (feeds / "changelog.md").write_text("# Changelog\n\n- a change\n")
+        (feeds / "release-notes-v0.7.0.md").write_text(
+            "# Changelog\n\n## 0.7.0\n\n- released change\n"
+        )
+        # The accumulated changelog is ahead of the release; it must be ignored.
+        (feeds / "changelog.md").write_text(
+            "# Changelog\n\n## 0.8.0\n\n- unreleased change\n"
+        )
         (imgs / "icon.png").write_text("png")
 
         render(site, feeds, out, imgs)
@@ -230,7 +266,8 @@ def self_test() -> None:
         download = (out / "download" / "index.html").read_text()
         assert "https://e/u.zip" in download
         assert ">0.7.0<" in download
-        assert "<h1>Changelog</h1>" in download and "<li>a change</li>" in download
+        assert "<h1>Changelog</h1>" in download
+        assert "released change" in download and "unreleased change" not in download
         assert (out / "style.css").read_text() == "body{}"
         assert (out / "imgs" / "icon.png").read_text() == "png"
         assert (out / "appcast.xml").exists() and (out / "changelog.md").exists()
