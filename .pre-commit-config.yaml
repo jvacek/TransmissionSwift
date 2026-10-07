@@ -51,5 +51,6 @@ repos:
         entry: just test-packages-strict
         language: system
         stages: [pre-push]
-        always_run: true
+        files: \.swift$
+        exclude: ^(Packages/.*/\.build/|.*\.xcodeproj/)
         pass_filenames: false
