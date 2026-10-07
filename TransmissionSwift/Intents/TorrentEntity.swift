@@ -3,16 +3,20 @@ import CoreSpotlight
 import TransmissionCore
 
 /// One torrent on a server, selectable in Shortcuts and indexable in Spotlight.
-/// The `@Property` fields are what a shortcut can chain out of the list — the
-/// entity's `id` is the daemon's torrent id and is the value other actions take.
+/// The `@Property` fields are what a shortcut can chain out of the list.
 struct TorrentEntity: AppEntity, Identifiable, Hashable, Sendable {
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Torrent")
     static let defaultQuery = TorrentEntityQuery()
 
+    /// `"<serverUUID>/<torrentID>"`. Daemon torrent ids are only unique per
+    /// server, so the server is baked in: an identifier of just the torrent id
+    /// would collide two servers' torrent `1` in Spotlight and Shortcuts.
     let id: String
     /// The owning profile's UUID string, carried so `OpenTorrentIntent` can switch
     /// to the right server.
     let serverID: String
+    /// The daemon's torrent id, the value the service actions take.
+    let torrentID: Int
 
     @Property(title: "Name") var name: String
     @Property(title: "Status") var status: String
@@ -25,8 +29,9 @@ struct TorrentEntity: AppEntity, Identifiable, Hashable, Sendable {
     @Property(title: "Tracker") var tracker: String
 
     init(torrent: Torrent, serverID: String) {
-        self.id = String(torrent.id)
         self.serverID = serverID
+        self.torrentID = torrent.id
+        self.id = "\(serverID)/\(torrent.id)"
         name = torrent.name
         status = torrent.status.rawValue.capitalized
         progressPercent = Int((torrent.progress * 100).rounded())
@@ -93,18 +98,25 @@ enum TorrentCatalog {
     }
 
     /// The `[Torrent]` an action should target: the selected torrents, or every
-    /// torrent when none are selected.
+    /// torrent when none are selected. Selections are scoped to `profile` so an
+    /// entity picked from another server can't silently target this server's
+    /// same-numbered torrent.
     static func targets(
         _ selected: [TorrentEntity]?, profile: ServerProfile, service: any TorrentService
     ) async throws -> [Torrent] {
         let all = try await torrents(profile: profile, service: service)
-        let ids = Set((selected ?? []).compactMap { Int($0.id) })
-        return ids.isEmpty ? all : all.filter { ids.contains($0.id) }
+        guard let selected, !selected.isEmpty else { return all }
+        let serverID = profile.id.uuidString
+        let ids = Set(selected.filter { $0.serverID == serverID }.map(\.torrentID))
+        return all.filter { ids.contains($0.id) }
     }
 }
 
 /// The torrent picker. It learns the selected server from whichever carrying
 /// intent is being configured, so the list is scoped to that server.
+///
+/// Add a `@IntentParameterDependency` here for any new intent that takes both a
+/// `server` and `torrents`, or its picker falls back to the active profile.
 struct TorrentEntityQuery: EntityQuery {
     @IntentParameterDependency<SetTorrentSpeedLimitsIntent>(\.$server) var setLimits
     @IntentParameterDependency<PauseTorrentsIntent>(\.$server) var pause

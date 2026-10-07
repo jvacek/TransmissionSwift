@@ -16,12 +16,9 @@ struct OpenTorrentIntent: OpenIntent {
     var target: TorrentEntity
 
     func perform() async throws -> some IntentResult {
-        guard let torrentID = Int(target.id) else {
-            throw IntentError(message: "Invalid torrent.")
-        }
         let serverID = UUID(uuidString: target.serverID)
         await MainActor.run {
-            OpenRequestBus.shared.request = OpenRequest(serverID: serverID, torrentID: torrentID)
+            OpenRequestBus.shared.request = OpenRequest(serverID: serverID, torrentID: target.torrentID)
             NSApplication.shared.activate()
         }
         return .result()

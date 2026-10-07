@@ -119,6 +119,31 @@ struct AppIntentTests {
         #expect(filtered.map(\.id) == [chosen.id])
     }
 
+    @Test func entitiesAreUniqueAcrossServersWithTheSameTorrentID() throws {
+        let torrent = try #require(MockFixtures.torrents().first)
+        let a = TorrentEntity(torrent: torrent, serverID: "server-a")
+        let b = TorrentEntity(torrent: torrent, serverID: "server-b")
+
+        // Same numeric torrent id, different servers — the ids must not collide
+        // in Spotlight/Shortcuts.
+        #expect(a.torrentID == b.torrentID)
+        #expect(a.id != b.id)
+        #expect(a.id == "server-a/\(torrent.id)")
+    }
+
+    @Test func targetsIgnoreSelectionFromAnotherServer() async throws {
+        let harness = try makeHarness()
+        defer { cleanup(harness) }
+
+        let torrent = try #require(try await harness.service.torrents().first)
+        let foreign = TorrentEntity(torrent: torrent, serverID: "some-other-server")
+        let targets = try await TorrentCatalog.targets(
+            [foreign], profile: harness.profile, service: harness.service)
+        // A selection belonging to a different server must not fall back to
+        // "every torrent" — it resolves to nothing, and the caller errors.
+        #expect(targets.isEmpty)
+    }
+
     @Test func targetsReportUnreachableServerInsteadOfNoResults() async throws {
         let harness = try makeHarness()
         defer { cleanup(harness) }
@@ -150,7 +175,9 @@ struct AppIntentTests {
     @Test func torrentEntityMapsFields() throws {
         let torrent = try #require(MockFixtures.torrents().first)
         let entity = TorrentEntity(torrent: torrent, serverID: "srv")
-        #expect(entity.id == String(torrent.id))
+        #expect(entity.id == "srv/\(torrent.id)")
+        #expect(entity.torrentID == torrent.id)
+        #expect(entity.serverID == "srv")
         #expect(entity.name == torrent.name)
         #expect(entity.status == torrent.status.rawValue.capitalized)
         #expect(entity.progressPercent == Int((torrent.progress * 100).rounded()))
