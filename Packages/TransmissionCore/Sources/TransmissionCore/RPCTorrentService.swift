@@ -259,16 +259,10 @@ public actor RPCTorrentService: TorrentService {
     }
 
     public func sessionSettings() async -> SessionSettings? {
-        if let cached = cachedSession {
-            return SessionSettings(wire: cached)
-        }
-        // Cold cache — warm it from a fresh session-get so mocked/empty state
+        // Warm a cold cache from a fresh session-get so mocked/empty state
         // doesn't read stale or nil values.
-        if let fetched = try? await client.sessionGet() {
-            cachedSession = fetched
-            return SessionSettings(wire: fetched)
-        }
-        return nil
+        guard let session = await sessionWarmingCache() else { return nil }
+        return SessionSettings(wire: session)
     }
 
     public func applySessionSettings(_ patch: SessionSettingsPatch) async throws {

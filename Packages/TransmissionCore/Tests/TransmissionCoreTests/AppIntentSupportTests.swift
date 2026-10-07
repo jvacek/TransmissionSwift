@@ -116,6 +116,17 @@ struct RPCSessionCacheWarmTests {
         #expect(await stub.lastAddLabels == nil)
     }
 
+    @Test("sessionSettings warms the cache once and reuses it")
+    func sessionSettingsWarmsCache() async {
+        let stub = CacheStubClient(rpcVersion: 17, altSpeedEnabled: true)
+        let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
+
+        #expect(await service.sessionSettings() != nil)
+        #expect(await service.sessionSettings() != nil)
+        // The second read must come from the warmed cache, not a second RPC.
+        #expect(await stub.sessionGetCount == 1)
+    }
+
     @Test("setSpeedLimits sends one torrent-set for every id with only the changed fields")
     func setSpeedLimitsBatches() async throws {
         let stub = CacheStubClient(rpcVersion: 17, altSpeedEnabled: false)
