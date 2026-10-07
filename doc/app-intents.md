@@ -16,7 +16,7 @@ If you are here to **change or debug an intent**, read
 | Action | Status | Parameters | Returns |
 |---|---|---|---|
 | **Get Servers** (`GetServersIntent`) | shipped | — | `[ServerEntity]` |
-| **Get Torrents** (`GetTorrentsIntent`) | shipped | Server (optional) | `[TorrentEntity]` |
+| **Get Torrents** (`GetTorrentsIntent`) | shipped | Server, Status, Label, Tracker, Search (all optional) | `[TorrentEntity]` |
 | **Add Torrent or Magnet** (`AddTorrentIntent`) | shipped | magnet / file, Server, Add Paused, Destination Folder, Labels, Priority | dialog |
 | **Open Torrent** (`OpenTorrentIntent`) | shipped | Torrent (required) | deep-links the app to the torrent |
 | **Pause Torrents** (`PauseTorrentsIntent`) | shipped | Server, Torrents (empty = all) | dialog |
@@ -24,15 +24,18 @@ If you are here to **change or debug an intent**, read
 | **Remove Torrents** (`RemoveTorrentsIntent`) | shipped | Server, Torrents, Also Delete Downloaded Data | dialog (confirms first) |
 | **Verify Torrents** (`VerifyTorrentsIntent`) | shipped | Server, Torrents (empty = all) | dialog |
 | **Re-announce Torrents** (`ReannounceTorrentsIntent`) | shipped | Server, Torrents (empty = all) | dialog |
-| **Get Server Stats** (`GetServerStatsIntent`) | shipped | Server (optional) | `String` summary + dialog |
-| **Get Torrent Stats** (`GetTorrentStatsIntent`) | shipped | Server, Torrents (empty = all) | `TorrentStatsEntity` (transient) + dialog |
-| **Get Free Space** (`GetFreeSpaceIntent`) | shipped | Server (optional) | `Int` bytes + dialog |
+| **Get Server Stats** (`GetServerStatsIntent`) | shipped | Server (optional) | `ServerStatsEntity` (transient) + dialog |
+| **Get Torrent Stats** (`GetTorrentStatsIntent`) | shipped | Server, Torrent (required) | `TorrentStatsEntity` (transient) + dialog |
+| **Get Free Space** (`GetFreeSpaceIntent`) | shipped | Server (optional) | `FreeSpaceEntity` (transient, bytes + humanized) + dialog |
 | **Set Turtle Mode** (`SetTurtleModeIntent`) | shipped | Server, Enabled | dialog |
 | **Set Server Speed Limits** (`SetServerSpeedLimitsIntent`) | shipped | Server, download/upload limit + enable | dialog |
 | **Set Torrent Speed Limits** (`SetTorrentSpeedLimitsIntent`) | shipped | Server, Torrents, download/upload limit + enable | dialog |
 | Server (`ServerEntity`) | shipped | — | entity, indexed in Spotlight |
-| Torrent (`TorrentEntity`) | shipped | — | entity, indexed in Spotlight |
-| `TorrentStatsEntity` | shipped | — | transient result entity |
+| Torrent (`TorrentEntity`) | shipped | — | entity (id/name/status/progress/speeds/ratio/size/labels/tracker), indexed in Spotlight |
+| `ServerStatsEntity` | shipped | — | transient result entity (server counts + speeds) |
+| `TorrentStatsEntity` | shipped | — | transient result entity (one torrent) |
+| `FreeSpaceEntity` | shipped | — | transient result entity (bytes + humanized) |
+| `TorrentStatusOption` | shipped | — | enum, the `Status` filter on Get Torrents |
 
 Siri phrases for Get Servers / Server Stats / Free Space / Pause / Resume are
 provided by `TransmissionSwiftShortcuts` (`AppShortcutsProvider`). See
@@ -50,7 +53,7 @@ edit).
 |---|---|
 | `TransmissionSwift/Intents/AppEnvironment.swift` | Process-wide shared state the intents resolve against (server list + service). The spine of the feature. |
 | `TransmissionSwift/Intents/ServerEntity.swift` | `ServerEntity` + `ServerEntityQuery` — the Shortcuts "Server" picker. |
-| `TransmissionSwift/Intents/GetServerStatsIntent.swift` | The one shipped action. |
+| `TransmissionSwift/Intents/GetServerStatsIntent.swift` | Server-wide stats action; `ServerStatsEntity` lives here. |
 | `TransmissionSwift/Intents/IntentError.swift` | `IntentError`, a user-facing error whose message shows verbatim in Shortcuts. |
 | `TransmissionSwift/Intents/` (new files) | One file per intent, by convention. |
 
@@ -224,12 +227,16 @@ var server: ServerEntity?
 3. **Concurrency rule (easy to get wrong).** The app target defaults to
    `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`. Helpers you call from an intent's
    `nonisolated` `perform()` must themselves be `nonisolated` — `AppEnvironment`
-   (whole class + extension), `GetServerStatsIntent.summary`, and the
-   `ColumnFormatters` enum are marked so. If you hit "main actor-isolated … cannot
-   be called from outside of the actor", mark the callee `nonisolated`.
-4. **Returning data.** A `String` result (with `ProvidesDialog`) is usable in
-   Shortcuts. Structured values need `TransientAppEntity`; only add it if field
-   chaining in Shortcuts is actually wanted.
+   (whole class + extension), `ColumnFormatters`, and anything else reached from
+   a query's `nonisolated` methods are marked so. If you hit "main actor-isolated
+   … cannot be called from outside of the actor", mark the callee `nonisolated`.
+4. **Returning data.** Return a `TransientAppEntity` when the result has more
+   than one field a shortcut might chain (`ServerStatsEntity`, `TorrentStatsEntity`,
+   `FreeSpaceEntity`); the transient entity's `@Property` fields become selectable
+   in Shortcuts. A plain `String` result is only usable as an opaque string, so
+   avoid it for anything a shortcut should compute on. Every read intent also
+   provides a dialog — that is what Siri speaks, and what Shortcuts' per-action
+   "Show When Run" toggle displays (or suppresses).
 5. **Entities/enums.** To add a selectable value (e.g. torrent priority), define
    an app-target `AppEnum`/`AppEntity` — do **not** make `TransmissionCore` types
    conform, that would drag AppIntents into the package.
@@ -265,10 +272,19 @@ picker needs its own small query type (delegate to a shared resolver). Today onl
   selects the torrent, and reveals the inspector. Don't index torrents on every
   poll (they change constantly); index on meaningful change if a richer signal is
   needed.
-- **Structured results (`TransientAppEntity`).** `GetTorrentStatsIntent` returns a
-  `TorrentStatsEntity` (counts, speeds, per-torrent fields) so a shortcut can chain
-  individual fields instead of parsing a string. `GetServerStatsIntent` still
-  returns a `String`; convert it the same way if field chaining is wanted.
+- **Structured results (`TransientAppEntity`).** Read intents return structured
+  entities so a shortcut can chain individual fields instead of parsing a string.
+  `ServerStatsEntity` = server-wide counts and speeds (`GetServerStatsIntent`);
+  `TorrentStatsEntity` = one torrent's progress/speeds/ratio
+  (`GetTorrentStatsIntent`, which requires a torrent — the server-wide aggregate
+  is `GetServerStatsIntent`); `FreeSpaceEntity` = bytes + a unit-bearing
+  humanized string (`GetFreeSpaceIntent`). `GetTorrentsIntent` returns
+  `[TorrentEntity]`, whose `@Property` fields (name, status, progress, speeds,
+  ratio, size, labels, tracker) are chainable.
+- **Filtering torrents.** `GetTorrentsIntent` takes optional `Status`
+  (`TorrentStatusOption`), `Label`, `Tracker` and `Search` parameters and narrows
+  the list with AND semantics, reusing the core `TorrentFilterSelection`. The
+  server-scoped torrent picker stays unfiltered.
 - **Siri (`AppShortcutsProvider`).** `TransmissionSwiftShortcuts` publishes phrases
   for a few parameterless actions. Phrases must contain `\(.applicationName)` and
   be unique; prefer intents with no required parameters.
