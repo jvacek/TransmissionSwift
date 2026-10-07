@@ -252,12 +252,12 @@ Adding files under `TransmissionSwift/Intents/` is picked up automatically.
 
 ### Per-torrent selection
 
-`TorrentEntity` / `TorrentEntityQuery` exist; the query learns the selected server
-via `@IntentParameterDependency<SetTorrentSpeedLimitsIntent>(\.$server)`. Because
-that ties a query to one intent, a *different* intent that wants its own torrent
-picker needs its own small query type (delegate to a shared resolver). Today only
-`SetTorrentSpeedLimitsIntent` uses it, and an empty `Torrents` parameter means
-"every torrent on the server".
+`TorrentEntity` / `TorrentEntityQuery` exist; one shared query learns the selected
+server from whichever carrying intent is being configured, through one
+`@IntentParameterDependency<…>(\.$server)` per intent (see `TorrentEntityQuery`).
+An empty `Torrents` parameter means "every torrent on the server". When you add an
+intent with a `Torrents` parameter, register its dependency there too, or the
+picker won't scope to the chosen server.
 
 ---
 

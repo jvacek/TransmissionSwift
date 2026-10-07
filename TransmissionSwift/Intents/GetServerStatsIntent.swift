@@ -43,7 +43,9 @@ struct ServerStatsEntity: TransientAppEntity {
     }
 
     /// Derived stats for services that don't report `session-stats` (snapshot
-    /// replay). Counts and speeds come from the torrent list.
+    /// replay). Counts and speeds come from the torrent list. Note: the daemon
+    /// also counts verifying torrents as active, so `activeCount` here can read
+    /// one lower than `sessionStats()` for the same state.
     init(torrents: [Torrent], server: String) {
         self.init()
         self.server = server
