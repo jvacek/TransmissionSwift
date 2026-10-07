@@ -1,4 +1,5 @@
 import Foundation
+import Security
 import Testing
 
 @testable import TransmissionCore
@@ -161,6 +162,36 @@ struct TransmissionServiceFactoryTests {
     func validProfile() {
         let profile = ServerProfile(label: "x", host: "nas.local")
         #expect(TransmissionServiceFactory.make(for: profile, credentials: nil) != nil)
+    }
+
+    @Test("a keychain read failure throws instead of becoming a blank password")
+    func keychainFailureThrows() {
+        let profile = ServerProfile(label: "x", host: "nas.local", username: "u")
+        #expect(throws: TransmissionServiceFactory.Failure.keychain(status: errSecInteractionNotAllowed)) {
+            _ = try TransmissionServiceFactory.make(
+                for: profile,
+                passwordProvider: { (_: UUID) throws(KeychainError) -> String? in
+                    throw KeychainError(status: errSecInteractionNotAllowed)
+                })
+        }
+    }
+
+    @Test("a missing password entry stays the empty-password path")
+    func missingPasswordStaysEmpty() {
+        // The app never stores an empty password, so a missing entry is a
+        // legitimate username-with-no-password setup, not an error.
+        let profile = ServerProfile(label: "x", host: "nas.local", username: "u")
+        #expect(throws: Never.self) {
+            _ = try TransmissionServiceFactory.make(for: profile, passwordProvider: { _ in nil })
+        }
+    }
+
+    @Test("throws invalidRPCURL for a profile with no valid RPC URL")
+    func invalidURLThrows() {
+        let profile = ServerProfile(label: "x", host: "not a valid host")
+        #expect(throws: TransmissionServiceFactory.Failure.invalidRPCURL) {
+            _ = try TransmissionServiceFactory.make(for: profile) { _ in nil }
+        }
     }
 }
 

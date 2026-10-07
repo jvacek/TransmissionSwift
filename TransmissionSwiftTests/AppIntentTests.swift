@@ -88,6 +88,20 @@ struct AppIntentTests {
         #expect(harness.environment.service(for: invalid) == nil)
     }
 
+    @Test func resolvedServiceReportsTheRealFailure() throws {
+        let harness = try makeHarness()
+        defer { cleanup(harness) }
+
+        // No username, so the factory never touches the Keychain.
+        let invalid = ServerProfile(label: "Invalid", host: "not a valid host")
+        do {
+            _ = try harness.environment.resolvedService(for: invalid)
+            Issue.record("Expected an invalid address to throw")
+        } catch let error as IntentError {
+            #expect(error.message.contains("invalid RPC address"))
+        }
+    }
+
     // MARK: - Torrent catalog + stats entity
 
     @Test func catalogEntitiesCarryServerID() async throws {

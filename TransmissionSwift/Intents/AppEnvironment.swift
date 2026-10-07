@@ -84,22 +84,44 @@ nonisolated final class AppEnvironment: Sendable {
             throw IntentError(
                 message: "No Transmission servers are configured. Add one in TransmissionSwift first.")
         }
-        guard let service = service(for: profile) else {
-            throw IntentError(message: "The server “\(profile.label)” has an invalid RPC address.")
-        }
-        return (profile, service)
+        return (profile, try resolvedService(for: profile))
     }
 
     /// The app's live service when it matches `profile`; otherwise a fresh
     /// factory service. Snapshot replay serves the frozen file, read-only.
+    /// Best-effort — resolution failures return nil (used by the entity pickers).
     func service(for profile: ServerProfile) -> (any TorrentService)? {
+        try? resolvedService(for: profile)
+    }
+
+    /// Like `service(for:)`, but reports why resolution failed so an action can
+    /// show the real cause instead of a generic error.
+    func resolvedService(for profile: ServerProfile) throws -> any TorrentService {
         if let connection = connection.withLock({ $0 }), connection.profileID == profile.id {
             return connection.service
         }
         if mode == .snapshot, let snapshotFileURL {
-            return try? SnapshotTorrentService(fileURL: snapshotFileURL)
+            guard let service = try? SnapshotTorrentService(fileURL: snapshotFileURL) else {
+                throw IntentError(message: "Couldn't read the snapshot file.")
+            }
+            return service
         }
-        return TransmissionServiceFactory.make(for: profile)
+        do {
+            return try TransmissionServiceFactory.make(for: profile)
+        } catch {
+            throw IntentError(message: Self.serviceFailureMessage(error, server: profile.label))
+        }
+    }
+
+    private static func serviceFailureMessage(_ error: any Error, server: String) -> String {
+        switch error {
+        case TransmissionServiceFactory.Failure.invalidRPCURL:
+            return "The server “\(server)” has an invalid RPC address."
+        case TransmissionServiceFactory.Failure.keychain:
+            return "Couldn't read the saved password for “\(server)”. Unlock your Keychain and try again."
+        default:
+            return "Couldn't connect to “\(server)”."
+        }
     }
 }
 
