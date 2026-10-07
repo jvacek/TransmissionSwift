@@ -121,6 +121,10 @@ jobs:
     # The job is skipped entirely when the variable is unset, so PRs/forks are
     # unaffected.
     if: ${{ vars.APP_INTENTS_CI == '1' }}
+    # Same policy as the xcode-27 matrix leg: this lane depends on the Xcode 27
+    # preview image and on a signing certificate that will eventually expire, so
+    # it must not be able to block a PR — but it is enforced on main.
+    continue-on-error: ${{ github.event_name == 'pull_request' }}
     runs-on: xcode-27  # Xcode 27 / macOS 27 image; AppIntentsTesting ships only there
     env:
       # xcodebuild forwards TEST_RUNNER_-prefixed vars to the runner with the
