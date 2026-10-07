@@ -9,6 +9,11 @@ name: App Intents (AppIntentsTesting)
 
 on:
   workflow_call:
+    inputs:
+      allow-failure:
+        description: "Report a failing lane without failing the caller (PRs, pre-releases)."
+        type: boolean
+        default: false
 
 jobs:
   test:
@@ -26,6 +31,9 @@ jobs:
         run: brew install xcbeautify
 
       - name: Import signing certificate
+        # Steps (unlike reusable-workflow *jobs*) can be non-blocking, which is
+        # how callers opt into "report but don't fail".
+        continue-on-error: ${{ inputs.allow-failure }}
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.APP_INTENTS_CERT_P12_BASE64 }}
           P12_PASSWORD: ${{ secrets.APP_INTENTS_CERT_PASSWORD }}
@@ -44,6 +52,7 @@ jobs:
           security find-identity -p codesigning -v
 
       - name: Run App Intents tests
+        continue-on-error: ${{ inputs.allow-failure }}
         run: |
           set -o pipefail
           xcodebuild \

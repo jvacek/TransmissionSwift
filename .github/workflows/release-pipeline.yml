@@ -28,8 +28,12 @@ jobs:
     # tolerates a failure. Kill switch: unset the APP_INTENTS_CI repository
     # variable (the job is then skipped and the release proceeds).
     if: ${{ vars.APP_INTENTS_CI == '1' }}
-    continue-on-error: ${{ inputs.prerelease }}
     uses: ./.github/workflows/app-intents.yml
+    with:
+      # A stable release must pass the App Intents lane; a pre-release tolerates a
+      # failure. Kill switch: unset the APP_INTENTS_CI repository variable (the
+      # job is then skipped and the release proceeds).
+      allow-failure: ${{ inputs.prerelease }}
     secrets: inherit
 
   build-release:

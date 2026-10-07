@@ -118,6 +118,9 @@ jobs:
     # (APP_INTENTS_CERT_P12_BASE64 / APP_INTENTS_CERT_PASSWORD /
     # APP_INTENTS_KEYCHAIN_PASSWORD); otherwise the job is skipped.
     if: ${{ vars.APP_INTENTS_CI == '1' }}
-    continue-on-error: true
     uses: ./.github/workflows/app-intents.yml
+    with:
+      # Informational in CI: report failures but never block a PR or main push.
+      # Enforced on the stable-release path (see release-pipeline.yml).
+      allow-failure: true
     secrets: inherit
