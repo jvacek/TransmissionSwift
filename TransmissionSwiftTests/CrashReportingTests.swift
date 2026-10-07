@@ -34,6 +34,14 @@ struct CrashReportingTests {
         #expect(!defaults.bool(forKey: CrashReporting.preferenceKey))
     }
 
+    /// Sentry groups events by release and environment, so both must carry the
+    /// full version and a build-config tag rather than a bare build number.
+    @Test func releaseNameAndEnvironmentTagTheBuild() throws {
+        let release = try #require(CrashReporting.releaseName)
+        #expect(release.contains("+"), "Expected version+build, got \(release)")
+        #expect(CrashReporting.environment == "debug")
+    }
+
     private func restore(_ defaults: UserDefaults, key: String, value: Any?) {
         if let value {
             defaults.set(value, forKey: key)

@@ -74,7 +74,6 @@ enum CrashReporting {
 
     nonisolated private static func start() {
         guard let dsn else { return }
-        let release = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
         SentrySDK.start { options in
             options.dsn = dsn
             options.sendDefaultPii = false
@@ -86,8 +85,28 @@ enum CrashReporting {
             // never send. Keep reports to actual crashes only.
             options.enableCaptureFailedRequests = false
             options.enableNetworkTracking = false
-            if let release { options.releaseName = release }
+            options.environment = environment
+            if let release = releaseName { options.releaseName = release }
         }
+    }
+
+    /// A debug build reports into its own Sentry environment, so a developer's
+    /// local crashes don't read as shipped ones.
+    nonisolated static var environment: String {
+        #if DEBUG
+        "debug"
+        #else
+        "release"
+        #endif
+    }
+
+    /// Sentry's conventional `"<version>+<build>"` release name. A bare build
+    /// number would group unrelated versions together.
+    nonisolated static var releaseName: String? {
+        let info = Bundle.main.infoDictionary
+        guard let version = info?["CFBundleShortVersionString"] as? String else { return nil }
+        guard let build = info?["CFBundleVersion"] as? String else { return version }
+        return "\(version)+\(build)"
     }
 
     /// The configured DSN, or `nil` when the build carries none. Rejects an
