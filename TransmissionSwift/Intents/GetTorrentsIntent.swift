@@ -84,7 +84,7 @@ struct GetTorrentsIntent: AppIntent {
 
         let serverID = profile.id.uuidString
         let entities = torrents.map { TorrentEntity(torrent: $0, serverID: serverID) }
-        await SpotlightIndexer.indexTorrents(entities)
+        await SpotlightIndexer.indexTorrents(entities, serverID: serverID)
         let dialog =
             entities.isEmpty
             ? "No matching torrents on \(profile.label)."

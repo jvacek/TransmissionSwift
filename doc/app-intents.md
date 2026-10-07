@@ -269,9 +269,10 @@ picker needs its own small query type (delegate to a shared resolver). Today onl
   launch (`ContentView`); torrents are donated by `GetTorrentsIntent`.
   `OpenTorrentIntent` (`OpenIntent`) is the tap target — it drops an `OpenRequest`
   on `OpenRequestBus` and activates the app; `MainWindow` switches server,
-  selects the torrent, and reveals the inspector. Don't index torrents on every
-  poll (they change constantly); index on meaningful change if a richer signal is
-  needed.
+  selects the torrent, and reveals the inspector. Torrents are indexed on demand,
+  not on every poll (they change constantly). Each donation prunes torrents that
+  dropped out of the set, and `RemoveTorrentsIntent` deletes the ones it removed;
+  app-UI removals are pruned on the next donation.
 - **Structured results (`TransientAppEntity`).** Read intents return structured
   entities so a shortcut can chain individual fields instead of parsing a string.
   `ServerStatsEntity` = server-wide counts and speeds (`GetServerStatsIntent`);

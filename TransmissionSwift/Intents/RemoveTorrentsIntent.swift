@@ -40,6 +40,8 @@ struct RemoveTorrentsIntent: AppIntent {
         } catch {
             throw IntentError(message: error.localizedDescription)
         }
+        await SpotlightIndexer.deleteTorrents(
+            ids: targets.map { String($0.id) }, serverID: profile.id.uuidString)
         return .result(
             dialog:
                 "Removed \(targets.count) torrent\(targets.count == 1 ? "" : "s") from \(profile.label).")
