@@ -7,6 +7,8 @@ struct GeneralPrefsPane: View {
     @AppStorage("startMinimized") private var startMinimized = false
     @AppStorage("badgeAppIcon") private var badgeAppIcon = false
     @AppStorage("confirmRemove") private var confirmRemove = true
+    @AppStorage("showDonateButton") private var showDonateButton = true
+    @AppStorage("showBugReportButton") private var showBugReportButton = true
     @AppStorage("sendCrashReports") private var sendCrashReports = false
     @AppStorage("pollingIntervalSeconds") private var pollingInterval: Double = 5.0
     @AppStorage("freeSpaceIntervalSeconds") private var freeSpaceInterval: Double = 60.0
@@ -53,6 +55,10 @@ struct GeneralPrefsPane: View {
                 Toggle("Badge app icon with active count", isOn: $badgeAppIcon)
                 Toggle("Start minimized", isOn: $startMinimized)
                 Toggle("Confirm before removing", isOn: $confirmRemove)
+            }
+            Section("Links on status bar") {
+                Toggle("Show donate button", isOn: $showDonateButton)
+                Toggle("Show bug report button", isOn: $showBugReportButton)
             }
             Section {
                 Toggle("Send anonymous crash reports", isOn: $sendCrashReports)

@@ -22,6 +22,8 @@ Please visit the [release page](https://github.com/jvacek/TransmissionSwift/rele
     - Add torrent to server
   - Allows control from Spotlight and non-AI Siri
 - Fix Favicon cache not being re-used on startup
+- Add donation link to the status bar
+- Add option to hide donation link and bug report link
 
 ## 0.6.4
 

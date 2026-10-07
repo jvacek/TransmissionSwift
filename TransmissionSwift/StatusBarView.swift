@@ -10,11 +10,13 @@ struct StatusBarView: View {
     @Environment(ServerProfileStore.self) private var profileStore
     @Environment(\.openURL) private var openURL
     @AppStorage("badgeAppIcon") private var badgeAppIcon = false
+    @AppStorage("showDonateButton") private var showDonateButton = true
+    @AppStorage("showBugReportButton") private var showBugReportButton = true
     @State private var showServerStats = false
 
     var body: some View {
         HStack(spacing: 14) {
-            reportBugButton
+            supportButtons
             switch store.connection {
             case .connecting:
                 let name = profileStore.activeProfile?.label ?? "server"
@@ -51,6 +53,17 @@ struct StatusBarView: View {
         .onChange(of: badgeAppIcon) { _, _ in updateDockBadge() }
     }
 
+    @ViewBuilder
+    private var supportButtons: some View {
+        if showDonateButton || showBugReportButton {
+            HStack(spacing: 10) {
+                if showDonateButton { donateButton }
+                if showBugReportButton { reportBugButton }
+            }
+            Divider().frame(height: 14)
+        }
+    }
+
     private var reportBugButton: some View {
         Button {
             if let url = BugReport.url(daemonVersion: store.daemonVersion) {
@@ -64,6 +77,21 @@ struct StatusBarView: View {
         .help("Report a bug on GitHub")
         .foregroundStyle(Color(NSColor.secondaryLabelColor))
         .accessibilityIdentifier("statusBar.reportBug")
+    }
+
+    private var donateButton: some View {
+        Button {
+            if let url = URL(string: "https://transmissionswift.jvacek.eu/donate/") {
+                openURL(url)
+            }
+        } label: {
+            Image(systemName: "heart")
+        }
+        .buttonStyle(.borderless)
+        .controlSize(.small)
+        .help("Support TransmissionSwift")
+        .foregroundStyle(.pink)
+        .accessibilityIdentifier("statusBar.donate")
     }
 
     private var leftCluster: some View {
