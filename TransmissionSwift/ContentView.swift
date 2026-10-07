@@ -43,6 +43,9 @@ struct ContentView: View {
             if hasAppeared { torrentStore.resumePolling() }
             hasAppeared = true
         }
+        // Donate the server list to Spotlight once at launch. (Torrents are
+        // donated by Get Torrents to avoid indexing on every poll.)
+        .task { await SpotlightIndexer.indexServers(profileStore.profiles) }
     }
 
     /// True when running as Xcode's test-host or preview process. The launch

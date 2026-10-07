@@ -22,6 +22,7 @@ struct MainWindow: View {
     @AppStorage("startMinimized") private var startMinimized = false
     @State private var windowWidth: CGFloat = Layout.windowMin
     @State private var didApplyStartMinimized = false
+    @State private var openBus = OpenRequestBus.shared
 
     /// No profile configured — the window shows the "No Servers" onboarding
     /// empty state instead of torrent content.
@@ -74,6 +75,11 @@ struct MainWindow: View {
             // server configured — clear any stale count.
             if noServer { NSApp.dockTile.badgeLabel = "" }
         }
+        // Apply (or retry) a pending "open torrent" request from an App Intent.
+        // Retries when the torrent list reloads after a server switch.
+        .task { applyOpenRequest() }
+        .onChange(of: openBus.request) { _, _ in applyOpenRequest() }
+        .onChange(of: store.torrents) { _, _ in applyOpenRequest() }
         .sheet(isPresented: $store.showAddTorrent) {
             AddTorrentSheet(
                 isPresented: $store.showAddTorrent,
@@ -189,6 +195,26 @@ struct MainWindow: View {
             return "The torrents and their downloaded data will be deleted from the server."
         }
         return "The torrents will be removed from the list. Downloaded data stays on the server."
+    }
+
+    /// Applies a pending "open torrent" request from an App Intent: switch to
+    /// the owning server, then select the torrent and reveal the inspector.
+    /// Retries (via the `torrents` change) until the torrent has loaded, which
+    /// matters when the request also switches servers.
+    private func applyOpenRequest() {
+        guard let request = openBus.request else { return }
+
+        if let serverID = request.serverID, profileStore.activeProfile?.id != serverID {
+            try? profileStore.setActive(serverID)
+            return
+        }
+        guard store.torrents.contains(where: { $0.id == request.torrentID }) else { return }
+
+        openBus.request = nil
+        store.searchQuery = ""
+        store.resetFilters()
+        store.selectedTorrentIDs = [request.torrentID]
+        store.inspectorVisible = true
     }
 
     private var serverSwitcherMenu: some View {

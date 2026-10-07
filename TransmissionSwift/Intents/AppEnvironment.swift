@@ -69,6 +69,21 @@ nonisolated final class AppEnvironment: Sendable {
         return loaded.profiles.first
     }
 
+    /// The chosen server plus a usable service, or a user-facing error. Shared
+    /// by the action intents.
+    func requireService(_ server: ServerEntity?) throws -> (
+        profile: ServerProfile, service: any TorrentService
+    ) {
+        guard let profile = resolve(server) else {
+            throw IntentError(
+                message: "No Transmission servers are configured. Add one in TransmissionSwift first.")
+        }
+        guard let service = service(for: profile) else {
+            throw IntentError(message: "The server “\(profile.label)” has an invalid RPC address.")
+        }
+        return (profile, service)
+    }
+
     /// The app's live service when it matches `profile`; otherwise a fresh
     /// factory service. Snapshot replay serves the frozen file, read-only.
     func service(for profile: ServerProfile) -> (any TorrentService)? {
@@ -95,5 +110,13 @@ nonisolated extension AppEnvironment {
 
     static var current: AppEnvironment? {
         box.withLock { $0 }
+    }
+
+    /// `current`, or a user-facing error when the app hasn't registered yet.
+    static func require() throws -> AppEnvironment {
+        guard let environment = current else {
+            throw IntentError(message: "TransmissionSwift isn't ready. Open the app and try again.")
+        }
+        return environment
     }
 }

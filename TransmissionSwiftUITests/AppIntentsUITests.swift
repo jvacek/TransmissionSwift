@@ -78,6 +78,32 @@ final class AppIntentsUITests: XCTestCase {
         XCTAssertEqual(entities.count, 1, "Expected the single snapshot profile")
     }
 
+    /// The torrent picker lists the snapshot's torrents, so torrent-selection
+    /// actions (pause/resume/limits) have real choices.
+    @MainActor
+    func testTorrentEntityQueryListsSnapshotTorrents() async throws {
+        try launchOnSnapshot()
+
+        let definitions = IntentDefinitions(bundleIdentifier: bundleIdentifier)
+        let entities = try await definitions.entities["TorrentEntity"].suggestedEntities()
+        XCTAssertEqual(entities.count, 10, "Expected the 10 fixture torrents")
+    }
+
+    /// Writes are rejected in snapshot replay (`SnapshotTorrentService` throws
+    /// `replayReadOnly`), so a mutating action must fail rather than no-op.
+    @MainActor
+    func testPauseTorrentsRejectedOnReadOnlySnapshot() async throws {
+        try launchOnSnapshot()
+
+        let definitions = IntentDefinitions(bundleIdentifier: bundleIdentifier)
+        do {
+            _ = try await definitions.intents["PauseTorrentsIntent"].makeIntent().run()
+            XCTFail("Snapshot replay is read-only; pausing should have failed")
+        } catch {
+            // Expected: the replay service refuses the mutation.
+        }
+    }
+
     // MARK: - Helpers
 
     @MainActor

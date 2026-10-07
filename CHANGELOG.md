@@ -10,6 +10,19 @@ Please visit the [release page](https://github.com/jvacek/TransmissionSwift/rele
 
 ---
 
+## 0.7.0
+
+7th Oct 2026
+
+- Add App Intents support
+  - Adds support for Shortcuts.app
+    - Get Servers
+    - Get Server Stats
+    - Get Server Free space
+    - Add torrent to server
+  - Allows control from Spotlight and non-AI Siri
+- Fix Favicon cache not being re-used on startup
+
 ## 0.6.4
 
 3rd Oct 2026

@@ -15,16 +15,8 @@ struct GetServerStatsIntent: AppIntent {
     var server: ServerEntity?
 
     func perform() async throws -> some IntentResult & ProvidesDialog & ReturnsValue<String> {
-        guard let environment = AppEnvironment.current else {
-            throw IntentError(message: "TransmissionSwift isn't ready. Open the app and try again.")
-        }
-        guard let profile = environment.resolve(server) else {
-            throw IntentError(
-                message: "No Transmission servers are configured. Add one in TransmissionSwift first.")
-        }
-        guard let service = environment.service(for: profile) else {
-            throw IntentError(message: "The server “\(profile.label)” has an invalid RPC address.")
-        }
+        let environment = try AppEnvironment.require()
+        let (profile, service) = try environment.requireService(server)
 
         // Prefer the daemon's own session-stats; fall back to aggregating the
         // torrent list so replay/snapshot mode (which carries no stats) still

@@ -1,4 +1,5 @@
 import AppIntents
+import CoreSpotlight
 import TransmissionCore
 
 /// One server profile, selectable in Shortcuts. Every TransmissionSwift action
@@ -22,6 +23,15 @@ struct ServerEntity: AppEntity, Identifiable, Hashable, Sendable {
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(title: "\(label)")
+    }
+}
+
+extension ServerEntity: IndexedEntity {
+    var attributeSet: CSSearchableItemAttributeSet {
+        let attributes = CSSearchableItemAttributeSet(contentType: .item)
+        attributes.title = label
+        attributes.keywords = ["Transmission", "server", label]
+        return attributes
     }
 }
 
