@@ -51,6 +51,12 @@ nonisolated final class AppEnvironment: Sendable {
         }
     }
 
+    /// Forgets the recorded service once the app disconnects, so an intent can't
+    /// reuse a connection the app no longer considers live.
+    func clearConnection() {
+        connection.withLock { $0 = nil }
+    }
+
     func profiles() -> (profiles: [ServerProfile], activeProfileID: UUID?) {
         ServerProfileStore.readProfiles(from: profileFileURL)
     }

@@ -52,6 +52,11 @@ struct ContentView: View {
                 torrentStore.resumePolling()
             }
         }
+        // Stop sharing the live service with App Intents once the app drops the
+        // connection; otherwise an intent keeps talking to a dead connection.
+        .onChange(of: torrentStore.connection) { _, new in
+            if case .disconnected = new { AppEnvironment.current?.clearConnection() }
+        }
         .onDisappear { torrentStore.pausePolling() }
         .onAppear {
             if hasAppeared { torrentStore.resumePolling() }
