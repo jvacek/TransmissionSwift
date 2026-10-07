@@ -5,8 +5,7 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    # Weekly, off-peak — the cadence default setup used before this workflow
-    # replaced it.
+    # Weekly, off-peak.
     - cron: "31 4 * * 1"
   workflow_dispatch:
 
@@ -28,10 +27,14 @@ jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
+        # Swift is deliberately excluded: CodeQL's Swift build tracer stalls
+        # ~10 min on SwiftPM's package-resolution step under tracing
+        # (github/codeql#22121), and the analysis reported nothing. Re-add a
+        # `swift` entry with `build-mode: manual` if that changes.
         include:
           - language: actions
             build-mode: none
@@ -39,9 +42,6 @@ jobs:
           - language: python
             build-mode: none
             runner: ubuntu-latest
-          - language: swift
-            build-mode: manual
-            runner: macos-26
     steps:
       - uses: actions/checkout@v7
 
@@ -50,24 +50,6 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-
-      - name: Build Swift packages
-        # Scope: the security-relevant code is in the packages (TransmissionRPC
-        # protocol parsing, TransmissionCore storage/Keychain), not the SwiftUI
-        # layer. One explicit build gives both packages, no Xcode project, and
-        # no remote dependencies to resolve.
-        #
-        # Autobuild can't be used here: it counts an Xcode target's sources
-        # through its per-file build phases, and the app target uses Xcode 16
-        # synchronized file groups, so autobuild sees no app target, falls back
-        # to "some Swift package", and builds only the first one it finds.
-        #
-        # Note: the tracer can still stall for minutes on SwiftPM's
-        # "Resolve Package Graph" step under build tracing (github/codeql#22121).
-        # If that cost is unacceptable, dropping Swift from the matrix is the
-        # only known fix.
-        if: matrix.language == 'swift'
-        run: swift build --package-path Packages/TransmissionCore --arch arm64
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
