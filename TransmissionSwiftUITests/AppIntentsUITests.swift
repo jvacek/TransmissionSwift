@@ -11,7 +11,12 @@
 //  with the same development team, which local ad-hoc builds are not. Set
 //  TEST_RUNNER_TRANSMISSION_APPINTENTS=1 and a DEVELOPMENT_TEAM to run these.
 //
+//  The framework only exists in the macOS 27 SDK / Xcode 27, so the whole file
+//  is compiled out on older toolchains (e.g. a macos-26 CI runner). Runtime
+//  availability is still guarded by @available below.
+//
 
+#if canImport(AppIntentsTesting)
 import AppIntentsTesting
 import XCTest
 
@@ -94,3 +99,4 @@ final class AppIntentsUITests: XCTestCase {
         return candidates.compactMap { $0 }.first { FileManager.default.fileExists(atPath: $0.path) }
     }
 }
+#endif

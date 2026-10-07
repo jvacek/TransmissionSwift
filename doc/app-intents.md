@@ -15,11 +15,17 @@ If you are here to **change or debug an intent**, read
 
 | Action | Status | Parameters | Returns |
 |---|---|---|---|
+| **Get Servers** (`GetServersIntent`) | shipped | — | `[ServerEntity]` |
+| **Add Torrent or Magnet** (`AddTorrentIntent`) | shipped | magnet / file, Server, Add Paused, Destination Folder, Labels, Priority | dialog |
 | **Get Server Stats** (`GetServerStatsIntent`) | shipped | Server (optional) | `String` summary + dialog |
+| **Get Free Space** (`GetFreeSpaceIntent`) | shipped | Server (optional) | `Int` bytes + dialog |
+| **Set Turtle Mode** (`SetTurtleModeIntent`) | shipped | Server, Enabled | dialog |
+| **Set Server Speed Limits** (`SetServerSpeedLimitsIntent`) | shipped | Server, download/upload limit + enable | dialog |
+| **Set Torrent Speed Limits** (`SetTorrentSpeedLimitsIntent`) | shipped | Server, Torrents, download/upload limit + enable | dialog |
 | Server (`ServerEntity`) | shipped | — | entity used by the Server picker |
+| Torrent (`TorrentEntity`) | shipped | — | entity used by the Torrent picker |
 
-Planned but **not implemented** (the rest of the original catalogue): Add Torrent,
-Pause/Resume, Turtle toggle, Get Torrent Stats, per-torrent selection, Siri
+Planned but **not implemented**: Pause/Resume, Get Torrent Stats, and Siri
 phrases (`AppShortcutsProvider`). See [Status / what's left](#status--whats-left).
 
 ---
@@ -225,13 +231,14 @@ var server: ServerEntity?
 
 Adding files under `TransmissionSwift/Intents/` is picked up automatically.
 
-### Per-torrent selection (not built yet)
+### Per-torrent selection
 
-Selecting specific torrents needs a `TorrentEntity` whose query hits
-`service.torrents()` on the *selected* server. The query learns the server via
-`@IntentParameterDependency<Intent>(\.$server)`; because that ties a query to one
-intent, either use a small per-intent query type or a shared resolver. Until then,
-operate on "all torrents on the server".
+`TorrentEntity` / `TorrentEntityQuery` exist; the query learns the selected server
+via `@IntentParameterDependency<SetTorrentSpeedLimitsIntent>(\.$server)`. Because
+that ties a query to one intent, a *different* intent that wants its own torrent
+picker needs its own small query type (delegate to a shared resolver). Today only
+`SetTorrentSpeedLimitsIntent` uses it, and an empty `Torrents` parameter means
+"every torrent on the server".
 
 ---
 
@@ -249,8 +256,13 @@ covers `TransmissionServiceFactory`, `ServerProfileStore.readProfiles`, and the
 
 `TransmissionSwiftUITests/AppIntentsUITests.swift` boots the app on
 `--snapshot` and runs `GetServerStatsIntent` / `ServerEntityQuery` through the
-real App Intents stack (out-of-process, no mocks, no `@testable import`). Requires
-macOS 27 (`@available(macOS 27.0, *)`).
+real App Intents stack (out-of-process, no mocks, no `@testable import`). The
+whole file is wrapped in `#if canImport(AppIntentsTesting)`, so it compiles out on
+toolchains without the framework (the framework ships only in the **macOS 27 SDK /
+Xcode 27**). Runtime availability is additionally guarded by
+`@available(macOS 27.0, *)`. A `macos-26` CI runner is fine — it just skips the
+file. (The framework's dylib is built for 26.4, so the UI test target links with a
+harmless "built for newer version" warning.)
 
 ```bash
 just test-appintents <YOUR_TEAM_ID>     # sets the opt-in env var + DEVELOPMENT_TEAM
@@ -268,6 +280,33 @@ current app install.
 Build, install to `/Applications`, open Shortcuts, add the action, confirm the
 Server dropdown lists profiles with the active one preselected, and run it. This
 is the only way to verify the actual Shortcuts UX.
+
+### 4. CI lane (`app-intents`)
+
+`.github/workflows/ci.yml` has an opt-in `app-intents` job that runs the
+AppIntentsTesting lane on GitHub's Xcode 27 / macOS 27 image
+(`runs-on: xcode-27`, arm64 only). It is **skipped unless the repository variable
+`APP_INTENTS_CI` is `1`**, so PRs and forks without the signing setup stay green.
+
+Everything below is required — App Intents reject an unsigned (ad-hoc) app with
+`Code=800`, so there is no signing-free shortcut:
+
+- **Runner:** `xcode-27` (the macOS 27 SDK is the only place `AppIntentsTesting`
+  exists).
+- **Repository variable:** `APP_INTENTS_CI=1` to enable the job.
+- **Secrets:** `APP_INTENTS_CERT_P12_BASE64`, `APP_INTENTS_CERT_PASSWORD`,
+  `APP_INTENTS_KEYCHAIN_PASSWORD` — a base64-encoded Apple Development `.p12`
+  (with its private key) and its password.
+- **Team id:** set inline as `DEVELOPMENT_TEAM` in the job; keep it in sync with
+  the certificate.
+- The job passes `-allowProvisioningUpdates` so Xcode can fetch the profile the
+  app-groups entitlement needs. If signing still fails, add an App Store Connect
+  API key and pass `-authenticationKeyPath` / `-authenticationKeyID` /
+  `-authenticationKeyIssuerID`.
+
+To produce the `.p12`: Xcode → Settings → Accounts → Manage Certificates (Apple
+Development), or Keychain Access → export the identity. Without a certificate you
+cannot run this lane anywhere — not locally and not in CI.
 
 ### The opt-in environment-variable convention (important)
 
@@ -293,6 +332,7 @@ prefixed form in test code; only the shell/justfile sets the prefixed name.)
 | AppIntentsTesting: `AppIntentsServicesSecurityErrorDomain Code=800 "Your app does not have permission to perform this."` | Same root cause: no signing team. | Set `DEVELOPMENT_TEAM` on the Debug app + UI test targets (needs a `Mac Development` cert). |
 | AppIntentsTesting: `AppIntentsServicesMetadataErrorDomain … "<bundle id> is not present"` | The system resolved the bundle id to a copy without intent metadata (e.g. a stale `/Applications` app), or nothing registered yet. | Ensure the current build is the installed one; run it once; `lsregister -gc` to drop stale copies. |
 | Opt-in test **silently skips** | Reading `TEST_RUNNER_<X>` instead of the stripped `<X>` in test code. | Read the stripped name; keep the prefix only in the shell/justfile. |
+| CI: `Unable to resolve module dependency: 'AppIntentsTesting'` | CI Xcode/SDK predates macOS 27 — the framework only exists in Xcode 27. | Keep the test file `#if canImport(AppIntentsTesting)`-guarded (compiles out), or bump the runner to a macOS 27 image if you want CI to compile it. |
 | Intent appears in Shortcuts but does nothing / errors immediately | `AppEnvironment.current` is nil, no profiles, or `service(for:)` returned nil. | Check the thrown `IntentError` message; verify `register` runs in `App.init` and a profile exists. |
 | "main actor-isolated … cannot be called from outside of the actor" | Target default isolation is MainActor; a helper called from a `nonisolated` intent member isn't. | Mark the helper `nonisolated`. |
 
@@ -316,8 +356,10 @@ security find-identity -v -p codesigning                       # is there a usab
 - **One install per bundle id.** `jvacek.TransmissionSwift` should resolve to a
   single, current app (ideally in `/Applications`). DerivedData, temp, and trash
   copies all register under the same id and confuse resolution.
-- **`AppIntentsTesting` needs macOS 27** and a UI Testing bundle signed with the
-  same team. The app itself still targets macOS 26.
+- **`AppIntentsTesting` needs the macOS 27 SDK (Xcode 27)** and a UI Testing
+  bundle signed with the same team. The file is `#if canImport`-guarded, so older
+  toolchains (e.g. a `macos-26` CI runner) compile it out instead of failing. The
+  app itself still targets macOS 26.
 - **Sandbox is fine.** Intents run in the app's sandbox:
   `com.apple.security.network.client` covers RPC; Keychain and the container
   `Application Support` are the same as in-app.
