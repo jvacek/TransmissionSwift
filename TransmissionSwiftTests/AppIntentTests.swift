@@ -140,7 +140,7 @@ struct AppIntentTests {
         let harness = try makeHarness()
         defer { cleanup(harness) }
 
-        var intent = PauseTorrentsIntent()
+        let intent = PauseTorrentsIntent()
         intent.torrents = []
         _ = try await intent.perform()
 
@@ -156,7 +156,7 @@ struct AppIntentTests {
         let before = try await harness.service.torrents()
         let paused = try #require(before.first { $0.status == .paused })
 
-        var intent = ResumeTorrentsIntent()
+        let intent = ResumeTorrentsIntent()
         intent.torrents = [
             TorrentEntity(torrent: paused, serverID: harness.profile.id.uuidString)
         ]
@@ -171,7 +171,7 @@ struct AppIntentTests {
         defer { cleanup(harness) }
 
         let target = try #require(try await harness.service.torrents().first { $0.status != .checking })
-        var intent = VerifyTorrentsIntent()
+        let intent = VerifyTorrentsIntent()
         intent.torrents = [
             TorrentEntity(torrent: target, serverID: harness.profile.id.uuidString)
         ]
@@ -186,7 +186,7 @@ struct AppIntentTests {
         defer { cleanup(harness) }
 
         let target = try #require(try await harness.service.torrents().first { !$0.trackers.isEmpty })
-        var intent = ReannounceTorrentsIntent()
+        let intent = ReannounceTorrentsIntent()
         intent.torrents = [
             TorrentEntity(torrent: target, serverID: harness.profile.id.uuidString)
         ]
@@ -202,7 +202,7 @@ struct AppIntentTests {
         let harness = try makeHarness()
         defer { cleanup(harness) }
 
-        var intent = SetTurtleModeIntent()
+        let intent = SetTurtleModeIntent()
         intent.enabled = true
         _ = try await intent.perform()
 
@@ -213,7 +213,7 @@ struct AppIntentTests {
         let harness = try makeHarness()
         defer { cleanup(harness) }
 
-        var intent = SetServerSpeedLimitsIntent()
+        let intent = SetServerSpeedLimitsIntent()
         intent.downloadLimited = true
         intent.downloadLimitKBps = 321
         _ = try await intent.perform()
@@ -227,7 +227,7 @@ struct AppIntentTests {
         let harness = try makeHarness()
         defer { cleanup(harness) }
 
-        var intent = SetServerSpeedLimitsIntent()
+        let intent = SetServerSpeedLimitsIntent()
         await #expect(throws: IntentError.self) { _ = try await intent.perform() }
     }
 
@@ -236,7 +236,7 @@ struct AppIntentTests {
         defer { cleanup(harness) }
 
         let target = try #require(try await harness.service.torrents().first)
-        var intent = SetTorrentSpeedLimitsIntent()
+        let intent = SetTorrentSpeedLimitsIntent()
         intent.torrents = [
             TorrentEntity(torrent: target, serverID: harness.profile.id.uuidString)
         ]
@@ -257,7 +257,7 @@ struct AppIntentTests {
         defer { cleanup(harness) }
 
         let before = try await harness.service.torrents().count
-        var intent = AddTorrentIntent()
+        let intent = AddTorrentIntent()
         intent.magnet = URL(string: "magnet:?xt=urn:btih:abc&dn=My%20Torrent")
         _ = try await intent.perform()
 
@@ -270,7 +270,7 @@ struct AppIntentTests {
         let harness = try makeHarness()
         defer { cleanup(harness) }
 
-        var intent = AddTorrentIntent()
+        let intent = AddTorrentIntent()
         await #expect(throws: IntentError.self) { _ = try await intent.perform() }
     }
 
@@ -284,7 +284,7 @@ struct AppIntentTests {
         defer { OpenRequestBus.shared.request = nil }
 
         let torrent = try #require(try await harness.service.torrents().first)
-        var intent = OpenTorrentIntent()
+        let intent = OpenTorrentIntent()
         intent.target = TorrentEntity(torrent: torrent, serverID: harness.profile.id.uuidString)
         _ = try await intent.perform()
 
@@ -297,7 +297,7 @@ struct AppIntentTests {
         let harness = try makeHarness()
         defer { cleanup(harness) }
 
-        var intent = GetTorrentStatsIntent()
+        let intent = GetTorrentStatsIntent()
         _ = try await intent.perform()
     }
 }

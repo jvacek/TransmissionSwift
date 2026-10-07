@@ -5,7 +5,7 @@ import TransmissionCore
 /// source of truth for what a row "displays": the row-level poll guard compares
 /// `[TorrentRowDisplay]`, and `TorrentCellContent.make` reads from it — so the
 /// guarded fields and the rendered fields can never drift apart.
-struct TorrentRowDisplay: Equatable {
+nonisolated struct TorrentRowDisplay: Equatable {
     let torrent: Torrent
 
     var id: Torrent.ID { torrent.id }
