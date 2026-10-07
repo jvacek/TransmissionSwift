@@ -302,7 +302,7 @@ Three layers, from cheapest to most real:
 covers `TransmissionServiceFactory`, `ServerProfileStore.readProfiles`, and the
 `RPCTorrentService` cold-cache fix. `just test-core` / `just check`.
 
-### 2. AppIntentsTesting (real, but needs signing — opt-in)
+### 2. AppIntentsTesting (real, but needs signing — signing-gated)
 
 `TransmissionSwiftUITests/AppIntentsUITests.swift` boots the app on
 `--snapshot` and runs `GetServerStatsIntent` / `ServerEntityQuery` through the
@@ -315,7 +315,7 @@ file. (The framework's dylib is built for 26.4, so the UI test target links with
 harmless "built for newer version" warning.)
 
 ```bash
-just test-appintents <YOUR_TEAM_ID>     # sets the opt-in env var + DEVELOPMENT_TEAM
+just test-appintents <YOUR_TEAM_ID>     # sets the signing guard env var + DEVELOPMENT_TEAM
 ```
 
 Determinism comes from `AppEnvironment`: in `--snapshot` mode the intents resolve
@@ -331,19 +331,20 @@ Build, install to `/Applications`, open Shortcuts, add the action, confirm the
 Server dropdown lists profiles with the active one preselected, and run it. This
 is the only way to verify the actual Shortcuts UX.
 
-### 4. CI lane (`app-intents`)
+### 4. CI lane (the `App Intents tests` step)
 
-`.github/workflows/ci.yml` has an opt-in `app-intents` job that runs the
-AppIntentsTesting lane on GitHub's Xcode 27 / macOS 27 image
-(`runs-on: xcode-27`, arm64 only). It is **skipped unless the repository variable
-`APP_INTENTS_CI` is `1`**, so PRs and forks without the signing setup stay green.
+`.github/workflows/ci.yml` runs the AppIntentsTesting lane in the `App Intents
+tests` step of the `build-app` job, on the `xcode-27` leg (macOS 27 image, arm64
+only). It **always runs on that leg** — no repository variable or manual opt-in.
+The release pipeline does not run it. It is enforced on main pushes; PRs run it
+too, and the whole `xcode-27` leg is `continue-on-error` on `pull_request` only
+because that image is a public preview.
 
 Everything below is required — App Intents reject an unsigned (ad-hoc) app with
 `Code=800`, so there is no signing-free shortcut:
 
 - **Runner:** `xcode-27` (the macOS 27 SDK is the only place `AppIntentsTesting`
   exists).
-- **Repository variable:** `APP_INTENTS_CI=1` to enable the job.
 - **Secrets:** `APP_INTENTS_CERT_P12_BASE64`, `APP_INTENTS_CERT_PASSWORD`,
   `APP_INTENTS_KEYCHAIN_PASSWORD` — a base64-encoded Apple Development `.p12`
   (with its private key) and its password.
@@ -375,7 +376,7 @@ cannot run this lane anywhere — not locally and not in CI.
   tests can't read an `AppIntent`'s opaque result. Headless intents resolve via
   `AppEnvironment`, so `AppIntentTests` covers them with a `MockTorrentService`.
 
-### The opt-in environment-variable convention (important)
+### The signing-gate environment-variable convention (important)
 
 `xcodebuild` forwards shell environment variables prefixed `TEST_RUNNER_` to the
 test runner **with the prefix stripped**. So:
@@ -386,7 +387,7 @@ runner: ProcessInfo.processInfo.environment["TRANSMISSION_APPINTENTS"] == "1"
 ```
 
 Tests must read the **stripped** name. (This was previously wrong here, which
-silently skipped both opt-in lanes for a long time. Do not reintroduce the
+silently skipped both signed lanes for a long time. Do not reintroduce the
 prefixed form in test code; only the shell/justfile sets the prefixed name.)
 
 ---
@@ -399,7 +400,7 @@ prefixed form in test code; only the shell/justfile sets the prefixed name.)
 | Shortcuts: server picker empty / **"No Transmission servers are configured"** in a *downloaded* build, while the app shows profiles | The released app is ad-hoc signed (no `TeamIdentifier`), so App Intents can't reach it (`AppIntentsServicesSecurityErrorDomain Code=800`); the app's own profiles are invisible to Shortcuts. | Team-sign the release. The pipeline now signs with the Apple Development cert and `verify_artifact` fails on ad-hoc zips. |
 | AppIntentsTesting: `AppIntentsServicesSecurityErrorDomain Code=800 "Your app does not have permission to perform this."` | Same root cause: no signing team. | Set `DEVELOPMENT_TEAM` on the Debug app + UI test targets (needs a `Mac Development` cert). |
 | AppIntentsTesting: `AppIntentsServicesMetadataErrorDomain … "<bundle id> is not present"` | The system resolved the bundle id to a copy without intent metadata (e.g. a stale `/Applications` app), or nothing registered yet. | Ensure the current build is the installed one; run it once; `lsregister -gc` to drop stale copies. |
-| Opt-in test **silently skips** | Reading `TEST_RUNNER_<X>` instead of the stripped `<X>` in test code. | Read the stripped name; keep the prefix only in the shell/justfile. |
+| Signing-gated test **silently skips** | Reading `TEST_RUNNER_<X>` instead of the stripped `<X>` in test code. | Read the stripped name; keep the prefix only in the shell/justfile. |
 | CI: `Unable to resolve module dependency: 'AppIntentsTesting'` | CI Xcode/SDK predates macOS 27 — the framework only exists in Xcode 27. | Keep the test file `#if canImport(AppIntentsTesting)`-guarded (compiles out), or bump the runner to a macOS 27 image if you want CI to compile it. |
 | Intent appears in Shortcuts but does nothing / errors immediately | `AppEnvironment.current` is nil, no profiles, or `service(for:)` returned nil. | Check the thrown `IntentError` message; verify `register` runs in `App.init` and a profile exists. |
 | "main actor-isolated … cannot be called from outside of the actor" | Target default isolation is MainActor; a helper called from a `nonisolated` intent member isn't. | Mark the helper `nonisolated`. |

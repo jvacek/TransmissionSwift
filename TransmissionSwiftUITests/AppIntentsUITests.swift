@@ -7,8 +7,8 @@
 //  intents execute through the real App Intents stack — no mocks, no
 //  `@testable import`. See `doc/app-intents.md`.
 //
-//  Opt-in: AppIntentsTesting requires the app and the test runner to be signed
-//  with the same development team, which local ad-hoc builds are not. Set
+//  Signing-gated: AppIntentsTesting requires the app and the test runner to be
+//  signed with the same development team, which local ad-hoc builds are not. Set
 //  TEST_RUNNER_TRANSMISSION_APPINTENTS=1 and a DEVELOPMENT_TEAM to run these.
 //
 //  The framework only exists in the macOS 27 SDK / Xcode 27, so the whole file

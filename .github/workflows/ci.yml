@@ -102,9 +102,10 @@ jobs:
             build | xcbeautify --renderer github-actions
 
       - name: Import signing certificate
-        # Only on the xcode-27 leg with the App Intents lane enabled, so the
-        # UI-test build below is signed and the intents tests can run.
-        if: matrix.os == 'xcode-27' && vars.APP_INTENTS_CI == '1'
+        # App Intents reject an unsigned (ad-hoc) app, so the xcode-27 UI-test
+        # build must carry a team identity for the AppIntentsTests to run.
+        # xcode-27 is the only leg whose SDK ships the AppIntentsTesting framework.
+        if: matrix.os == 'xcode-27'
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.APP_INTENTS_CERT_P12_BASE64 }}
           P12_PASSWORD: ${{ secrets.APP_INTENTS_CERT_PASSWORD }}
@@ -124,8 +125,9 @@ jobs:
 
       - name: Test
         env:
-          # Sign the build only when the certificate was imported above.
-          SIGNING_ARGS: ${{ matrix.os == 'xcode-27' && vars.APP_INTENTS_CI == '1' && '-allowProvisioningUpdates DEVELOPMENT_TEAM=JK45236K44' || '' }}
+          # The app and the UI-test runner must share a team for the App Intents
+          # suite; xcode-27 is the only leg that runs it.
+          SIGNING_ARGS: ${{ matrix.os == 'xcode-27' && '-allowProvisioningUpdates DEVELOPMENT_TEAM=JK45236K44' || '' }}
         run: |
           set -o pipefail
           # shellcheck disable=SC2086  # SIGNING_ARGS is intentionally word-split.
@@ -141,10 +143,10 @@ jobs:
         # instead of a separate job rebuilding the app. The runner has no
         # TRANSMISSION_APPINTENTS env in the Test step, so the suite skips these
         # there; this step sets it and runs just the AppIntentsTests.
-        # Non-blocking in CI — the lane is enforced on the stable-release path
-        # (release-pipeline.yml).
-        if: matrix.os == 'xcode-27' && vars.APP_INTENTS_CI == '1'
-        continue-on-error: true
+        # Enforced on every main push; on PRs the whole xcode-27 leg stays
+        # non-blocking because that image is a public preview (see the job-level
+        # continue-on-error above).
+        if: matrix.os == 'xcode-27'
         env:
           # xcodebuild strips the TEST_RUNNER_ prefix when forwarding to the
           # runner, which reads TRANSMISSION_APPINTENTS.
