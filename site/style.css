@@ -195,6 +195,39 @@ details.faq p { margin: 0 0 1rem; }
 }
 .callout p:last-child { margin: 0; }
 
+/* Numbered steps (download page) ---------------------------------------- */
+.prose .steps {
+  list-style: none;
+  counter-reset: step;
+  padding: 0;
+  margin: 1.75rem 0;
+}
+.prose .steps > li {
+  counter-increment: step;
+  position: relative;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.15rem 1.25rem 1.15rem 3.6rem;
+  margin: 0 0 0.9rem;
+}
+.prose .steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 1.15rem;
+  top: 1.1rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+.prose .steps > li img { display: block; margin: 0.85rem 0 0; }
+
 .crumbs { font-size: 0.85rem; color: var(--dim); margin: 1.5rem 0 0; }
 .crumbs a { color: var(--dim); }
 
