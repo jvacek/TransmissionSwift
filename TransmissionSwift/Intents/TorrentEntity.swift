@@ -3,24 +3,49 @@ import CoreSpotlight
 import TransmissionCore
 
 /// One torrent on a server, selectable in Shortcuts and indexable in Spotlight.
+/// The `@Property` fields are what a shortcut can chain out of the list — the
+/// entity's `id` is the daemon's torrent id and is the value other actions take.
 struct TorrentEntity: AppEntity, Identifiable, Hashable, Sendable {
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Torrent")
     static let defaultQuery = TorrentEntityQuery()
 
     let id: String
-    let name: String
     /// The owning profile's UUID string, carried so `OpenTorrentIntent` can switch
     /// to the right server.
     let serverID: String
 
-    init(id: String, name: String, serverID: String) {
-        self.id = id
-        self.name = name
-        self.serverID = serverID
-    }
+    @Property(title: "Name") var name: String
+    @Property(title: "Status") var status: String
+    @Property(title: "Progress (%)") var progressPercent: Int
+    @Property(title: "Size (bytes)") var size: Int
+    @Property(title: "Download Speed (bytes/s)") var downloadSpeed: Int
+    @Property(title: "Upload Speed (bytes/s)") var uploadSpeed: Int
+    @Property(title: "Ratio") var ratio: Double
+    @Property(title: "Labels") var labels: String
+    @Property(title: "Tracker") var tracker: String
 
     init(torrent: Torrent, serverID: String) {
-        self.init(id: String(torrent.id), name: torrent.name, serverID: serverID)
+        self.id = String(torrent.id)
+        self.serverID = serverID
+        name = torrent.name
+        status = torrent.status.rawValue.capitalized
+        progressPercent = Int((torrent.progress * 100).rounded())
+        size = Int(torrent.size)
+        downloadSpeed = Int(torrent.downloadSpeed)
+        uploadSpeed = Int(torrent.uploadSpeed)
+        ratio = torrent.ratio
+        labels = torrent.labels.joined(separator: ", ")
+        tracker = torrent.primaryTracker
+    }
+
+    // `@Property` wrappers aren't `Hashable`, so identity is explicit.
+    static func == (lhs: TorrentEntity, rhs: TorrentEntity) -> Bool {
+        lhs.id == rhs.id && lhs.serverID == rhs.serverID
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(serverID)
     }
 
     var displayRepresentation: DisplayRepresentation {
