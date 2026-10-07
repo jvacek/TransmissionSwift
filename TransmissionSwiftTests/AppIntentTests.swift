@@ -377,6 +377,20 @@ struct AppIntentTests {
                 == OpenRequest(serverID: harness.profile.id, torrentID: torrent.id))
     }
 
+    @Test func openRequestExpiresIfNeverSatisfied() {
+        let bus = OpenRequestBus.shared
+        let saved = bus.request
+        defer { bus.request = saved }
+
+        bus.request = OpenRequest(serverID: UUID(), torrentID: 7)
+        #expect(bus.pending() != nil)
+
+        // A request whose torrent never loads is dropped once its window passes,
+        // instead of firing on a much later poll.
+        #expect(bus.pending(now: Date().addingTimeInterval(3600)) == nil)
+        #expect(bus.request == nil)
+    }
+
     @Test func getTorrentStatsRunsAgainstService() async throws {
         let harness = try makeHarness()
         defer { cleanup(harness) }

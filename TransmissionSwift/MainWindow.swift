@@ -200,9 +200,10 @@ struct MainWindow: View {
     /// Applies a pending "open torrent" request from an App Intent: switch to
     /// the owning server, then select the torrent and reveal the inspector.
     /// Retries (via the `torrents` change) until the torrent has loaded, which
-    /// matters when the request also switches servers.
+    /// matters when the request also switches servers; `OpenRequestBus` drops a
+    /// request that never becomes satisfiable.
     private func applyOpenRequest() {
-        guard let request = openBus.request else { return }
+        guard let request = openBus.pending() else { return }
 
         if let serverID = request.serverID, profileStore.activeProfile?.id != serverID {
             try? profileStore.setActive(serverID)

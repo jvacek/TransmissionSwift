@@ -13,6 +13,26 @@ struct OpenRequest: Equatable, Sendable {
 @Observable
 final class OpenRequestBus {
     static let shared = OpenRequestBus()
-    var request: OpenRequest?
+
+    /// How long a request stays pending before it's dropped. It only has to
+    /// outlive the server switch plus one poll.
+    private static let timeToLive: TimeInterval = 30
+
+    var request: OpenRequest? {
+        didSet { expiresAt = request.map { _ in Date().addingTimeInterval(Self.timeToLive) } }
+    }
+    private var expiresAt: Date?
+
+    /// The pending request, or nil once it has aged out. A request whose torrent
+    /// never appears is dropped rather than lingering to fire on a later poll.
+    func pending(now: Date = Date()) -> OpenRequest? {
+        guard let request else { return nil }
+        guard let expiresAt, now < expiresAt else {
+            self.request = nil
+            return nil
+        }
+        return request
+    }
+
     private init() {}
 }
