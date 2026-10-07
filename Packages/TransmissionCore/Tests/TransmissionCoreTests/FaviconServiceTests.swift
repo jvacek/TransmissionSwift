@@ -170,6 +170,32 @@ struct FaviconServiceTests {
         #expect(!TestStubURLProtocol.requested("/favicon.ico"))
     }
 
+    @Test("Reads the disk cache from a fresh service instance (survives restart)")
+    func cacheSurvivesRestart() async {
+        TestStubURLProtocol.reset()
+        TestStubURLProtocol.register(path: "/") { req in
+            (self.response(req.url!, 404), Data())
+        }
+        TestStubURLProtocol.register(path: "/favicon.ico") { _ in
+            (
+                self.response(URL(string: "https://example.com/favicon.ico")!, 200, ["Content-Type": "image/x-icon"]),
+                self.png
+            )
+        }
+
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("favicon-restart-\(UUID().uuidString)")
+        let first = FaviconService(cacheDirectory: dir, session: session)
+        _ = await first.icon(for: "example.com")
+
+        TestStubURLProtocol.reset()
+        let second = FaviconService(cacheDirectory: dir, session: TestStubURLProtocol.makeSession())
+        let cached = await second.icon(for: "example.com")
+
+        #expect(cached == png)
+        #expect(!TestStubURLProtocol.requested("/favicon.ico"))
+    }
+
     @Test("Returns cached data on a 304 revalidation")
     func revalidation304() async {
         TestStubURLProtocol.reset()

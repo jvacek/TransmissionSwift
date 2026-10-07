@@ -81,10 +81,10 @@ final class FaviconStore {
 
     func image(for host: String) -> NSImage? { images[host] }
 
-    /// Fetch favicons for the given tracker hosts. Already-cached hosts are
-    /// skipped unless `forceRevalidate` is set (used on app launch to check
-    /// for updates). Runs entirely off the main thread; images are published
-    /// as they arrive.
+    /// Fetch favicons for the given tracker hosts. Hosts already in memory are
+    /// skipped unless `forceRevalidate` is set. Runs entirely off the main
+    /// thread; images are published as they arrive, served from the disk cache
+    /// when fresh.
     func refresh(hosts: [String], forceRevalidate: Bool = false) async {
         guard enabled else { return }
         guard !isRefreshing else { return }
@@ -118,6 +118,6 @@ final class FaviconStore {
 
     func startupRefresh(hosts: [String]) async {
         logger.info("Startup favicon refresh for \(hosts.count) hosts: \(hosts, privacy: .public)")
-        await refresh(hosts: hosts, forceRevalidate: true)
+        await refresh(hosts: hosts)
     }
 }
