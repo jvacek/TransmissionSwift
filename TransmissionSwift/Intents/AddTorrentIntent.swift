@@ -39,6 +39,11 @@ struct AddTorrentIntent: AppIntent {
         let environment = try AppEnvironment.require()
         let (profile, service) = try environment.requireService(server)
 
+        // A file payload is spooled into a unique temp directory so a crafted
+        // `filename` can't escape it, and removed when `perform` returns.
+        var stagedDirectory: URL?
+        defer { if let stagedDirectory { try? FileManager.default.removeItem(at: stagedDirectory) } }
+
         let magnetURL: String?
         let fileURL: URL?
         let what: String
@@ -48,12 +53,16 @@ struct AddTorrentIntent: AppIntent {
             fileURL = nil
             what = "magnet link"
         case (nil, let data?):
-            let url = FileManager.default.temporaryDirectory
-                .appendingPathComponent(data.filename.isEmpty ? "upload.torrent" : data.filename)
+            let directory = FileManager.default.temporaryDirectory
+                .appendingPathComponent("TransmissionSwift-Intent-\(UUID().uuidString)", isDirectory: true)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            stagedDirectory = directory
+            let name = (data.filename as NSString).lastPathComponent
+            let url = directory.appendingPathComponent(name.isEmpty ? "upload.torrent" : name)
             try data.data.write(to: url, options: .atomic)
             magnetURL = nil
             fileURL = url
-            what = data.filename
+            what = name.isEmpty ? "torrent file" : name
         default:
             throw IntentError(message: "Provide exactly one of a magnet link or a torrent file.")
         }
