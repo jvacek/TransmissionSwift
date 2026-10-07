@@ -192,6 +192,31 @@ jobs:
             $BUILD_EXTRA_FLAGS \
             build | xcbeautify --renderer github-actions
 
+      - name: Upload dSYMs to Sentry
+        # Best-effort: add the SENTRY_AUTH_TOKEN secret to enable it; without it
+        # the crash backend stays empty and the release proceeds. Upload before
+        # signing so the dSYM is the one the compiler produced; symbolication
+        # matches by build version. The DSN itself is baked into the app's
+        # Release build settings, so no DSN is needed here.
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: flamerelay
+          SENTRY_PROJECT: transmissionswift
+          SENTRY_URL: https://us.sentry.io
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SENTRY_AUTH_TOKEN:-}" ]; then
+            echo "SENTRY_AUTH_TOKEN not set; skipping dSYM upload."
+            exit 0
+          fi
+
+          brew install getsentry/tools/sentry-cli
+          dSYM="build/DerivedData/Build/Products/Release/TransmissionSwift.app.dSYM"
+          sentry-cli releases new "$RELEASE_BUILD_VERSION"
+          sentry-cli debug-files upload "$dSYM"
+          sentry-cli releases finalize "$RELEASE_BUILD_VERSION"
+
       - name: Sign, thin and zip bundles
         run: |
           set -euo pipefail

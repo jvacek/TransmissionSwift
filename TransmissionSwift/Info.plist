@@ -53,6 +53,10 @@
 			</dict>
 		</dict>
 	</array>
+	<!-- Opt-in crash reporting. Filled from the SENTRY_DSN build setting at
+	     build time; an empty value leaves the SDK off. See CrashReporting.swift. -->
+	<key>SentryDSN</key>
+	<string>$(SENTRY_DSN)</string>
 	<!-- Sparkle auto-update settings -->
 	<key>SUFeedURL</key>
 	<string>https://jvacek.github.io/TransmissionSwift/appcast.xml</string>

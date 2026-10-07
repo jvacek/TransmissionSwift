@@ -10,6 +10,7 @@
 		FE1C71C52FD9E5AC009C9EED /* TransmissionRPC in Frameworks */ = {isa = PBXBuildFile; productRef = FE1C71C32FD9E5AC009C9EED /* TransmissionRPC */; };
 		FE1C71C62FD9E5AC009C9EED /* TransmissionCore in Frameworks */ = {isa = PBXBuildFile; productRef = FE1C71C42FD9E5AC009C9EED /* TransmissionCore */; };
 		FE1C71D22FD9E5AC009C9EEE /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = FE1C71D12FD9E5AC009C9EEE /* Sparkle */; };
+		FE1C71E22FD9E5AC009C9F01 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FE1C71E12FD9E5AC009C9F01 /* Sentry */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -74,6 +75,7 @@
 				FE1C71C52FD9E5AC009C9EED /* TransmissionRPC in Frameworks */,
 				FE1C71C62FD9E5AC009C9EED /* TransmissionCore in Frameworks */,
 				FE1C71D22FD9E5AC009C9EEE /* Sparkle in Frameworks */,
+				FE1C71E22FD9E5AC009C9F01 /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -137,6 +139,7 @@
 				FE1C71C32FD9E5AC009C9EED /* TransmissionRPC */,
 				FE1C71C42FD9E5AC009C9EED /* TransmissionCore */,
 				FE1C71D12FD9E5AC009C9EEE /* Sparkle */,
+				FE1C71E12FD9E5AC009C9F01 /* Sentry */,
 			);
 			productName = TransmissionSwift;
 			productReference = FE1C718D2FD9E5A9009C9EED /* TransmissionSwift.app */;
@@ -224,6 +227,7 @@
 				FE1C71C12FD9E5AC009C9EED /* XCLocalSwiftPackageReference "Packages/TransmissionRPC" */,
 				FE1C71C22FD9E5AC009C9EED /* XCLocalSwiftPackageReference "Packages/TransmissionCore" */,
 				FE1C71D02FD9E5AC009C9EEE /* XCRemoteSwiftPackageReference "Sparkle" */,
+				FE1C71E02FD9E5AC009C9F01 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = FE1C718E2FD9E5A9009C9EED /* Products */;
@@ -613,6 +617,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = jvacek.TransmissionSwift;
+				SENTRY_DSN = "https://181e9fedebd16be6fe48de2ad82a865c@o4505142632513536.ingest.us.sentry.io/4512215176904704";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -661,6 +666,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = jvacek.TransmissionSwift;
+				SENTRY_DSN = "https://181e9fedebd16be6fe48de2ad82a865c@o4505142632513536.ingest.us.sentry.io/4512215176904704";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -819,6 +825,14 @@
 				minimumVersion = 2.8.0;
 			};
 		};
+		FE1C71E02FD9E5AC009C9F01 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.30.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -834,6 +848,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = FE1C71D02FD9E5AC009C9EEE /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
+		};
+		FE1C71E12FD9E5AC009C9F01 /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FE1C71E02FD9E5AC009C9F01 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

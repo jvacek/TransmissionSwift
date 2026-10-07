@@ -7,6 +7,7 @@ struct GeneralPrefsPane: View {
     @AppStorage("startMinimized") private var startMinimized = false
     @AppStorage("badgeAppIcon") private var badgeAppIcon = false
     @AppStorage("confirmRemove") private var confirmRemove = true
+    @AppStorage("sendCrashReports") private var sendCrashReports = false
     @AppStorage("pollingIntervalSeconds") private var pollingInterval: Double = 5.0
     @AppStorage("freeSpaceIntervalSeconds") private var freeSpaceInterval: Double = 60.0
     @AppStorage("fetchTrackerFavicons") private var fetchFavicons = true
@@ -52,6 +53,16 @@ struct GeneralPrefsPane: View {
                 Toggle("Badge app icon with active count", isOn: $badgeAppIcon)
                 Toggle("Start minimized", isOn: $startMinimized)
                 Toggle("Confirm before removing", isOn: $confirmRemove)
+            }
+            Section {
+                Toggle("Send anonymous crash reports", isOn: $sendCrashReports)
+                    .onChange(of: sendCrashReports) { _, newValue in
+                        CrashReporting.setConsent(enabled: newValue)
+                    }
+            } header: {
+                Text("Diagnostics")
+            } footer: {
+                Text("Crash reports help fix bugs. \(CrashReporting.privacySummary) Off by default.")
             }
         }
         .formStyle(.grouped)

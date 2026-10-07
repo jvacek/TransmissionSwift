@@ -17,6 +17,7 @@ struct TransmissionSwiftApp: App {
     @State private var faviconStore = FaviconStore()
     @State private var tagColorStore: TagColorStore
     private let snapshotPath: String?
+    private let disableOnboarding: Bool
     private let updateService = UpdateService()
 
     init() {
@@ -26,12 +27,30 @@ struct TransmissionSwiftApp: App {
             "deleteTorrentFileAfterAdding": false,
             "confirmRemove": true,
             "badgeAppIcon": false,
+            "sendCrashReports": false,
         ])
         #if PRERELEASE
         UserDefaults.standard.register(defaults: ["includePrereleases": true])
         #endif
 
         let args = CommandLine.arguments
+
+        // Start opt-in crash reporting as early as possible so launch-time
+        // crashes are captured; inert until a DSN and the user preference exist.
+        CrashReporting.apply()
+
+        // Debug-only crash-reporting verification (see CrashReporting): the
+        // first flag crashes after startup, the second only boots the SDK so a
+        // previously captured crash uploads. Neither persists anything.
+        #if DEBUG
+        if args.contains("--crash-test") {
+            CrashReporting.startForTesting()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { CrashReporting.crashForTesting() }
+        } else if args.contains("--crash-test-send") {
+            CrashReporting.startForTesting()
+        }
+        #endif
+
         let snapshotPath = Self.parseSnapshotPath(from: args)
         self.snapshotPath = snapshotPath
 
@@ -39,6 +58,10 @@ struct TransmissionSwiftApp: App {
         // Snapshot replay implies ephemeral profiles so the synthetic
         // "Snapshot — <name>" profile never lands in the real servers.json.
         let ephemeral = args.contains("--ephemeral-profiles") || snapshotPath != nil
+        // Snapshot replay, ephemeral test profiles and the crash-test hooks are
+        // non-interactive: never interrupt them with the first-run consent splash.
+        self.disableOnboarding =
+            ephemeral || args.contains("--crash-test") || args.contains("--crash-test-send")
         let profileURL: URL
         if ephemeral {
             profileURL = FileManager.default.temporaryDirectory
@@ -111,7 +134,7 @@ struct TransmissionSwiftApp: App {
 
     var body: some Scene {
         Window("TransmissionSwift", id: "main") {
-            ContentView(snapshotMode: snapshotPath != nil)
+            ContentView(snapshotMode: snapshotPath != nil, disableOnboarding: disableOnboarding)
                 .environment(profileStore)
                 .environment(torrentStore)
                 .environment(faviconStore)
