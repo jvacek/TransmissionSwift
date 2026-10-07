@@ -104,16 +104,47 @@ struct AppIntentTests {
         let harness = try makeHarness()
         defer { cleanup(harness) }
 
-        let all = await TorrentCatalog.targets(nil, service: harness.service)
+        let all = try await TorrentCatalog.targets(
+            nil, profile: harness.profile, service: harness.service)
         #expect(all.count == MockFixtures.torrents().count)
 
-        let empty = await TorrentCatalog.targets([], service: harness.service)
+        let empty = try await TorrentCatalog.targets(
+            [], profile: harness.profile, service: harness.service)
         #expect(empty.count == all.count)
 
         let chosen = all[1]
         let entity = TorrentEntity(torrent: chosen, serverID: harness.profile.id.uuidString)
-        let filtered = await TorrentCatalog.targets([entity], service: harness.service)
+        let filtered = try await TorrentCatalog.targets(
+            [entity], profile: harness.profile, service: harness.service)
         #expect(filtered.map(\.id) == [chosen.id])
+    }
+
+    @Test func targetsReportUnreachableServerInsteadOfNoResults() async throws {
+        let harness = try makeHarness()
+        defer { cleanup(harness) }
+        await harness.service.setTorrentsError(URLError(.cannotConnectToHost))
+
+        do {
+            _ = try await TorrentCatalog.targets(
+                nil, profile: harness.profile, service: harness.service)
+            Issue.record("Expected an unreachable server to throw")
+        } catch let error as IntentError {
+            #expect(error.message.contains("Couldn't reach"))
+        }
+    }
+
+    @Test func pauseSurfacesUnreachableServer() async throws {
+        let harness = try makeHarness()
+        defer { cleanup(harness) }
+        await harness.service.setTorrentsError(URLError(.cannotConnectToHost))
+
+        let intent = PauseTorrentsIntent()
+        do {
+            _ = try await intent.perform()
+            Issue.record("Expected the unreachable server to throw")
+        } catch let error as IntentError {
+            #expect(error.message.contains("Couldn't reach"))
+        }
     }
 
     @Test func torrentEntityMapsFields() throws {

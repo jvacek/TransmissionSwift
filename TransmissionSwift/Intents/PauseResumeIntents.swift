@@ -19,7 +19,7 @@ struct PauseTorrentsIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let environment = try AppEnvironment.require()
         let (profile, service) = try environment.requireService(server)
-        let targets = await TorrentCatalog.targets(torrents, service: service)
+        let targets = try await TorrentCatalog.targets(torrents, profile: profile, service: service)
         guard !targets.isEmpty else {
             throw IntentError(message: "No matching torrents on \(profile.label).")
         }
@@ -52,7 +52,7 @@ struct ResumeTorrentsIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let environment = try AppEnvironment.require()
         let (profile, service) = try environment.requireService(server)
-        let targets = await TorrentCatalog.targets(torrents, service: service)
+        let targets = try await TorrentCatalog.targets(torrents, profile: profile, service: service)
         guard !targets.isEmpty else {
             throw IntentError(message: "No matching torrents on \(profile.label).")
         }

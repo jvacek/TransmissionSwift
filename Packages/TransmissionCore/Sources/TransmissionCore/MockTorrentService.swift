@@ -13,9 +13,16 @@ public actor MockTorrentService: TorrentService {
     private var altSpeed = false
     private var sessionSettingsValue = SessionSettings.sample
     private var tickTask: Task<Void, Never>?
+    private var torrentsError: Error?
 
     public init(initial: [Torrent] = MockFixtures.torrents()) {
         self.state = initial
+    }
+
+    /// When set, `torrents()` throws instead of returning state, letting tests
+    /// exercise the "server unreachable" path with no network.
+    public func setTorrentsError(_ error: Error?) {
+        torrentsError = error
     }
 
     /// Begin a 1-second loop that advances progress on downloading torrents.
@@ -70,7 +77,10 @@ public actor MockTorrentService: TorrentService {
 
     // MARK: - TorrentService
 
-    public func torrents() async throws -> [Torrent] { state }
+    public func torrents() async throws -> [Torrent] {
+        if let torrentsError { throw torrentsError }
+        return state
+    }
 
     public func torrentsStream() -> AsyncThrowingStream<[Torrent], Error> {
         let (stream, cont) = AsyncThrowingStream<[Torrent], Error>.makeStream()

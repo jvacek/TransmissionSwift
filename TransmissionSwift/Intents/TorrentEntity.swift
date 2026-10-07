@@ -79,10 +79,25 @@ enum TorrentCatalog {
         return await entities(profile: profile, service: service)
     }
 
+    /// A server's torrents for an action to operate on. Throws when the daemon
+    /// can't be reached, so the action reports the real cause instead of a
+    /// misleading "no matching torrents".
+    static func torrents(profile: ServerProfile, service: any TorrentService) async throws
+        -> [Torrent]
+    {
+        do {
+            return try await service.torrents()
+        } catch {
+            throw IntentError(message: "Couldn't reach “\(profile.label)”.")
+        }
+    }
+
     /// The `[Torrent]` an action should target: the selected torrents, or every
     /// torrent when none are selected.
-    static func targets(_ selected: [TorrentEntity]?, service: any TorrentService) async -> [Torrent] {
-        let all = (try? await service.torrents()) ?? []
+    static func targets(
+        _ selected: [TorrentEntity]?, profile: ServerProfile, service: any TorrentService
+    ) async throws -> [Torrent] {
+        let all = try await torrents(profile: profile, service: service)
         let ids = Set((selected ?? []).compactMap { Int($0.id) })
         return ids.isEmpty ? all : all.filter { ids.contains($0.id) }
     }

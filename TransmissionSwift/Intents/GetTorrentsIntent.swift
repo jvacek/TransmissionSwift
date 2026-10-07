@@ -78,7 +78,7 @@ struct GetTorrentsIntent: AppIntent {
         if let tracker {
             selection.trackers = [tracker]
         }
-        let torrents = ((try? await service.torrents()) ?? [])
+        let torrents = try await TorrentCatalog.torrents(profile: profile, service: service)
             .filtered(by: selection)
             .searched(search ?? "")
 
