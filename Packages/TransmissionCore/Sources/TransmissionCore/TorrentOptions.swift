@@ -42,3 +42,31 @@ public struct TorrentOptions: Hashable, Sendable, Codable {
         self.peerLimit = peerLimit
     }
 }
+
+/// A partial change to one or more torrents' speed limits. Only the non-nil
+/// fields are sent, so an unrelated per-torrent setting is never clobbered.
+/// Used by `TorrentService.setSpeedLimits`, which applies the same delta to
+/// many torrents in a single `torrent-set`.
+public struct TorrentSpeedLimitPatch: Sendable, Equatable {
+    public var downloadLimited: Bool?
+    public var downloadLimitKBps: Int?
+    public var uploadLimited: Bool?
+    public var uploadLimitKBps: Int?
+
+    public init(
+        downloadLimited: Bool? = nil,
+        downloadLimitKBps: Int? = nil,
+        uploadLimited: Bool? = nil,
+        uploadLimitKBps: Int? = nil
+    ) {
+        self.downloadLimited = downloadLimited
+        self.downloadLimitKBps = downloadLimitKBps
+        self.uploadLimited = uploadLimited
+        self.uploadLimitKBps = uploadLimitKBps
+    }
+
+    public var isEmpty: Bool {
+        downloadLimited == nil && downloadLimitKBps == nil
+            && uploadLimited == nil && uploadLimitKBps == nil
+    }
+}

@@ -99,6 +99,9 @@ public actor SnapshotTorrentService: TorrentService {
     public func setOptions(_ id: Torrent.ID, options: TorrentOptions) async throws {
         throw SnapshotError.replayReadOnly
     }
+    public func setSpeedLimits(_ ids: [Torrent.ID], _ patch: TorrentSpeedLimitPatch) async throws {
+        throw SnapshotError.replayReadOnly
+    }
     public func setLabels(_ ids: [Torrent.ID], labels: [String]) async throws {
         throw SnapshotError.replayReadOnly
     }

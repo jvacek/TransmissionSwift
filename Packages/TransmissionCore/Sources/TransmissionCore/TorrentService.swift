@@ -64,6 +64,12 @@ public protocol TorrentService: Sendable {
     /// `torrent-set` call carrying the changed limit fields.
     func setOptions(_ id: Torrent.ID, options: TorrentOptions) async throws
 
+    /// Apply a partial speed-limit change to one or more torrents in a single
+    /// `torrent-set`. Only the non-nil fields of `patch` are sent, so each
+    /// torrent's other options are preserved. Prefer this over looping
+    /// `setOptions` when the same change applies to many torrents.
+    func setSpeedLimits(_ ids: [Torrent.ID], _ patch: TorrentSpeedLimitPatch) async throws
+
     /// Whole-set replace of one or more torrents' labels (empty array clears
     /// them). Maps to `torrent-set` `labels`; Transmission replaces the full
     /// set, it never appends.
@@ -147,6 +153,21 @@ extension TorrentService {
     public func applySessionSettings(_ patch: SessionSettingsPatch) async throws {}
     public func isPortOpen() async -> Bool? { nil }
     public func sessionStats() async -> SessionStats? { nil }
+
+    /// Default: read each torrent and apply the patch through `setOptions`.
+    /// `RPCTorrentService` overrides this with a single batched `torrent-set`.
+    public func setSpeedLimits(_ ids: [Torrent.ID], _ patch: TorrentSpeedLimitPatch) async throws {
+        let wanted = Set(ids)
+        for torrent in try await torrents() where wanted.contains(torrent.id) {
+            var options = torrent.options
+            if let value = patch.downloadLimited { options.downloadLimited = value }
+            if let value = patch.downloadLimitKBps { options.downloadLimitKBps = value }
+            if let value = patch.uploadLimited { options.uploadLimited = value }
+            if let value = patch.uploadLimitKBps { options.uploadLimitKBps = value }
+            try await setOptions(torrent.id, options: options)
+        }
+    }
+
     public func captureRawSnapshot() async throws -> SnapshotFile {
         throw SnapshotError.captureUnsupported
     }

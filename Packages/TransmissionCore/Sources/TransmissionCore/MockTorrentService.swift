@@ -174,6 +174,17 @@ public actor MockTorrentService: TorrentService {
         broadcast()
     }
 
+    public func setSpeedLimits(_ ids: [Torrent.ID], _ patch: TorrentSpeedLimitPatch) async throws {
+        let set = Set(ids)
+        for index in state.indices where set.contains(state[index].id) {
+            if let value = patch.downloadLimited { state[index].options.downloadLimited = value }
+            if let value = patch.downloadLimitKBps { state[index].options.downloadLimitKBps = value }
+            if let value = patch.uploadLimited { state[index].options.uploadLimited = value }
+            if let value = patch.uploadLimitKBps { state[index].options.uploadLimitKBps = value }
+        }
+        broadcast()
+    }
+
     public func setLabels(_ ids: [Torrent.ID], labels: [String]) async throws {
         let set = Set(ids)
         for index in state.indices where set.contains(state[index].id) {

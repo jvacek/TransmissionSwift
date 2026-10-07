@@ -186,6 +186,17 @@ public actor RPCTorrentService: TorrentService {
         await refreshAfterMutation()
     }
 
+    public func setSpeedLimits(_ ids: [Torrent.ID], _ patch: TorrentSpeedLimitPatch) async throws {
+        guard !ids.isEmpty else { return }
+        var args = TorrentSetArguments(ids: ids)
+        args.downloadLimited = patch.downloadLimited
+        args.downloadLimit = patch.downloadLimitKBps
+        args.uploadLimited = patch.uploadLimited
+        args.uploadLimit = patch.uploadLimitKBps
+        try await client.torrentSet(args)
+        await refreshAfterMutation()
+    }
+
     public func setLabels(_ ids: [Torrent.ID], labels: [String]) async throws {
         // Label writes require rpc-version >= 17 (Transmission 4.0). cachedSession
         // is refreshed by freeSpace() on connect and periodically; if it's still

@@ -31,34 +31,27 @@ struct SetTorrentSpeedLimitsIntent: AppIntent {
     var uploadLimitKBps: Int?
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let hasChange =
-            downloadLimited != nil || downloadLimitKBps != nil
-            || uploadLimited != nil || uploadLimitKBps != nil
-        guard hasChange else {
+        var patch = TorrentSpeedLimitPatch()
+        patch.downloadLimited = downloadLimited
+        patch.downloadLimitKBps = downloadLimitKBps
+        patch.uploadLimited = uploadLimited
+        patch.uploadLimitKBps = uploadLimitKBps
+        guard !patch.isEmpty else {
             throw IntentError(message: "No speed-limit changes were specified.")
         }
 
         let environment = try AppEnvironment.require()
         let (profile, service) = try environment.requireService(server)
 
-        let all = (try? await service.torrents()) ?? []
-        let selectedIDs = Set((torrents ?? []).compactMap { Int($0.id) })
-        let targets = selectedIDs.isEmpty ? all : all.filter { selectedIDs.contains($0.id) }
+        let targets = try await TorrentCatalog.targets(torrents, profile: profile, service: service)
         guard !targets.isEmpty else {
             throw IntentError(message: "No matching torrents on \(profile.label).")
         }
 
-        for torrent in targets {
-            var options = torrent.options
-            if let value = downloadLimited { options.downloadLimited = value }
-            if let value = downloadLimitKBps { options.downloadLimitKBps = value }
-            if let value = uploadLimited { options.uploadLimited = value }
-            if let value = uploadLimitKBps { options.uploadLimitKBps = value }
-            do {
-                try await service.setOptions(torrent.id, options: options)
-            } catch {
-                throw IntentError(message: error.localizedDescription)
-            }
+        do {
+            try await service.setSpeedLimits(targets.map(\.id), patch)
+        } catch {
+            throw IntentError(message: error.localizedDescription)
         }
 
         return .result(
