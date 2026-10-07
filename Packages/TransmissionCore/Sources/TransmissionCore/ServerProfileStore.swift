@@ -20,7 +20,7 @@ public final class ServerProfileStore {
         return profiles.first
     }
 
-    public static func defaultFileURL() throws -> URL {
+    public nonisolated static func defaultFileURL() throws -> URL {
         let appSupport = try FileManager.default.url(
             for: .applicationSupportDirectory, in: .userDomainMask,
             appropriateFor: nil, create: true)
@@ -28,6 +28,17 @@ public final class ServerProfileStore {
             appSupport
             .appendingPathComponent("TransmissionSwift", isDirectory: true)
             .appendingPathComponent("servers.json")
+    }
+
+    /// Reads the profile list and active selection straight from disk, without
+    /// constructing the `@MainActor` store. Used by App Intents, which run
+    /// outside the SwiftUI object graph. A missing or corrupt file yields an
+    /// empty list — same as a fresh install.
+    public nonisolated static func readProfiles(from fileURL: URL) -> (
+        profiles: [ServerProfile], activeProfileID: UUID?
+    ) {
+        guard let stored = try? Self.read(from: fileURL) else { return ([], nil) }
+        return (stored.profiles, stored.activeProfileID)
     }
 
     /// - Parameter fileURL: injectable so tests can point at a temp file.
@@ -111,7 +122,7 @@ public final class ServerProfileStore {
         var activeProfileID: UUID? = nil
     }
 
-    private static func read(from fileURL: URL) throws -> PersistedData {
+    private nonisolated static func read(from fileURL: URL) throws -> PersistedData {
         let data = try Data(contentsOf: fileURL)
         // Prefer the new envelope; fall back to the legacy flat array.
         if let persisted = try? JSONDecoder().decode(PersistedData.self, from: data) {

@@ -62,6 +62,12 @@ daemon:
 test-e2e:
     set -o pipefail; TEST_RUNNER_TRANSMISSION_E2E=1 xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'platform=macOS' test -only-testing:TransmissionSwiftUITests | (command -v xcbeautify >/dev/null && xcbeautify || cat)
 
+# Run the AppIntentsTesting integration tests. Needs a real signing team (the
+# app and test runner must share it); pass your team ID, e.g.
+#   just test-appintents JK45236K44
+test-appintents team:
+    set -o pipefail; TEST_RUNNER_TRANSMISSION_APPINTENTS=1 xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'platform=macOS' test -only-testing:TransmissionSwiftUITests/AppIntentsUITests DEVELOPMENT_TEAM={{ team }} | (command -v xcbeautify >/dev/null && xcbeautify || cat)
+
 # Launch a Debug build showing the committed snapshot fixture (read-only, no daemon).
 run-snapshot snapshot="{{ snapshot_fixture }}":
     open Build/Products/Debug/TransmissionSwift.app --args --snapshot {{ snapshot }}

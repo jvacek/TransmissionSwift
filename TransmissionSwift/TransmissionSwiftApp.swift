@@ -83,6 +83,14 @@ struct TransmissionSwiftApp: App {
         let store = TorrentStore(service: service)
         self._torrentStore = State(wrappedValue: store)
 
+        // Shared with the App Intents (see AppEnvironment). Snapshot replay is
+        // the deterministic dataset the intent tests run against.
+        AppEnvironment.register(
+            AppEnvironment(
+                mode: snapshotPath != nil ? .snapshot : .live,
+                profileFileURL: profileURL,
+                snapshotFileURL: snapshotPath.map { URL(fileURLWithPath: $0) }))
+
         let tagColorStore = TagColorStore()
         if !snapshotTagColors.isEmpty {
             tagColorStore.seed(snapshotTagColors)

@@ -1,7 +1,7 @@
 import Foundation
 import TransmissionCore
 
-enum ColumnFormatters {
+nonisolated enum ColumnFormatters {
     static func humanizedSize(_ bytes: Int64) -> String {
         let units = ["B", "KB", "MB", "GB", "TB", "PB"]
         var value = Double(bytes)

@@ -64,10 +64,6 @@ struct ContentView: View {
         // profile — onAppear's resumePolling() already restarted the stream.
         if case .connected = torrentStore.connection, connectedProfileID == profile.id { return }
 
-        guard let rpcURL = profile.rpcURL else {
-            torrentStore.setConnectionFailed(reason: "Invalid server URL")
-            return
-        }
         var credentials: Credentials?
         if let username = profile.username, !username.isEmpty {
             // Cancel the mock stream and show "waiting for keychain" before
@@ -81,9 +77,13 @@ struct ContentView: View {
             guard !Task.isCancelled else { return }
             credentials = Credentials(username: username, password: password)
         }
-        let client = URLSessionTransmissionClient(rpcURL: rpcURL, credentials: credentials)
-        let service = RPCTorrentService(client: client)
+        guard let service = TransmissionServiceFactory.make(for: profile, credentials: credentials)
+        else {
+            torrentStore.setConnectionFailed(reason: "Invalid server URL")
+            return
+        }
         torrentStore.connect(service: service)
+        AppEnvironment.current?.setConnected(service, for: profile)
         connectedProfileID = profile.id
     }
 }

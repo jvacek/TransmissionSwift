@@ -233,7 +233,15 @@ public actor RPCTorrentService: TorrentService {
     }
 
     public func isAlternativeSpeedEnabled() async -> Bool {
-        cachedSession?.altSpeedEnabled ?? false
+        // A freshly constructed service (App Intents, no connect flow) starts
+        // with a cold cache; reading `nil` would report "off" for a daemon whose
+        // turtle mode is on, and the toggle-on-read would then no-op. Warm once.
+        if let cached = cachedSession { return cached.altSpeedEnabled }
+        if let fetched = try? await client.sessionGet() {
+            cachedSession = fetched
+            return fetched.altSpeedEnabled
+        }
+        return false
     }
 
     public func daemonVersion() async -> String? {
@@ -318,8 +326,13 @@ public actor RPCTorrentService: TorrentService {
         }
 
         let wireLabels: [String]?
-        if !labels.isEmpty, (cachedSession?.rpcVersion ?? 0) >= 17 {
-            wireLabels = labels
+        if !labels.isEmpty {
+            // Label support is gated on rpc-version. Warm a cold cache first so a
+            // fresh service (App Intents) can't silently drop the labels.
+            if cachedSession == nil {
+                cachedSession = try? await client.sessionGet()
+            }
+            wireLabels = (cachedSession?.rpcVersion ?? 0) >= 17 ? labels : nil
         } else {
             wireLabels = nil
         }

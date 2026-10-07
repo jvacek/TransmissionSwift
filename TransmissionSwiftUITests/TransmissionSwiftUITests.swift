@@ -22,7 +22,7 @@ final class TransmissionSwiftUITests: XCTestCase {
     @MainActor
     func testAddServerAndTestConnection() throws {
         try XCTSkipUnless(
-            ProcessInfo.processInfo.environment["TEST_RUNNER_TRANSMISSION_E2E"] == "1",
+            ProcessInfo.processInfo.environment["TRANSMISSION_E2E"] == "1",
             "Set TEST_RUNNER_TRANSMISSION_E2E=1 and run a local transmission-daemon to enable")
 
         let app = XCUIApplication()
