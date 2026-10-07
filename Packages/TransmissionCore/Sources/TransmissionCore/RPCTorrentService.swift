@@ -201,13 +201,7 @@ public actor RPCTorrentService: TorrentService {
         // Label writes require rpc-version >= 17 (Transmission 4.0). cachedSession
         // is refreshed by freeSpace() on connect and periodically; if it's still
         // missing, fetch once here so a cold cache can't silently no-op the action.
-        let session: SessionInfo
-        if let cached = cachedSession {
-            session = cached
-        } else if let fetched = try? await client.sessionGet() {
-            cachedSession = fetched
-            session = fetched
-        } else {
+        guard let session = await sessionWarmingCache() else {
             logger.warning(
                 "setLabels skipped — session unknown (cannot verify rpc-version); ids=\(ids, privacy: .public)")
             throw TransmissionError.serverError("Cannot verify whether the daemon supports labels (session-get failed)")
@@ -247,12 +241,17 @@ public actor RPCTorrentService: TorrentService {
         // A freshly constructed service (App Intents, no connect flow) starts
         // with a cold cache; reading `nil` would report "off" for a daemon whose
         // turtle mode is on, and the toggle-on-read would then no-op. Warm once.
-        if let cached = cachedSession { return cached.altSpeedEnabled }
-        if let fetched = try? await client.sessionGet() {
-            cachedSession = fetched
-            return fetched.altSpeedEnabled
-        }
-        return false
+        await sessionWarmingCache()?.altSpeedEnabled ?? false
+    }
+
+    /// The cached `session-get`, fetching it once when the cache is cold.
+    /// Returns nil only when the daemon doesn't answer. Callers that must not
+    /// proceed on unknown session state can treat nil as an error.
+    private func sessionWarmingCache() async -> SessionInfo? {
+        if let cached = cachedSession { return cached }
+        let fetched = try? await client.sessionGet()
+        cachedSession = fetched
+        return fetched
     }
 
     public func daemonVersion() async -> String? {
@@ -339,11 +338,13 @@ public actor RPCTorrentService: TorrentService {
         let wireLabels: [String]?
         if !labels.isEmpty {
             // Label support is gated on rpc-version. Warm a cold cache first so a
-            // fresh service (App Intents) can't silently drop the labels.
-            if cachedSession == nil {
-                cachedSession = try? await client.sessionGet()
+            // fresh service (App Intents) can't silently drop the labels; if the
+            // session can't be read we fail rather than add without them.
+            guard let session = await sessionWarmingCache() else {
+                throw TransmissionError.serverError(
+                    "Cannot verify whether the daemon supports labels (session-get failed)")
             }
-            wireLabels = (cachedSession?.rpcVersion ?? 0) >= 17 ? labels : nil
+            wireLabels = session.rpcVersion >= 17 ? labels : nil
         } else {
             wireLabels = nil
         }
