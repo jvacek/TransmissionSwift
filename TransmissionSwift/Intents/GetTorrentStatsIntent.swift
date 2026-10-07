@@ -1,8 +1,8 @@
 import AppIntents
 import TransmissionCore
 
-/// Structured torrent statistics, so Shortcuts can chain individual fields
-/// (counts, speeds) instead of parsing a string.
+/// Structured statistics for one torrent, so Shortcuts can chain individual
+/// fields (progress, speeds, ratio) instead of parsing a string.
 struct TorrentStatsEntity: TransientAppEntity {
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Torrent Stats")
 
@@ -10,11 +10,9 @@ struct TorrentStatsEntity: TransientAppEntity {
     @Property(title: "Name") var name: String
     @Property(title: "Status") var status: String
     @Property(title: "Progress (%)") var progressPercent: Int
-    @Property(title: "Torrents") var torrentCount: Int
-    @Property(title: "Active") var activeCount: Int
-    @Property(title: "Paused") var pausedCount: Int
     @Property(title: "Download Speed (bytes/s)") var downloadSpeed: Int
     @Property(title: "Upload Speed (bytes/s)") var uploadSpeed: Int
+    @Property(title: "Peers") var connectedPeerCount: Int
     @Property(title: "Ratio") var ratio: Double
 
     var displayRepresentation: DisplayRepresentation {
@@ -26,67 +24,52 @@ struct TorrentStatsEntity: TransientAppEntity {
         name = ""
         status = ""
         progressPercent = 0
-        torrentCount = 0
-        activeCount = 0
-        pausedCount = 0
         downloadSpeed = 0
         uploadSpeed = 0
+        connectedPeerCount = 0
         ratio = 0
     }
 
-    init(torrents: [Torrent], server: String) {
-        let download = torrents.reduce(Int64(0)) { $0 + $1.downloadSpeed }
-        let upload = torrents.reduce(Int64(0)) { $0 + $1.uploadSpeed }
-        torrentCount = torrents.count
-        activeCount = torrents.filter { $0.status == .downloading || $0.status == .seeding }.count
-        pausedCount = torrents.filter { $0.status == .paused }.count
-        downloadSpeed = Int(download)
-        uploadSpeed = Int(upload)
-        if let only = torrents.count == 1 ? torrents.first : nil {
-            name = only.name
-            status = only.status.rawValue.capitalized
-            progressPercent = Int((only.progress * 100).rounded())
-            ratio = only.ratio
-            summary =
-                "\(server) · \(only.name): \(status) · \(progressPercent)% · "
-                + "↓ \(ColumnFormatters.humanizedSpeed(download)) ↑ \(ColumnFormatters.humanizedSpeed(upload))"
-        } else {
-            name = ""
-            status = ""
-            progressPercent = 0
-            ratio = 0
-            summary =
-                "\(server): \(torrentCount) torrents · \(activeCount) active · \(pausedCount) paused · "
-                + "↓ \(ColumnFormatters.humanizedSpeed(download)) ↑ \(ColumnFormatters.humanizedSpeed(upload))"
-        }
+    init(torrent: Torrent, server: String) {
+        self.init()
+        name = torrent.name
+        status = torrent.status.rawValue.capitalized
+        progressPercent = Int((torrent.progress * 100).rounded())
+        downloadSpeed = Int(torrent.downloadSpeed)
+        uploadSpeed = Int(torrent.uploadSpeed)
+        connectedPeerCount = torrent.connectedPeerCount
+        ratio = torrent.ratio
+        summary =
+            "\(server) · \(name): \(status) · \(progressPercent)% · "
+            + "↓ \(ColumnFormatters.humanizedSpeed(torrent.downloadSpeed)) "
+            + "↑ \(ColumnFormatters.humanizedSpeed(torrent.uploadSpeed))"
     }
 }
 
-/// Reports counts and speeds for a server's torrents — one torrent or the whole
-/// list.
+/// Reports progress and speeds for one torrent. Server-wide counts and speeds
+/// are `GetServerStatsIntent`; this action is always scoped to a torrent.
 struct GetTorrentStatsIntent: AppIntent {
     static let title: LocalizedStringResource = "Get Torrent Stats"
     static var description: IntentDescription? {
         IntentDescription(
-            "Reports counts and transfer speeds for a server's torrents, or a single torrent's progress."
-        )
+            "Reports progress and transfer speeds for a single torrent on a Transmission server.")
     }
     static let openAppWhenRun = false
 
     @Parameter(title: "Server")
     var server: ServerEntity?
 
-    @Parameter(title: "Torrents")
-    var torrents: [TorrentEntity]?
+    @Parameter(title: "Torrent")
+    var torrent: TorrentEntity
 
     func perform() async throws -> some IntentResult & ReturnsValue<TorrentStatsEntity> & ProvidesDialog {
         let environment = try AppEnvironment.require()
         let (profile, service) = try environment.requireService(server)
-        let targets = await TorrentCatalog.targets(torrents, service: service)
-        guard !targets.isEmpty else {
-            throw IntentError(message: "No matching torrents on \(profile.label).")
+        let targets = await TorrentCatalog.targets([torrent], service: service)
+        guard let target = targets.first else {
+            throw IntentError(message: "That torrent isn't on \(profile.label).")
         }
-        let stats = TorrentStatsEntity(torrents: targets, server: profile.label)
+        let stats = TorrentStatsEntity(torrent: target, server: profile.label)
         return .result(value: stats, dialog: "\(stats.summary)")
     }
 }

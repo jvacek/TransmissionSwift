@@ -116,19 +116,45 @@ struct AppIntentTests {
         #expect(filtered.map(\.id) == [chosen.id])
     }
 
-    @Test func statsEntityAggregates() {
+    @Test func torrentEntityMapsFields() throws {
+        let torrent = try #require(MockFixtures.torrents().first)
+        let entity = TorrentEntity(torrent: torrent, serverID: "srv")
+        #expect(entity.id == String(torrent.id))
+        #expect(entity.name == torrent.name)
+        #expect(entity.status == torrent.status.rawValue.capitalized)
+        #expect(entity.progressPercent == Int((torrent.progress * 100).rounded()))
+        #expect(entity.size == Int(torrent.size))
+        #expect(entity.downloadSpeed == Int(torrent.downloadSpeed))
+        #expect(entity.tracker == torrent.primaryTracker)
+        #expect(entity.labels == torrent.labels.joined(separator: ", "))
+    }
+
+    @Test func torrentStatusOptionMapsToCoreFilter() {
+        #expect(TorrentStatusOption.downloading.filter == .downloading)
+        #expect(TorrentStatusOption.active.filter == .active)
+        #expect(TorrentStatusOption.paused.filter == .paused)
+    }
+
+    @Test func serverStatsEntityFromTorrentsAggregates() {
         let torrents = MockFixtures.torrents()
-        let stats = TorrentStatsEntity(torrents: torrents, server: "S")
+        let stats = ServerStatsEntity(torrents: torrents, server: "S")
+        let active = torrents.filter { $0.status == .downloading || $0.status == .seeding }.count
         #expect(stats.torrentCount == torrents.count)
+        #expect(stats.activeCount == active)
         #expect(stats.downloadSpeed == Int(torrents.reduce(Int64(0)) { $0 + $1.downloadSpeed }))
         #expect(stats.uploadSpeed == Int(torrents.reduce(Int64(0)) { $0 + $1.uploadSpeed }))
         #expect(stats.summary.contains("S"))
     }
 
+    @Test func freeSpaceEntityReportsUnit() {
+        let entity = FreeSpaceEntity(bytes: 1_500_000_000)
+        #expect(entity.bytes == 1_500_000_000)
+        #expect(entity.humanized.contains("GB"))
+    }
+
     @Test func statsEntitySingleTorrent() throws {
         let torrent = try #require(MockFixtures.torrents().first { $0.status == .downloading })
-        let stats = TorrentStatsEntity(torrents: [torrent], server: "S")
-        #expect(stats.torrentCount == 1)
+        let stats = TorrentStatsEntity(torrent: torrent, server: "S")
         #expect(stats.name == torrent.name)
         #expect(stats.progressPercent == Int((torrent.progress * 100).rounded()))
         #expect(stats.summary.contains(torrent.name))
@@ -297,7 +323,21 @@ struct AppIntentTests {
         let harness = try makeHarness()
         defer { cleanup(harness) }
 
+        let target = try #require(try await harness.service.torrents().first)
         let intent = GetTorrentStatsIntent()
+        intent.torrent = TorrentEntity(torrent: target, serverID: harness.profile.id.uuidString)
         _ = try await intent.perform()
+    }
+
+    @Test func getTorrentStatsRejectsUnknownTorrent() async throws {
+        let harness = try makeHarness()
+        defer { cleanup(harness) }
+
+        let unknown = Torrent(
+            id: 9999, name: "Ghost", hash: "", size: 0, status: .paused, progress: 0,
+            primaryTracker: "", downloadFolder: "", addedAt: Date(), pieces: 0, pieceSize: 0, havePieces: 0)
+        let intent = GetTorrentStatsIntent()
+        intent.torrent = TorrentEntity(torrent: unknown, serverID: harness.profile.id.uuidString)
+        await #expect(throws: IntentError.self) { _ = try await intent.perform() }
     }
 }
