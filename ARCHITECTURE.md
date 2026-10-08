@@ -31,6 +31,7 @@ TransmissionSwift/                          ← Xcode project root
     └── TransmissionCore/                   ← domain models, storage, services
         ├── Package.swift
         ├── Sources/TransmissionCore/
+        ├── Sources/TransmissionTestSupport/  ← mocks/fixtures, not in the product
         └── Tests/TransmissionCoreTests/
 ```
 

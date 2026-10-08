@@ -39,8 +39,9 @@ The UI already depends on `protocol TorrentService`, never on RPC directly:
 
 | Implementation | Used by |
 |---|---|
-| `MockTorrentService` | previews + empty no-server placeholder |
+| `MockTorrentService` | previews (in the `TransmissionTestSupport` target) |
 | `RPCTorrentService` | live daemon (slice 7) |
+| `EmptyTorrentService` | no-server placeholder |
 | **`SnapshotTorrentService` (new)** | `--snapshot <path>` — decodes the file, frozen, no network |
 
 ## Snapshot file format

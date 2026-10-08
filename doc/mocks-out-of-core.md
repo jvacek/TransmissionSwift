@@ -1,91 +1,63 @@
 # Getting the mocks out of the production library
 
-Status: **plan — the safe first slice has landed; the relocation is not started.**
-This is item 3 of the senior review's maintainability leftovers.
+Status: **complete.** `MockFixtures` and `MockTorrentService` now live in a
+dedicated `TransmissionTestSupport` target; `TransmissionCore` no longer
+contains or exports them. This is item 3 of the senior review's leftovers.
 
 ## Progress
 
 | Slice | State |
 |---|---|
-| Production `EmptyTorrentService` + use it for the no-server placeholder | done (`refactor(core): add EmptyTorrentService…`) |
-| Relocate `MockFixtures` / `MockTorrentService` out of `TransmissionCore` | not started |
-
-The app no longer uses `MockTorrentService` outside previews, so the production
-dependency is gone. What remains is that the mocks are still compiled and public
-in the `TransmissionCore` release build.
+| Production `EmptyTorrentService` + use it for the no-server placeholder | done |
+| Move `MockFixtures` / `MockTorrentService` into `TransmissionTestSupport` | done |
+| Product code stops referencing the mock fixture (`OpenMappingEditor` fallback) | done |
 
 ## Why
 
 `MockFixtures.swift` (~490 lines) and `MockTorrentService.swift` (~325 lines)
-live in `Packages/TransmissionCore/Sources/` and are `public`. They are test and
-preview infrastructure, not product code: they bloat the shipped library, widen
-its public API, and invite accidental production use (which already happened —
-the no-server placeholder used to be `MockTorrentService(initial: [])`).
+were `public` sources of `TransmissionCore`: test and preview infrastructure
+shipped in the product library, widening its API and inviting production use
+(which had already happened — the no-server placeholder was
+`MockTorrentService(initial: [])`).
 
-## What depends on them
+## Why Option B, not `#if DEBUG`
 
-| Consumer | Needs them | Notes |
-|---|---|---|
-| `TransmissionCoreTests` (most suites) | yes | `swift test` = Debug |
-| `TransmissionSwiftTests` (`AppIntentTests`) | yes | Debug |
-| App `#Preview`s (~12 files) | yes | compiled in **all** configurations |
-| `Support/PreviewStores.swift` | yes | file-scope preview store |
-| `OpenMappingEditor.previewTorrent` | `Torrent.sample` **in production code** | fallback when no torrent is available |
-| `TransmissionSwiftApp` | no longer | now `EmptyTorrentService` |
+The obvious fix — gate the two files on `#if DEBUG` — does not work under
+Xcode. The app target's `SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG` does **not**
+propagate to the package dependency in the Test action: `build-for-testing`
+compiles `TransmissionCore` in a "Testing" configuration with no `-DDEBUG`
+(verified in the build log), while the app target *does* define `DEBUG`. So the
+app's previews compiled their `#if DEBUG` branch and referenced mocks the
+package had omitted — `cannot find 'MockTorrentService' in scope`. Gating on
+`DEBUG` assumes the app and its package dependency agree, and they don't.
 
-## Option A — `#if DEBUG` around the mocks (recommended)
+A dedicated target sidesteps this: it is linked in every configuration, so the
+app and test targets always see the same module.
 
-Wrap `MockFixtures.swift` and `MockTorrentService.swift` in `#if DEBUG`. Verified
-that Xcode passes `-DDEBUG` to the `TransmissionCore` package target in Debug
-(grepped the build log: `TransmissionCore-t.build … -DDEBUG`), and SwiftPM's
-`swift test`/`swift build` debug configs do too.
+## What was done
 
-Steps:
+- `Packages/TransmissionCore/Package.swift` gained a `TransmissionTestSupport`
+  library product/target that depends on `TransmissionCore`; the package's test
+  target depends on it.
+- `MockFixtures.swift` / `MockTorrentService.swift` moved to
+  `Sources/TransmissionTestSupport/` and `import TransmissionCore`.
+- The package test files, the app's preview files and `AppIntentTests` gained
+  `import TransmissionTestSupport`.
+- The app target links the product in `TransmissionSwift.xcodeproj`. The app
+  **unit test target does not** declare it: it inherits the module through the
+  app target. Declaring it there links a second `TransmissionCore` and splits
+  the `TorrentReading` / `TorrentMutating` protocol types, so the intents saw a
+  read-only service.
+- `OpenMappingEditor.previewTorrent` no longer uses `Torrent.sample`; it builds
+  a placeholder `Torrent` inline, so product code has no fixture dependency.
 
-1. Wrap the two files' contents in `#if DEBUG` … `#endif`.
-2. Replace the production `Torrent.sample` fallback in
-   `OpenMappingEditor.previewTorrent` with an inline constructed `Torrent`
-   (production code must not reach into fixtures).
-3. Guard every app-target mock usage with `#if DEBUG`:
-   - `Inspector/InspectorView.swift`
-   - `Inspector/InspectorPeersTab.swift`, `InspectorTrackersTab.swift`,
-     `InspectorOptionsTab.swift`, `InspectorFilesTab.swift`,
-     `InspectorGeneralTab.swift`
-   - `Preferences/PrefsShared.swift`, `Preferences/TagsPrefsPane.swift`
-   - `Sheets/EditLabelsSheet.swift`, `Sheets/RenameTorrentSheet.swift`
-   - `Support/PreviewStores.swift`
-   - `MainWindow.swift`
-4. Verify with **both** a Debug and a Release app build
-   (`xcodebuild … -configuration Debug build` and `… Release build`); the Release
-   build is what catches an unguarded preview. Then the package tests, app unit
-   tests and snapshot test as usual.
+The app release binary still links `TransmissionTestSupport` (previews are in the
+app target), but the *library* is clean, which is the stated goal. A future
+cleanup could move the previews' mock usage to app-local data if the app binary
+size ever matters.
 
-Trade-off: `swift test -c release` would no longer compile the mock-dependent
-suites. Nobody runs that today (`just test-packages-strict` is Debug; CI is
-Debug), but it is worth a note in the test target if it ever matters.
+## Verification
 
-This fully removes the mocks from the release library **and** the release app.
-
-## Option B — a separate `TransmissionTestSupport` target
-
-Add a second library target/product to `Packages/TransmissionCore/Package.swift`,
-move the two files there, and have `TransmissionCoreTests`, the app target and
-the app test targets depend on it. No preview guards needed.
-
-Trade-offs: requires linking the new product in `TransmissionSwift.xcodeproj`
-(the app and its test targets), and the mocks are still linked into the app's
-release binary — the "production library" is clean, but the app is not. More
-moving parts for a weaker result than Option A.
-
-## Recommendation
-
-Option A. It is more edits but purely mechanical, removes the code from every
-release artifact, and needs no pbxproj or package-graph changes; the Release
-build in step 4 verifies it directly.
-
-## Also outstanding (separate, optional)
-
-- **Item 1 / Slice B4** — extract the table row context-menu enablement into a
-  pure `TorrentRowMenu` spec (see `doc/appkit-decomposition.md`). Highest
-  behavioural risk of the item-1 work, lowest structural gain.
-- **Item 1 / Slice C** — mechanical split of `OpenMappingEditor.swift`.
+`just test-packages-strict` (317 tests), a Debug **and** a Release app build
+(the Release build is what would catch an unguarded preview), app unit tests and
+`just test-snapshot` all pass.
