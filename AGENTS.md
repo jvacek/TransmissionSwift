@@ -1,132 +1,62 @@
 # TransmissionSwift — Agent Instructions
 
-A native SwiftUI macOS app that acts as a remote control for the Transmission BitTorrent daemon — a native equivalent to [transgui](https://github.com/transmission-remote-gui/transgui).
+Native SwiftUI macOS remote control for the Transmission BitTorrent daemon (native equivalent of [transgui](https://github.com/transmission-remote-gui/transgui)). macOS-only, min macOS 26, universal binary.
 
-This file gives AI coding agents (Claude, Cursor, Codex, Aider, etc.) the persistent context they need to be useful in this repo. Keep it concise.
+**Read `ARCHITECTURE.md` first** — durable architectural decisions. If anything here contradicts it, `ARCHITECTURE.md` wins; propose updating this file.
 
-## Read first
+## Build, test, run
 
-- `ARCHITECTURE.md` — durable architectural decisions and the rationale behind them.
-- `doc/appkit-decomposition.md` — **the current implementation plan** (in-progress split of the large AppKit/editor files). Start here for where work stands.
-- `doc/snapshot-replay.md` — design + redaction policy for snapshot capture/replay (see below).
+Use `just <recipe>`; `just --list` shows all. The justfile wraps the common commands, including the Xcode `DEVELOPER_DIR` that package tests need (the CLT `swift` lacks the `Testing` module). Key recipes: `build`, `test` (packages + app), `test-packages` (fast: RPC + Core), `test-snapshot` (daemon-free UI test), `daemon`, `format`, `lint`.
 
-If anything in this file contradicts `ARCHITECTURE.md`, treat `ARCHITECTURE.md` as the source of truth and propose updating this file.
-
-## Project shape (summary)
-
-- **Platforms:** macOS only, min macOS 26, universal binary (arm64 + x86_64).
-- **Module layout:** local Swift Packages under `Packages/`.
-  - `TransmissionRPC` — wire protocol, Foundation only. No SwiftUI, no AppKit.
-  - `TransmissionCore` — domain models, storage, services. Depends on `TransmissionRPC`.
-  - App target (`TransmissionSwift/`) — SwiftUI views and view models only.
-- **Concurrency:** `async`/`await` + `@Observable` macro. No Combine.
-- **Storage:** JSON file for server profiles, Keychain for passwords, `@AppStorage` for UI prefs. No SwiftData on day one.
-
-## Build & test commands
-
-Use `just <recipe>` (`just --list` to see them) — the `justfile` wraps common commands. Consult this if you want to test/run/daemon etc.
-
-For linting and formatting, prek is also available.
-
-When invoked from inside Xcode via Claude Code: prefer the `xcode` MCP server (`BuildProject`, `XcodeRefreshCodeIssuesInFile`, `RunSomeTests`) over raw `xcodebuild`. The MCP tools pre-parse output and save context.
+Inside Xcode, prefer the `xcode` MCP tools (`BuildProject`, `RunSomeTests`, `XcodeRefreshCodeIssuesInFile`) over raw `xcodebuild` — they pre-parse output and save context.
 
 ## Conventions
 
-- **Style:** enforced by `swift-format`. Config in `.swift-format`. Don't argue with it; run it.
-- **Indentation:** 4 spaces (set by `.swift-format`).
-- **Naming:** `PascalCase` for types, `camelCase` for properties/methods.
-- **Types:** strong types, no force-unwrapping. Prefer typed errors over `Error` strings.
-- **Comments:** rare. Only when *why* is non-obvious. No "what" comments next to self-explanatory code.
-- **Tests:** Swift Testing framework (`@Test`, `#expect`). XCUIAutomation for UI tests.
-- **Compiler strictness:** packages use `.swiftLanguageMode(.v6)` in `Package.swift` (Swift 6 mode = strict concurrency). `-warnings-as-errors` is applied by CI (`swift test -Xswiftc -warnings-as-errors`), **not** in `Package.swift` — it conflicts with Xcode's `-suppress-warnings` for package deps. Don't add it to the manifests.
+- **Style:** swift-format owns it (`.swift-format`, 4 spaces). Run it; don't argue.
+- Strong types, no force-unwrapping, typed errors over `Error` strings.
+- Comments only when *why* is non-obvious; no "what" comments.
+- Tests: Swift Testing (`@Test`, `#expect`); XCUIAutomation for UI.
+- Packages use `.swiftLanguageMode(.v6)` (strict concurrency). `-warnings-as-errors` runs in CI (`swift test -Xswiftc -warnings-as-errors`), not in `Package.swift` — it conflicts with Xcode's `-suppress-warnings` for package deps. Don't add it to manifests.
 
-## Architectural layering (compiler-enforced)
+## Architecture
 
-```
-App target  ──depends on──>  TransmissionCore  ──depends on──>  TransmissionRPC  ──depends on──>  Foundation
-```
+Layering is compiler-enforced: app target → `TransmissionCore` → `TransmissionRPC` → Foundation. A dependency crossing it the wrong way means a refactor, not a workaround. Keep `TransmissionRPC`/`TransmissionCore` free of `AppKit` and SwiftUI (keeps an iOS target possible). Details in `ARCHITECTURE.md`.
 
-If you need to add a dependency that crosses these boundaries the wrong direction, stop and propose a refactor instead.
+## Development notes
 
-## Local reference material & dev daemon
-
-- `reference/` (gitignored) caches the upstream RPC specs — both the legacy protocol (4.0.6, **the one we implement**) and the JSON-RPC 2.0 protocol (4.1+). See `reference/README.md` to re-fetch.
-- Local dev daemon: `transmission-daemon -g ~/.transmission-dev -t -u dev -v devpass -p 9091 -w /tmp/transmission-dev-downloads` (installed via `brew install transmission-cli`).
-- RPC test fixtures in `Packages/TransmissionRPC/Tests/TransmissionRPCTests/Fixtures/` were captured from a real daemon with `curl` — recapture rather than hand-edit when the protocol surface grows.
-- Opt-in E2E UI test (needs the daemon above): `TEST_RUNNER_TRANSMISSION_E2E=1 xcodebuild test -project TransmissionSwift.xcodeproj -scheme TransmissionSwift -only-testing:TransmissionSwiftUITests`.
+- `reference/` (gitignored) caches both RPC specs: legacy 4.0.6 (**the protocol we implement**) and JSON-RPC 2.0 (4.1+). See `reference/README.md` to re-fetch.
+- RPC fixtures in `Packages/TransmissionRPC/Tests/TransmissionRPCTests/Fixtures/` were captured from a real daemon with `curl`; recapture rather than hand-edit.
+- Opt-in E2E UI test (needs the dev daemon): `TEST_RUNNER_TRANSMISSION_E2E=1 xcodebuild test -project TransmissionSwift.xcodeproj -scheme TransmissionSwift -only-testing:TransmissionSwiftUITests`.
+- New files in a Swift package: create under `Sources/<package>/`; SPM picks them up.
+- New files in the app target: filesystem-synchronized groups pick them up from disk, so no pbxproj edit for sources. Structural pbxproj edits are fine — keep them small and build immediately.
 
 ## Snapshot capture & replay
 
-Reproduce a real-daemon bug without the server (see `doc/snapshot-replay.md` for
-design + redaction policy). The app captures the daemon's state into one
-anonymized JSON file, and replays it read-only — no daemon, no credentials.
+Reproduce a real-daemon bug with no daemon: Settings → Developer → **Capture Snapshot…** (redacts, then leak-checks), then replay read-only off the committed fixture:
 
-**Capture** (needs a live, connected server): Settings → **Developer** tab →
-**Capture Snapshot…** → save the JSON (e.g. to `~/Downloads`). It runs a
-redaction pass (names kept, trackers/IPs/paths/hashes/timestamps scrubbed) and
-a leak-check tripwire that refuses the file if anything identifying survives.
-
-**Replay**: launch the app with a path to the file — the committed fixture is the
-canonical one:
 ```bash
 open Build/Products/Debug/TransmissionSwift.app --args --snapshot TransmissionSwiftUITests/Fixtures/snapshot-10-torrents.json
 ```
-The app boots a read-only, frozen view of that state (actions disabled).
 
-Gotchas:
-- Sandboxed builds need read access to the snapshot path. Debug builds carry a
-  read-only `/` temp exception (`TransmissionSwift/TransmissionSwift-Debug.entitlements`,
-  Debug config only), so `--snapshot <repo fixture>` works from Xcode Run and
-  from `open` on a Debug build. Release stays sandboxed to `~/Downloads`
-  (`ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readonly`) — copy a fixture there for
-  Release runs.
-- The snapshot UI test (`testSnapshotMainWindow`) runs off a **committed fixture**
-  (`TransmissionSwiftUITests/Fixtures/snapshot-10-torrents.json`, the first 10
-  `MockFixtures` torrents in wire form) — no daemon, no dependence on your
-  ~/Downloads. The app
-  passes the checkout path straight to `--snapshot`: when built for UI testing,
-  Xcode injects `com.apple.security.temporary-exception.files.absolute-path.read-only = /`
-  into the app's entitlements, so the sandbox doesn't block reading the repo.
-- `--snapshot` forces ephemeral profiles (the synthetic replay profile — labelled
-  from the file's `source.serverName`, else the filename — is never persisted to
-  the real `servers.json`).
-- If the file fails to decode, the app logs `Snapshot load failed: …` and falls
-  back to an empty list — check the console.
-- Implementation: `SnapshotTorrentService` (TransmissionCore) decodes through
-  the same `Torrent(wire:)` mapping as a live poll. Capture lives in
-  `TorrentStore.captureSnapshot` + `SnapshotRedactor` + `SnapshotLeakChecker`.
+Debug builds carry a read-only `/` sandbox exception, so this works from the repo; Release is sandboxed to `~/Downloads`. `--snapshot` forces ephemeral profiles (never written to `servers.json`). Design and remaining gotchas: `doc/snapshot-replay.md`.
 
-## Working efficiently in this repo
+## Working efficiently
 
-- **Token economy** (sessions here default to a mid-tier model on purpose):
-  - Delegate broad codebase exploration ("find where X is handled", "which views use Y") to a cheap subagent (Claude Code: the `Explore` agent or `Agent` tool with a `haiku` model) instead of reading many files in the main loop.
-  - Orient from `doc/appkit-decomposition.md` (the current plan) before reading source files — it usually answers "where were we" in one read.
-  - Don't re-read files already in context; don't dump raw `xcodebuild` output (use the `xcode` MCP tools).
-  - If a task turns out genuinely hard (architecture change, concurrency debugging, slice 7 RPC design) and progress stalls, **say so and suggest the human switch to a stronger model** (`/model opus` or `/model fable`) rather than grinding.
-- **Adding files to a Swift package**: just create the file under `Sources/<package>/`. SPM picks it up automatically — no project file edits.
-- **Adding files to the app target**: the project uses filesystem-synchronized groups (Xcode 16+ format), so new files under `TransmissionSwift/` are picked up from disk automatically — no pbxproj edits needed for sources. Structural pbxproj edits (linking packages, entitlements) are manageable; keep them small and build immediately after.
-- **Multiplatform-friendliness**: even though we're macOS-only, avoid `import AppKit` outside the app target. Keeps the door open to iOS later.
+Sessions default to a mid-tier model on purpose:
 
-## Pre-commit / DX
+- Delegate broad exploration ("where is X handled?") to a cheap subagent (Claude Code: `Explore`/`Agent` on `haiku`) instead of reading many files in the main loop.
+- Orient from `doc/appkit-decomposition.md` before reading source; don't re-read files already in context; don't dump raw `xcodebuild` output.
+- If a task stalls (architecture change, concurrency debugging, RPC design), say so and suggest a stronger model (`/model opus`) instead of grinding.
+- Jonas is a web-backend dev new to SwiftUI: frame native concepts with backend analogues when useful. Prefer a cross-stack slice for validating larger plans; save plans that won't fit one session under `doc/`.
 
-- The repo uses `prek` (a Rust drop-in replacement for `pre-commit`). Install once: `brew install prek` then `prek install`.
-- Hooks live in `.pre-commit-config.yaml`. They auto-format `.swift` files via `swift-format` and run standard hygiene checks.
-- CI mirrors the local hooks plus a build/test pass — see `.github/workflows/ci.yml`.
+## Tooling & Git
+
+- `prek` (pre-commit drop-in): `brew install prek && prek install`. Hooks auto-format `.swift` and run hygiene checks; CI mirrors them plus build/test (`.github/workflows/ci.yml`).
+- Don't commit or create branches unless asked.
 
 ## Don't
 
-- Don't reintroduce SwiftData unless there's a documented reason in `ARCHITECTURE.md`.
+- Don't reintroduce SwiftData without a documented reason in `ARCHITECTURE.md`.
 - Don't add Combine.
-- Don't add third-party Swift package dependencies without checking maintenance status (stars, last commit, contributors). We rejected `mogeko/transmission-rpc` for this reason.
+- Don't add third-party Swift packages without checking maintenance (stars, last commit, contributors) — we rejected `mogeko/transmission-rpc`.
 - Don't add files to the app target without confirming with a human.
-- Don't make commits or create branches unless explicitly asked.
-
-## Personal preferences (Jonas)
-
-These are also captured in `~/.claude/CLAUDE.md`, repeated here for non-Claude agents:
-
-- Web backend background, new to native Apple/SwiftUI development — frame native concepts using backend analogues when helpful.
-- Don't make commits on the user's behalf unless asked.
-- Don't create new branches unless asked.
-- For larger plans, prioritise a cross-stack slice for validation.
-- If a plan won't fit one session, save it as a markdown file under `doc/` and track progress there.
