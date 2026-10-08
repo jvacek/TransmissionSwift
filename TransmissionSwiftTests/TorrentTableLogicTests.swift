@@ -80,37 +80,129 @@ struct TorrentTableLogicTests {
                 != TorrentRowDisplay(base))
     }
 
-    // MARK: - classifyChange
+    // MARK: - TorrentTableRowStore
 
-    @MainActor
     @Test func classifyChange_none_whenIdentical() {
         #expect(classify(from: [1, 2], to: [1, 2]) == .none)
     }
 
-    @MainActor
     @Test func classifyChange_values_whenOnlyContentMoved() {
         let old = [TorrentRowDisplay(makeTorrent(id: 1, downloadSpeed: 0))]
         let new = [TorrentRowDisplay(makeTorrent(id: 1, downloadSpeed: 5_000))]
-        #expect(
-            TorrentTableRepresentable.Coordinator.classifyChange(from: old, to: new) == .values)
+        #expect(TorrentTableRowStore.classifyChange(from: old, to: new) == .values)
     }
 
-    @MainActor
     @Test func classifyChange_structural_onIdOrCountChange() {
         #expect(classify(from: [1], to: [1, 2]) == .structural)
         #expect(classify(from: [1, 2], to: [2, 1]) == .structural)
         #expect(classify(from: [1, 2], to: [2, 3]) == .structural)
     }
 
-    @MainActor
-    private func classify(
-        from old: [Int], to new: [Int]
-    ) -> TorrentTableRepresentable.Coordinator.ChangeKind {
-        TorrentTableRepresentable.Coordinator.classifyChange(
+    private func classify(from old: [Int], to new: [Int]) -> TorrentTableRowStore.ChangeKind {
+        TorrentTableRowStore.classifyChange(
             from: old.map { TorrentRowDisplay(makeTorrent(id: $0)) },
             to: new.map { TorrentRowDisplay(makeTorrent(id: $0)) })
     }
 
+    @Test func rowStore_none_whenSnapshotUnchanged() {
+        var store = TorrentTableRowStore()
+        let rows = [makeTorrent(id: 1), makeTorrent(id: 2)]
+        // First apply goes from empty to two rows (structural); the identical
+        // second one is a no-op.
+        #expect(store.apply(rows: rows, downloadDirectoryBase: nil, tagColors: [:]) == .reload)
+        #expect(store.apply(rows: rows, downloadDirectoryBase: nil, tagColors: [:]) == .none)
+    }
+
+    @Test func rowStore_refreshVisible_whenOnlyContentMoved() {
+        var store = TorrentTableRowStore()
+        _ = store.apply(
+            rows: [makeTorrent(id: 1, downloadSpeed: 0)], downloadDirectoryBase: nil, tagColors: [:])
+        let update = store.apply(
+            rows: [makeTorrent(id: 1, downloadSpeed: 5_000)], downloadDirectoryBase: nil,
+            tagColors: [:])
+        #expect(update == .refreshVisible)
+    }
+
+    @Test func rowStore_reload_whenOrderOrSetChanges() {
+        var store = TorrentTableRowStore()
+        _ = store.apply(
+            rows: [makeTorrent(id: 1), makeTorrent(id: 2)], downloadDirectoryBase: nil, tagColors: [:])
+        #expect(
+            store.apply(
+                rows: [makeTorrent(id: 2), makeTorrent(id: 1)], downloadDirectoryBase: nil,
+                tagColors: [:]) == .reload)
+        #expect(
+            store.apply(rows: [makeTorrent(id: 1)], downloadDirectoryBase: nil, tagColors: [:])
+                == .reload)
+    }
+
+    @Test func rowStore_refreshVisible_whenTagColorsChange() {
+        var store = TorrentTableRowStore()
+        let rows = [makeTorrent(id: 1, labels: ["A"])]
+        _ = store.apply(rows: rows, downloadDirectoryBase: nil, tagColors: [:])
+        #expect(
+            store.apply(rows: rows, downloadDirectoryBase: nil, tagColors: ["A": .red])
+                == .refreshVisible)
+    }
+
+    @Test func rowStore_refreshVisible_whenBaseDirectoryChanges() {
+        var store = TorrentTableRowStore()
+        let rows = [makeTorrent(id: 1)]
+        _ = store.apply(rows: rows, downloadDirectoryBase: "/a", tagColors: [:])
+        #expect(
+            store.apply(rows: rows, downloadDirectoryBase: "/b", tagColors: [:]) == .refreshVisible)
+    }
+
+    // MARK: - TorrentTableSelection
+
+    @Test func selection_blankRowsFallBackToWholeSelection() {
+        let rows = [TorrentRowDisplay(makeTorrent(id: 1)), TorrentRowDisplay(makeTorrent(id: 2))]
+        #expect(
+            TorrentTableSelection.affectedIDs(
+                rows: IndexSet(), displayedRows: rows, selection: [1, 2]) == [1, 2])
+    }
+
+    @Test func selection_clickInsideKeepsSelection() {
+        let rows = [TorrentRowDisplay(makeTorrent(id: 1)), TorrentRowDisplay(makeTorrent(id: 2))]
+        #expect(
+            TorrentTableSelection.affectedIDs(
+                rows: IndexSet(integer: 0), displayedRows: rows, selection: [1, 2]) == [1, 2])
+    }
+
+    @Test func selection_clickOutsideReplacesWithClickedRow() {
+        let rows = [TorrentRowDisplay(makeTorrent(id: 1)), TorrentRowDisplay(makeTorrent(id: 2))]
+        #expect(
+            TorrentTableSelection.affectedIDs(
+                rows: IndexSet(integer: 1), displayedRows: rows, selection: [1]) == [2])
+    }
+
+    @Test func selection_rowIndexesAreInTableOrder() {
+        let rows = [TorrentRowDisplay(makeTorrent(id: 2)), TorrentRowDisplay(makeTorrent(id: 1))]
+        #expect(TorrentTableSelection.rowIndexes(for: [1, 2], displayedRows: rows) == IndexSet([0, 1]))
+        #expect(TorrentTableSelection.rowIndexes(for: [1], displayedRows: rows) == IndexSet(integer: 1))
+    }
+
+    @Test func selection_idsSkipsOutOfRangeRows() {
+        let rows = [TorrentRowDisplay(makeTorrent(id: 1))]
+        #expect(TorrentTableSelection.ids(at: IndexSet([0, 5]), displayedRows: rows) == [1])
+    }
+
+    // MARK: - TorrentTableSort
+
+    @Test func sort_takesThePrimaryDescriptorNotTheOldest() {
+        let descriptors = [
+            NSSortDescriptor(key: TableColumn.size.rawValue, ascending: false),
+            NSSortDescriptor(key: TableColumn.name.rawValue, ascending: true),
+        ]
+        let normalized = TorrentTableSort.normalize(descriptors)
+        #expect(normalized?.column == .size)
+        #expect(normalized?.ascending == false)
+    }
+
+    @Test func sort_unknownOrEmptyReturnsNil() {
+        #expect(TorrentTableSort.normalize([]) == nil)
+        #expect(TorrentTableSort.normalize([NSSortDescriptor(key: "nope", ascending: true)]) == nil)
+    }
 
     // MARK: - TorrentCellContent.make
 

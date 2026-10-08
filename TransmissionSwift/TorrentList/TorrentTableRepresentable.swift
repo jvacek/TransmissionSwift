@@ -165,7 +165,6 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         var actionsEnabled = true
         var labelsSupported = true
         var tagColors: [String: TagColor] = [:]
-        private var lastTagColors: [String: TagColor] = [:]
         var onRowAction: ((TorrentRowAction, [Torrent.ID]) -> Void)?
         var onInspectorRequest: (() -> Void)?
         var mappings: [OpenMapping] = []
@@ -173,8 +172,10 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         weak var rowMenu: NSMenu?
         weak var headerMenu: NSMenu?
 
-        private(set) var displayedRows: [TorrentRowDisplay] = []
-        private var lastDownloadDirectoryBase: String?
+        private var rowStore = TorrentTableRowStore()
+        /// Current projection, owned by `rowStore`; exposed for the
+        /// data-source, menu and delegate reads below.
+        private var displayedRows: [TorrentRowDisplay] { rowStore.displayedRows }
         private var lastAppliedSortState: SortState?
         private var isNormalizingSortDescriptors = false
         private var isRestoringSelection = false
@@ -215,46 +216,20 @@ struct TorrentTableRepresentable: NSViewRepresentable {
 
         /// Single funnel for all row mutations. Selection is a separate concern
         /// restored by `syncSelectionFromBinding` after every update; an
-        /// incremental diff can slot in here later without a redesign.
+        /// incremental diff can slot in here later without a redesign. The
+        /// decision is made by the pure `TorrentTableRowStore`; this only
+        /// performs the resulting AppKit side effect.
         func apply(rows newRows: [Torrent]) {
-            let newDisplays = newRows.map(TorrentRowDisplay.init)
-            let change = Self.classifyChange(from: displayedRows, to: newDisplays)
-            let baseChanged = downloadDirectoryBase != lastDownloadDirectoryBase
-            // Tag colours are external to the rows, so a change bypasses the
-            // poll guard and refreshes visible cells (make() recomputes each
-            // cell's colour, and the per-cell equality guard skips unchanged ones).
-            let colorsChanged = tagColors != lastTagColors
-            if colorsChanged { lastTagColors = tagColors }
-            guard change != .none || baseChanged || colorsChanged else { return }
-            displayedRows = newDisplays
-            lastDownloadDirectoryBase = downloadDirectoryBase
+            let update = rowStore.apply(
+                rows: newRows,
+                downloadDirectoryBase: downloadDirectoryBase,
+                tagColors: tagColors)
             guard let tableView else { return }
-            if change == .structural {
-                tableView.reloadData()
-            } else {
-                refreshVisibleCells(in: tableView)
+            switch update {
+            case .none: return
+            case .reload: tableView.reloadData()
+            case .refreshVisible: refreshVisibleCells(in: tableView)
             }
-        }
-
-        /// One pass over both arrays, folding the old "id sequence" and
-        /// "field equality" guards into a single comparison so the poll never
-        /// pays for two full scans. `.structural` when the row set or id order
-        /// changed (reload), `.values` when only cell content changed (refresh
-        /// visible cells in place), `.none` when nothing moved.
-        static func classifyChange(
-            from old: [TorrentRowDisplay], to new: [TorrentRowDisplay]
-        ) -> TorrentTableRepresentable.Coordinator.ChangeKind {
-            guard old.count == new.count else { return .structural }
-            var valuesChanged = false
-            for (lhs, rhs) in zip(old, new) {
-                if lhs.id != rhs.id { return .structural }
-                if lhs != rhs { valuesChanged = true }
-            }
-            return valuesChanged ? .values : .none
-        }
-
-        enum ChangeKind: Equatable {
-            case none, values, structural
         }
 
         /// Mirrors external `store.list.selectedTorrentIDs` changes into the table,
@@ -288,18 +263,13 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         // MARK: - Row context menu & interaction
 
         /// Clicked rows ∪ selection, matching the old SwiftUI context-menu
-        /// semantics; blank-area right-click acts on the selection.
+        /// semantics; blank-area right-click acts on the selection. The rule
+        /// lives in `TorrentTableSelection` so it is testable headlessly.
         private func affectedIDs(forRows rows: IndexSet) -> Set<Torrent.ID> {
-            let selection = selectionBinding.wrappedValue
-            let rowIDs = Set(
-                rows.compactMap { row in
-                    displayedRows.indices.contains(row) ? displayedRows[row].id : nil
-                })
-            if rows.isEmpty { return selection }
-            let clickInsideSelection = rows.allSatisfy { row in
-                displayedRows.indices.contains(row) && selection.contains(displayedRows[row].id)
-            }
-            return clickInsideSelection ? selection : rowIDs
+            TorrentTableSelection.affectedIDs(
+                rows: rows,
+                displayedRows: displayedRows,
+                selection: selectionBinding.wrappedValue)
         }
 
         @objc func doubleClicked(_ sender: Any?) {
@@ -638,25 +608,17 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         private func restoreSelection() {
             guard let tableView else { return }
             let selection = selectionBinding.wrappedValue
-            let tableSel = selectedRowIDs(in: tableView)
+            let tableSel = TorrentTableSelection.ids(
+                at: tableView.selectedRowIndexes, displayedRows: displayedRows)
             guard selection != tableSel else { return }
-            let indexes = IndexSet(
-                displayedRows.enumerated().compactMap { row, torrent in
-                    selection.contains(torrent.id) ? row : nil
-                })
+            let indexes = TorrentTableSelection.rowIndexes(
+                for: selection, displayedRows: displayedRows)
             // Guard the echo: selectRowIndexes posts tableViewSelectionDidChange
             // synchronously; without this flag the write-back loop (or a stale
             // table's empty write) could clobber the store's selection.
             isRestoringSelection = true
             tableView.selectRowIndexes(indexes, byExtendingSelection: false)
             isRestoringSelection = false
-        }
-
-        private func selectedRowIDs(in tableView: NSTableView) -> Set<Torrent.ID> {
-            Set(
-                tableView.selectedRowIndexes.compactMap { row in
-                    displayedRows.indices.contains(row) ? displayedRows[row].id : nil
-                })
         }
 
         private func refreshVisibleCells(in tableView: NSTableView) {
@@ -721,10 +683,8 @@ extension TorrentTableRepresentable.Coordinator: NSTableViewDelegate {
         // Ignore changes caused by our own programmatic selection (restore
         // after reload) so the write-back can't clobber the store.
         guard !isRestoringSelection else { return }
-        let ids = Set(
-            tableView.selectedRowIndexes.compactMap { row in
-                displayedRows.indices.contains(row) ? displayedRows[row].id : nil
-            })
+        let ids = TorrentTableSelection.ids(
+            at: tableView.selectedRowIndexes, displayedRows: displayedRows)
         guard ids != selectionBinding.wrappedValue else { return }
         selectionBinding.wrappedValue = ids
     }
@@ -733,22 +693,22 @@ extension TorrentTableRepresentable.Coordinator: NSTableViewDelegate {
         // Snapshot replay is read-only: still render the persisted sort
         // indicator, but don't forward a user sort attempt to the store, where
         // it would persist `tablePreferences` to the real UserDefaults.
-        guard actionsEnabled else { return }
-        // AppKit promotes the clicked column to PRIMARY of its descriptor list,
-        // keeping older entries as secondaries. We are a single-sort table:
-        // take the primary, collapse the list to just it, and forward it.
-        // (.last here was the original bug — it is the oldest secondary.)
-        guard !isNormalizingSortDescriptors else { return }
-        guard let descriptor = tableView.sortDescriptors.first else { return }
-        if tableView.sortDescriptors.count > 1 {
+        guard actionsEnabled, !isNormalizingSortDescriptors else { return }
+        // AppKit promotes the clicked column to PRIMARY, keeping older entries
+        // as secondaries. This is a single-sort table: collapse to the primary
+        // before resolving it (the `.last` of that list was the original bug —
+        // it is the oldest secondary).
+        if tableView.sortDescriptors.count > 1,
+            let primary = tableView.sortDescriptors.first
+        {
             isNormalizingSortDescriptors = true
-            tableView.sortDescriptors = [descriptor]
+            tableView.sortDescriptors = [primary]
             isNormalizingSortDescriptors = false
         }
-        guard let key = descriptor.key,
-            let column = TransmissionCore.TableColumn(rawValue: key)
-        else { return }
-        onSortChange?(column, descriptor.ascending)
+        guard let normalized = TorrentTableSort.normalize(tableView.sortDescriptors) else {
+            return
+        }
+        onSortChange?(normalized.column, normalized.ascending)
     }
 
     func tableView(_ tableView: NSTableView, userCanChangeVisibilityOf column: NSTableColumn) -> Bool {
