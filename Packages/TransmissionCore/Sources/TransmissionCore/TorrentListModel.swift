@@ -29,8 +29,6 @@ public final class TorrentListModel {
         }
     }
 
-    private var sortColumn: TableColumn = .name
-    private var sortAscending: Bool = true
     /// Facet-relevant projection of the last torrent set (status, tracker,
     /// folder, label). Recomputing `FilterFacets` is only needed when one of
     /// these changes — a poll that only moved speeds skips the grouping work.
@@ -61,17 +59,6 @@ public final class TorrentListModel {
             guard let encoded = try? JSONEncoder().encode(newValue) else { return }
             UserDefaults.standard.set(encoded, forKey: PreferenceKeys.tablePreferencesSort)
         }
-    }
-
-    /// Persists the sort to `TablePreferences` only. Callers that want the sort
-    /// to take effect must use `setSortOrder(column:ascending:)`, which also
-    /// re-sorts — kept private so nobody can create a "persisted but not
-    /// sorted" state.
-    private func updateSortOrder(column: TableColumn.ID, ascending: Bool) {
-        var prefs = tablePreferences
-        prefs.sortColumn = column
-        prefs.sortAscending = ascending
-        tablePreferences = prefs
     }
 
     // MARK: - Snapshots
@@ -153,22 +140,30 @@ public final class TorrentListModel {
         rebuildVisibleTorrents()
     }
 
+    /// Sets and persists the sort in one step. The persisted `tablePreferences`
+    /// is the single source of truth — there is no parallel in-memory sort
+    /// state to drift from it.
     public func setSortOrder(column: TableColumn, ascending: Bool) {
-        guard sortColumn != column || sortAscending != ascending else { return }
-        sortColumn = column
-        sortAscending = ascending
-        updateSortOrder(column: column.rawValue, ascending: ascending)
+        let current = tablePreferences
+        guard current.sortColumn != column.rawValue || current.sortAscending != ascending else {
+            return
+        }
+        tablePreferences = TablePreferences(sortColumn: column.rawValue, sortAscending: ascending)
         rebuildVisibleTorrents()
     }
 
     // MARK: - Derivation
 
     private func rebuildVisibleTorrents() {
+        // The persisted preference is the single sort source; read it once per
+        // rebuild rather than caching a second copy that can drift.
+        let prefs = tablePreferences
+        let column = TableColumn(rawValue: prefs.sortColumn) ?? .name
         visibleTorrents =
             torrents
             .filtered(by: filterSelection, relativeTo: downloadDirectory)
             .searched(searchQuery)
-            .sorted(using: sortColumn.comparator(order: sortAscending ? .forward : .reverse))
+            .sorted(using: column.comparator(order: prefs.sortAscending ? .forward : .reverse))
     }
 
     /// Recomputes `facets` only when the fields the sidebar reads from actually

@@ -65,6 +65,31 @@ struct TorrentListModelTests {
         #expect(sizes == sizes.sorted(by: >))
     }
 
+    @Test("the persisted preference is the single sort source")
+    func persistedSortIsTheSource() {
+        // setSortOrder writes the real UserDefaults; restore it afterwards so
+        // the test can't leak state into its siblings.
+        let key = PreferenceKeys.tablePreferencesSort
+        let original = UserDefaults.standard.data(forKey: key)
+        defer {
+            if let original {
+                UserDefaults.standard.set(original, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+
+        let model = loaded()
+        model.setSortOrder(column: .size, ascending: false)
+
+        // A fresh model carries no in-memory sort state, so it can only sort
+        // from the persisted value.
+        let reloaded = TorrentListModel()
+        reloaded.setTorrents(MockFixtures.torrents())
+        let sizes = reloaded.visibleTorrents.map(\.size)
+        #expect(sizes == sizes.sorted(by: >))
+    }
+
     @Test("a label filter is dropped when its last labelled torrent disappears")
     func prunesLabelFilter() {
         let fixtures = MockFixtures.torrents()
