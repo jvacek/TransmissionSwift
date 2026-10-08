@@ -60,11 +60,28 @@ struct TorrentEntity: AppEntity, URLRepresentableEntity, Identifiable, Hashable,
         uploadLimitKBps = torrent.options.uploadLimitKBps
     }
 
+    /// The deep link a Shortcut receives and hands back: the URL form of `id`.
+    var deepLink: String { "transmissionswift://\(id)" }
+
     /// Splits a `"<serverUUID>/<torrentID>"` identifier, or nil when it isn't one.
     static func parse(identifier: String) -> (serverID: String, torrentID: Int)? {
         let parts = identifier.split(separator: "/", maxSplits: 1)
         guard parts.count == 2, let torrentID = Int(parts[1]) else { return nil }
         return (String(parts[0]), torrentID)
+    }
+
+    /// Parses either form the app hands around: a
+    /// `transmissionswift://<serverUUID>/<torrentID>` deep link, or the bare
+    /// `<serverUUID>/<torrentID>` identifier. Nil otherwise.
+    static func parse(reference: String) -> (serverID: String, torrentID: Int)? {
+        let trimmed = reference.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let url = URL(string: trimmed), url.scheme == "transmissionswift" {
+            guard let host = url.host,
+                let torrentID = Int(url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
+            else { return nil }
+            return (host, torrentID)
+        }
+        return parse(identifier: trimmed)
     }
 
     // `@Property` wrappers aren't `Hashable`, so identity is explicit.
@@ -181,5 +198,20 @@ struct TorrentEntityQuery: EntityQuery {
 
     func suggestedEntities() async throws -> [TorrentEntity] {
         await TorrentCatalog.entities(server: server)
+    }
+}
+
+extension TorrentEntityQuery: EntityStringQuery {
+    /// Resolves torrents from text, so a Shortcut can feed a torrent's
+    /// `transmissionswift://` link (or its bare identifier) straight into an
+    /// action's Torrents parameter. One reference per line, so a multi-torrent
+    /// selection round-trips.
+    func entities(matching string: String) async throws -> [TorrentEntity] {
+        let identifiers =
+            string
+            .split(whereSeparator: \.isNewline)
+            .compactMap { TorrentEntity.parse(reference: String($0)) }
+            .map { "\($0.serverID)/\($0.torrentID)" }
+        return try await entities(for: identifiers)
     }
 }

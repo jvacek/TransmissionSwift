@@ -13,6 +13,7 @@ enum TorrentRowAction {
     case editLabels
     case setLocation
     case rename
+    case sendToShortcut(name: String)
 }
 
 struct TorrentTableRepresentable: NSViewRepresentable {
@@ -33,6 +34,8 @@ struct TorrentTableRepresentable: NSViewRepresentable {
     /// Per-server "Open with…" entries (see `OpenMapping`).
     var mappings: [OpenMapping] = []
     var onOpenMapping: ((OpenMapping, [Torrent.ID]) -> Void)?
+    /// The name of the Shortcut "Send to Shortcut" runs, from Preferences.
+    var shortcutName: String?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(selection: $selection)
@@ -106,6 +109,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             onRowAction: onRowAction,
             onInspectorRequest: onInspectorRequest,
             mappings: mappings,
+            shortcutName: shortcutName,
             onOpenMapping: onOpenMapping)
         tableView.dataSource = coordinator
         tableView.delegate = coordinator
@@ -140,6 +144,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             onRowAction: onRowAction,
             onInspectorRequest: onInspectorRequest,
             mappings: mappings,
+            shortcutName: shortcutName,
             onOpenMapping: onOpenMapping)
         // Indicators before rows: the header reacts on the same frame as the
         // click, even if the row reload takes an extra layout pass.
@@ -168,6 +173,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         var onRowAction: ((TorrentRowAction, [Torrent.ID]) -> Void)?
         var onInspectorRequest: (() -> Void)?
         var mappings: [OpenMapping] = []
+        var shortcutName: String?
         var onOpenMapping: ((OpenMapping, [Torrent.ID]) -> Void)?
         weak var rowMenu: NSMenu?
         weak var headerMenu: NSMenu?
@@ -200,6 +206,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             onRowAction: ((TorrentRowAction, [Torrent.ID]) -> Void)?,
             onInspectorRequest: (() -> Void)?,
             mappings: [OpenMapping],
+            shortcutName: String?,
             onOpenMapping: ((OpenMapping, [Torrent.ID]) -> Void)?
         ) {
             self.downloadDirectoryBase = downloadDirectoryBase
@@ -211,6 +218,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             self.onRowAction = onRowAction
             self.onInspectorRequest = onInspectorRequest
             self.mappings = mappings
+            self.shortcutName = shortcutName
             self.onOpenMapping = onOpenMapping
         }
 
@@ -328,7 +336,8 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                 priorities: priorities,
                 actionsEnabled: actionsEnabled,
                 labelsSupported: labelsSupported,
-                mappings: mappings)
+                mappings: mappings,
+                shortcutName: shortcutName)
             let payload = { action in MenuPayload(action: action, ids: ids) }
             let actionItem = { (title: String, symbol: String, action: TorrentRowAction) in
                 let item = NSMenuItem(
@@ -416,6 +425,11 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                     menu.addItem(item)
                 case .reannounce:
                     let item = actionItem("Update Tracker", "megaphone", .reannounce)
+                    item.isEnabled = spec.isEnabled
+                    menu.addItem(item)
+                case .sendToShortcut(let name):
+                    let item = actionItem(
+                        "Send to “\(name)”", "square.and.arrow.up", .sendToShortcut(name: name))
                     item.isEnabled = spec.isEnabled
                     menu.addItem(item)
                 case .mapping(let mapping):

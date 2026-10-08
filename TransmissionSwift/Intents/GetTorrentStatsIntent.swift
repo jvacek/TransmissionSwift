@@ -66,7 +66,7 @@ struct GetTorrentStatsIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ReturnsValue<TorrentStatsEntity> & ProvidesDialog {
         let environment = try AppEnvironment.require()
-        let (profile, service) = try environment.requireService(server)
+        let (profile, service) = try environment.requireService(server, torrents: [torrent])
         let targets = try await TorrentCatalog.targets([torrent], profile: profile, service: service)
         guard let target = targets.first else {
             throw IntentError(message: "That torrent isn't on \(profile.label).")

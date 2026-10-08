@@ -15,6 +15,7 @@ nonisolated struct TorrentRowMenuItem: Equatable {
         case editLabels
         case setLocation
         case rename
+        case sendToShortcut(name: String)
         case remove
         case removeAndDeleteData
     }
@@ -40,7 +41,8 @@ nonisolated enum TorrentRowMenu {
         priorities: [TorrentPriority],
         actionsEnabled: Bool,
         labelsSupported: Bool,
-        mappings: [OpenMapping]
+        mappings: [OpenMapping],
+        shortcutName: String? = nil
     ) -> [TorrentRowMenuItem] {
         let canAct = actionsEnabled && !ids.isEmpty
         let single = ids.count == 1
@@ -61,6 +63,10 @@ nonisolated enum TorrentRowMenu {
         items.append(TorrentRowMenuItem(.verify, isEnabled: canAct))
         items.append(TorrentRowMenuItem(.reannounce, isEnabled: canAct))
         items.append(TorrentRowMenuItem(.separator))
+        if let shortcutName, !shortcutName.isEmpty {
+            items.append(TorrentRowMenuItem(.sendToShortcut(name: shortcutName), isEnabled: canAct))
+            items.append(TorrentRowMenuItem(.separator))
+        }
         if !mappings.isEmpty {
             for mapping in mappings {
                 // "Open with…" opens one torrent's path, so it needs a single id.

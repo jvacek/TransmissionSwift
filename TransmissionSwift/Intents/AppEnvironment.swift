@@ -93,6 +93,24 @@ nonisolated final class AppEnvironment: Sendable {
         return (profile, try resolvedService(for: profile))
     }
 
+    /// The chosen server, else the server the given torrents belong to, else the
+    /// active profile. Deriving from the torrents means a Shortcut that resolves
+    /// a `transmissionswift://` link doesn't also have to set the Server field.
+    func requireService(_ server: ServerEntity?, torrents: [TorrentEntity]?) throws -> (
+        profile: ServerProfile, service: any TorrentReading
+    ) {
+        try requireService(server ?? self.server(for: torrents))
+    }
+
+    /// The profile the given torrents belong to, when they name one that still
+    /// exists. The server UUID is baked into the entity, so this needs no picker.
+    private func server(for torrents: [TorrentEntity]?) -> ServerEntity? {
+        guard let id = torrents?.first?.serverID, let uuid = UUID(uuidString: id),
+            let profile = profile(withID: uuid)
+        else { return nil }
+        return ServerEntity(profile: profile)
+    }
+
     /// The app's live service when it matches `profile`; otherwise a fresh
     /// factory service. Snapshot replay serves the frozen file, read-only.
     /// Best-effort — resolution failures return nil (used by the entity pickers).

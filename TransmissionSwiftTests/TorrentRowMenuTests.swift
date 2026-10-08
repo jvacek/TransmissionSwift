@@ -12,14 +12,16 @@ struct TorrentRowMenuTests {
         priorities: [TorrentPriority] = [.normal],
         actionsEnabled: Bool = true,
         labelsSupported: Bool = true,
-        mappings: [OpenMapping] = []
+        mappings: [OpenMapping] = [],
+        shortcutName: String? = nil
     ) -> [TorrentRowMenuItem] {
         TorrentRowMenu.items(
             ids: ids,
             priorities: priorities,
             actionsEnabled: actionsEnabled,
             labelsSupported: labelsSupported,
-            mappings: mappings)
+            mappings: mappings,
+            shortcutName: shortcutName)
     }
 
     private func enabled(
@@ -30,6 +32,11 @@ struct TorrentRowMenuTests {
 
     private func isMapping(_ item: TorrentRowMenuItem) -> Bool {
         if case .mapping = item.kind { return true }
+        return false
+    }
+
+    private func isSendToShortcut(_ item: TorrentRowMenuItem) -> Bool {
+        if case .sendToShortcut = item.kind { return true }
         return false
     }
 
@@ -68,6 +75,15 @@ struct TorrentRowMenuTests {
         #expect(!menuItems(mappings: []).contains(where: isMapping))
         let mapping = OpenMapping(name: "Finder", template: "file:///{file}", action: .finder)
         #expect(menuItems(mappings: [mapping]).contains(where: isMapping))
+    }
+
+    @Test func rowMenu_listsSendToShortcutOnlyWhenNamed() {
+        #expect(!menuItems().contains(where: isSendToShortcut))
+
+        let items = menuItems(shortcutName: "Pause All")
+        #expect(items.contains { $0.kind == .sendToShortcut(name: "Pause All") })
+        #expect(enabled(items, .sendToShortcut(name: "Pause All")) == true)
+        #expect(enabled(menuItems(ids: [], shortcutName: "Pause All"), .sendToShortcut(name: "Pause All")) == false)
     }
 
     @Test func rowMenu_checksTheUniformPriorityOnly() {

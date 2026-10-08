@@ -19,7 +19,7 @@ struct VerifyTorrentsIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let environment = try AppEnvironment.require()
-        let (profile, service) = try environment.requireService(server)
+        let (profile, service) = try environment.requireService(server, torrents: torrents)
         guard let mutations = service.mutations else {
             throw IntentError(message: "This server is read-only.")
         }
@@ -56,7 +56,7 @@ struct ReannounceTorrentsIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let environment = try AppEnvironment.require()
-        let (profile, service) = try environment.requireService(server)
+        let (profile, service) = try environment.requireService(server, torrents: torrents)
         guard let mutations = service.mutations else {
             throw IntentError(message: "This server is read-only.")
         }

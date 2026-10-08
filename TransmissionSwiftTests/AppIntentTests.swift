@@ -447,4 +447,70 @@ struct AppIntentTests {
         intent.torrent = TorrentEntity(torrent: unknown, serverID: harness.profile.id.uuidString)
         await #expect(throws: IntentError.self) { _ = try await intent.perform() }
     }
+
+    // MARK: - Send to Shortcut
+
+    @Test func torrentEntityParsesDeepLinkAndIdentifier() throws {
+        let torrent = try #require(MockFixtures.torrents().first)
+        let entity = TorrentEntity(torrent: torrent, serverID: "srv")
+        #expect(entity.deepLink == "transmissionswift://srv/\(torrent.id)")
+
+        #expect(TorrentEntity.parse(reference: entity.deepLink)?.serverID == "srv")
+        #expect(TorrentEntity.parse(reference: entity.deepLink)?.torrentID == torrent.id)
+        #expect(TorrentEntity.parse(reference: entity.id)?.serverID == "srv")
+        #expect(TorrentEntity.parse(reference: entity.id)?.torrentID == torrent.id)
+        #expect(TorrentEntity.parse(reference: "not a reference") == nil)
+    }
+
+    @Test func torrentQueryResolvesDeepLinkText() async throws {
+        let harness = try makeHarness()
+        defer { cleanup(harness) }
+
+        let torrent = try #require(try await harness.service.torrents().first)
+        let entity = TorrentEntity(torrent: torrent, serverID: harness.profile.id.uuidString)
+        let resolved = try await TorrentEntity.defaultQuery.entities(matching: entity.deepLink)
+        #expect(resolved.map(\.id) == [entity.id])
+    }
+
+    @Test func shortcutRunnerEncodesNameAndInput() throws {
+        let url = try #require(
+            ShortcutRunner.runURL(named: "Pause & Tag", input: "transmissionswift://srv/1"))
+        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        #expect(components.scheme == "shortcuts")
+        #expect(components.host == "run-shortcut")
+        let query = Dictionary(
+            uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value) })
+        #expect(query["name"] == "Pause & Tag")
+        #expect(query["input"] == "text")
+        #expect(query["text"] == "transmissionswift://srv/1")
+    }
+
+    @Test func torrentActionDerivesServerFromSelection() async throws {
+        // Two profiles: the first is active, the second owns the torrent. With no
+        // Server chosen, the action must follow the torrent's server, not the
+        // active one, or it targets the wrong daemon.
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("AppIntentTests-derive-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let fileURL = directory.appendingPathComponent("servers.json")
+        let store = ServerProfileStore(fileURL: fileURL)
+        let active = ServerProfile(label: "Active", host: "active.local")
+        let owner = ServerProfile(label: "Owner", host: "owner.local")
+        try store.add(active)
+        try store.add(owner)
+        try store.setActive(active.id)
+
+        let service = MockTorrentService(initial: MockFixtures.torrents())
+        let environment = AppEnvironment(mode: .live, profileFileURL: fileURL)
+        environment.setConnected(service, for: owner)
+        AppEnvironment.register(environment)
+
+        let torrent = try #require(try await service.torrents().first)
+        let intent = PauseTorrentsIntent()
+        intent.torrents = [TorrentEntity(torrent: torrent, serverID: owner.id.uuidString)]
+        _ = try await intent.perform()
+
+        let after = try await service.torrents()
+        #expect(after.first { $0.id == torrent.id }?.status == .paused)
+    }
 }
