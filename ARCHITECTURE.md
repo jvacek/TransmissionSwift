@@ -37,8 +37,8 @@ TransmissionSwift/                          ← Xcode project root
 
 **Layering rules:**
 - `TransmissionRPC` depends on **Foundation only** (plus `OSLog` for logging — fine, it's platform-agnostic). No SwiftUI, no AppKit, no SwiftData.
-- `TransmissionCore` depends on `TransmissionRPC` + Foundation + (optionally) SwiftData/Security for storage.
-- The app target depends on both packages and contains **only** SwiftUI views and view models.
+- `TransmissionCore` depends on `TransmissionRPC` + Foundation + (optionally) SwiftData/Security for storage. The package also builds a second, non-product target, `TransmissionTestSupport`, holding the mocks/fixtures; only tests and previews link it.
+- The app target depends on both packages (and `TransmissionTestSupport`, for previews). It holds SwiftUI views and view models, plus thin app-only services that don't belong in Core — connection coordination, crash reporting, favicon/tag stores, App Intents.
 
 **Why three layers:**
 - `TransmissionRPC` is a pure protocol implementation — testable without a UI, swappable, mockable via protocol.
@@ -63,6 +63,17 @@ that each own one concern.
 Views read `store.<collaborator>.<member>`; the poll loop distributes snapshots
 to the models. User-action failures funnel through the coordinator's
 `lastActionError`. The split is tracked in `doc/torrentstore-split.md`.
+
+The services behind the store are split by capability: `TorrentReading` (always
+available) and `TorrentMutating` (live and mock services only). Callers resolve
+the optional mutation half with `TorrentReading.mutations` rather than a
+repeated `as?` downcast. A read-only source (snapshot replay) implements only
+`TorrentReading`; `EmptyTorrentService` is the production no-server placeholder.
+
+Choosing *which* service to install is app-only and lives in
+`ConnectionCoordinator` (app target), not the view: it reads the Keychain off
+the main actor, builds the service and drives `TorrentStore` plus the shared
+`AppEnvironment` that App Intents read.
 
 ## 3. RPC client design
 
@@ -90,6 +101,10 @@ to the models. User-action failures funnel through the coordinator's
 - View models are `@Observable` (the macro, not `ObservableObject`).
 - SwiftUI lifecycle driven by `.task { }` modifiers.
 - The RPC client is an `actor` to serialize session-ID state.
+- The app target builds with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`, so
+  views, view models and app services are main-actor by default. Pure logic
+  (the table row/selection/sort/menu helpers, process checks) is marked
+  `nonisolated` so it can be unit-tested without the main actor.
 
 ## 5. Polling strategy
 
@@ -108,9 +123,13 @@ What we persist locally — the daemon owns everything else.
 |---|---|---|
 | Server profiles (host, port, RPC path, username, label) | JSON file in App Support | Plain config, easy to back up |
 | Server passwords | **Keychain** | Non-negotiable — never plain text |
-| UI preferences (column order, sort, filters) | `@AppStorage` / `UserDefaults` | Standard for prefs |
+| UI preferences (column order/widths, sort, inspector width, sidebar expansion) | `@AppStorage` / `UserDefaults` | Standard for prefs |
 | Last selected server ID | `@AppStorage` | Restore-on-launch |
 | Torrent list cache | Not persisted (yet) | Live data — refetch on launch |
+
+The table's sort preference is read and written through a
+`TablePreferencesStoring` seam over `UserDefaults`, so the list model can be
+tested without the shared defaults.
 
 **Remove from default template:** the boilerplate `Item.swift` model and the `ModelContainer` setup in `TransmissionSwiftApp.swift`. We are not using SwiftData on day one.
 
@@ -123,9 +142,11 @@ What we persist locally — the daemon owns everything else.
 ## 8. Testing
 
 - **Framework:** Swift Testing (`@Test`, `#expect`). XCUIAutomation for UI.
-- **RPC layer:** test against canned HTTP responses via a custom `URLProtocol` stub. Must cover the 409-then-retry handshake, auth failure, malformed JSON.
-- **Core layer:** the `TransmissionClient` protocol means we can inject a fake client for service-level tests.
-- **App layer:** SwiftUI views tested with previews + targeted UI tests for golden paths.
+- **RPC layer:** canned HTTP responses via a custom `URLProtocol` stub — 409-then-retry handshake, auth failure, malformed JSON.
+- **Core layer:** the `TransmissionClient` protocol injects a fake client for service-level tests, and the store's main collaborators each have a direct suite. Mocks/fixtures live in the `TransmissionTestSupport` target.
+- **App layer:** pure logic extracted from the views (table row store, selection, sort, row-menu spec, cell-content builder, formatters) is unit-tested directly in `TransmissionSwiftTests`, as is `ConnectionCoordinator` with an injected Keychain reader, service builder and `AppEnvironment`. Views themselves are covered by previews and UI tests.
+- **UI:** a daemon-free snapshot-replay test (`just test-snapshot`) and an opt-in E2E golden path (`TEST_RUNNER_TRANSMISSION_E2E=1`, needs a live local daemon).
+- Package tests run with `-warnings-as-errors` (see the decision log).
 
 ## 9. Open questions (decide as they come up)
 
@@ -155,3 +176,8 @@ What we persist locally — the daemon owns everything else.
 | 2026-06-11 | Mock-first UI buildout: views consume `protocol TorrentService` (TransmissionCore), built against `MockTorrentService` first; `RPCTorrentService` swaps in last with zero view changes. Plan + progress in `doc/ui-buildout.md` | Active |
 | 2026-06-0? | Split RPC client files per method group | Active |
 | 2026-10-08 | `TorrentStore` is a coordinator over focused `@Observable` collaborators (`list`/`session`/`inspector`/`actions`/`ui`), not a god object; plan + progress in `doc/torrentstore-split.md` | Active |
+| 2026-10-08 | `TorrentService` split into `TorrentReading` + `TorrentMutating`; callers resolve the mutation half via `TorrentReading.mutations` | Active |
+| 2026-10-08 | Connect flow extracted from `ContentView` into an app-target `ConnectionCoordinator` (Keychain + factory + `AppEnvironment`), with injected dependencies | Active |
+| 2026-10-08 | Table sort persists through a `TablePreferencesStoring` seam; the persisted value is the single source of truth | Active |
+| 2026-10-08 | Mocks/fixtures moved out of `TransmissionCore` into a `TransmissionTestSupport` target; `EmptyTorrentService` is the production no-server placeholder | Active |
+| 2026-10-08 | AppKit decomposition: the cell view and the table `Coordinator` split into focused files and pure types; plan in `doc/appkit-decomposition.md` | Active |
