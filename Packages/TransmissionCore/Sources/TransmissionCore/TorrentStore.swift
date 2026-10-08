@@ -58,26 +58,15 @@ public struct PendingRemoval: Identifiable, Sendable {
 public final class TorrentStore {
     /// The torrent list and everything derived from it: rows, facets,
     /// selection, search, filters, sort.
-    public let list = TorrentListModel()
+    public let list: TorrentListModel
     /// The connected daemon's session-level state and reads/writes.
     public let session = SessionModel()
+    /// The inspector pane's detail, visibility and tab.
+    public let inspector: InspectorModel
 
     public private(set) var connection: ConnectionState = .connecting
     /// Non-nil when a user action failed. Cleared by the view when the alert is dismissed.
     public var lastActionError: ActionError?
-
-    /// Torrent fetched with full inspector fields for the selected torrent.
-    /// Nil when no torrent is selected or before the first inspector fetch.
-    /// Does NOT get wiped by the main list poll — updated only by `fetchInspectorDetail`.
-    public private(set) var inspectorDetail: Torrent?
-    public var inspectorVisible: Bool = true {
-        didSet {
-            if oldValue != inspectorVisible {
-                UserDefaults.standard.set(inspectorVisible, forKey: PreferenceKeys.inspectorVisible)
-            }
-        }
-    }
-    public var inspectorTab: InspectorTab = .general
 
     // Add-torrent sheet
     public var showAddTorrent: Bool = false
@@ -117,14 +106,15 @@ public final class TorrentStore {
     private var freeSpaceTask: Task<Void, Never>?
 
     public init(service: any TorrentReading) {
+        let list = TorrentListModel()
+        self.list = list
+        self.inspector = InspectorModel(list: list)
         self.service = service
         self.mutations = service as? any TorrentMutating
         self.actionsEnabled = self.mutations != nil
         session.connect(reading: service, mutations: mutations)
         session.onError = { [weak self] in self?.lastActionError = $0 }
-        if UserDefaults.standard.object(forKey: PreferenceKeys.inspectorVisible) != nil {
-            self.inspectorVisible = UserDefaults.standard.bool(forKey: PreferenceKeys.inspectorVisible)
-        }
+        inspector.connect(reading: service)
         startStream()
     }
 
@@ -157,6 +147,7 @@ public final class TorrentStore {
         actionsEnabled = mutations != nil
         session.connect(reading: service, mutations: mutations)
         session.reset()
+        inspector.connect(reading: service)
         connection = .connecting
         list.setDownloadDirectory(nil)
         list.setTorrents([])
@@ -460,33 +451,10 @@ public final class TorrentStore {
         }
     }
 
-    /// Fetch inspector-level detail (files, peers, trackerStats) for a single
-    /// torrent and store it in `inspectorDetail`. Clears stale detail first if
-    /// the ID changed. Silently swallows errors — the tabs fall back to showing
-    /// empty arrays if the fetch fails.
-    public func fetchInspectorDetail(for id: Torrent.ID) async {
-        if inspectorDetail?.id != id {
-            inspectorDetail = nil
-        }
-        do {
-            let detail = try await service.inspectorData(for: id)
-            logger.debug(
-                "Inspector fetch succeeded for id \(id): \(detail.files.count) files, \(detail.peers.count) peers, \(detail.trackers.count) trackers"
-            )
-            inspectorDetail = detail
-        } catch {
-            logger.error("Inspector fetch failed for id \(id): \(error)")
-        }
-    }
-
     /// After a mutation that only affects inspector-scoped data, re-fetch the
     /// inspector detail when the mutated torrent is the one currently shown.
-    /// Per-file wanted/priority live in `inspectorDetail` — the list poll never
-    /// carries `files` — so without this the Files tab shows stale values until
-    /// the selection changes.
     private func refreshInspectorIfCurrent(_ id: Torrent.ID) async {
-        guard list.selectedTorrents.first?.id == id else { return }
-        await fetchInspectorDetail(for: id)
+        await inspector.refreshIfShowing(id)
     }
 
     /// The torrent to resolve a mapping against. From the torrent list the

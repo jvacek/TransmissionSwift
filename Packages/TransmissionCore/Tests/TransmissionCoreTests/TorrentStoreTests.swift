@@ -597,21 +597,21 @@ struct TorrentStoreTests {
         await waitFor { !store.list.torrents.isEmpty }
 
         store.list.selectedTorrentIDs = [5]
-        await store.fetchInspectorDetail(for: 5)
-        let detail = try #require(store.inspectorDetail)
+        await store.inspector.fetch(for: 5)
+        let detail = try #require(store.inspector.detail)
         let target = try #require(detail.files.first { $0.priority == .normal }?.id)
 
         await store.setFilePriority(5, fileIDs: [target], priority: .high)
         await waitFor {
-            store.inspectorDetail?.files.first { $0.id == target }?.priority == .high
+            store.inspector.detail?.files.first { $0.id == target }?.priority == .high
         }
-        #expect(store.inspectorDetail?.files.first { $0.id == target }?.priority == .high)
+        #expect(store.inspector.detail?.files.first { $0.id == target }?.priority == .high)
 
         await store.setFilesWanted(5, fileIDs: [target], wanted: false)
         await waitFor {
-            store.inspectorDetail?.files.first { $0.id == target }?.wanted == false
+            store.inspector.detail?.files.first { $0.id == target }?.wanted == false
         }
-        #expect(store.inspectorDetail?.files.first { $0.id == target }?.wanted == false)
+        #expect(store.inspector.detail?.files.first { $0.id == target }?.wanted == false)
     }
 
     @Test("openEditLabels is gated on actions and a non-empty target")

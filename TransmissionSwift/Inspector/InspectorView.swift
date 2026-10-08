@@ -8,13 +8,13 @@ struct InspectorView: View {
     @Environment(TorrentStore.self) private var store
 
     var body: some View {
-        @Bindable var store = store
+        @Bindable var inspector = store.inspector
 
         if let torrent = store.list.selectedTorrents.first {
             VStack(spacing: 0) {
                 InspectorHeader(torrent: torrent, selectionCount: store.list.selectedTorrents.count)
 
-                Picker("Inspector Tab", selection: $store.inspectorTab) {
+                Picker("Inspector Tab", selection: $inspector.tab) {
                     ForEach(InspectorTab.allCases, id: \.self) { tab in
                         Image(systemName: tab.systemImage)
                             .accessibilityLabel(tab.displayLabel)
@@ -37,7 +37,7 @@ struct InspectorView: View {
             }
             // Fetch rich inspector data whenever the selected torrent changes.
             .task(id: torrent.id) {
-                await store.fetchInspectorDetail(for: torrent.id)
+                await store.inspector.fetch(for: torrent.id)
             }
         } else {
             ContentUnavailableView(
@@ -54,9 +54,9 @@ struct InspectorView: View {
         // fetched inspectorDetail when it matches the current torrent. The main
         // list poll only carries list fields, so those arrays would otherwise
         // always be empty.
-        let detail = store.inspectorDetail?.id == torrent.id ? store.inspectorDetail! : torrent
-        switch store.inspectorTab {
-        case .general: InspectorGeneralTab(torrent: torrent.mergingMetadata(from: store.inspectorDetail))
+        let detail = store.inspector.detail?.id == torrent.id ? store.inspector.detail! : torrent
+        switch store.inspector.tab {
+        case .general: InspectorGeneralTab(torrent: torrent.mergingMetadata(from: store.inspector.detail))
         case .files: InspectorFilesTab(torrent: detail)
         case .peers: InspectorPeersTab(torrent: detail)
         case .trackers: InspectorTrackersTab(torrent: detail)

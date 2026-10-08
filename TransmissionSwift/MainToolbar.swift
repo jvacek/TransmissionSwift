@@ -73,7 +73,7 @@ struct MainToolbar: ToolbarContent {
         // Group 3 — view toggles
         ToolbarItem(placement: .primaryAction) {
             Button {
-                store.inspectorVisible.toggle()
+                store.inspector.isVisible.toggle()
             } label: {
                 Label("Toggle Inspector", systemImage: "sidebar.right")
             }

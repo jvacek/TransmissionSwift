@@ -44,7 +44,7 @@ struct TorrentListView: View {
                 }
             },
             onInspectorRequest: {
-                store.inspectorVisible = true
+                store.inspector.isVisible = true
             },
             mappings: profileStore.activeProfile?.mappings ?? [],
             onOpenMapping: { mapping, ids in

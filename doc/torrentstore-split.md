@@ -11,7 +11,7 @@ rewrite and without changing behaviour.
 |---|---|
 | 1 — `TorrentListModel` | done |
 | 2 — `SessionModel` | done |
-| 3 — `InspectorModel` | not started |
+| 3 — `InspectorModel` | done |
 | 4 — `TorrentActionModel` | not started |
 | 5 — `TorrentSheetState` | not started |
 | 6 — docs / sweep | not started |
@@ -30,6 +30,12 @@ space, version, stats, port, label support) and its reads/writes onto
 (`PrefsShared.swift`). The poll loop drives it via `session.load(from:)` /
 `session.poll(from:)` with the captured service; user actions use the bound
 service. New direct suite: `SessionModelTests.swift`.
+
+Phase 3 moved the inspector's detail, visibility (persisted preference) and tab
+onto `InspectorModel` as `store.inspector`, plus `fetch(for:)` and the
+selection-gated `refreshIfShowing(_:)` used after mutations. The view binding
+uses `@Bindable var inspector = store.inspector`. New direct suite:
+`InspectorModelTests.swift`.
 
 ## Why
 

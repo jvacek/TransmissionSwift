@@ -43,7 +43,7 @@ struct MainWindow: View {
 
         HStack(spacing: 0) {
             splitView
-            if store.inspectorVisible {
+            if store.inspector.isVisible {
                 InspectorResizeHandle(
                     storedWidth: $storedInspectorWidth,
                     clampedWidth: inspectorWidth,
@@ -216,7 +216,7 @@ struct MainWindow: View {
         store.list.searchQuery = ""
         store.list.resetFilters()
         store.list.selectedTorrentIDs = [request.torrentID]
-        store.inspectorVisible = true
+        store.inspector.isVisible = true
     }
 
     private var serverSwitcherMenu: some View {

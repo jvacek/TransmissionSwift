@@ -411,7 +411,7 @@ struct ServerProfileForm: View {
     /// The torrent the mapping preview/Test acts on: the one currently in the
     /// inspector, else the first in the full list. Nil when there are none.
     private var sampleTorrent: Torrent? {
-        torrentStore.inspectorDetail ?? torrentStore.list.torrents.first
+        torrentStore.inspector.detail ?? torrentStore.list.torrents.first
     }
 
     /// Password the mapping Test uses: the typed field if filled, else the
