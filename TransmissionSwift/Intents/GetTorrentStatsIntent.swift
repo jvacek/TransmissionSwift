@@ -6,7 +6,6 @@ import TransmissionCore
 struct TorrentStatsEntity: TransientAppEntity {
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Torrent Stats")
 
-    @Property(title: "Summary") var summary: String
     @Property(title: "Name") var name: String
     @Property(title: "Status") var status: String
     @Property(title: "Progress (%)") var progressPercent: Int
@@ -19,8 +18,15 @@ struct TorrentStatsEntity: TransientAppEntity {
         DisplayRepresentation(title: "\(summary)")
     }
 
+    /// Human-readable one-liner for `displayRepresentation` and tests. Not a
+    /// `@Property`, so it doesn't duplicate the fields in the variable picker.
+    var summary: String {
+        "\(name): \(status) · \(progressPercent)% · "
+            + "↓ \(ColumnFormatters.humanizedSpeed(Int64(downloadSpeed))) "
+            + "↑ \(ColumnFormatters.humanizedSpeed(Int64(uploadSpeed)))"
+    }
+
     init() {
-        summary = ""
         name = ""
         status = ""
         progressPercent = 0
@@ -30,7 +36,7 @@ struct TorrentStatsEntity: TransientAppEntity {
         ratio = 0
     }
 
-    init(torrent: Torrent, server: String) {
+    init(torrent: Torrent) {
         self.init()
         name = torrent.name
         status = torrent.status.rawValue.capitalized
@@ -39,10 +45,6 @@ struct TorrentStatsEntity: TransientAppEntity {
         uploadSpeed = Int(torrent.uploadSpeed)
         connectedPeerCount = torrent.connectedPeerCount
         ratio = torrent.ratio
-        summary =
-            "\(server) · \(name): \(status) · \(progressPercent)% · "
-            + "↓ \(ColumnFormatters.humanizedSpeed(torrent.downloadSpeed)) "
-            + "↑ \(ColumnFormatters.humanizedSpeed(torrent.uploadSpeed))"
     }
 }
 
@@ -69,7 +71,7 @@ struct GetTorrentStatsIntent: AppIntent {
         guard let target = targets.first else {
             throw IntentError(message: "That torrent isn't on \(profile.label).")
         }
-        let stats = TorrentStatsEntity(torrent: target, server: profile.label)
+        let stats = TorrentStatsEntity(torrent: target)
         return .result(value: stats, dialog: "\(stats.summary)")
     }
 }

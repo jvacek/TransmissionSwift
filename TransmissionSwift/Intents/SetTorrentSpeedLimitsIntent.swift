@@ -7,7 +7,7 @@ struct SetTorrentSpeedLimitsIntent: AppIntent {
     static let title: LocalizedStringResource = "Set Torrent Speed Limits"
     static var description: IntentDescription? {
         IntentDescription(
-            "Sets per-torrent download and upload speed limits (KB/s). Leave Torrents empty to apply to every torrent on the server."
+            "Sets per-torrent download and upload speed limits (KB/s) on the given torrents."
         )
     }
     static let openAppWhenRun = false
@@ -16,7 +16,7 @@ struct SetTorrentSpeedLimitsIntent: AppIntent {
     var server: ServerEntity?
 
     @Parameter(title: "Torrents")
-    var torrents: [TorrentEntity]?
+    var torrents: [TorrentEntity]
 
     @Parameter(title: "Limit Download Speed")
     var downloadLimited: Bool?

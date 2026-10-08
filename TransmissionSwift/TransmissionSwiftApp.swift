@@ -154,12 +154,15 @@ struct TransmissionSwiftApp: App {
             .environment(faviconStore)
             .environment(tagColorStore)
             .onOpenURL { url in
-                // Fires for both magnet: links (CFBundleURLTypes) and
-                // double-clicked / "Open With" .torrent files
-                // (CFBundleDocumentTypes). Reuses the same add flow as
-                // drag-and-drop in MainWindow, honouring the "Show dialog
-                // before adding" pref.
-                torrentStore.addFromExternalURL(url)
+                // transmissionswift://<serverUUID>/<torrentID> opens the app on a
+                // torrent (the URL form of TorrentEntity); magnet: links and
+                // double-clicked / "Open With" .torrent files go through the add
+                // flow, honouring the "Show dialog before adding" pref.
+                if let request = OpenRequest(deepLink: url) {
+                    OpenRequestBus.shared.request = request
+                } else {
+                    torrentStore.addFromExternalURL(url)
+                }
             }
         }
         .commands {

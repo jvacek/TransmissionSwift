@@ -10,7 +10,7 @@ import TransmissionTestSupport
 /// `MockTorrentService`. Serialized because `AppEnvironment.register` sets a
 /// process-wide value.
 ///
-/// Value-returning intents (`GetTorrentsIntent`, `GetFreeSpaceIntent`, …) assert
+/// Value-returning intents (`GetTorrentsIntent`, `GetServerStatsIntent`, …) assert
 /// their contract through the integration suite (`AppIntentsUITests`), since an
 /// `AppIntent`'s result is opaque to plain unit tests. Here we assert the
 /// side effects that matter.
@@ -196,10 +196,29 @@ struct AppIntentTests {
         #expect(entity.name == torrent.name)
         #expect(entity.status == torrent.status.rawValue.capitalized)
         #expect(entity.progressPercent == Int((torrent.progress * 100).rounded()))
-        #expect(entity.size == Int(torrent.size))
+        #expect(entity.size.value == Double(torrent.size))
         #expect(entity.downloadSpeed == Int(torrent.downloadSpeed))
         #expect(entity.tracker == torrent.primaryTracker)
         #expect(entity.labels == torrent.labels.joined(separator: ", "))
+        #expect(entity.downloadLimited == torrent.options.downloadLimited)
+        #expect(entity.downloadLimitKBps == torrent.options.downloadLimitKBps)
+    }
+
+    @Test func torrentEntityParsesItsIdentifier() throws {
+        let torrent = try #require(MockFixtures.torrents().first)
+        let entity = TorrentEntity(torrent: torrent, serverID: "server-a")
+        let parsed = try #require(TorrentEntity.parse(identifier: entity.id))
+        #expect(parsed.serverID == "server-a")
+        #expect(parsed.torrentID == torrent.id)
+        #expect(TorrentEntity.parse(identifier: "not-an-id") == nil)
+        #expect(TorrentEntity.parse(identifier: "server-a/not-a-number") == nil)
+    }
+
+    @Test func deepLinkParsesToOpenRequest() throws {
+        let serverID = UUID()
+        let url = URL(string: "transmissionswift://\(serverID.uuidString)/42")!
+        #expect(OpenRequest(deepLink: url) == OpenRequest(serverID: serverID, torrentID: 42))
+        #expect(OpenRequest(deepLink: URL(string: "magnet:?xt=urn:btih:abc")!) == nil)
     }
 
     @Test func torrentStatusOptionMapsToCoreFilter() {
@@ -210,24 +229,24 @@ struct AppIntentTests {
 
     @Test func serverStatsEntityFromTorrentsAggregates() {
         let torrents = MockFixtures.torrents()
-        let stats = ServerStatsEntity(torrents: torrents, server: "S")
+        let stats = ServerStatsEntity(
+            torrents: torrents, server: "S", serverID: "srv-id",
+            freeSpaceBytes: 1_500_000_000, turtleModeActive: true)
         let active = torrents.filter(\.isActive).count
         #expect(stats.torrentCount == torrents.count)
         #expect(stats.activeCount == active)
+        #expect(stats.serverID == "srv-id")
         #expect(stats.downloadSpeed == Int(torrents.reduce(Int64(0)) { $0 + $1.downloadSpeed }))
         #expect(stats.uploadSpeed == Int(torrents.reduce(Int64(0)) { $0 + $1.uploadSpeed }))
+        #expect(stats.turtleModeActive)
+        #expect(stats.freeSpace.value == 1_500_000_000)
         #expect(stats.summary.contains("S"))
-    }
-
-    @Test func freeSpaceEntityReportsUnit() {
-        let entity = FreeSpaceEntity(bytes: 1_500_000_000)
-        #expect(entity.bytes == 1_500_000_000)
-        #expect(entity.humanized.contains("GB"))
+        #expect(stats.summary.contains("turtle on"))
     }
 
     @Test func statsEntitySingleTorrent() throws {
         let torrent = try #require(MockFixtures.torrents().first { $0.status == .downloading })
-        let stats = TorrentStatsEntity(torrent: torrent, server: "S")
+        let stats = TorrentStatsEntity(torrent: torrent)
         #expect(stats.name == torrent.name)
         #expect(stats.progressPercent == Int((torrent.progress * 100).rounded()))
         #expect(stats.summary.contains(torrent.name))
@@ -356,8 +375,8 @@ struct AppIntentTests {
         defer { cleanup(harness) }
 
         let before = try await harness.service.torrents().count
-        let intent = AddTorrentIntent()
-        intent.magnet = URL(string: "magnet:?xt=urn:btih:abc&dn=My%20Torrent")
+        let intent = AddMagnetLinkIntent()
+        intent.magnet = URL(string: "magnet:?xt=urn:btih:abc&dn=My%20Torrent")!
         _ = try await intent.perform()
 
         let after = try await harness.service.torrents()
@@ -365,11 +384,12 @@ struct AppIntentTests {
         #expect(after.contains { $0.name == "My Torrent" })
     }
 
-    @Test func addRejectsMissingPayload() async throws {
+    @Test func setServerSpeedLimitsRejectsLimitWithoutValue() async throws {
         let harness = try makeHarness()
         defer { cleanup(harness) }
 
-        let intent = AddTorrentIntent()
+        let intent = SetServerSpeedLimitsIntent()
+        intent.downloadLimited = true
         await #expect(throws: IntentError.self) { _ = try await intent.perform() }
     }
 

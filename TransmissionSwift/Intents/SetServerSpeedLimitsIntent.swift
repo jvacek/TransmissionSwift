@@ -41,6 +41,14 @@ struct SetServerSpeedLimitsIntent: AppIntent {
         guard !patch.isEmpty else {
             throw IntentError(message: "No speed-limit changes were specified.")
         }
+        // Enabling a limit without a value would leave the daemon at 0 KB/s
+        // (blocked, not unlimited), so require the value.
+        if downloadLimited == true, downloadLimitKBps == nil {
+            throw IntentError(message: "Set a download limit value, or turn the download limit off.")
+        }
+        if uploadLimited == true, uploadLimitKBps == nil {
+            throw IntentError(message: "Set an upload limit value, or turn the upload limit off.")
+        }
 
         do {
             try await mutations.applySessionSettings(patch)

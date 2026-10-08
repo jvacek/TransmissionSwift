@@ -16,30 +16,50 @@ If you are here to **change or debug an intent**, read
 | Action | Status | Parameters | Returns |
 |---|---|---|---|
 | **Get Servers** (`GetServersIntent`) | shipped | — | `[ServerEntity]` |
-| **Get Torrents** (`GetTorrentsIntent`) | shipped | Server, Status, Label, Tracker, Search (all optional) | `[TorrentEntity]` |
-| **Add Torrent or Magnet** (`AddTorrentIntent`) | shipped | magnet / file, Server, Add Paused, Destination Folder, Labels, Priority | dialog |
+| **Get Torrents** (`GetTorrentsIntent`) | shipped | Server, Status (default All), Label, Tracker, Search (all optional, AND) | `[TorrentEntity]` |
+| **Add Torrent File** (`AddTorrentFileIntent`) | shipped | Torrent File (required), Server, Add Paused, Destination Folder, Labels, Priority (default Normal) | dialog |
+| **Add Magnet Link** (`AddMagnetLinkIntent`) | shipped | Magnet Link (required), Server, Add Paused, Destination Folder, Labels, Priority (default Normal) | dialog |
 | **Open Torrent** (`OpenTorrentIntent`) | shipped | Torrent (required) | deep-links the app to the torrent |
 | **Pause Torrents** (`PauseTorrentsIntent`) | shipped | Server, Torrents (empty = all) | dialog |
 | **Resume Torrents** (`ResumeTorrentsIntent`) | shipped | Server, Torrents (empty = all) | dialog |
 | **Remove Torrents** (`RemoveTorrentsIntent`) | shipped | Server, Torrents, Also Delete Downloaded Data | dialog (confirms first) |
-| **Verify Torrents** (`VerifyTorrentsIntent`) | shipped | Server, Torrents (empty = all) | dialog |
-| **Re-announce Torrents** (`ReannounceTorrentsIntent`) | shipped | Server, Torrents (empty = all) | dialog |
-| **Get Server Stats** (`GetServerStatsIntent`) | shipped | Server (optional) | `ServerStatsEntity` (transient) + dialog |
+| **Verify Torrents** (`VerifyTorrentsIntent`) | shipped | Server, Torrents (required) | dialog |
+| **Re-announce Torrents** (`ReannounceTorrentsIntent`) | shipped | Server, Torrents (required) | dialog |
+| **Get Server Info** (`GetServerStatsIntent`) | shipped | Server (optional) | `ServerStatsEntity` (transient: counts, speeds, free space, turtle state) + dialog |
 | **Get Torrent Stats** (`GetTorrentStatsIntent`) | shipped | Server, Torrent (required) | `TorrentStatsEntity` (transient) + dialog |
-| **Get Free Space** (`GetFreeSpaceIntent`) | shipped | Server (optional) | `FreeSpaceEntity` (transient, bytes + humanized) + dialog |
 | **Set Turtle Mode** (`SetTurtleModeIntent`) | shipped | Server, Enabled | dialog |
 | **Set Server Speed Limits** (`SetServerSpeedLimitsIntent`) | shipped | Server, download/upload limit + enable | dialog |
-| **Set Torrent Speed Limits** (`SetTorrentSpeedLimitsIntent`) | shipped | Server, Torrents, download/upload limit + enable | dialog |
+| **Set Torrent Speed Limits** (`SetTorrentSpeedLimitsIntent`) | shipped | Server, Torrents (required), download/upload limit + enable | dialog |
 | Server (`ServerEntity`) | shipped | — | entity, indexed in Spotlight |
-| Torrent (`TorrentEntity`) | shipped | — | entity (id/name/status/progress/speeds/ratio/size/labels/tracker), indexed in Spotlight |
-| `ServerStatsEntity` | shipped | — | transient result entity (server counts + speeds) |
+| Torrent (`TorrentEntity`) | shipped | — | entity (id/name/status/progress/speeds/ratio/size/labels/tracker/limits), indexed in Spotlight, URL-representable |
+| `ServerStatsEntity` | shipped | — | transient result entity (server id/label, counts, speeds, free space, turtle) |
 | `TorrentStatsEntity` | shipped | — | transient result entity (one torrent) |
-| `FreeSpaceEntity` | shipped | — | transient result entity (bytes + humanized) |
-| `TorrentStatusOption` | shipped | — | enum, the `Status` filter on Get Torrents |
+| `TorrentStatusOption` | shipped | — | enum, the `Status` filter on Get Torrents (includes `All`) |
 
-Siri phrases for Get Servers / Server Stats / Free Space / Pause / Resume are
-provided by `TransmissionSwiftShortcuts` (`AppShortcutsProvider`). See
+Free space is part of **Get Server Info** rather than its own action; the
+`Get free space` Siri phrase still resolves to `GetServerStatsIntent`.
+
+Siri phrases for Get Servers / Server Info / Pause / Resume are provided by
+`TransmissionSwiftShortcuts` (`AppShortcutsProvider`). See
 [Spotlight, structured results, Siri](#spotlight-structured-results-siri).
+
+### Deep links
+
+`TorrentEntity` conforms to `URLRepresentableEntity`, so the system can refer to
+a torrent as a URL and open it:
+
+```
+transmissionswift://<serverUUID>/<torrentID>
+```
+
+The scheme is registered in `TransmissionSwift/Info.plist` (`CFBundleURLTypes`,
+alongside `magnet`). `TransmissionSwiftApp`'s `.onOpenURL` routes a matching URL
+to `OpenRequest(deepLink:)`, which drops an `OpenRequest` on `OpenRequestBus` —
+the same path `OpenTorrentIntent.perform()` uses. The torrent's server UUID is
+baked into its identifier (`<serverUUID>/<torrentID>`), so
+`TorrentEntityQuery.entities(for:)` resolves an identifier against its own
+server rather than the active one; that is what lets `Open Torrent` accept a
+torrent from `Get Torrents` instead of falling back to a picker.
 
 ---
 
@@ -53,7 +73,8 @@ edit).
 |---|---|
 | `TransmissionSwift/Intents/AppEnvironment.swift` | Process-wide shared state the intents resolve against (server list + service). The spine of the feature. |
 | `TransmissionSwift/Intents/ServerEntity.swift` | `ServerEntity` + `ServerEntityQuery` — the Shortcuts "Server" picker. |
-| `TransmissionSwift/Intents/GetServerStatsIntent.swift` | Server-wide stats action; `ServerStatsEntity` lives here. |
+| `TransmissionSwift/Intents/GetServerStatsIntent.swift` | "Get Server Info" action; `ServerStatsEntity` (counts, speeds, free space, turtle) lives here. |
+| `TransmissionSwift/Intents/AddTorrentIntent.swift` | `AddTorrentFileIntent` + `AddMagnetLinkIntent` and their shared add path. |
 | `TransmissionSwift/Intents/IntentError.swift` | `IntentError`, a user-facing error whose message shows verbatim in Shortcuts. |
 | `TransmissionSwift/Intents/` (new files) | One file per intent, by convention. |
 
@@ -232,8 +253,8 @@ var server: ServerEntity?
    a query's `nonisolated` methods are marked so. If you hit "main actor-isolated
    … cannot be called from outside of the actor", mark the callee `nonisolated`.
 4. **Returning data.** Return a `TransientAppEntity` when the result has more
-   than one field a shortcut might chain (`ServerStatsEntity`, `TorrentStatsEntity`,
-   `FreeSpaceEntity`); the transient entity's `@Property` fields become selectable
+   than one field a shortcut might chain (`ServerStatsEntity`, `TorrentStatsEntity`);
+   the transient entity's `@Property` fields become selectable
    in Shortcuts. A plain `String` result is only usable as an opaque string, so
    avoid it for anything a shortcut should compute on. Every read intent also
    provides a dialog — that is what Siri speaks, and what Shortcuts' per-action
@@ -256,9 +277,22 @@ Adding files under `TransmissionSwift/Intents/` is picked up automatically.
 `TorrentEntity` / `TorrentEntityQuery` exist; one shared query learns the selected
 server from whichever carrying intent is being configured, through one
 `@IntentParameterDependency<…>(\.$server)` per intent (see `TorrentEntityQuery`).
-An empty `Torrents` parameter means "every torrent on the server". When you add an
-intent with a `Torrents` parameter, register its dependency there too, or the
-picker won't scope to the chosen server.
+A torrent's identifier is `<serverUUID>/<torrentID>`, and
+`TorrentEntityQuery.entities(for:)` parses the server out of the identifier, so a
+selection resolves against its own server no matter which profile is active.
+
+Required vs. optional `Torrents` is deliberate:
+
+- `VerifyTorrentsIntent`, `ReannounceTorrentsIntent` and
+  `SetTorrentSpeedLimitsIntent` take a **required** `[TorrentEntity]`. Blanket
+  operations against a whole library can stall the daemon, so they must be
+  explicit.
+- `PauseTorrentsIntent` / `ResumeTorrentsIntent` / `RemoveTorrentsIntent` /
+  `GetTorrentStatsIntent` still treat an empty selection as "every torrent"
+  (replaceable, and `Remove` confirms first).
+
+When you add an intent with a `Torrents` parameter, register its dependency in
+`TorrentEntityQuery` so its picker scopes to the chosen server.
 
 ---
 
@@ -276,17 +310,21 @@ picker won't scope to the chosen server.
   app-UI removals are pruned on the next donation.
 - **Structured results (`TransientAppEntity`).** Read intents return structured
   entities so a shortcut can chain individual fields instead of parsing a string.
-  `ServerStatsEntity` = server-wide counts and speeds (`GetServerStatsIntent`);
-  `TorrentStatsEntity` = one torrent's progress/speeds/ratio
+  `ServerStatsEntity` = a server's id/label, torrent counts, transfer speeds,
+  free space and turtle state (`GetServerStatsIntent`, presented as "Get Server
+  Info"); `TorrentStatsEntity` = one torrent's progress/speeds/ratio
   (`GetTorrentStatsIntent`, which requires a torrent — the server-wide aggregate
-  is `GetServerStatsIntent`); `FreeSpaceEntity` = bytes + a unit-bearing
-  humanized string (`GetFreeSpaceIntent`). `GetTorrentsIntent` returns
-  `[TorrentEntity]`, whose `@Property` fields (name, status, progress, speeds,
-  ratio, size, labels, tracker) are chainable.
+  is `GetServerStatsIntent`). `GetTorrentsIntent` returns `[TorrentEntity]`, whose
+  `@Property` fields (name, status, progress, speeds, ratio, size, labels,
+  tracker, per-torrent download/upload limits with their `… Limited` flags) are
+  chainable.
 - **Filtering torrents.** `GetTorrentsIntent` takes optional `Status`
-  (`TorrentStatusOption`), `Label`, `Tracker` and `Search` parameters and narrows
-  the list with AND semantics, reusing the core `TorrentFilterSelection`. The
-  server-scoped torrent picker stays unfiltered.
+  (`TorrentStatusOption`, default `All`), `Label`, `Tracker` and `Search`
+  parameters and narrows the list with AND semantics, reusing the core
+  `TorrentFilterSelection`. The server-scoped torrent picker stays unfiltered.
+- **Deep links.** `TorrentEntity` is `URLRepresentableEntity`; the URL is
+  `transmissionswift://<serverUUID>/<torrentID>`, registered in Info.plist and
+  routed through `.onOpenURL` → `OpenRequestBus` (see [Deep links](#deep-links)).
 - **Siri (`AppShortcutsProvider`).** `TransmissionSwiftShortcuts` publishes phrases
   for a few parameterless actions. Phrases must contain `\(.applicationName)` and
   be unique; prefer intents with no required parameters.
@@ -372,7 +410,7 @@ cannot run this lane anywhere — not locally and not in CI.
   swallowed) and untested — verifying actual indexing needs Spotlight.
 - **`AppShortcutsProvider` phrases** are validated by Xcode at build time, not by
   a test.
-- Value-returning intents (`GetServers`/`GetTorrents`, `GetFreeSpace`,
+- Value-returning intents (`GetServers`/`GetTorrents`, `GetServerStats`,
   `GetTorrentStats`) assert their contract through `AppIntentsUITests`; plain unit
   tests can't read an `AppIntent`'s opaque result. Headless intents resolve via
   `AppEnvironment`, so `AppIntentTests` covers them with a `MockTorrentService`.
@@ -450,13 +488,14 @@ security find-identity -v -p codesigning                       # is there a usab
 
 ## Status / what's left
 
-Shipped: the full action set — Get Servers/Torrents, Add Torrent, Open Torrent,
-Pause/Resume, Remove, Verify, Re-announce, Get Server/Torrent Stats, Get Free
-Space, Set Turtle Mode, Set Server/Torrent Speed Limits — plus the `AppEnvironment`
-spine, `ServerEntity`/`TorrentEntity`/`TorrentStatsEntity`, Spotlight indexing,
-Siri phrases, the core factory/profile reader/cache-warm fix, and the
-AppIntentsTesting bundle (signing-gated).
+Shipped: Get Servers/Torrents, Add Torrent File / Add Magnet Link, Open Torrent,
+Pause/Resume, Remove, Verify, Re-announce, Get Server Info, Get Torrent Stats,
+Set Turtle Mode, Set Server/Torrent Speed Limits, torrent deep links — plus the
+`AppEnvironment` spine, `ServerEntity`/`TorrentEntity`/`TorrentStatsEntity`,
+Spotlight indexing, Siri phrases, the core factory/profile reader/cache-warm fix,
+and the AppIntentsTesting bundle (signing-gated).
 
-Possible next: per-file wanted/priority; session queue/seed-ratio/network intents;
-a single "Set Server Limits" umbrella; macOS Control Center controls; and
-IndexedEntity indexing on torrent change rather than only on `GetTorrentsIntent`.
+Possible next: per-file wanted/priority; setting labels and priority from
+shortcuts; session queue/seed-ratio/network intents; a single "Set Server Limits"
+umbrella; macOS Control Center controls; and IndexedEntity indexing on torrent
+change rather than only on `GetTorrentsIntent`.

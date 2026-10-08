@@ -17,16 +17,12 @@ struct TransmissionSwiftShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: GetServerStatsIntent(),
             phrases: [
-                "Get Transmission server stats in \(.applicationName)",
+                "Get Transmission server info in \(.applicationName)",
                 "Get server stats in \(.applicationName)",
+                "Get free space in \(.applicationName)",
             ],
-            shortTitle: "Server Stats",
+            shortTitle: "Server Info",
             systemImageName: "chart.bar")
-        AppShortcut(
-            intent: GetFreeSpaceIntent(),
-            phrases: ["Get free space in \(.applicationName)"],
-            shortTitle: "Free Space",
-            systemImageName: "internaldrive")
         AppShortcut(
             intent: PauseTorrentsIntent(),
             phrases: [

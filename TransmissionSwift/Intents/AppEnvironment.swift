@@ -61,6 +61,12 @@ nonisolated final class AppEnvironment: Sendable {
         ServerProfileStore.readProfiles(from: profileFileURL)
     }
 
+    /// A profile by its id, for resolving entity identifiers that carry a server
+    /// UUID without the caller having a `ServerEntity` to hand.
+    func profile(withID id: UUID) -> ServerProfile? {
+        profiles().profiles.first { $0.id == id }
+    }
+
     /// The chosen server, else the active profile, else the first profile.
     func resolve(_ server: ServerEntity?) -> ServerProfile? {
         let loaded = profiles()

@@ -6,7 +6,7 @@ struct VerifyTorrentsIntent: AppIntent {
     static let title: LocalizedStringResource = "Verify Torrents"
     static var description: IntentDescription? {
         IntentDescription(
-            "Re-checks the local data of torrents on a Transmission server. Leave Torrents empty to verify all."
+            "Re-checks the local data of the given torrents on a Transmission server. Torrents is required: verifying a whole large library can stall the daemon."
         )
     }
     static let openAppWhenRun = false
@@ -15,7 +15,7 @@ struct VerifyTorrentsIntent: AppIntent {
     var server: ServerEntity?
 
     @Parameter(title: "Torrents")
-    var torrents: [TorrentEntity]?
+    var torrents: [TorrentEntity]
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let environment = try AppEnvironment.require()
@@ -43,7 +43,7 @@ struct ReannounceTorrentsIntent: AppIntent {
     static let title: LocalizedStringResource = "Re-announce Torrents"
     static var description: IntentDescription? {
         IntentDescription(
-            "Asks the trackers for more peers for torrents on a Transmission server. Leave Torrents empty to re-announce all."
+            "Asks the trackers for more peers for the given torrents on a Transmission server. Torrents is required: re-announcing a whole large library can stall the daemon."
         )
     }
     static let openAppWhenRun = false
@@ -52,7 +52,7 @@ struct ReannounceTorrentsIntent: AppIntent {
     var server: ServerEntity?
 
     @Parameter(title: "Torrents")
-    var torrents: [TorrentEntity]?
+    var torrents: [TorrentEntity]
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let environment = try AppEnvironment.require()

@@ -7,6 +7,22 @@ import Observation
 struct OpenRequest: Equatable, Sendable {
     let serverID: UUID?
     let torrentID: Int
+
+    init(serverID: UUID?, torrentID: Int) {
+        self.serverID = serverID
+        self.torrentID = torrentID
+    }
+
+    /// Parses a `transmissionswift://<serverUUID>/<torrentID>` deep link, the
+    /// URL form of `TorrentEntity`. Nil for anything else.
+    init?(deepLink url: URL) {
+        guard url.scheme == "transmissionswift",
+            let host = url.host,
+            let serverID = UUID(uuidString: host),
+            let torrentID = Int(url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
+        else { return nil }
+        self.init(serverID: serverID, torrentID: torrentID)
+    }
 }
 
 @MainActor
