@@ -144,19 +144,23 @@ struct TransmissionSwiftApp: App {
 
     var body: some Scene {
         Window("TransmissionSwift", id: "main") {
-            ContentView(snapshotMode: snapshotPath != nil, disableOnboarding: disableOnboarding)
-                .environment(profileStore)
-                .environment(torrentStore)
-                .environment(faviconStore)
-                .environment(tagColorStore)
-                .onOpenURL { url in
-                    // Fires for both magnet: links (CFBundleURLTypes) and
-                    // double-clicked / "Open With" .torrent files
-                    // (CFBundleDocumentTypes). Reuses the same add flow as
-                    // drag-and-drop in MainWindow, honouring the "Show dialog
-                    // before adding" pref.
-                    torrentStore.addFromExternalURL(url)
-                }
+            ContentView(
+                store: torrentStore,
+                snapshotMode: snapshotPath != nil,
+                disableOnboarding: disableOnboarding
+            )
+            .environment(profileStore)
+            .environment(torrentStore)
+            .environment(faviconStore)
+            .environment(tagColorStore)
+            .onOpenURL { url in
+                // Fires for both magnet: links (CFBundleURLTypes) and
+                // double-clicked / "Open With" .torrent files
+                // (CFBundleDocumentTypes). Reuses the same add flow as
+                // drag-and-drop in MainWindow, honouring the "Show dialog
+                // before adding" pref.
+                torrentStore.addFromExternalURL(url)
+            }
         }
         .commands {
             FileCommands(torrentStore: torrentStore)

@@ -12,10 +12,15 @@ struct ContentView: View {
     /// profiles) where the first-run splash must not appear.
     let disableOnboarding: Bool
 
-    private let keychain = KeychainStore()
+    @State private var connection: ConnectionCoordinator
     @State private var hasAppeared = false
-    @State private var connectedProfileID: ServerProfile.ID?
     @State private var showsCrashReportingConsent = false
+
+    init(store: TorrentStore, snapshotMode: Bool, disableOnboarding: Bool) {
+        self.snapshotMode = snapshotMode
+        self.disableOnboarding = disableOnboarding
+        _connection = State(initialValue: ConnectionCoordinator(store: store))
+    }
 
     var body: some View {
         Group {
@@ -31,7 +36,7 @@ struct ContentView: View {
                 MainWindow()
                     .task(id: profileStore.activeProfile?.id) {
                         guard let profile = profileStore.activeProfile else { return }
-                        await connectToProfile(profile)
+                        await connection.connect(to: profile)
                     }
             }
         }
@@ -55,7 +60,7 @@ struct ContentView: View {
         // Stop sharing the live service with App Intents once the app drops the
         // connection; otherwise an intent keeps talking to a dead connection.
         .onChange(of: torrentStore.connection) { _, new in
-            if case .disconnected = new { AppEnvironment.current?.clearConnection() }
+            connection.connectionStateChanged(new)
         }
         .onDisappear { torrentStore.pausePolling() }
         .onAppear {
@@ -68,62 +73,12 @@ struct ContentView: View {
         .task { await SpotlightIndexer.indexServers(profileStore.profiles) }
     }
 
-    /// True when running as Xcode's test-host or preview process. The launch
-    /// auto-connect reads the Keychain, and doing that from these freshly
-    /// re-signed binaries triggers a keychain authorization prompt even though
-    /// nothing user-initiated asked for the password.
-    private var isXcodeAuxiliaryProcess: Bool {
-        let env = ProcessInfo.processInfo.environment
-        return env["XCTestConfigurationFilePath"] != nil || env["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
-    }
-
     /// Show the first-run splash only for a real, interactive, DSN-carrying
     /// build that has not answered yet. The answer is persisted by
     /// `CrashReporting.setConsent`, so this stays false afterwards.
     private var shouldOfferCrashReportingConsent: Bool {
-        !disableOnboarding && !isXcodeAuxiliaryProcess && CrashReporting.isConfigured
+        !disableOnboarding && !AppProcess.isXcodeAuxiliary && CrashReporting.isConfigured
             && CrashReporting.needsConsent
-    }
-
-    @MainActor
-    private func connectToProfile(_ profile: ServerProfile) async {
-        // Skip the launch auto-connect under the test runner / previews — no
-        // connection is needed there, and reading the Keychain prompts.
-        if isXcodeAuxiliaryProcess { return }
-
-        // Window was closed and reopened while already connected to this same
-        // profile — onAppear's resumePolling() already restarted the stream.
-        if case .connected = torrentStore.connection, connectedProfileID == profile.id { return }
-
-        var credentials: Credentials?
-        if profile.username?.isEmpty == false {
-            // Cancel the mock stream and show "waiting for keychain" before
-            // the macOS dialog blocks — prevents the mock from racing back.
-            torrentStore.beginKeychainWait()
-            let kc = keychain
-            let resolved = await Task.detached(priority: .userInitiated) {
-                Result { try kc.credentials(for: profile) }
-            }.value
-            guard !Task.isCancelled else { return }
-            switch resolved {
-            case .success(let credentialsForProfile):
-                credentials = credentialsForProfile
-            case .failure:
-                // A locked Keychain or cancelled prompt must not look like a
-                // wrong password, which is what connecting blank would produce.
-                torrentStore.setConnectionFailed(
-                    reason: "Couldn't read the saved password from the Keychain.")
-                return
-            }
-        }
-        guard let service = TransmissionServiceFactory.make(for: profile, credentials: credentials)
-        else {
-            torrentStore.setConnectionFailed(reason: "Invalid server URL")
-            return
-        }
-        torrentStore.connect(service: service)
-        AppEnvironment.current?.setConnected(service, for: profile)
-        connectedProfileID = profile.id
     }
 }
 

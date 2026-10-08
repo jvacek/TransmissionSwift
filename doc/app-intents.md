@@ -129,8 +129,9 @@ Rules the implementation encodes:
   is what makes closed-app Shortcuts work.
 - Registration happens once in `TransmissionSwiftApp.init`. Because intents run
   in the app process, `current` is populated by the time any intent runs.
-- `ContentView.connectToProfile` calls `setConnected(_:for:)` after connecting so
-  a matching intent reuses the live connection (no second Keychain read).
+- `ConnectionCoordinator.connect(to:)` (driven from `ContentView`) calls
+  `setConnected(_:for:)` after connecting so a matching intent reuses the live
+  connection (no second Keychain read).
 - Mutability is guarded by a `Synchronization.Mutex`, keeping the class
   `Sendable` without going through a MainActor.
 
