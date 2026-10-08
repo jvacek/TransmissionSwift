@@ -2,7 +2,8 @@ import Foundation
 import Sentry
 import os
 
-private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category: "CrashReporting")
+private nonisolated let logger = Logger(
+    subsystem: "net.jvacek.TransmissionSwift", category: "CrashReporting")
 
 /// Opt-in crash reporting via Sentry.
 ///
