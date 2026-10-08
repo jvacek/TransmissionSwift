@@ -232,3 +232,82 @@ This is basically the first stable release. These are some of the things that wo
     - View details only
   - Verify local data
   - Delete (with or without data)
+
+# Changes since prerelease-2026-10-07-04-aad2cfa1be2a
+
+6d8e2df Update CHANGELOG.md
+c018764 ci(release): strip the shipped binary and drop release coverage
+ca74cfb test(app): cover the connection branches and the mutations accessor
+ca2ed3f refactor(app): inject ConnectionCoordinator dependencies
+2f2ea59 test(app): split table logic tests into per-unit suites
+b3a8e98 refactor(core): inject the table preference store into TorrentListModel
+7116946 docs: mark the AppKit decomposition complete
+a1115a7 refactor(app): split OpenMappingEditor into focused files
+6c733a3 chore(xcode): canonicalise the package product dependency order
+049c324 docs: mark the AppKit decomposition complete
+792a519 refactor(app): extract the row context-menu spec
+aa44c1f docs: record the mocks-out-of-core outcome
+9dc0baa refactor(app): build the mapping-editor fallback torrent inline
+70afd63 refactor(core): move mocks into a TransmissionTestSupport target
+c6e58a4 docs: add plan for moving the mocks out of TransmissionCore
+3466e7c refactor(core): add EmptyTorrentService for the no-server placeholder
+fc0b3dd refactor(intents): resolve the mutating service half via TorrentReading.mutations
+529a15f refactor(core): make persisted table preferences the single sort source
+9c9e03d refactor(app): extract ConnectionCoordinator from ContentView
+d360c99 docs: record AppKit decomposition progress
+fade607 fix(app): make CrashReporting logger nonisolated
+236bb05 refactor(app): extract table row, selection and sort logic
+e8dfc32 test(app): cover TorrentCellContent.make
+8091772 refactor(app): split TorrentTableCellView into focused files
+00f76f0 docs: add plan for decomposing the large AppKit files
+9d0c238 refactor(app): use os.Logger instead of NSLog
+54fd478 fix(app): avoid force cast when tinting the tag menu image
+4abc44f fix(core): keep last-known-good session cache on transient failure
+4bffd5a docs: record the TorrentStore coordinator split
+14055f0 refactor(core): extract TorrentSheetState from TorrentStore (phase 5)
+c8c2105 refactor(core): extract TorrentActionModel from TorrentStore (phase 4)
+f98141a refactor(core): extract InspectorModel from TorrentStore (phase 3)
+eb9be53 refactor(core): extract SessionModel from TorrentStore (phase 2)
+4e34ae8 refactor(core): extract TorrentListModel from TorrentStore (phase 1)
+15f9cf4 fix date
+5eee988 docs: add plan for splitting TorrentStore
+794907a refactor(app): extract MappingLauncher for shared URL launching
+a67f7bd refactor(core): split TorrentService into read and mutate capabilities
+e315946 refactor: centralize UserDefaults keys in PreferenceKeys
+7eb2932 refactor(core): remove unused ConnectionService
+f9317e0 ci(codeql): drop Swift analysis
+5fee516 ci(intents): run App Intents tests in CI, drop the release lane
+83ff5d4 ci(codeql): replace default setup with a scoped Swift build
+810b7d7 Update project.pbxproj
+03b7729 fix: stop swallowing Keychain failures at the other credential reads
+506e4a8 ci(pages): key the uv cache to the build script
+e70638b fix(intents): surface keychain failures instead of a blank password
+c4b8445 ci(pages): redeploy when the site build script changes
+19ec174 fix(site): build the changelog page from the latest release
+a3a514a fix(intents): expire an open-torrent request that never lands
+70fe9c7 refactor(core): reuse sessionWarmingCache in sessionSettings
+de2906a fix(crash-reporting): tag reports with environment and full release
+a392022 refactor(core): centralise the prefs TorrentStore reads
+9f20fad fix(intents): persist the Spotlight donation log across launches
+b902d1a fix(intents): scope torrent entity ids to their server
+531e24a fix(ci): pin setup-uv to v10.2.0
+da81e59 style(site): flatten screenshots and pin the footer to the bottom
+a593308 feat(site): render the Pages site from Jinja templates
+93ccc79 docs(intents): correct torrent-picker and derived-stats notes
+26889de fix(intents): forget the live service on disconnect
+b712391 docs(crash): correct the local-build DSN claim
+23f225f chore(favicons): drop the dead forceRevalidate path
+e7da6f5 fix(intents): prune removed torrents from Spotlight
+ea97b7c fix(intents): stage and clean up Add Torrent uploads safely
+3f0eb30 test(core): cover batched speed limits and label verification
+61ff957 fix(core): fail add() when label support can't be verified
+d5abed6 perf(intents): set torrent speed limits in a single torrent-set
+e9cf877 fix(intents): report an unreachable server instead of "no matches"
+19d5c50 style(site): show download steps as numbered cards
+9035832 feat(site): add a dedicated download page
+3db1e15 Update CrashReporting.swift
+50e3758 Add donation to the app, add toggles to hide it
+9efaa0f Prek Unit tests on push only when relevant
+52d5cbb Fix copy, make subtitle
+d98329d feat(snapshot): replay the file's server name in the title bar
+6de34aa Update main.png
