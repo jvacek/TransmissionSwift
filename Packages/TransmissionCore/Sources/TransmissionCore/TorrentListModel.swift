@@ -40,7 +40,13 @@ public final class TorrentListModel {
         let labels: [String]
     }
 
-    public init() {}
+    /// Where the sort preference lives. Injected so the model can be tested
+    /// without the shared `UserDefaults`.
+    private let preferences: any TablePreferencesStoring
+
+    public init(preferences: any TablePreferencesStoring = UserDefaultsTablePreferencesStore()) {
+        self.preferences = preferences
+    }
 
     public var selectedTorrents: [Torrent] {
         torrents.filter { selectedTorrentIDs.contains($0.id) }
@@ -49,16 +55,8 @@ public final class TorrentListModel {
     // MARK: - Sort preference
 
     public var tablePreferences: TablePreferences {
-        get {
-            guard let data = UserDefaults.standard.data(forKey: PreferenceKeys.tablePreferencesSort),
-                let decoded = try? JSONDecoder().decode(TablePreferences.self, from: data)
-            else { return TablePreferences() }
-            return decoded
-        }
-        set {
-            guard let encoded = try? JSONEncoder().encode(newValue) else { return }
-            UserDefaults.standard.set(encoded, forKey: PreferenceKeys.tablePreferencesSort)
-        }
+        get { preferences.tablePreferences }
+        set { preferences.tablePreferences = newValue }
     }
 
     // MARK: - Snapshots

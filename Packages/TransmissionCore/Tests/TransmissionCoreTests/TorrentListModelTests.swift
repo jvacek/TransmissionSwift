@@ -4,14 +4,28 @@ import TransmissionTestSupport
 
 @testable import TransmissionCore
 
-/// Direct tests for `TorrentListModel` — no service, no coordinator. Exercises
-/// the list state machine in isolation: the `setTorrents` cascade, selection
-/// pruning, filtering, search, sort and facet/filter maintenance.
+/// An in-memory `TablePreferencesStoring` so the sort tests never touch the
+/// shared `UserDefaults` (isolated, repeatable).
+private final class InMemoryTablePreferencesStore: TablePreferencesStoring, @unchecked Sendable {
+    var tablePreferences: TablePreferences
+
+    init(_ initial: TablePreferences = TablePreferences()) {
+        self.tablePreferences = initial
+    }
+}
+
+/// Direct tests for `TorrentListModel` — no service, no coordinator, no global
+/// state. Exercises the list state machine in isolation: the `setTorrents`
+/// cascade, selection pruning, filtering, search, sort and facet/filter
+/// maintenance.
 @Suite("TorrentListModel")
 @MainActor
 struct TorrentListModelTests {
-    private func loaded(_ torrents: [Torrent] = MockFixtures.torrents()) -> TorrentListModel {
-        let model = TorrentListModel()
+    private func loaded(
+        _ torrents: [Torrent] = MockFixtures.torrents(),
+        preferences: InMemoryTablePreferencesStore = InMemoryTablePreferencesStore()
+    ) -> TorrentListModel {
+        let model = TorrentListModel(preferences: preferences)
         model.setTorrents(torrents)
         return model
     }
@@ -68,25 +82,14 @@ struct TorrentListModelTests {
 
     @Test("the persisted preference is the single sort source")
     func persistedSortIsTheSource() {
-        // setSortOrder writes the real UserDefaults; restore it afterwards so
-        // the test can't leak state into its siblings.
-        let key = PreferenceKeys.tablePreferencesSort
-        let original = UserDefaults.standard.data(forKey: key)
-        defer {
-            if let original {
-                UserDefaults.standard.set(original, forKey: key)
-            } else {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
+        let preferences = InMemoryTablePreferencesStore()
 
-        let model = loaded()
+        let model = loaded(preferences: preferences)
         model.setSortOrder(column: .size, ascending: false)
 
-        // A fresh model carries no in-memory sort state, so it can only sort
-        // from the persisted value.
-        let reloaded = TorrentListModel()
-        reloaded.setTorrents(MockFixtures.torrents())
+        // A fresh model sharing the same store carries no in-memory sort state,
+        // so it can only sort from the persisted value.
+        let reloaded = loaded(preferences: preferences)
         let sizes = reloaded.visibleTorrents.map(\.size)
         #expect(sizes == sizes.sorted(by: >))
     }
@@ -108,8 +111,7 @@ struct TorrentListModelTests {
     func downloadDirectoryRebuildsFacets() {
         var torrents = MockFixtures.torrents()
         torrents[0].downloadFolder = "/Downloads/Movies/"
-        let model = TorrentListModel()
-        model.setTorrents(torrents)
+        let model = loaded(torrents)
 
         model.setDownloadDirectory("/Downloads")
 
