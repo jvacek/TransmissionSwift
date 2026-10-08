@@ -1,8 +1,27 @@
 # Decomposing the large AppKit / editor files
 
-Status: **planning — scope not yet confirmed.** This is item 1 of the senior
-review's maintainability leftovers (see the session that produced
-`doc/torrentstore-split.md`). No code has moved yet.
+Status: **in progress — scope confirmed: Slice A + B, Slice C deferred.** This
+is item 1 of the senior review's maintainability leftovers (see the session that
+produced `doc/torrentstore-split.md`).
+
+## Progress
+
+| Slice | State |
+|---|---|
+| A — split `TorrentTableCellView.swift` into five files | done |
+| B1 — `TorrentTableRowStore` (updateNSView diff/apply decision) | done |
+| B2 — `TorrentTableSelection` (index ⇄ ID mapping) | done |
+| B3 — `TorrentTableSort` (primary-descriptor normalisation) | done |
+| B4 — `TorrentRowMenu` spec (context-menu enablement model) | not started |
+| C — `OpenMappingEditor.swift` split | deferred |
+
+Slice A added direct `TorrentCellContent.make` coverage (name/progress/label/
+priority/queuePosition/errorMessage/downloadFolder). Slice B moved `classifyChange`
+into `TorrentTableRowStore` and pinned its `Update` outcomes plus the selection
+and sort rules in `TorrentTableLogicTests`. `TorrentTableRepresentable.swift`'s
+`Coordinator` is now a thin AppKit adapter over the three pure types. B4 is left
+until there is a reason: it carries the most behavioural risk (menu semantics)
+for the least structural gain.
 
 ## Why
 
