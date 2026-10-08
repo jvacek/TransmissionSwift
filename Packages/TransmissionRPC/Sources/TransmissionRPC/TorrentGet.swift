@@ -80,6 +80,9 @@ public struct WireTorrent: Codable, Sendable {
     public var peersConnected: Int
     public var peersSendingToUs: Int
     public var peersGettingFromUs: Int
+    /// Active webseed connections sending to us. Optional so snapshots captured
+    /// before this field was requested still decode.
+    public var webseedsSendingToUs: Int? = nil
     public var peersFrom: WirePeersFrom
     public var eta: Int
     public var uploadRatio: Double
@@ -141,6 +144,7 @@ public struct WireTorrent: Codable, Sendable {
         case peersConnected
         case peersSendingToUs
         case peersGettingFromUs
+        case webseedsSendingToUs
         case peersFrom
         case eta
         case uploadRatio
@@ -202,7 +206,7 @@ extension TorrentGetResponse {
         "id", "name", "hashString", "totalSize",
         "status", "error", "errorString", "isFinished",
         "percentDone", "rateDownload", "rateUpload",
-        "peersConnected", "peersSendingToUs", "peersGettingFromUs", "peersFrom",
+        "peersConnected", "peersSendingToUs", "peersGettingFromUs", "webseedsSendingToUs", "peersFrom",
         "eta", "uploadRatio",
         "downloadDir", "addedDate",
         "labels", "bandwidthPriority",

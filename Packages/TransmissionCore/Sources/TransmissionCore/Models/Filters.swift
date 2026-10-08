@@ -159,7 +159,10 @@ public struct TorrentFilterSelection: Hashable, Sendable {
 }
 
 /// The status-section rows in the sidebar. `.all` matches every torrent;
-/// `.active` matches anything currently downloading or seeding.
+/// `.active` matches torrents with a live transfer (a peer or webseed moving
+/// data in either direction) or currently verifying — the same meaning the
+/// Transmission web and GTK clients give "Active". Idle seeds and stalled
+/// downloads are not active.
 public enum TorrentStatusFilter: String, Hashable, Sendable, CaseIterable, Codable {
     case all, downloading, seeding, active, paused, checking, queued, error
 }
@@ -169,7 +172,7 @@ extension TorrentStatusFilter {
     public func matches(_ torrent: Torrent) -> Bool {
         switch self {
         case .all: return true
-        case .active: return torrent.status == .downloading || torrent.status == .seeding
+        case .active: return torrent.isActive
         case .downloading: return torrent.status == .downloading
         case .seeding: return torrent.status == .seeding
         case .paused: return torrent.status == .paused

@@ -211,7 +211,7 @@ struct AppIntentTests {
     @Test func serverStatsEntityFromTorrentsAggregates() {
         let torrents = MockFixtures.torrents()
         let stats = ServerStatsEntity(torrents: torrents, server: "S")
-        let active = torrents.filter { $0.status == .downloading || $0.status == .seeding }.count
+        let active = torrents.filter(\.isActive).count
         #expect(stats.torrentCount == torrents.count)
         #expect(stats.activeCount == active)
         #expect(stats.downloadSpeed == Int(torrents.reduce(Int64(0)) { $0 + $1.downloadSpeed }))

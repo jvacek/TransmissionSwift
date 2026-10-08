@@ -180,7 +180,7 @@ struct StatusBarView: View {
     }
 
     private var activeCount: Int {
-        store.list.torrents.filter { $0.status == .downloading || $0.status == .seeding }.count
+        store.list.torrents.filter(\.isActive).count
     }
 
     /// Mirrors the active-torrent count onto the Dock icon when the

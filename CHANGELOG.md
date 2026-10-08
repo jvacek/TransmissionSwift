@@ -21,6 +21,7 @@ Please visit the [release page](https://github.com/jvacek/TransmissionSwift/rele
     - Get Server Free space
     - Add torrent to server
   - Allows control from Spotlight and non-AI Siri
+- Fix definiton of "Active" status
 - Add opt-in for crash reporting
 - Fix Favicon cache not being re-used on startup
 - Add donation link to the status bar

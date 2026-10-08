@@ -12,8 +12,8 @@ struct FilterFacetsTests {
         let facets = FilterFacets(torrents: torrents)
 
         #expect(facets.statusCounts[.all] == torrents.count)
-        let active = torrents.filter { $0.status == .downloading || $0.status == .seeding }.count
-        #expect(facets.statusCounts[.active] == active)
+        // Active = a live peer/webseed link or checking, not the old union.
+        #expect(facets.statusCounts[.active] == 7)
         #expect(facets.statusCounts[.downloading] == 3)
         #expect(facets.statusCounts[.seeding] == 3)
         #expect(facets.statusCounts[.paused] == 1)
@@ -112,6 +112,31 @@ struct TorrentFilteringTests {
         // and doesn't match its own torrent data — we trust the data.
         #expect(torrents.filtered(by: TorrentFilterSelection(labels: ["Linux"])).count == 3)
         #expect(torrents.filtered(by: TorrentFilterSelection(trackers: ["bt.archive.org"])).count == 2)
+    }
+
+    @Test("active matches live links and checking, not idle seeds or queued")
+    func activeStatusFiltering() {
+        func torrent(
+            status: TorrentStatus, sending: Int = 0, getting: Int = 0, webseeds: Int = 0
+        ) -> Torrent {
+            Torrent(
+                id: 0, name: "t", hash: "h", size: 0, status: status, progress: 0,
+                peersSendingToUs: sending, peersGettingFromUs: getting,
+                webseedsSendingToUs: webseeds,
+                primaryTracker: "", downloadFolder: "", addedAt: .distantPast,
+                pieces: 0, pieceSize: 0, havePieces: 0
+            )
+        }
+
+        let active = TorrentStatusFilter.active
+        #expect(active.matches(torrent(status: .downloading, sending: 1)))
+        #expect(active.matches(torrent(status: .seeding, getting: 1)))
+        #expect(active.matches(torrent(status: .downloading, webseeds: 1)))
+        #expect(active.matches(torrent(status: .checking)))
+        #expect(!active.matches(torrent(status: .downloading)))  // stalled, no live link
+        #expect(!active.matches(torrent(status: .seeding)))  // idle seed
+        #expect(!active.matches(torrent(status: .queued)))
+        #expect(!active.matches(torrent(status: .paused)))
     }
 
     @Test("a torrent matches when any of its labels is selected")

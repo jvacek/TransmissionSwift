@@ -12,6 +12,11 @@ public struct Torrent: Identifiable, Hashable, Sendable {
     public var downloadSpeed: Int64
     public var uploadSpeed: Int64
     public var connectedPeerCount: Int
+    /// Peers currently sending to us (active download links) and receiving from
+    /// us (active upload links), plus webseeds sending to us. Back `isActive`.
+    public var peersSendingToUs: Int
+    public var peersGettingFromUs: Int
+    public var webseedsSendingToUs: Int
     public var availablePeerCount: Int
     public var seedCount: Int
     /// nil = unknown (paused, error, queued). `.infinity` = idle (seeding forever).
@@ -68,6 +73,9 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         downloadSpeed: Int64 = 0,
         uploadSpeed: Int64 = 0,
         connectedPeerCount: Int = 0,
+        peersSendingToUs: Int = 0,
+        peersGettingFromUs: Int = 0,
+        webseedsSendingToUs: Int = 0,
         availablePeerCount: Int = 0,
         seedCount: Int = 0,
         eta: TimeInterval? = nil,
@@ -110,6 +118,9 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         self.downloadSpeed = downloadSpeed
         self.uploadSpeed = uploadSpeed
         self.connectedPeerCount = connectedPeerCount
+        self.peersSendingToUs = peersSendingToUs
+        self.peersGettingFromUs = peersGettingFromUs
+        self.webseedsSendingToUs = webseedsSendingToUs
         self.availablePeerCount = availablePeerCount
         self.seedCount = seedCount
         self.eta = eta
@@ -146,6 +157,18 @@ public struct Torrent: Identifiable, Hashable, Sendable {
 }
 
 extension Torrent {
+    /// True when at least one live transfer link exists — a peer or webseed
+    /// moving data in either direction — or the torrent is verifying. Mirrors
+    /// Transmission's web (`testState(FilterActive)`) and GTK
+    /// (`Activity::ACTIVE`) definitions: an idle seed or a stalled download is
+    /// not active.
+    public var isActive: Bool {
+        status == .checking
+            || peersSendingToUs > 0
+            || peersGettingFromUs > 0
+            || webseedsSendingToUs > 0
+    }
+
     /// Overlay the inspector-fetched metadata onto the live list-poll torrent:
     /// transfer state stays fresh from the poll while static metadata and
     /// cumulative stats come from the richer fetch. `other` wins only where it

@@ -18,6 +18,9 @@ private func makeWire(
     pieceSize: Int64 = 1024,
     haveValid: Int64 = 0,
     queuePosition: Int = 0,
+    peersSendingToUs: Int = 0,
+    peersGettingFromUs: Int = 0,
+    webseedsSendingToUs: Int? = nil,
     trackers: [WireTrackerStub]? = nil,
     trackerStats: [WireTrackerStat]? = nil,
     labels: [String]? = nil,
@@ -59,8 +62,9 @@ private func makeWire(
         rateDownload: 0,
         rateUpload: 0,
         peersConnected: 0,
-        peersSendingToUs: 0,
-        peersGettingFromUs: 0,
+        peersSendingToUs: peersSendingToUs,
+        peersGettingFromUs: peersGettingFromUs,
+        webseedsSendingToUs: webseedsSendingToUs,
         peersFrom: WirePeersFrom(
             fromCache: 1, fromDht: 2, fromIncoming: 3,
             fromLpd: 0, fromLtep: 0, fromPex: 0, fromTracker: 0
@@ -168,6 +172,25 @@ struct StatusMappingTests {
 
     @Test("status 6 maps to .seeding")
     func status6() { #expect(Torrent(wire: makeWire(status: 6)).status == .seeding) }
+}
+
+// MARK: - Live transfer links
+
+@Suite("TorrentMapping — activity links")
+struct ActivityMappingTests {
+    @Test("peer and webseed counts map through and drive isActive")
+    func activeLinks() {
+        let seeding = Torrent(wire: makeWire(status: 6, peersGettingFromUs: 2))
+        #expect(seeding.peersGettingFromUs == 2)
+        #expect(seeding.isActive)
+
+        let idle = Torrent(wire: makeWire(status: 6))
+        #expect(idle.webseedsSendingToUs == 0)
+        #expect(!idle.isActive)
+
+        let webseed = Torrent(wire: makeWire(status: 4, webseedsSendingToUs: 1))
+        #expect(webseed.isActive)
+    }
 }
 
 // MARK: - Tracker-failure → error status
