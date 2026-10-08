@@ -9,9 +9,9 @@ struct StatusBarView: View {
     @Environment(TorrentStore.self) private var store
     @Environment(ServerProfileStore.self) private var profileStore
     @Environment(\.openURL) private var openURL
-    @AppStorage("badgeAppIcon") private var badgeAppIcon = false
-    @AppStorage("showDonateButton") private var showDonateButton = true
-    @AppStorage("showBugReportButton") private var showBugReportButton = true
+    @AppStorage(PreferenceKeys.badgeAppIcon) private var badgeAppIcon = false
+    @AppStorage(PreferenceKeys.showDonateButton) private var showDonateButton = true
+    @AppStorage(PreferenceKeys.showBugReportButton) private var showBugReportButton = true
     @State private var showServerStats = false
 
     var body: some View {

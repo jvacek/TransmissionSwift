@@ -1,8 +1,9 @@
 import SwiftUI
+import TransmissionCore
 
 struct UpdatesPrefsPane: View {
-    @AppStorage("SUEnableAutomaticChecks") private var checkForUpdates = true
-    @AppStorage("includePrereleases") private var includePrereleases = false
+    @AppStorage(PreferenceKeys.sparkleAutoUpdateChecks) private var checkForUpdates = true
+    @AppStorage(PreferenceKeys.includePrereleases) private var includePrereleases = false
 
     var body: some View {
         Form {

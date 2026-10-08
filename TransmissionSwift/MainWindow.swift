@@ -17,9 +17,9 @@ struct MainWindow: View {
     @Environment(TorrentStore.self) private var store
     @Environment(ServerProfileStore.self) private var profileStore
     @Environment(\.openWindow) private var openWindow
-    @AppStorage("prefsPendingNavTab") private var pendingNavTab: String = ""
-    @AppStorage("inspectorWidth") private var storedInspectorWidth: Double = Double(Layout.inspectorIdeal)
-    @AppStorage("startMinimized") private var startMinimized = false
+    @AppStorage(PreferenceKeys.prefsPendingNavTab) private var pendingNavTab: String = ""
+    @AppStorage(PreferenceKeys.inspectorWidth) private var storedInspectorWidth: Double = Double(Layout.inspectorIdeal)
+    @AppStorage(PreferenceKeys.startMinimized) private var startMinimized = false
     @State private var windowWidth: CGFloat = Layout.windowMin
     @State private var didApplyStartMinimized = false
     @State private var openBus = OpenRequestBus.shared

@@ -14,7 +14,7 @@ public final class TagColorStore {
     public private(set) var colors: [String: TagColor] = [:]
 
     private let userDefaults: UserDefaults
-    private static let storageKey = "tagColors"
+    private static let storageKey = PreferenceKeys.tagColors
 
     public init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults

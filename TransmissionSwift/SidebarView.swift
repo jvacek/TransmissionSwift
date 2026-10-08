@@ -12,12 +12,12 @@ struct SidebarView: View {
     @Environment(FaviconStore.self) private var favicons
     @Environment(TagColorStore.self) private var tagColors
 
-    @AppStorage("sidebar.section.expanded.status") private var isStatusExpanded = true
-    @AppStorage("sidebar.section.expanded.trackers") private var isTrackersExpanded = true
-    @AppStorage("sidebar.section.expanded.folders") private var isFoldersExpanded = true
-    @AppStorage("sidebar.section.expanded.labels") private var isLabelsExpanded = true
+    @AppStorage(PreferenceKeys.sidebarStatusExpanded) private var isStatusExpanded = true
+    @AppStorage(PreferenceKeys.sidebarTrackersExpanded) private var isTrackersExpanded = true
+    @AppStorage(PreferenceKeys.sidebarFoldersExpanded) private var isFoldersExpanded = true
+    @AppStorage(PreferenceKeys.sidebarLabelsExpanded) private var isLabelsExpanded = true
 
-    @AppStorage("fetchTrackerFavicons") private var fetchFavicons = true
+    @AppStorage(PreferenceKeys.fetchTrackerFavicons) private var fetchFavicons = true
     @State private var hasDoneStartupRefresh = false
     @State private var refreshDebounceTask: Task<Void, Never>?
     @State private var lastRefreshedHosts: Set<String> = []

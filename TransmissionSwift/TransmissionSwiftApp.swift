@@ -22,15 +22,15 @@ struct TransmissionSwiftApp: App {
 
     init() {
         UserDefaults.standard.register(defaults: [
-            "pollingIntervalSeconds": 5.0,
+            PreferenceKeys.pollingIntervalSeconds: 5.0,
             PreferenceKeys.showAddDialogBeforeAdding: true,
             PreferenceKeys.deleteTorrentFileAfterAdding: false,
-            "confirmRemove": true,
-            "badgeAppIcon": false,
-            "sendCrashReports": false,
+            PreferenceKeys.confirmRemove: true,
+            PreferenceKeys.badgeAppIcon: false,
+            PreferenceKeys.sendCrashReports: false,
         ])
         #if PRERELEASE
-        UserDefaults.standard.register(defaults: ["includePrereleases": true])
+        UserDefaults.standard.register(defaults: [PreferenceKeys.includePrereleases: true])
         #endif
 
         let args = CommandLine.arguments
@@ -327,7 +327,7 @@ private struct ServerCommands: Commands {
             }
             Divider()
             Button("Server Settings…") {
-                UserDefaults.standard.set(PrefsTab.servers.rawValue, forKey: "prefsPendingNavTab")
+                UserDefaults.standard.set(PrefsTab.servers.rawValue, forKey: PreferenceKeys.prefsPendingNavTab)
                 openWindow(id: "preferences")
             }
         }

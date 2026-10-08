@@ -1,12 +1,13 @@
 import AppKit
 import Foundation
 import Sparkle
+import TransmissionCore
 
 final class UpdaterDelegate: NSObject, SPUUpdaterDelegate {
     private static let arm64FeedURL = "https://jvacek.github.io/TransmissionSwift/appcast-arm64.xml"
 
     func allowedChannels(for updater: SPUUpdater) -> Set<String> {
-        UserDefaults.standard.bool(forKey: "includePrereleases") ? ["beta"] : []
+        UserDefaults.standard.bool(forKey: PreferenceKeys.includePrereleases) ? ["beta"] : []
     }
 
     // Apple Silicon gets the arm64-only feed (smaller updates). Intel Macs

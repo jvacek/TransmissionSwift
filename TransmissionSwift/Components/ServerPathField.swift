@@ -156,7 +156,7 @@ struct ServerPathField: View {
     /// Whether the static path explainer is expanded. Persisted so experienced
     /// users can collapse it once and stop seeing it; the resolved preview and
     /// all warnings stay visible regardless.
-    @AppStorage("serverPathHelpExpanded") private var helpExpanded = true
+    @AppStorage(PreferenceKeys.serverPathHelpExpanded) private var helpExpanded = true
 
     private var trimmedInput: String {
         path.trimmingCharacters(in: .whitespaces)

@@ -4,8 +4,6 @@ import Observation
 import TransmissionRPC
 
 private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category: "inspector")
-private let tablePreferencesSortKey = "tablePreferencesSort"
-private let inspectorVisibleKey = "inspectorVisible"
 
 /// Surfaced to the UI when a user-initiated action fails. Identifiable so it
 /// can drive SwiftUI `.alert(item:)` directly.
@@ -107,7 +105,7 @@ public final class TorrentStore {
     public var inspectorVisible: Bool = true {
         didSet {
             if oldValue != inspectorVisible {
-                UserDefaults.standard.set(inspectorVisible, forKey: inspectorVisibleKey)
+                UserDefaults.standard.set(inspectorVisible, forKey: PreferenceKeys.inspectorVisible)
             }
         }
     }
@@ -140,14 +138,14 @@ public final class TorrentStore {
     // MARK: - Sort Preferences
     public var tablePreferences: TablePreferences {
         get {
-            guard let data = UserDefaults.standard.data(forKey: tablePreferencesSortKey),
+            guard let data = UserDefaults.standard.data(forKey: PreferenceKeys.tablePreferencesSort),
                 let decoded = try? JSONDecoder().decode(TablePreferences.self, from: data)
             else { return TablePreferences() }
             return decoded
         }
         set {
             guard let encoded = try? JSONEncoder().encode(newValue) else { return }
-            UserDefaults.standard.set(encoded, forKey: tablePreferencesSortKey)
+            UserDefaults.standard.set(encoded, forKey: PreferenceKeys.tablePreferencesSort)
         }
     }
 
@@ -198,8 +196,8 @@ public final class TorrentStore {
     public init(service: any TorrentService) {
         self.service = service
         self.actionsEnabled = service.supportsActions
-        if UserDefaults.standard.object(forKey: inspectorVisibleKey) != nil {
-            self.inspectorVisible = UserDefaults.standard.bool(forKey: inspectorVisibleKey)
+        if UserDefaults.standard.object(forKey: PreferenceKeys.inspectorVisible) != nil {
+            self.inspectorVisible = UserDefaults.standard.bool(forKey: PreferenceKeys.inspectorVisible)
         }
         startStream()
     }
@@ -336,7 +334,7 @@ public final class TorrentStore {
         freeSpaceTask = Task { @MainActor [weak self] in
             guard let self else { return }
             while !Task.isCancelled {
-                let v = UserDefaults.standard.double(forKey: "freeSpaceIntervalSeconds")
+                let v = UserDefaults.standard.double(forKey: PreferenceKeys.freeSpaceIntervalSeconds)
                 let interval = v > 0 ? v : 60.0
                 try? await Task.sleep(for: .seconds(interval))
                 guard !Task.isCancelled else { break }
@@ -439,7 +437,7 @@ public final class TorrentStore {
     /// (parallel tests can't safely share `UserDefaults`).
     public func requestRemove(
         _ ids: [Torrent.ID], deleteLocalData: Bool = false,
-        confirm: Bool = UserDefaults.standard.bool(forKey: "confirmRemove")
+        confirm: Bool = UserDefaults.standard.bool(forKey: PreferenceKeys.confirmRemove)
     ) {
         guard actionsEnabled, !ids.isEmpty else { return }
         if confirm {

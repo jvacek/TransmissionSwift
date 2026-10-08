@@ -4,15 +4,15 @@ import TransmissionCore
 struct GeneralPrefsPane: View {
     @AppStorage(PreferenceKeys.showAddDialogBeforeAdding) private var showAddDialog = true
     @AppStorage(PreferenceKeys.deleteTorrentFileAfterAdding) private var deleteTorrentFileAfterAdding = false
-    @AppStorage("startMinimized") private var startMinimized = false
-    @AppStorage("badgeAppIcon") private var badgeAppIcon = false
-    @AppStorage("confirmRemove") private var confirmRemove = true
-    @AppStorage("showDonateButton") private var showDonateButton = true
-    @AppStorage("showBugReportButton") private var showBugReportButton = true
-    @AppStorage("sendCrashReports") private var sendCrashReports = false
-    @AppStorage("pollingIntervalSeconds") private var pollingInterval: Double = 5.0
-    @AppStorage("freeSpaceIntervalSeconds") private var freeSpaceInterval: Double = 60.0
-    @AppStorage("fetchTrackerFavicons") private var fetchFavicons = true
+    @AppStorage(PreferenceKeys.startMinimized) private var startMinimized = false
+    @AppStorage(PreferenceKeys.badgeAppIcon) private var badgeAppIcon = false
+    @AppStorage(PreferenceKeys.confirmRemove) private var confirmRemove = true
+    @AppStorage(PreferenceKeys.showDonateButton) private var showDonateButton = true
+    @AppStorage(PreferenceKeys.showBugReportButton) private var showBugReportButton = true
+    @AppStorage(PreferenceKeys.sendCrashReports) private var sendCrashReports = false
+    @AppStorage(PreferenceKeys.pollingIntervalSeconds) private var pollingInterval: Double = 5.0
+    @AppStorage(PreferenceKeys.freeSpaceIntervalSeconds) private var freeSpaceInterval: Double = 60.0
+    @AppStorage(PreferenceKeys.fetchTrackerFavicons) private var fetchFavicons = true
     @Environment(FaviconStore.self) private var favicons
 
     var body: some View {
