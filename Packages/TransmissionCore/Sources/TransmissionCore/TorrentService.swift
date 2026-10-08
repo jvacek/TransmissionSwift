@@ -81,14 +81,19 @@ extension TorrentReading {
     public func isPortOpen() async -> Bool? { nil }
     public func sessionStats() async -> SessionStats? { nil }
 
+    /// The mutation half of a service, when it has one. Read-only sources
+    /// (snapshot replay) return nil. Resolving it here gives callers one lookup
+    /// instead of a repeated `self as? any TorrentMutating` at every action site.
+    public var mutations: (any TorrentMutating)? { self as? any TorrentMutating }
+
     public func captureRawSnapshot() async throws -> SnapshotFile {
         throw SnapshotError.captureUnsupported
     }
 }
 
 /// Mutation access to one daemon. Live and mock services implement this; the
-/// read-only snapshot replay does not. A caller tests for it with
-/// `reading as? any TorrentMutating`.
+/// read-only snapshot replay does not. A caller resolves it with
+/// `reading.mutations`.
 public protocol TorrentMutating: Sendable {
     func start(_ ids: [Torrent.ID]) async throws
     func stop(_ ids: [Torrent.ID]) async throws

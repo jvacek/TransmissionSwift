@@ -90,7 +90,7 @@ public final class TorrentStore {
         self.inspector = inspector
         self.actions = TorrentActionModel(list: list, inspector: inspector)
         self.service = service
-        let mutations = service as? any TorrentMutating
+        let mutations = service.mutations
         self.actionsEnabled = mutations != nil
         session.connect(reading: service, mutations: mutations)
         session.onError = { [weak self] in self?.lastActionError = $0 }
@@ -125,7 +125,7 @@ public final class TorrentStore {
         streamTask?.cancel()
         freeSpaceTask?.cancel()
         self.service = service
-        let mutations = service as? any TorrentMutating
+        let mutations = service.mutations
         actionsEnabled = mutations != nil
         session.connect(reading: service, mutations: mutations)
         session.reset()

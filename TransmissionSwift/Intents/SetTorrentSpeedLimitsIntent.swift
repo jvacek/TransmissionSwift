@@ -42,7 +42,7 @@ struct SetTorrentSpeedLimitsIntent: AppIntent {
 
         let environment = try AppEnvironment.require()
         let (profile, service) = try environment.requireService(server)
-        guard let mutations = service as? any TorrentMutating else {
+        guard let mutations = service.mutations else {
             throw IntentError(message: "This server is read-only.")
         }
 
