@@ -85,10 +85,11 @@ enum MappingOpener {
         case .finder:
             revealInFinder(url, store: store)
         case .open:
-            if let bundleID = mapping.applicationBundleID, !bundleID.isEmpty {
-                openInApp(bundleID: bundleID, url: url, store: store)
-            } else if !NSWorkspace.shared.open(url) {
-                store.lastActionError = .failed(message: "Could not open \(url.absoluteString)")
+            MappingLauncher.open(url: url, applicationBundleID: mapping.applicationBundleID) {
+                outcome in
+                if case .failed(let message) = outcome {
+                    store.lastActionError = .failed(message: message)
+                }
             }
         }
     }
@@ -103,18 +104,12 @@ enum MappingOpener {
                 message: "“Reveal in Finder” needs a file:// URL, got \(url.scheme ?? "none").")
             return
         }
-        NSWorkspace.shared.activateFileViewerSelecting([url])
+        MappingLauncher.revealInFinder(url)
     }
 
     /// Resolves a stored security-scoped bookmark back to a folder URL, or nil.
     private static func resolveBookmark(_ data: Data?) -> URL? {
-        guard let data else { return nil }
-        var isStale = false
-        return try? URL(
-            resolvingBookmarkData: data,
-            options: .withSecurityScope,
-            relativeTo: nil,
-            bookmarkDataIsStale: &isStale)
+        MappingLauncher.resolveBookmark(data)
     }
 
     /// No bookmark yet, so the user must grant access to the folder once.
@@ -152,24 +147,6 @@ enum MappingOpener {
             } catch {
                 store.lastActionError = .failed(
                     message: "Could not save the access permission: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    private static func openInApp(bundleID: String, url: URL, store: TorrentStore) {
-        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
-            store.lastActionError = .failed(message: "Could not find the app for “\(bundleID)”")
-            return
-        }
-        // Route the URL to the specific app via LaunchServices; the app receives
-        // it exactly like a normal open. Errors arrive on the completion handler.
-        NSWorkspace.shared.open(
-            [url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration()
-        ) { _, error in
-            if let error {
-                Task { @MainActor in
-                    store.lastActionError = .failed(message: error.localizedDescription)
-                }
             }
         }
     }

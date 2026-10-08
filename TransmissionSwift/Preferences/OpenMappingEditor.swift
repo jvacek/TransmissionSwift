@@ -52,7 +52,7 @@ struct OpenMappingEditor: View {
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
                         } else if let bundleID = mapping.applicationBundleID {
-                            Text("Opens in \(HandlerApp.displayName(for: bundleID) ?? bundleID)")
+                            Text("Opens in \(MappingLauncher.displayName(for: bundleID) ?? bundleID)")
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
                         }
@@ -146,14 +146,7 @@ final class MappingEditorModel: Identifiable {
     /// The folder a stored access bookmark points at, for display. Resolving
     /// decodes the bookmark data and needs no active scope.
     var accessGrantedPath: String? {
-        guard let data = accessBookmark else { return nil }
-        var isStale = false
-        return
-            (try? URL(
-                resolvingBookmarkData: data,
-                options: .withSecurityScope,
-                relativeTo: nil,
-                bookmarkDataIsStale: &isStale))?.path
+        MappingLauncher.resolveBookmark(accessBookmark)?.path
     }
 }
 
@@ -331,7 +324,7 @@ private struct MappingEditorSheet: View {
     private var handlerApps: [(bundleID: String, name: String)] {
         var apps: [(bundleID: String, name: String)] = []
         if let bundleID = model.applicationBundleID {
-            apps.append((bundleID, HandlerApp.displayName(for: bundleID) ?? bundleID))
+            apps.append((bundleID, MappingLauncher.displayName(for: bundleID) ?? bundleID))
         }
         let probe = previewURL ?? templateScheme.flatMap { URL(string: "\($0)://probe") }
         if let url = probe {
@@ -684,35 +677,21 @@ private struct MappingEditorSheet: View {
                 model.testFailed = true
                 return
             }
-            NSWorkspace.shared.activateFileViewerSelecting([url])
+            MappingLauncher.revealInFinder(url)
             model.testMessage = "Revealed in Finder."
             model.testFailed = false
         case .open:
-            if let bundleID = model.applicationBundleID, !bundleID.isEmpty {
-                guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
-                    model.testMessage = "Could not find the app for “\(bundleID)”."
+            let hasApp = !(model.applicationBundleID ?? "").isEmpty
+            MappingLauncher.open(url: url, applicationBundleID: model.applicationBundleID) {
+                outcome in
+                switch outcome {
+                case .opened:
+                    model.testMessage = hasApp ? "Opened." : "Opened in the default app."
+                    model.testFailed = false
+                case .failed(let message):
+                    model.testMessage = "Could not open — \(message)"
                     model.testFailed = true
-                    return
                 }
-                NSWorkspace.shared.open(
-                    [url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration()
-                ) { _, error in
-                    Task { @MainActor in
-                        if let error {
-                            model.testMessage = "Could not open — \(error.localizedDescription)"
-                            model.testFailed = true
-                        } else {
-                            model.testMessage = "Opened."
-                            model.testFailed = false
-                        }
-                    }
-                }
-            } else if NSWorkspace.shared.open(url) {
-                model.testMessage = "Opened in the default app."
-                model.testFailed = false
-            } else {
-                model.testMessage = "Could not open — no app handles \(url.scheme ?? "this") links."
-                model.testFailed = true
             }
         }
     }
@@ -735,19 +714,6 @@ private struct MappingEditorSheet: View {
                 applicationBundleID: model.applicationBundleID,
                 accessBookmark: model.accessBookmark))
         onCancel()
-    }
-}
-
-/// Resolves a bundle ID to a human-readable app name for display.
-private enum HandlerApp {
-    static func displayName(for bundleID: String) -> String? {
-        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
-            let bundle = Bundle(url: appURL)
-        else { return nil }
-        return
-            (bundle.localizedInfoDictionary?["CFBundleDisplayName"] as? String)
-            ?? bundle.infoDictionary?["CFBundleDisplayName"] as? String
-            ?? bundle.infoDictionary?["CFBundleName"] as? String
     }
 }
 
