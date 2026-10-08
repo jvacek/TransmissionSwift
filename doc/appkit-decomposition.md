@@ -12,16 +12,16 @@ produced `doc/torrentstore-split.md`).
 | B1 — `TorrentTableRowStore` (updateNSView diff/apply decision) | done |
 | B2 — `TorrentTableSelection` (index ⇄ ID mapping) | done |
 | B3 — `TorrentTableSort` (primary-descriptor normalisation) | done |
-| B4 — `TorrentRowMenu` spec (context-menu enablement model) | not started |
+| B4 — `TorrentRowMenu` spec (context-menu enablement model) | done |
 | C — `OpenMappingEditor.swift` split | deferred |
 
 Slice A added direct `TorrentCellContent.make` coverage (name/progress/label/
 priority/queuePosition/errorMessage/downloadFolder). Slice B moved `classifyChange`
 into `TorrentTableRowStore` and pinned its `Update` outcomes plus the selection
-and sort rules in `TorrentTableLogicTests`. `TorrentTableRepresentable.swift`'s
-`Coordinator` is now a thin AppKit adapter over the three pure types. B4 is left
-until there is a reason: it carries the most behavioural risk (menu semantics)
-for the least structural gain.
+and sort rules in `TorrentTableLogicTests`. B4 moved the row context-menu
+enablement matrix into a pure `TorrentRowMenu` spec; the `Coordinator` now maps
+that spec to `NSMenuItem`s. `TorrentTableRepresentable.swift`'s `Coordinator` is
+a thin AppKit adapter over the four pure types.
 
 ## Why
 
