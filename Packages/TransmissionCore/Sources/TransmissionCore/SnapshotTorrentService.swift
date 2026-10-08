@@ -8,9 +8,9 @@ import TransmissionRPC
 /// Decodes the wire-shaped envelope through the same types (`SessionInfo`,
 /// `WireTorrent`) and the same `Torrent(wire:)` mapping as a live poll, then
 /// serves the state with no network. The stream yields the list once and
-/// closes — there is nothing to tick. Mutations are unavailable
-/// (`supportsActions == false`).
-public actor SnapshotTorrentService: TorrentService {
+/// closes — there is nothing to tick. Mutations are unavailable: this type
+/// conforms only to `TorrentReading`, so a mutation can't even be requested.
+public actor SnapshotTorrentService: TorrentReading {
     private let session: SessionInfo
     private let domainTorrents: [Torrent]
     private let colors: [String: TagColor]
@@ -35,9 +35,7 @@ public actor SnapshotTorrentService: TorrentService {
     /// The server name the snapshot should replay as, if it carries one.
     public nonisolated var displayServerName: String? { serverName }
 
-    // MARK: - TorrentService
-
-    public nonisolated var supportsActions: Bool { false }
+    // MARK: - TorrentReading
 
     public func freeSpace() async -> Int64? { session.downloadDirFreeSpace }
 
@@ -67,57 +65,5 @@ public actor SnapshotTorrentService: TorrentService {
     /// render the frozen values.
     public func sessionSettings() async -> SessionSettings? { SessionSettings(wire: session) }
 
-    public func applySessionSettings(_ patch: SessionSettingsPatch) async throws {
-        throw SnapshotError.replayReadOnly
-    }
-
     public func isPortOpen() async -> Bool? { nil }
-
-    // Mutations are unreachable (supportsActions == false, so the UI disables
-    // them); throwing guards against accidental invocation from code that
-    // doesn't consult `supportsActions`.
-    public func start(_ ids: [Torrent.ID]) async throws { throw SnapshotError.replayReadOnly }
-    public func stop(_ ids: [Torrent.ID]) async throws { throw SnapshotError.replayReadOnly }
-    public func remove(_ ids: [Torrent.ID], deleteLocalData: Bool) async throws {
-        throw SnapshotError.replayReadOnly
-    }
-    public func verify(_ ids: [Torrent.ID]) async throws { throw SnapshotError.replayReadOnly }
-    public func reannounce(_ ids: [Torrent.ID]) async throws { throw SnapshotError.replayReadOnly }
-    public func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool)
-        async throws
-    {
-        throw SnapshotError.replayReadOnly
-    }
-    public func setFilePriority(
-        _ id: Torrent.ID, fileIDs: [TorrentFile.ID], priority: TorrentPriority
-    ) async throws {
-        throw SnapshotError.replayReadOnly
-    }
-    public func setPriority(_ ids: [Torrent.ID], priority: TorrentPriority) async throws {
-        throw SnapshotError.replayReadOnly
-    }
-    public func setOptions(_ id: Torrent.ID, options: TorrentOptions) async throws {
-        throw SnapshotError.replayReadOnly
-    }
-    public func setSpeedLimits(_ ids: [Torrent.ID], _ patch: TorrentSpeedLimitPatch) async throws {
-        throw SnapshotError.replayReadOnly
-    }
-    public func setLabels(_ ids: [Torrent.ID], labels: [String]) async throws {
-        throw SnapshotError.replayReadOnly
-    }
-    public func setLocation(_ ids: [Torrent.ID], location: String, move: Bool) async throws {
-        throw SnapshotError.replayReadOnly
-    }
-    public func renamePath(_ id: Torrent.ID, path: String, newName: String) async throws {
-        throw SnapshotError.replayReadOnly
-    }
-    public func setAlternativeSpeedEnabled(_ enabled: Bool) async throws {
-        throw SnapshotError.replayReadOnly
-    }
-    public func add(
-        fileURL: URL?, magnetURL: String?, destination: String, labels: [String],
-        priority: TorrentPriority, startWhenAdded: Bool
-    ) async throws {
-        throw SnapshotError.replayReadOnly
-    }
 }

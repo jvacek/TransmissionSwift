@@ -42,6 +42,9 @@ struct SetTorrentSpeedLimitsIntent: AppIntent {
 
         let environment = try AppEnvironment.require()
         let (profile, service) = try environment.requireService(server)
+        guard let mutations = service as? any TorrentMutating else {
+            throw IntentError(message: "This server is read-only.")
+        }
 
         let targets = try await TorrentCatalog.targets(torrents, profile: profile, service: service)
         guard !targets.isEmpty else {
@@ -49,7 +52,7 @@ struct SetTorrentSpeedLimitsIntent: AppIntent {
         }
 
         do {
-            try await service.setSpeedLimits(targets.map(\.id), patch)
+            try await mutations.setSpeedLimits(targets.map(\.id), patch)
         } catch {
             throw IntentError(message: error.localizedDescription)
         }

@@ -177,7 +177,10 @@ public final class TorrentStore {
     /// the "Edit Labels" affordances; refreshed whenever the session is polled.
     public private(set) var supportsLabels: Bool = true
 
-    private var service: any TorrentService
+    private var service: any TorrentReading
+    /// The mutation half of the service, when it has one. Nil for read-only
+    /// sources (snapshot replay), which disables every action.
+    private var mutations: (any TorrentMutating)?
     private var streamTask: Task<Void, Never>?
     private var freeSpaceTask: Task<Void, Never>?
     private var sortColumn: TableColumn = .name
@@ -193,9 +196,10 @@ public final class TorrentStore {
         let labels: [String]
     }
 
-    public init(service: any TorrentService) {
+    public init(service: any TorrentReading) {
         self.service = service
-        self.actionsEnabled = service.supportsActions
+        self.mutations = service as? any TorrentMutating
+        self.actionsEnabled = self.mutations != nil
         if UserDefaults.standard.object(forKey: PreferenceKeys.inspectorVisible) != nil {
             self.inspectorVisible = UserDefaults.standard.bool(forKey: PreferenceKeys.inspectorVisible)
         }
@@ -223,11 +227,12 @@ public final class TorrentStore {
 
     /// Swap the backing service and restart the poll stream. Used when the
     /// active server profile changes at runtime (first-run or server switching).
-    public func connect(service: any TorrentService) {
+    public func connect(service: any TorrentReading) {
         streamTask?.cancel()
         freeSpaceTask?.cancel()
         self.service = service
-        actionsEnabled = service.supportsActions
+        mutations = service as? any TorrentMutating
+        actionsEnabled = mutations != nil
         connection = .connecting
         freeSpace = nil
         daemonVersion = nil
@@ -418,15 +423,18 @@ public final class TorrentStore {
     // MARK: - Actions
 
     public func start(_ ids: [Torrent.ID]) async {
-        do { try await service.start(ids) } catch { recordError(error) }
+        guard let mutations else { return }
+        do { try await mutations.start(ids) } catch { recordError(error) }
     }
 
     public func stop(_ ids: [Torrent.ID]) async {
-        do { try await service.stop(ids) } catch { recordError(error) }
+        guard let mutations else { return }
+        do { try await mutations.stop(ids) } catch { recordError(error) }
     }
 
     public func remove(_ ids: [Torrent.ID], deleteLocalData: Bool = false) async {
-        do { try await service.remove(ids, deleteLocalData: deleteLocalData) } catch { recordError(error) }
+        guard let mutations else { return }
+        do { try await mutations.remove(ids, deleteLocalData: deleteLocalData) } catch { recordError(error) }
         selectedTorrentIDs.subtract(ids)
     }
 
@@ -458,16 +466,19 @@ public final class TorrentStore {
     }
 
     public func verify(_ ids: [Torrent.ID]) async {
-        do { try await service.verify(ids) } catch { recordError(error) }
+        guard let mutations else { return }
+        do { try await mutations.verify(ids) } catch { recordError(error) }
     }
 
     public func reannounce(_ ids: [Torrent.ID]) async {
-        do { try await service.reannounce(ids) } catch { recordError(error) }
+        guard let mutations else { return }
+        do { try await mutations.reannounce(ids) } catch { recordError(error) }
     }
 
     public func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool) async {
+        guard let mutations else { return }
         do {
-            try await service.setFilesWanted(id, fileIDs: fileIDs, wanted: wanted)
+            try await mutations.setFilesWanted(id, fileIDs: fileIDs, wanted: wanted)
             await refreshInspectorIfCurrent(id)
         } catch { recordError(error) }
     }
@@ -475,24 +486,28 @@ public final class TorrentStore {
     public func setFilePriority(
         _ id: Torrent.ID, fileIDs: [TorrentFile.ID], priority: TorrentPriority
     ) async {
+        guard let mutations else { return }
         do {
-            try await service.setFilePriority(id, fileIDs: fileIDs, priority: priority)
+            try await mutations.setFilePriority(id, fileIDs: fileIDs, priority: priority)
             await refreshInspectorIfCurrent(id)
         } catch { recordError(error) }
     }
 
     public func setPriority(_ ids: [Torrent.ID], priority: TorrentPriority) async {
-        do { try await service.setPriority(ids, priority: priority) } catch { recordError(error) }
+        guard let mutations else { return }
+        do { try await mutations.setPriority(ids, priority: priority) } catch { recordError(error) }
     }
 
     public func setOptions(_ id: Torrent.ID, options: TorrentOptions) async {
-        do { try await service.setOptions(id, options: options) } catch { recordError(error) }
+        guard let mutations else { return }
+        do { try await mutations.setOptions(id, options: options) } catch { recordError(error) }
     }
 
     public func toggleAlternativeSpeed() async {
+        guard let mutations else { return }
         let newValue = !isAlternativeSpeedEnabled
         do {
-            try await service.setAlternativeSpeedEnabled(newValue)
+            try await mutations.setAlternativeSpeedEnabled(newValue)
             isAlternativeSpeedEnabled = newValue
             sessionSettings?.altSpeedEnabled = newValue
         } catch {
@@ -505,7 +520,7 @@ public final class TorrentStore {
     /// changed fields are sent), applies it optimistically, and rolls back /
     /// re-reads on failure. Requires a live session; no-ops otherwise.
     public func updateSessionSettings(_ mutate: (inout SessionSettings) -> Void) async {
-        guard var current = sessionSettings else { return }
+        guard let mutations, var current = sessionSettings else { return }
         let before = current
         mutate(&current)
         guard current != before else { return }
@@ -513,7 +528,7 @@ public final class TorrentStore {
         sessionSettings = current
         isAlternativeSpeedEnabled = current.altSpeedEnabled
         do {
-            try await service.applySessionSettings(patch)
+            try await mutations.applySessionSettings(patch)
             sessionSettings = await service.sessionSettings() ?? current
             isAlternativeSpeedEnabled = sessionSettings?.altSpeedEnabled ?? current.altSpeedEnabled
         } catch {
@@ -595,9 +610,9 @@ public final class TorrentStore {
     /// errors via `lastActionError` like every other mutation.
     @discardableResult
     public func renameTorrent(_ id: Torrent.ID, newName: String) async -> Bool {
-        guard let current = torrents.first(where: { $0.id == id }) else { return false }
+        guard let mutations, let current = torrents.first(where: { $0.id == id }) else { return false }
         do {
-            try await service.renamePath(id, path: current.name, newName: newName)
+            try await mutations.renamePath(id, path: current.name, newName: newName)
             await refreshInspectorIfCurrent(id)
             return true
         } catch {
@@ -608,8 +623,9 @@ public final class TorrentStore {
 
     @discardableResult
     public func setLocation(_ ids: [Torrent.ID], location: String, move: Bool) async -> Bool {
+        guard let mutations else { return false }
         do {
-            try await service.setLocation(ids, location: location, move: move)
+            try await mutations.setLocation(ids, location: location, move: move)
             return true
         } catch {
             recordError(error)
@@ -627,8 +643,9 @@ public final class TorrentStore {
         startWhenAdded: Bool,
         deleteFileAfterAdding: Bool = false
     ) async -> Bool {
+        guard let mutations else { return false }
         do {
-            try await service.add(
+            try await mutations.add(
                 fileURL: fileURL,
                 magnetURL: magnetURL,
                 destination: destination,
@@ -667,9 +684,10 @@ public final class TorrentStore {
     }
 
     public func setLabels(_ ids: [Torrent.ID], labels: [String]) async {
+        guard let mutations else { return }
         logger.info("setLabels store action: ids=\(ids) labels=\(labels)")
         do {
-            try await service.setLabels(ids, labels: labels)
+            try await mutations.setLabels(ids, labels: labels)
             logger.info("setLabels store action succeeded for ids=\(ids)")
         } catch {
             logger.error("setLabels store action failed for ids=\(ids): \(error)")

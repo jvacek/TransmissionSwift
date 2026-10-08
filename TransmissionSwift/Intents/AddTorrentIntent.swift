@@ -38,7 +38,9 @@ struct AddTorrentIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let environment = try AppEnvironment.require()
         let (profile, service) = try environment.requireService(server)
-
+        guard let mutations = service as? any TorrentMutating else {
+            throw IntentError(message: "This server is read-only.")
+        }
         // A file payload is spooled into a unique temp directory so a crafted
         // `filename` can't escape it, and removed when `perform` returns.
         var stagedDirectory: URL?
@@ -69,7 +71,7 @@ struct AddTorrentIntent: AppIntent {
 
         let startWhenAdded = !(paused ?? false)
         do {
-            try await service.add(
+            try await mutations.add(
                 fileURL: fileURL,
                 magnetURL: magnetURL,
                 destination: destination ?? "",

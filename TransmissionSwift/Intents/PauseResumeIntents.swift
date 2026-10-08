@@ -19,12 +19,15 @@ struct PauseTorrentsIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let environment = try AppEnvironment.require()
         let (profile, service) = try environment.requireService(server)
+        guard let mutations = service as? any TorrentMutating else {
+            throw IntentError(message: "This server is read-only.")
+        }
         let targets = try await TorrentCatalog.targets(torrents, profile: profile, service: service)
         guard !targets.isEmpty else {
             throw IntentError(message: "No matching torrents on \(profile.label).")
         }
         do {
-            try await service.stop(targets.map(\.id))
+            try await mutations.stop(targets.map(\.id))
         } catch {
             throw IntentError(message: error.localizedDescription)
         }
@@ -52,12 +55,15 @@ struct ResumeTorrentsIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let environment = try AppEnvironment.require()
         let (profile, service) = try environment.requireService(server)
+        guard let mutations = service as? any TorrentMutating else {
+            throw IntentError(message: "This server is read-only.")
+        }
         let targets = try await TorrentCatalog.targets(torrents, profile: profile, service: service)
         guard !targets.isEmpty else {
             throw IntentError(message: "No matching torrents on \(profile.label).")
         }
         do {
-            try await service.start(targets.map(\.id))
+            try await mutations.start(targets.map(\.id))
         } catch {
             throw IntentError(message: error.localizedDescription)
         }

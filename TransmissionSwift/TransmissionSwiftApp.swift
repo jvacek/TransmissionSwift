@@ -78,7 +78,7 @@ struct TransmissionSwiftApp: App {
         // Snapshot mode decodes the captured file through SnapshotTorrentService
         // (read-only, frozen). Otherwise we hand the store an empty mock — the real
         // RPC-backed service lands in slice 7 of doc/ui-buildout.md.
-        let service: any TorrentService
+        let service: any TorrentReading
         var snapshotTagColors: [String: TagColor] = [:]
         var snapshotServerName: String?
         if let snapshotPath {

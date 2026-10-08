@@ -24,6 +24,9 @@ struct RemoveTorrentsIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let environment = try AppEnvironment.require()
         let (profile, service) = try environment.requireService(server)
+        guard let mutations = service as? any TorrentMutating else {
+            throw IntentError(message: "This server is read-only.")
+        }
         let targets = try await TorrentCatalog.targets(torrents, profile: profile, service: service)
         guard !targets.isEmpty else {
             throw IntentError(message: "No matching torrents on \(profile.label).")
@@ -36,7 +39,7 @@ struct RemoveTorrentsIntent: AppIntent {
         try await requestConfirmation(dialog: "\(message)")
 
         do {
-            try await service.remove(targets.map(\.id), deleteLocalData: delete)
+            try await mutations.remove(targets.map(\.id), deleteLocalData: delete)
         } catch {
             throw IntentError(message: error.localizedDescription)
         }

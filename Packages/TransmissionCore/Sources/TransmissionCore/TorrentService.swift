@@ -1,30 +1,26 @@
 import Foundation
 import TransmissionRPC
 
-/// The service-level abstraction the UI consumes. Two implementations live
-/// behind this protocol — `MockTorrentService` (used by previews and the empty
-/// no-server state) and `RPCTorrentService` (real daemon, added in slice 7 of
-/// `doc/ui-buildout.md`).
+/// Read access to one daemon: its torrent list, inspector data and session
+/// state. Implemented by every service, including the read-only snapshot replay.
 ///
-/// The view layer never touches `TransmissionClient` directly. That keeps the
-/// UI off the wire-protocol shapes and lets us ship the full app skin without
-/// extending the RPC surface beyond `session-get`.
-public protocol TorrentService: Sendable {
-    /// Whether mutation actions (start, stop, remove, add, etc.) are wired up.
-    /// False in RPCTorrentService until slice 7b; true in MockTorrentService.
-    var supportsActions: Bool { get }
-
+/// The store and the view layer depend on this, never on `TransmissionClient`.
+/// Declaring reads and mutations separately lets a read-only source (snapshot
+/// replay) implement only what it can actually do, instead of stubbing every
+/// mutation.
+public protocol TorrentReading: Sendable {
     /// Whether the daemon supports labels (rpc-version >= 17, Transmission 4.0).
     /// The RPC service derives this from its cached `session-get`; mock/replay
-    /// report true (the mock supports labels, and replay is read-only anyway).
+    /// report true. Default true.
     func supportsLabels() async -> Bool
 
     /// Free space (bytes) on the daemon's download directory, or nil if unknown.
+    /// Default nil.
     func freeSpace() async -> Int64?
 
     /// Default download directory on the daemon host, or nil if unknown. Must be
     /// a protocol requirement (not extension-only) so calls through `any
-    /// TorrentService` dynamically dispatch to the concrete override.
+    /// TorrentReading` dynamically dispatch to the concrete override.
     func downloadDirectory() async -> String?
 
     /// Initial snapshot. The store calls this once on startup before
@@ -37,6 +33,63 @@ public protocol TorrentService: Sendable {
     /// the service's actor to install the continuation.
     func torrentsStream() async -> AsyncThrowingStream<[Torrent], Error>
 
+    /// Session-wide alt-speed (turtle) state. Reads `session-set`'s
+    /// `alt-speed-enabled` field.
+    func isAlternativeSpeedEnabled() async -> Bool
+
+    /// The current session-level settings (speed limits, network, queue, seed
+    /// ratio/idle). Returns nil when disconnected or unknown. Read-only services
+    /// (mock with no state, snapshot replay) return a plausible value so previews
+    /// and the no-server placeholder render populated controls. Default nil.
+    func sessionSettings() async -> SessionSettings?
+
+    /// The daemon's long version string (e.g. `"4.1.2 (f234716f3e)"`), or nil
+    /// when unknown (mock / disconnected / not yet polled). Used to pre-fill
+    /// the bug-report template. Default nil.
+    func daemonVersion() async -> String?
+
+    /// Whether the daemon's peer port is reachable from the outside (`port-test`).
+    /// Returns nil when the service can't answer (read-only/snapshot services or
+    /// a transient failure). Default nil.
+    func isPortOpen() async -> Bool?
+
+    /// Current + lifetime transfer statistics (`session-stats`). Returns nil
+    /// when the service can't answer (mock/replay services or a transient
+    /// failure). Default nil.
+    func sessionStats() async -> SessionStats?
+
+    /// Fetch a single torrent with both list fields and inspector fields
+    /// (files, fileStats, peers, trackerStats). The returned `Torrent` has
+    /// fully-populated `files`, `peers`, and `trackers` arrays. Used by
+    /// `TorrentStore` to back the inspector detail pane without merging rich
+    /// data into the main list (which gets wiped every poll).
+    func inspectorData(for id: Torrent.ID) async throws -> Torrent
+
+    /// Fetch the full daemon state (session + every torrent with list and
+    /// inspector fields) as an unredacted wire-shaped snapshot. Only
+    /// `RPCTorrentService` implements this; mock / replay services rely on the
+    /// default, which throws `SnapshotError.captureUnsupported`.
+    func captureRawSnapshot() async throws -> SnapshotFile
+}
+
+extension TorrentReading {
+    public func supportsLabels() async -> Bool { true }
+    public func freeSpace() async -> Int64? { nil }
+    public func downloadDirectory() async -> String? { nil }
+    public func sessionSettings() async -> SessionSettings? { nil }
+    public func daemonVersion() async -> String? { nil }
+    public func isPortOpen() async -> Bool? { nil }
+    public func sessionStats() async -> SessionStats? { nil }
+
+    public func captureRawSnapshot() async throws -> SnapshotFile {
+        throw SnapshotError.captureUnsupported
+    }
+}
+
+/// Mutation access to one daemon. Live and mock services implement this; the
+/// read-only snapshot replay does not. A caller tests for it with
+/// `reading as? any TorrentMutating`.
+public protocol TorrentMutating: Sendable {
     func start(_ ids: [Torrent.ID]) async throws
     func stop(_ ids: [Torrent.ID]) async throws
     /// `deleteLocalData == true` maps to RPC `delete-local-data: true`.
@@ -66,8 +119,7 @@ public protocol TorrentService: Sendable {
 
     /// Apply a partial speed-limit change to one or more torrents in a single
     /// `torrent-set`. Only the non-nil fields of `patch` are sent, so each
-    /// torrent's other options are preserved. Prefer this over looping
-    /// `setOptions` when the same change applies to many torrents.
+    /// torrent's other options are preserved.
     func setSpeedLimits(_ ids: [Torrent.ID], _ patch: TorrentSpeedLimitPatch) async throws
 
     /// Whole-set replace of one or more torrents' labels (empty array clears
@@ -88,38 +140,15 @@ public protocol TorrentService: Sendable {
     /// single-component name as `newName`.
     func renamePath(_ id: Torrent.ID, path: String, newName: String) async throws
 
-    /// Session-wide alt-speed (turtle) toggle. Reads/writes `session-set`'s
+    /// Session-wide alt-speed (turtle) toggle. Writes `session-set`'s
     /// `alt-speed-enabled` field.
     func setAlternativeSpeedEnabled(_ enabled: Bool) async throws
-    func isAlternativeSpeedEnabled() async -> Bool
 
-    /// The current session-level settings (speed limits, network, queue, seed
-    /// ratio/idle). Returns nil when disconnected or unknown. Read-only services
-    /// (mock with no state, snapshot replay) return a plausible value so previews
-    /// and the no-server placeholder render populated controls.
-    func sessionSettings() async -> SessionSettings?
-
-    /// The daemon's long version string (e.g. `"4.1.2 (f234716f3e)"`), or nil
-    /// when unknown (mock / disconnected / not yet polled). Used to pre-fill
-    /// the bug-report template. Default nil.
-    func daemonVersion() async -> String?
-
-    /// Applies a partial `session-set` write. Default no-op for read-only /
-    /// snapshot services; `RPCTorrentService` maps the patch and sends it.
+    /// Applies a partial `session-set` write.
     func applySessionSettings(_ patch: SessionSettingsPatch) async throws
 
-    /// Whether the daemon's peer port is reachable from the outside (`port-test`).
-    /// Returns nil when the service can't answer (read-only/snapshot services or
-    /// a transient failure). Default nil.
-    func isPortOpen() async -> Bool?
-
-    /// Current + lifetime transfer statistics (`session-stats`). Returns nil
-    /// when the service can't answer (mock/replay services or a transient
-    /// failure). Default nil.
-    func sessionStats() async -> SessionStats?
-
     /// Add a new torrent. Exactly one of `fileURL` / `magnetURL` should be
-    /// non-nil. Maps to `torrent-add` in slice 7.
+    /// non-nil. Maps to `torrent-add`.
     func add(
         fileURL: URL?,
         magnetURL: String?,
@@ -128,47 +157,10 @@ public protocol TorrentService: Sendable {
         priority: TorrentPriority,
         startWhenAdded: Bool
     ) async throws
-
-    /// Fetch a single torrent with both list fields and inspector fields
-    /// (files, fileStats, peers, trackerStats). The returned `Torrent` has
-    /// fully-populated `files`, `peers`, and `trackers` arrays. Used by
-    /// `TorrentStore` to back the inspector detail pane without merging rich
-    /// data into the main list (which gets wiped every poll).
-    func inspectorData(for id: Torrent.ID) async throws -> Torrent
-
-    /// Fetch the full daemon state (session + every torrent with list and
-    /// inspector fields) as an unredacted wire-shaped snapshot. Only
-    /// `RPCTorrentService` implements this; mock / replay services throw
-    /// `SnapshotError.captureUnsupported`.
-    func captureRawSnapshot() async throws -> SnapshotFile
 }
 
-extension TorrentService {
-    public var supportsActions: Bool { true }
-    public func supportsLabels() async -> Bool { true }
-    public func freeSpace() async -> Int64? { nil }
-    public func downloadDirectory() async -> String? { nil }
-    public func sessionSettings() async -> SessionSettings? { nil }
-    public func daemonVersion() async -> String? { nil }
-    public func applySessionSettings(_ patch: SessionSettingsPatch) async throws {}
-    public func isPortOpen() async -> Bool? { nil }
-    public func sessionStats() async -> SessionStats? { nil }
-
-    /// Default: read each torrent and apply the patch through `setOptions`.
-    /// `RPCTorrentService` overrides this with a single batched `torrent-set`.
-    public func setSpeedLimits(_ ids: [Torrent.ID], _ patch: TorrentSpeedLimitPatch) async throws {
-        let wanted = Set(ids)
-        for torrent in try await torrents() where wanted.contains(torrent.id) {
-            var options = torrent.options
-            if let value = patch.downloadLimited { options.downloadLimited = value }
-            if let value = patch.downloadLimitKBps { options.downloadLimitKBps = value }
-            if let value = patch.uploadLimited { options.uploadLimited = value }
-            if let value = patch.uploadLimitKBps { options.uploadLimitKBps = value }
-            try await setOptions(torrent.id, options: options)
-        }
-    }
-
-    public func captureRawSnapshot() async throws -> SnapshotFile {
-        throw SnapshotError.captureUnsupported
-    }
-}
+/// A service that both reads and mutates — the full set of capabilities a live
+/// daemon connection offers. `MockTorrentService` and `RPCTorrentService`
+/// conform; `SnapshotTorrentService` is read-only and conforms only to
+/// `TorrentReading`.
+public protocol TorrentService: TorrentReading, TorrentMutating {}

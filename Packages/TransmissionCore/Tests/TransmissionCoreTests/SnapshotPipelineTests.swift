@@ -26,7 +26,7 @@ private func runPipeline(
 
 /// A `TorrentService` that only supports snapshot capture — everything else is
 /// a no-op. Lets `TorrentStore.captureSnapshot` be tested in isolation.
-private struct StubSnapshotService: TorrentService {
+private struct StubSnapshotService: TorrentReading {
     let raw: SnapshotFile
 
     private var domainTorrents: [Torrent] { raw.torrents.map { Torrent(wire: $0) } }
@@ -42,26 +42,7 @@ private struct StubSnapshotService: TorrentService {
     }
     func freeSpace() async -> Int64? { nil }
     func downloadDirectory() async -> String? { nil }
-    func start(_ ids: [Torrent.ID]) async throws {}
-    func stop(_ ids: [Torrent.ID]) async throws {}
-    func remove(_ ids: [Torrent.ID], deleteLocalData: Bool) async throws {}
-    func verify(_ ids: [Torrent.ID]) async throws {}
-    func reannounce(_ ids: [Torrent.ID]) async throws {}
-    func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool) async throws {}
-    func setFilePriority(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], priority: TorrentPriority)
-        async throws
-    {}
-    func setPriority(_ ids: [Torrent.ID], priority: TorrentPriority) async throws {}
-    func setOptions(_ id: Torrent.ID, options: TorrentOptions) async throws {}
-    func setLabels(_ ids: [Torrent.ID], labels: [String]) async throws {}
-    func setLocation(_ ids: [Torrent.ID], location: String, move: Bool) async throws {}
-    func renamePath(_ id: Torrent.ID, path: String, newName: String) async throws {}
-    func setAlternativeSpeedEnabled(_ enabled: Bool) async throws {}
     func isAlternativeSpeedEnabled() async -> Bool { false }
-    func add(
-        fileURL: URL?, magnetURL: String?, destination: String, labels: [String],
-        priority: TorrentPriority, startWhenAdded: Bool
-    ) async throws {}
     func inspectorData(for id: Torrent.ID) async throws -> Torrent {
         struct NotFound: Error {}
         throw NotFound()

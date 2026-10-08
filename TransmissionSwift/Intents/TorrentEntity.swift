@@ -70,7 +70,7 @@ extension TorrentEntity: IndexedEntity {
 /// Resolves the torrents a server exposes. Shared by the query and the
 /// "Get Torrents" action.
 enum TorrentCatalog {
-    static func entities(profile: ServerProfile, service: any TorrentService) async -> [TorrentEntity] {
+    static func entities(profile: ServerProfile, service: any TorrentReading) async -> [TorrentEntity] {
         let serverID = profile.id.uuidString
         let torrents = (try? await service.torrents()) ?? []
         return torrents.map { TorrentEntity(torrent: $0, serverID: serverID) }
@@ -87,7 +87,7 @@ enum TorrentCatalog {
     /// A server's torrents for an action to operate on. Throws when the daemon
     /// can't be reached, so the action reports the real cause instead of a
     /// misleading "no matching torrents".
-    static func torrents(profile: ServerProfile, service: any TorrentService) async throws
+    static func torrents(profile: ServerProfile, service: any TorrentReading) async throws
         -> [Torrent]
     {
         do {
@@ -102,7 +102,7 @@ enum TorrentCatalog {
     /// entity picked from another server can't silently target this server's
     /// same-numbered torrent.
     static func targets(
-        _ selected: [TorrentEntity]?, profile: ServerProfile, service: any TorrentService
+        _ selected: [TorrentEntity]?, profile: ServerProfile, service: any TorrentReading
     ) async throws -> [Torrent] {
         let all = try await torrents(profile: profile, service: service)
         guard let selected, !selected.isEmpty else { return all }

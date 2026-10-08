@@ -29,6 +29,9 @@ struct SetServerSpeedLimitsIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let environment = try AppEnvironment.require()
         let (profile, service) = try environment.requireService(server)
+        guard let mutations = service as? any TorrentMutating else {
+            throw IntentError(message: "This server is read-only.")
+        }
 
         var patch = SessionSettingsPatch()
         patch.downLimited = downloadLimited
@@ -40,7 +43,7 @@ struct SetServerSpeedLimitsIntent: AppIntent {
         }
 
         do {
-            try await service.applySessionSettings(patch)
+            try await mutations.applySessionSettings(patch)
         } catch {
             throw IntentError(message: error.localizedDescription)
         }

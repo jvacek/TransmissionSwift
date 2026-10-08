@@ -32,7 +32,7 @@ nonisolated final class AppEnvironment: Sendable {
 
     private struct Connection: Sendable {
         let profileID: ServerProfile.ID
-        let service: any TorrentService
+        let service: any TorrentReading
     }
     private let connection: Mutex<Connection?>
 
@@ -45,7 +45,7 @@ nonisolated final class AppEnvironment: Sendable {
 
     /// Records the service the app is connected with, so an intent targeting the
     /// same profile reuses the live connection instead of opening a second one.
-    func setConnected(_ service: (any TorrentService)?, for profile: ServerProfile) {
+    func setConnected(_ service: (any TorrentReading)?, for profile: ServerProfile) {
         connection.withLock { state in
             state = service.map { Connection(profileID: profile.id, service: $0) }
         }
@@ -78,7 +78,7 @@ nonisolated final class AppEnvironment: Sendable {
     /// The chosen server plus a usable service, or a user-facing error. Shared
     /// by the action intents.
     func requireService(_ server: ServerEntity?) throws -> (
-        profile: ServerProfile, service: any TorrentService
+        profile: ServerProfile, service: any TorrentReading
     ) {
         guard let profile = resolve(server) else {
             throw IntentError(
@@ -90,13 +90,13 @@ nonisolated final class AppEnvironment: Sendable {
     /// The app's live service when it matches `profile`; otherwise a fresh
     /// factory service. Snapshot replay serves the frozen file, read-only.
     /// Best-effort — resolution failures return nil (used by the entity pickers).
-    func service(for profile: ServerProfile) -> (any TorrentService)? {
+    func service(for profile: ServerProfile) -> (any TorrentReading)? {
         try? resolvedService(for: profile)
     }
 
     /// Like `service(for:)`, but reports why resolution failed so an action can
     /// show the real cause instead of a generic error.
-    func resolvedService(for profile: ServerProfile) throws -> any TorrentService {
+    func resolvedService(for profile: ServerProfile) throws -> any TorrentReading {
         if let connection = connection.withLock({ $0 }), connection.profileID == profile.id {
             return connection.service
         }
