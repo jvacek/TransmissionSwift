@@ -1,9 +1,27 @@
 # Splitting `TorrentStore`
 
-Status: plan, not started. Owner: whoever picks it up. Target: reduce the
+Status: in progress. Phase 1 (TorrentListModel) landed. Target: reduce the
 817-line `TorrentStore` (`Packages/TransmissionCore/Sources/TransmissionCore/TorrentStore.swift`)
 into a coordinator plus focused `@Observable` collaborators, without a flag-day
 rewrite and without changing behaviour.
+
+## Progress
+
+| Phase | State |
+|---|---|
+| 1 — `TorrentListModel` | done |
+| 2 — `SessionModel` | not started |
+| 3 — `InspectorModel` | not started |
+| 4 — `TorrentActionModel` | not started |
+| 5 — `TorrentSheetState` | not started |
+| 6 — docs / sweep | not started |
+
+Phase 1 moved the torrent list, its derivation (facets, visible rows), selection,
+search, filters, sort, `downloadDirectory` and the sort preference onto
+`TorrentListModel`; `TorrentStore` now exposes it as `store.list`. Views read
+`store.list.<member>` (the one binding, `searchQuery`, uses
+`@Bindable var list = store.list`). New direct suite:
+`TorrentListModelTests.swift`.
 
 ## Why
 

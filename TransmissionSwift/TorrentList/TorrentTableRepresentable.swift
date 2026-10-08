@@ -257,7 +257,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             case none, values, structural
         }
 
-        /// Mirrors external `store.selectedTorrentIDs` changes into the table,
+        /// Mirrors external `store.list.selectedTorrentIDs` changes into the table,
         /// including after structural reloads. Compares before writing so the
         /// delegate → binding → updateNSView round-trip settles instead of looping.
         func syncSelectionFromBinding() {

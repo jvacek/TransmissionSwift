@@ -5,7 +5,7 @@ import TransmissionCore
 ///
 /// The text field takes a path on the *daemon's* filesystem. Paths starting
 /// with `/` are absolute (from the daemon's root); anything else is relative to
-/// the daemon's default download directory (`store.downloadDirectory`). `..`
+/// the daemon's default download directory (`store.list.downloadDirectory`). `..`
 /// and `.` are resolved lexically so the preview always shows the real target.
 /// `move` mirrors RPC `torrent-set-location`'s flag: true relocates the existing
 /// data, false only repoints the torrent when the data was moved out-of-band.
@@ -41,7 +41,7 @@ struct SetLocationSheet: View {
 
             ServerPathField(
                 path: $location,
-                defaultDirectory: store.downloadDirectory,
+                defaultDirectory: store.list.downloadDirectory,
                 folders: suggestions,
                 serverName: serverName
             )
@@ -85,10 +85,10 @@ struct SetLocationSheet: View {
         .padding(20)
         .frame(width: 460)
         .onAppear {
-            let folders = store.torrents.filter { ids.contains($0.id) }.map(\.downloadFolder)
+            let folders = store.list.torrents.filter { ids.contains($0.id) }.map(\.downloadFolder)
             currentFolders = folders
             let initial = setLocationInitialState(
-                folders: folders, relativeTo: store.downloadDirectory)
+                folders: folders, relativeTo: store.list.downloadDirectory)
             location = initial.path
             distinctCount = initial.distinctCount
             isMixed = initial.distinctCount > 1
@@ -113,7 +113,7 @@ struct SetLocationSheet: View {
 
     private var resolvedLocation: String {
         resolveServerPath(
-            location.trimmingCharacters(in: .whitespaces), relativeTo: store.downloadDirectory)
+            location.trimmingCharacters(in: .whitespaces), relativeTo: store.list.downloadDirectory)
     }
 
     /// Applying to the folders every selected torrent already shares is a no-op.
@@ -127,11 +127,11 @@ struct SetLocationSheet: View {
     /// as we know the base. See `isSubmittableServerPath`.
     private var canApply: Bool {
         !isSaving && !isNoOp
-            && isSubmittableServerPath(location, relativeTo: store.downloadDirectory)
+            && isSubmittableServerPath(location, relativeTo: store.list.downloadDirectory)
     }
 
     private var suggestions: [String] {
-        serverPathSuggestions(from: store.facets)
+        serverPathSuggestions(from: store.list.facets)
     }
 
     private func apply() async {

@@ -42,7 +42,7 @@ struct EditLabelsSheet: View {
     }
 
     private var initialLabels: [String] {
-        let selected = store.torrents.filter { ids.contains($0.id) }
+        let selected = store.list.torrents.filter { ids.contains($0.id) }
         guard let first = selected.first else { return [] }
         return selected.dropFirst().reduce(first.labels) { common, torrent in
             common.filter(torrent.labels.contains)
@@ -50,7 +50,7 @@ struct EditLabelsSheet: View {
     }
 
     private var suggestions: [String] {
-        store.facets.labels.map(\.name)
+        store.list.facets.labels.map(\.name)
     }
 
     private var subtitle: String {

@@ -10,7 +10,7 @@ struct TagsPrefsPane: View {
     @Environment(TorrentStore.self) private var store
 
     private var tags: [String] {
-        var names = Set(store.facets.labels.map(\.name))
+        var names = Set(store.list.facets.labels.map(\.name))
         names.formUnion(tagColors.coloredLabels)
         return names.sorted()
     }

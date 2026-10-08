@@ -38,30 +38,20 @@ public struct PendingRemoval: Identifiable, Sendable {
     public let deleteLocalData: Bool
 }
 
-/// The single source of truth the UI binds to. Wraps a `TorrentService`,
-/// owns selection / search / filter / inspector state, and derives the
-/// sidebar facets and visible-row set.
+/// The single source of truth the UI binds to. Wraps a read-only
+/// `TorrentReading` (plus an optional `TorrentMutating`), owns the connection
+/// state machine and the poll loop, and coordinates the focused collaborator
+/// models.
 ///
-/// Views read this from the environment. View models stay thin.
+/// Views read this from the environment and reach the collaborators through it
+/// (e.g. `store.list.visibleTorrents`).
 @MainActor
 @Observable
 public final class TorrentStore {
-    public private(set) var torrents: [Torrent] = [] {
-        didSet {
-            // Prune selections pointing at torrents the daemon no longer has
-            // (removed externally). Skip the empty transition set so a
-            // reconnect/connect doesn't wipe the selection.
-            if !torrents.isEmpty {
-                let liveIDs = Set(torrents.map(\.id))
-                if !selectedTorrentIDs.isSubset(of: liveIDs) {
-                    selectedTorrentIDs.formIntersection(liveIDs)
-                }
-            }
-            rebuildFacetsIfChanged()
-            pruneSidebarFiltersIfNeeded()
-            rebuildVisibleTorrents()
-        }
-    }
+    /// The torrent list and everything derived from it: rows, facets,
+    /// selection, search, filters, sort.
+    public let list = TorrentListModel()
+
     public private(set) var connection: ConnectionState = .connecting
     public private(set) var isAlternativeSpeedEnabled: Bool = false
     /// Session-level settings (speed limits, network, queue, seed ratio/idle)
@@ -84,24 +74,11 @@ public final class TorrentStore {
     /// Current + lifetime transfer statistics (`session-stats`). Fetched on
     /// demand when the status-bar stats popover opens; nil until then.
     public private(set) var sessionStats: SessionStats? = nil
-    /// Default download directory on the daemon host. Nil until the first session-get completes.
-    public private(set) var downloadDirectory: String? = nil
 
     /// Torrent fetched with full inspector fields for the selected torrent.
     /// Nil when no torrent is selected or before the first inspector fetch.
     /// Does NOT get wiped by the main list poll — updated only by `fetchInspectorDetail`.
     public private(set) var inspectorDetail: Torrent?
-
-    public private(set) var selectedSidebarFilters: Set<SidebarFilter> = [.status(.all)]
-    public private(set) var filterSelection = TorrentFilterSelection()
-    public var selectedTorrentIDs: Set<Torrent.ID> = []
-    public var searchQuery: String = "" {
-        didSet {
-            if searchQuery != oldValue {
-                rebuildVisibleTorrents()
-            }
-        }
-    }
     public var inspectorVisible: Bool = true {
         didSet {
             if oldValue != inspectorVisible {
@@ -132,38 +109,6 @@ public final class TorrentStore {
     // Remove confirmation
     public var pendingRemoval: PendingRemoval? = nil
 
-    public private(set) var facets = FilterFacets(torrents: [])
-    public private(set) var visibleTorrents: [Torrent] = []
-
-    // MARK: - Sort Preferences
-    public var tablePreferences: TablePreferences {
-        get {
-            guard let data = UserDefaults.standard.data(forKey: PreferenceKeys.tablePreferencesSort),
-                let decoded = try? JSONDecoder().decode(TablePreferences.self, from: data)
-            else { return TablePreferences() }
-            return decoded
-        }
-        set {
-            guard let encoded = try? JSONEncoder().encode(newValue) else { return }
-            UserDefaults.standard.set(encoded, forKey: PreferenceKeys.tablePreferencesSort)
-        }
-    }
-
-    /// Persists the sort to `TablePreferences` only. Callers that want the sort
-    /// to take effect must use `setSortOrder(column:ascending:)`, which also
-    /// re-sorts — kept private so nobody can create a "persisted but not
-    /// sorted" state.
-    private func updateSortOrder(column: TableColumn.ID, ascending: Bool) {
-        var prefs = tablePreferences
-        prefs.sortColumn = column
-        prefs.sortAscending = ascending
-        tablePreferences = prefs
-    }
-
-    public var selectedTorrents: [Torrent] {
-        torrents.filter { selectedTorrentIDs.contains($0.id) }
-    }
-
     /// True while the app has a live connection to a daemon. Gates any
     /// session-side setting that can only be read/changed when connected.
     public var isConnected: Bool {
@@ -183,18 +128,6 @@ public final class TorrentStore {
     private var mutations: (any TorrentMutating)?
     private var streamTask: Task<Void, Never>?
     private var freeSpaceTask: Task<Void, Never>?
-    private var sortColumn: TableColumn = .name
-    private var sortAscending: Bool = true
-    /// Facet-relevant projection of the last torrent set (status, tracker,
-    /// folder, label). Recomputing `FilterFacets` is only needed when one of
-    /// these changes — a poll that only moved speeds skips the grouping work.
-    private var facetSignature: [FacetSignature] = []
-    private struct FacetSignature: Equatable {
-        let status: TorrentStatus
-        let primaryTracker: String
-        let downloadFolder: String
-        let labels: [String]
-    }
 
     public init(service: any TorrentReading) {
         self.service = service
@@ -236,67 +169,15 @@ public final class TorrentStore {
         connection = .connecting
         freeSpace = nil
         daemonVersion = nil
-        downloadDirectory = nil
+        list.setDownloadDirectory(nil)
         sessionSettings = nil
         supportsLabels = true
-        torrents = []
+        list.setTorrents([])
         // Sidebar filters are per-server state — a tracker/folder/label filter
         // from server A would otherwise show "0 torrents" against server B's
         // (different) tracker set until the user re-picks one.
-        resetFilters()
+        list.resetFilters()
         startStream()
-    }
-
-    public func setStatusFilter(_ status: TorrentStatusFilter) {
-        if status != .all, selectedSidebarFilters.contains(.status(status)) {
-            setSidebarFilter(.status(.all))
-        } else {
-            setSidebarFilter(.status(status))
-        }
-    }
-
-    public func toggleTrackerFilter(_ host: String) {
-        toggleSidebarFilter(.tracker(host: host))
-    }
-
-    public func toggleFolderFilter(_ name: String) {
-        toggleSidebarFilter(.folder(name: name))
-    }
-
-    public func toggleLabelFilter(_ name: String) {
-        toggleSidebarFilter(.label(name: name))
-    }
-
-    public func resetFilters() {
-        setSidebarFilters([.status(.all)])
-    }
-
-    public func setSidebarFilter(_ filter: SidebarFilter) {
-        setSidebarFilters(normalizedSidebarFilters(selectedSidebarFilters.union([filter]), preferred: filter))
-    }
-
-    public func toggleSidebarFilter(_ filter: SidebarFilter) {
-        if selectedSidebarFilters.contains(filter), filter.group != .status {
-            setSidebarFilters(selectedSidebarFilters.subtracting([filter]))
-        } else {
-            setSidebarFilter(filter)
-        }
-    }
-
-    public func setSidebarFilters(_ filters: Set<SidebarFilter>) {
-        let next = normalizedSidebarFilters(filters)
-        guard next != selectedSidebarFilters else { return }
-        selectedSidebarFilters = next
-        filterSelection = TorrentFilterSelection(sidebarFilters: next)
-        rebuildVisibleTorrents()
-    }
-
-    public func setSortOrder(column: TableColumn, ascending: Bool) {
-        guard sortColumn != column || sortAscending != ascending else { return }
-        sortColumn = column
-        sortAscending = ascending
-        updateSortOrder(column: column.rawValue, ascending: ascending)
-        rebuildVisibleTorrents()
     }
 
     private func startStream() {
@@ -310,7 +191,7 @@ public final class TorrentStore {
             // freeSpace() also warms the session cache in RPCTorrentService.
             self.freeSpace = await capturedService.freeSpace()
             self.daemonVersion = await capturedService.daemonVersion()
-            self.downloadDirectory = await capturedService.downloadDirectory()
+            self.list.setDownloadDirectory(await capturedService.downloadDirectory())
             // Sync alt-speed state from the now-warm cache — avoids showing the
             // wrong turtle toggle state if alt speed was enabled before launch.
             self.isAlternativeSpeedEnabled = await capturedService.isAlternativeSpeedEnabled()
@@ -320,7 +201,7 @@ public final class TorrentStore {
             self.startFreeSpacePoll()
             do {
                 for try await snapshot in stream {
-                    self.torrents = snapshot
+                    self.list.setTorrents(snapshot)
                     if case .connected = self.connection {
                     } else {
                         self.connection = .connected
@@ -351,75 +232,6 @@ public final class TorrentStore {
         }
     }
 
-    private func rebuildVisibleTorrents() {
-        visibleTorrents =
-            torrents
-            .filtered(by: filterSelection, relativeTo: downloadDirectory)
-            .searched(searchQuery)
-            .sorted(using: sortColumn.comparator(order: sortAscending ? .forward : .reverse))
-    }
-
-    /// Recomputes `facets` only when the fields the sidebar reads from actually
-    /// changed, instead of every poll tick.
-    private func rebuildFacetsIfChanged() {
-        let signature = torrents.map { torrent in
-            FacetSignature(
-                status: torrent.status,
-                primaryTracker: torrent.primaryTracker,
-                downloadFolder: torrent.downloadFolder,
-                labels: torrent.labels)
-        }
-        guard signature != facetSignature else { return }
-        facetSignature = signature
-        facets = FilterFacets(torrents: torrents, downloadDirectory: downloadDirectory)
-    }
-
-    /// Drop sidebar filters that reference label / folder / tracker facets that
-    /// no longer exist (their last torrent was removed or relabelled). Without
-    /// this, deleting the last tagged torrent leaves its label filter applied —
-    /// and since the whole Labels section disappears, there's no way to clear
-    /// it. Status filters are always valid. Skipped while the set is empty so a
-    /// transient empty snapshot (reconnect) doesn't wipe the filters.
-    private func pruneSidebarFiltersIfNeeded() {
-        guard !torrents.isEmpty else { return }
-        let labelNames = Set(facets.labels.map(\.name))
-        let folderNames = Set(facets.folders.map(\.name))
-        let trackerHosts = Set(facets.trackers.map(\.name))
-        let labelsSectionVisible = !labelNames.isEmpty
-
-        let pruned = selectedSidebarFilters.filter { filter in
-            switch filter {
-            case .status: return true
-            case .tracker(let host): return trackerHosts.contains(host)
-            case .folder(let name): return folderNames.contains(name)
-            case .label(let name):
-                // "No label" only exists while the section is visible.
-                if name == LabelFilter.noLabelName { return labelsSectionVisible }
-                return labelNames.contains(name)
-            }
-        }
-        guard pruned != selectedSidebarFilters else { return }
-        selectedSidebarFilters = pruned
-        filterSelection = TorrentFilterSelection(sidebarFilters: pruned)
-    }
-
-    private func normalizedSidebarFilters(
-        _ filters: Set<SidebarFilter>,
-        preferred: SidebarFilter? = nil
-    ) -> Set<SidebarFilter> {
-        var byGroup: [SidebarFilter.Group: SidebarFilter] = [:]
-        for filter in filters {
-            byGroup[filter.group] = filter
-        }
-        if let preferred {
-            byGroup[preferred.group] = preferred
-        }
-        if byGroup[.status] == nil {
-            byGroup[.status] = .status(.all)
-        }
-        return Set(byGroup.values)
-    }
-
     // MARK: - Actions
 
     public func start(_ ids: [Torrent.ID]) async {
@@ -435,7 +247,7 @@ public final class TorrentStore {
     public func remove(_ ids: [Torrent.ID], deleteLocalData: Bool = false) async {
         guard let mutations else { return }
         do { try await mutations.remove(ids, deleteLocalData: deleteLocalData) } catch { recordError(error) }
-        selectedTorrentIDs.subtract(ids)
+        list.selectedTorrentIDs.subtract(ids)
     }
 
     /// Request a removal, honouring the "Confirm before removing" app pref.
@@ -610,7 +422,9 @@ public final class TorrentStore {
     /// errors via `lastActionError` like every other mutation.
     @discardableResult
     public func renameTorrent(_ id: Torrent.ID, newName: String) async -> Bool {
-        guard let mutations, let current = torrents.first(where: { $0.id == id }) else { return false }
+        guard let mutations, let current = list.torrents.first(where: { $0.id == id }) else {
+            return false
+        }
         do {
             try await mutations.renamePath(id, path: current.name, newName: newName)
             await refreshInspectorIfCurrent(id)
@@ -720,7 +534,7 @@ public final class TorrentStore {
     /// carries `files` — so without this the Files tab shows stale values until
     /// the selection changes.
     private func refreshInspectorIfCurrent(_ id: Torrent.ID) async {
-        guard selectedTorrents.first?.id == id else { return }
+        guard list.selectedTorrents.first?.id == id else { return }
         await fetchInspectorDetail(for: id)
     }
 
@@ -762,7 +576,7 @@ public final class TorrentStore {
         tagColors: [String: TagColor] = [:]
     ) async throws -> SnapshotCaptureResult {
         let raw = try await service.captureRawSnapshot()
-        let visibleOrder = options.respectFilters ? visibleTorrents.map(\.id) : nil
+        let visibleOrder = options.respectFilters ? list.visibleTorrents.map(\.id) : nil
         let scoped = SnapshotScope.apply(
             to: raw.torrents, visibleOrder: visibleOrder, maxTorrents: options.maxTorrents
         )
@@ -795,7 +609,7 @@ public final class TorrentStore {
         streamTask?.cancel()
         freeSpaceTask?.cancel()
         connection = .awaitingKeychain
-        torrents = []
+        list.setTorrents([])
         freeSpace = nil
         daemonVersion = nil
     }
@@ -803,22 +617,6 @@ public final class TorrentStore {
     /// Override the connection state — used by the debug menu (slice 6).
     public func simulateConnection(_ state: ConnectionState) {
         connection = state
-    }
-
-    /// Replace the torrent list synchronously, bypassing the service stream.
-    /// Used by `#Preview`s (and tests) that need populated facets on the very
-    /// first draw — a mock service's async stream otherwise leaves the first
-    /// frame empty, so folder-dependent chrome (the "known folders" list) either
-    /// appears late or trips Xcode's preview view-replacement crash.
-    public func seedTorrents(_ torrents: [Torrent]) {
-        self.torrents = torrents
-    }
-
-    /// Set the default download directory synchronously. Used by `#Preview`s
-    /// so path sheets resolve against a realistic base on the first frame —
-    /// without it an empty location previews as the filesystem root.
-    public func seedDownloadDirectory(_ directory: String?) {
-        self.downloadDirectory = directory
     }
 
     // MARK: - Private helpers

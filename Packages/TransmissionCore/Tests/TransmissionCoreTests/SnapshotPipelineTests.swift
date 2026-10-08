@@ -210,11 +210,11 @@ struct SnapshotPipelineTests {
     func captureScopedToFilters() async throws {
         let stub = StubSnapshotService(raw: SnapshotFixtures.rawSnapshot())
         let store = TorrentStore(service: stub)
-        await waitFor { store.visibleTorrents.count == 2 }
+        await waitFor { store.list.visibleTorrents.count == 2 }
 
         // Narrow to the downloading torrent only.
-        store.setStatusFilter(.downloading)
-        await waitFor { store.visibleTorrents.count == 1 }
+        store.list.setStatusFilter(.downloading)
+        await waitFor { store.list.visibleTorrents.count == 1 }
 
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("snapshot-test-\(UUID().uuidString).json")
@@ -236,7 +236,7 @@ struct SnapshotPipelineTests {
     func captureCapped() async throws {
         let stub = StubSnapshotService(raw: SnapshotFixtures.rawSnapshot())
         let store = TorrentStore(service: stub)
-        await waitFor { store.visibleTorrents.count == 2 }
+        await waitFor { store.list.visibleTorrents.count == 2 }
 
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("snapshot-test-\(UUID().uuidString).json")

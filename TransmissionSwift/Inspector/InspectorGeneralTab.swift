@@ -141,8 +141,8 @@ struct InspectorGeneralTab: View {
     /// Shown relative to the daemon's default download dir when nested inside
     /// it, otherwise the full path (e.g. a folder outside the download root).
     private var locationDisplay: String {
-        let relative = relativeDownloadFolder(torrent.downloadFolder, relativeTo: store.downloadDirectory)
-        if relative.isEmpty { return store.downloadDirectory ?? torrent.downloadFolder }
+        let relative = relativeDownloadFolder(torrent.downloadFolder, relativeTo: store.list.downloadDirectory)
+        if relative.isEmpty { return store.list.downloadDirectory ?? torrent.downloadFolder }
         return relative
     }
 

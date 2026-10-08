@@ -205,13 +205,13 @@ struct AddTorrentSheet: View {
             formRow("Destination", alignLabelToTop: true) {
                 ServerPathField(
                     path: $destination,
-                    defaultDirectory: store.downloadDirectory,
+                    defaultDirectory: store.list.downloadDirectory,
                     folders: knownFolders,
                     serverName: serverName)
             }
             Divider()
             formRow("Tags") {
-                TagsInputField(tags: $tags, suggestions: store.facets.labels.map(\.name))
+                TagsInputField(tags: $tags, suggestions: store.list.facets.labels.map(\.name))
                     .help(
                         "Type a tag and press Return to add it — or pick an existing one from the list that appears."
                     )
@@ -256,7 +256,7 @@ struct AddTorrentSheet: View {
 
     /// Folders the daemon already knows about, offered as one-click destinations.
     private var knownFolders: [String] {
-        serverPathSuggestions(from: store.facets)
+        serverPathSuggestions(from: store.list.facets)
     }
 
     private let formLabelWidth: CGFloat = 90
@@ -369,7 +369,7 @@ struct AddTorrentSheet: View {
             case .file: fileURL != nil
             case .magnet: magnetString.hasPrefix("magnet:?xt=urn:btih:")
             }
-        return sourceValid && isSubmittableServerPath(destination, relativeTo: store.downloadDirectory)
+        return sourceValid && isSubmittableServerPath(destination, relativeTo: store.list.downloadDirectory)
     }
 
     private func submit() async {
@@ -379,7 +379,7 @@ struct AddTorrentSheet: View {
         let succeeded = await store.add(
             fileURL: mode == .file ? fileURL : nil,
             magnetURL: mode == .magnet ? magnetString : nil,
-            destination: resolveServerPath(destination, relativeTo: store.downloadDirectory),
+            destination: resolveServerPath(destination, relativeTo: store.list.downloadDirectory),
             labels: tags,
             priority: priority,
             startWhenAdded: startWhenAdded,

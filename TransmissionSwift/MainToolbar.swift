@@ -37,33 +37,33 @@ struct MainToolbar: ToolbarContent {
         // Group 2 — selection actions
         ToolbarItem(placement: .primaryAction) {
             Button("Resume", systemImage: "play.fill") {
-                Task { await store.start(Array(store.selectedTorrentIDs)) }
+                Task { await store.start(Array(store.list.selectedTorrentIDs)) }
             }
-            .disabled(!store.actionsEnabled || store.selectedTorrentIDs.isEmpty)
+            .disabled(!store.actionsEnabled || store.list.selectedTorrentIDs.isEmpty)
             .help("Resume selected torrents")
             .accessibilityIdentifier("toolbar.resume")
         }
         ToolbarItem(placement: .primaryAction) {
             Button("Pause", systemImage: "pause.fill") {
-                Task { await store.stop(Array(store.selectedTorrentIDs)) }
+                Task { await store.stop(Array(store.list.selectedTorrentIDs)) }
             }
-            .disabled(!store.actionsEnabled || store.selectedTorrentIDs.isEmpty)
+            .disabled(!store.actionsEnabled || store.list.selectedTorrentIDs.isEmpty)
             .help("Pause selected torrents")
             .accessibilityIdentifier("toolbar.pause")
         }
         ToolbarItem(placement: .primaryAction) {
             Button("Remove", systemImage: "trash", role: .destructive) {
-                store.requestRemove(Array(store.selectedTorrentIDs))
+                store.requestRemove(Array(store.list.selectedTorrentIDs))
             }
-            .disabled(!store.actionsEnabled || store.selectedTorrentIDs.isEmpty)
+            .disabled(!store.actionsEnabled || store.list.selectedTorrentIDs.isEmpty)
             .help("Remove selected torrents")
             .accessibilityIdentifier("toolbar.remove")
         }
         ToolbarItem(placement: .primaryAction) {
             Button("Set Location", systemImage: "folder") {
-                store.openSetLocation(for: Array(store.selectedTorrentIDs))
+                store.openSetLocation(for: Array(store.list.selectedTorrentIDs))
             }
-            .disabled(!store.actionsEnabled || store.selectedTorrentIDs.isEmpty)
+            .disabled(!store.actionsEnabled || store.list.selectedTorrentIDs.isEmpty)
             .help("Set download location for selected torrents")
             .accessibilityIdentifier("toolbar.setLocation")
         }

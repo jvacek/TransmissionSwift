@@ -47,7 +47,7 @@ enum MappingOpener {
                 torrent: resolved,
                 server: profile,
                 password: password,
-                defaultDownloadDirectory: store.downloadDirectory,
+                defaultDownloadDirectory: store.list.downloadDirectory,
                 file: file)
         else {
             store.lastActionError = .failed(message: "Could not build a URL from “\(mapping.template)”")

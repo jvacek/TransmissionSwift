@@ -7,18 +7,18 @@ struct TorrentListView: View {
     @Environment(ServerProfileStore.self) private var profileStore
 
     var body: some View {
-        let prefs = store.tablePreferences
+        let prefs = store.list.tablePreferences
         return TorrentTableRepresentable(
-            rows: store.visibleTorrents,
+            rows: store.list.visibleTorrents,
             selection: Binding(
-                get: { store.selectedTorrentIDs },
-                set: { store.selectedTorrentIDs = $0 }
+                get: { store.list.selectedTorrentIDs },
+                set: { store.list.selectedTorrentIDs = $0 }
             ),
-            downloadDirectoryBase: store.downloadDirectory,
+            downloadDirectoryBase: store.list.downloadDirectory,
             sortColumnID: prefs.sortColumn,
             sortAscending: prefs.sortAscending,
             onSortChange: { column, ascending in
-                store.setSortOrder(column: column, ascending: ascending)
+                store.list.setSortOrder(column: column, ascending: ascending)
             },
             actionsEnabled: store.actionsEnabled,
             labelsSupported: store.supportsLabels,
@@ -57,13 +57,13 @@ struct TorrentListView: View {
     }
 
     private func restoreSortOrder() {
-        let prefs = store.tablePreferences
+        let prefs = store.list.tablePreferences
         let column = TransmissionCore.TableColumn(rawValue: prefs.sortColumn) ?? .name
-        store.setSortOrder(column: column, ascending: prefs.sortAscending)
+        store.list.setSortOrder(column: column, ascending: prefs.sortAscending)
     }
 
     private func openMapping(_ mapping: OpenMapping, ids: [Torrent.ID]) {
-        guard let torrent = store.torrents.first(where: { ids.contains($0.id) }),
+        guard let torrent = store.list.torrents.first(where: { ids.contains($0.id) }),
             let profile = profileStore.activeProfile
         else { return }
         Task {

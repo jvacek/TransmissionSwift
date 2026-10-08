@@ -67,7 +67,7 @@ struct RenameTorrentSheet: View {
     }
 
     private var currentName: String? {
-        store.torrents.first(where: { $0.id == id })?.name
+        store.list.torrents.first(where: { $0.id == id })?.name
     }
 
     private var trimmedName: String {
@@ -101,7 +101,7 @@ struct RenameTorrentSheet: View {
 
 #Preview("Rename Torrent") {
     let store = TorrentStore(service: MockTorrentService())
-    store.selectedTorrentIDs = [5]
+    store.list.selectedTorrentIDs = [5]
     return RenameTorrentSheet(isPresented: .constant(true), id: 5)
         .environment(store)
         .frame(width: 400)

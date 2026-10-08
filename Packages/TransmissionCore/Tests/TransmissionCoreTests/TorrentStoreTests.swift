@@ -361,8 +361,8 @@ struct TorrentStoreTests {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
 
-        await waitFor { !store.torrents.isEmpty }
-        #expect(store.torrents.count == MockFixtures.torrents().count)
+        await waitFor { !store.list.torrents.isEmpty }
+        #expect(store.list.torrents.count == MockFixtures.torrents().count)
         #expect(store.connection == .connected)
     }
 
@@ -371,11 +371,11 @@ struct TorrentStoreTests {
     func mirrorsMutations() async throws {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
         await store.stop([1])
-        await waitFor { store.torrents.first { $0.id == 1 }?.status == .paused }
-        #expect(store.torrents.first { $0.id == 1 }?.status == .paused)
+        await waitFor { store.list.torrents.first { $0.id == 1 }?.status == .paused }
+        #expect(store.list.torrents.first { $0.id == 1 }?.status == .paused)
     }
 
     @Test("torrentForOpening returns the torrent as-is when files are known")
@@ -383,8 +383,8 @@ struct TorrentStoreTests {
     func torrentForOpeningKnownFiles() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
-        let torrent = store.torrents[0]
+        await waitFor { !store.list.torrents.isEmpty }
+        let torrent = store.list.torrents[0]
         #expect(!torrent.files.isEmpty)
         let resolved = await store.torrentForOpening(torrent)
         #expect(resolved.id == torrent.id)
@@ -396,8 +396,8 @@ struct TorrentStoreTests {
     func torrentForOpeningFetchesFiles() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
-        let full = store.torrents[0]
+        await waitFor { !store.list.torrents.isEmpty }
+        let full = store.list.torrents[0]
         var listTorrent = full
         listTorrent.files = []  // list poll doesn't fetch files
         let resolved = await store.torrentForOpening(listTorrent)
@@ -410,11 +410,11 @@ struct TorrentStoreTests {
     func removeClearsSelection() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
-        store.selectedTorrentIDs = [1, 2, 3]
+        store.list.selectedTorrentIDs = [1, 2, 3]
         await store.remove([2])
-        #expect(store.selectedTorrentIDs == [1, 3])
+        #expect(store.list.selectedTorrentIDs == [1, 3])
     }
 
     @Test("requestRemove stages a confirmation when the pref is on")
@@ -422,14 +422,14 @@ struct TorrentStoreTests {
     func requestRemoveStagesConfirmation() async throws {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
         store.requestRemove([1], deleteLocalData: true, confirm: true)
         let pending = try #require(store.pendingRemoval)
         #expect(pending.ids == [1])
         #expect(pending.deleteLocalData == true)
         // Staged, not yet removed.
-        #expect(store.torrents.contains { $0.id == 1 })
+        #expect(store.list.torrents.contains { $0.id == 1 })
     }
 
     @Test("requestRemove removes immediately when the pref is off")
@@ -437,12 +437,12 @@ struct TorrentStoreTests {
     func requestRemoveSkipsConfirmation() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
         store.requestRemove([1], confirm: false)
         #expect(store.pendingRemoval == nil)
-        await waitFor { !store.torrents.contains { $0.id == 1 } }
-        #expect(!store.torrents.contains { $0.id == 1 })
+        await waitFor { !store.list.torrents.contains { $0.id == 1 } }
+        #expect(!store.list.torrents.contains { $0.id == 1 })
     }
 
     @Test("confirmPendingRemoval removes and clears the pending state")
@@ -450,14 +450,14 @@ struct TorrentStoreTests {
     func confirmPendingRemovalRemoves() async throws {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
         store.requestRemove([1, 2], confirm: true)
         try #require(store.pendingRemoval != nil)
         store.confirmPendingRemoval()
         #expect(store.pendingRemoval == nil)
-        await waitFor { !store.torrents.contains { $0.id == 1 } }
-        #expect(!store.torrents.contains { $0.id == 2 })
+        await waitFor { !store.list.torrents.contains { $0.id == 1 } }
+        #expect(!store.list.torrents.contains { $0.id == 2 })
     }
 
     @Test("cancelPendingRemoval drops the pending state without removing")
@@ -465,13 +465,13 @@ struct TorrentStoreTests {
     func cancelPendingRemovalKeepsTorrents() async throws {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
         store.requestRemove([1], confirm: true)
         try #require(store.pendingRemoval != nil)
         store.cancelPendingRemoval()
         #expect(store.pendingRemoval == nil)
-        #expect(store.torrents.contains { $0.id == 1 })
+        #expect(store.list.torrents.contains { $0.id == 1 })
     }
 
     @Test("addFromExternalURL opens the sheet when the dialog pref is on")
@@ -479,12 +479,12 @@ struct TorrentStoreTests {
     func addFromExternalURLShowsDialog() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
-        let count = store.torrents.count
+        await waitFor { !store.list.torrents.isEmpty }
+        let count = store.list.torrents.count
 
         store.addFromExternalURL(URL(string: "magnet:?xt=urn:btih:abc123")!, showDialog: true)
         #expect(store.showAddTorrent)
-        #expect(store.torrents.count == count)
+        #expect(store.list.torrents.count == count)
     }
 
     @Test("addFromExternalURL adds immediately when the dialog pref is off")
@@ -494,8 +494,8 @@ struct TorrentStoreTests {
         let store = TorrentStore(service: service)
         store.addFromExternalURL(URL(string: "magnet:?xt=urn:btih:abc123")!, showDialog: false)
         #expect(!store.showAddTorrent)
-        await waitFor { !store.torrents.isEmpty }
-        #expect(store.torrents.count == 1)
+        await waitFor { !store.list.torrents.isEmpty }
+        #expect(store.list.torrents.count == 1)
     }
 
     @Test("add deletes the .torrent file after a successful add when asked")
@@ -549,11 +549,11 @@ struct TorrentStoreTests {
     func setLabelsAction() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
         await store.setLabels([2, 5], labels: ["Archive"])
-        await waitFor { store.torrents.first { $0.id == 2 }?.labels == ["Archive"] }
-        #expect(store.torrents.first { $0.id == 5 }?.labels == ["Archive"])
+        await waitFor { store.list.torrents.first { $0.id == 2 }?.labels == ["Archive"] }
+        #expect(store.list.torrents.first { $0.id == 5 }?.labels == ["Archive"])
     }
 
     @Test("renameTorrent renames through the service and reports success")
@@ -561,11 +561,11 @@ struct TorrentStoreTests {
     func renameTorrentAction() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
         let succeeded = await store.renameTorrent(2, newName: "Renamed via Store")
         #expect(succeeded)
-        await waitFor { store.torrents.first { $0.id == 2 }?.name == "Renamed via Store" }
+        await waitFor { store.list.torrents.first { $0.id == 2 }?.name == "Renamed via Store" }
     }
 
     @Test("openRenameTorrent stages the sheet target")
@@ -582,11 +582,11 @@ struct TorrentStoreTests {
     func setPriorityAction() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
         await store.setPriority([2, 5], priority: .low)
-        await waitFor { store.torrents.first { $0.id == 2 }?.priority == .low }
-        #expect(store.torrents.first { $0.id == 5 }?.priority == .low)
+        await waitFor { store.list.torrents.first { $0.id == 2 }?.priority == .low }
+        #expect(store.list.torrents.first { $0.id == 5 }?.priority == .low)
     }
 
     @Test("file wanted/priority mutations refresh the inspected torrent's detail")
@@ -594,9 +594,9 @@ struct TorrentStoreTests {
     func fileMutationRefreshesInspectorDetail() async throws {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
-        store.selectedTorrentIDs = [5]
+        store.list.selectedTorrentIDs = [5]
         await store.fetchInspectorDetail(for: 5)
         let detail = try #require(store.inspectorDetail)
         let target = try #require(detail.files.first { $0.priority == .normal }?.id)
@@ -619,7 +619,7 @@ struct TorrentStoreTests {
     func openEditLabels() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
         store.openEditLabels(for: [2])
         #expect(store.showEditLabels)
@@ -635,12 +635,12 @@ struct TorrentStoreTests {
     func visibility() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
-        store.setStatusFilter(.downloading)
-        store.searchQuery = "debian"
-        #expect(store.visibleTorrents.count == 1)
-        #expect(store.visibleTorrents.first?.name.contains("Debian") == true)
+        store.list.setStatusFilter(.downloading)
+        store.list.searchQuery = "debian"
+        #expect(store.list.visibleTorrents.count == 1)
+        #expect(store.list.visibleTorrents.first?.name.contains("Debian") == true)
     }
 
     @Test("store combines status, tracker, and label filters")
@@ -648,16 +648,16 @@ struct TorrentStoreTests {
     func combinedVisibility() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
-        store.setStatusFilter(.downloading)
-        store.toggleTrackerFilter("releases.ubuntu.com")
-        store.toggleLabelFilter("Linux")
+        store.list.setStatusFilter(.downloading)
+        store.list.toggleTrackerFilter("releases.ubuntu.com")
+        store.list.toggleLabelFilter("Linux")
 
-        #expect(!store.visibleTorrents.isEmpty)
-        #expect(store.visibleTorrents.allSatisfy { $0.status == .downloading })
-        #expect(store.visibleTorrents.allSatisfy { $0.primaryTracker == "releases.ubuntu.com" })
-        #expect(store.visibleTorrents.allSatisfy { $0.labels.contains("Linux") })
+        #expect(!store.list.visibleTorrents.isEmpty)
+        #expect(store.list.visibleTorrents.allSatisfy { $0.status == .downloading })
+        #expect(store.list.visibleTorrents.allSatisfy { $0.primaryTracker == "releases.ubuntu.com" })
+        #expect(store.list.visibleTorrents.allSatisfy { $0.labels.contains("Linux") })
     }
 
     @Test("a label filter is cleared when its last labelled torrent is removed")
@@ -665,17 +665,17 @@ struct TorrentStoreTests {
     func labelFilterPruned() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
-        store.toggleLabelFilter("Linux")
-        #expect(store.selectedSidebarFilters.contains(.label(name: "Linux")))
+        store.list.toggleLabelFilter("Linux")
+        #expect(store.list.selectedSidebarFilters.contains(.label(name: "Linux")))
 
-        let linuxIDs = store.torrents.filter { $0.labels.contains("Linux") }.map(\.id)
+        let linuxIDs = store.list.torrents.filter { $0.labels.contains("Linux") }.map(\.id)
         await store.remove(linuxIDs)
-        await waitFor { !store.torrents.contains { $0.labels.contains("Linux") } }
+        await waitFor { !store.list.torrents.contains { $0.labels.contains("Linux") } }
 
-        #expect(!store.selectedSidebarFilters.contains(.label(name: "Linux")))
-        #expect(store.filterSelection.labels.isEmpty)
+        #expect(!store.list.selectedSidebarFilters.contains(.label(name: "Linux")))
+        #expect(store.list.filterSelection.labels.isEmpty)
     }
 
     @Test("the no-label filter is cleared when the last labelled torrent is removed")
@@ -683,16 +683,16 @@ struct TorrentStoreTests {
     func noLabelFilterPruned() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
-        store.toggleLabelFilter(LabelFilter.noLabelName)
-        #expect(store.selectedSidebarFilters.contains(.label(name: LabelFilter.noLabelName)))
+        store.list.toggleLabelFilter(LabelFilter.noLabelName)
+        #expect(store.list.selectedSidebarFilters.contains(.label(name: LabelFilter.noLabelName)))
 
-        let labelledIDs = store.torrents.filter { !$0.labels.isEmpty }.map(\.id)
+        let labelledIDs = store.list.torrents.filter { !$0.labels.isEmpty }.map(\.id)
         await store.remove(labelledIDs)
-        await waitFor { store.facets.labels.isEmpty }
+        await waitFor { store.list.facets.labels.isEmpty }
 
-        #expect(!store.selectedSidebarFilters.contains(.label(name: LabelFilter.noLabelName)))
+        #expect(!store.list.selectedSidebarFilters.contains(.label(name: LabelFilter.noLabelName)))
     }
 
     @Test("a folder filter is cleared when its last torrent is removed")
@@ -700,17 +700,17 @@ struct TorrentStoreTests {
     func folderFilterPruned() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
-        store.toggleFolderFilter("Linux ISOs")
-        #expect(store.selectedSidebarFilters.contains(.folder(name: "Linux ISOs")))
+        store.list.toggleFolderFilter("Linux ISOs")
+        #expect(store.list.selectedSidebarFilters.contains(.folder(name: "Linux ISOs")))
 
-        let ids = store.torrents.filter { $0.downloadFolder == "Linux ISOs" }.map(\.id)
+        let ids = store.list.torrents.filter { $0.downloadFolder == "Linux ISOs" }.map(\.id)
         await store.remove(ids)
-        await waitFor { !store.torrents.contains { $0.downloadFolder == "Linux ISOs" } }
+        await waitFor { !store.list.torrents.contains { $0.downloadFolder == "Linux ISOs" } }
 
-        #expect(!store.selectedSidebarFilters.contains(.folder(name: "Linux ISOs")))
-        #expect(store.filterSelection.folders.isEmpty)
+        #expect(!store.list.selectedSidebarFilters.contains(.folder(name: "Linux ISOs")))
+        #expect(store.list.filterSelection.folders.isEmpty)
     }
 
     @Test("a tracker filter is cleared when its last torrent is removed")
@@ -718,17 +718,17 @@ struct TorrentStoreTests {
     func trackerFilterPruned() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
-        store.toggleTrackerFilter("releases.ubuntu.com")
-        #expect(store.selectedSidebarFilters.contains(.tracker(host: "releases.ubuntu.com")))
+        store.list.toggleTrackerFilter("releases.ubuntu.com")
+        #expect(store.list.selectedSidebarFilters.contains(.tracker(host: "releases.ubuntu.com")))
 
-        let ids = store.torrents.filter { $0.primaryTracker == "releases.ubuntu.com" }.map(\.id)
+        let ids = store.list.torrents.filter { $0.primaryTracker == "releases.ubuntu.com" }.map(\.id)
         await store.remove(ids)
-        await waitFor { !store.torrents.contains { $0.primaryTracker == "releases.ubuntu.com" } }
+        await waitFor { !store.list.torrents.contains { $0.primaryTracker == "releases.ubuntu.com" } }
 
-        #expect(!store.selectedSidebarFilters.contains(.tracker(host: "releases.ubuntu.com")))
-        #expect(store.filterSelection.trackers.isEmpty)
+        #expect(!store.list.selectedSidebarFilters.contains(.tracker(host: "releases.ubuntu.com")))
+        #expect(store.list.filterSelection.trackers.isEmpty)
     }
 
     @Test("an unrelated facet filter survives removal of other torrents")
@@ -736,14 +736,14 @@ struct TorrentStoreTests {
     func unrelatedFilterSurvives() async {
         let service = MockTorrentService()
         let store = TorrentStore(service: service)
-        await waitFor { !store.torrents.isEmpty }
+        await waitFor { !store.list.torrents.isEmpty }
 
-        store.toggleLabelFilter("Linux")
-        let mediaIDs = store.torrents.filter { $0.labels.contains("Media") }.map(\.id)
+        store.list.toggleLabelFilter("Linux")
+        let mediaIDs = store.list.torrents.filter { $0.labels.contains("Media") }.map(\.id)
         await store.remove(mediaIDs)
-        await waitFor { !store.torrents.contains { $0.labels.contains("Media") } }
+        await waitFor { !store.list.torrents.contains { $0.labels.contains("Media") } }
 
-        #expect(store.selectedSidebarFilters.contains(.label(name: "Linux")))
+        #expect(store.list.selectedSidebarFilters.contains(.label(name: "Linux")))
     }
 }
 

@@ -25,7 +25,7 @@ struct SidebarView: View {
     private var trackerHosts: [String] {
         // Limit to tier 0 and 1 (primary trackers) to avoid flooding with fallback trackers
         let maxTier = 1
-        let allHosts = store.torrents.flatMap { torrent in
+        let allHosts = store.list.torrents.flatMap { torrent in
             torrent.trackers.filter { $0.tier <= maxTier }.map(\.host)
         }
         // Filter out obviously invalid hosts (IPs, localhost) but allow short names
@@ -51,10 +51,10 @@ struct SidebarView: View {
                     SidebarFilterRow(
                         label: filter.displayLabel,
                         leading: { Image(systemName: filter.systemImage) },
-                        count: store.facets.statusCounts[filter] ?? 0,
-                        isSelected: store.selectedSidebarFilters.contains(.status(filter))
+                        count: store.list.facets.statusCounts[filter] ?? 0,
+                        isSelected: store.list.selectedSidebarFilters.contains(.status(filter))
                     ) {
-                        store.setStatusFilter(filter)
+                        store.list.setStatusFilter(filter)
                     }
                     .accessibilityIdentifier("sidebar.status.\(filter.rawValue)")
                 }
@@ -63,16 +63,16 @@ struct SidebarView: View {
                     .padding(.trailing, 16)
             }
 
-            if !store.facets.trackers.isEmpty {
+            if !store.list.facets.trackers.isEmpty {
                 Section(isExpanded: $isTrackersExpanded) {
-                    ForEach(store.facets.trackers) { entry in
+                    ForEach(store.list.facets.trackers) { entry in
                         SidebarFilterRow(
                             label: entry.name,
                             leading: { FaviconView(host: entry.name) },
                             count: entry.count,
-                            isSelected: store.selectedSidebarFilters.contains(.tracker(host: entry.name))
+                            isSelected: store.list.selectedSidebarFilters.contains(.tracker(host: entry.name))
                         ) {
-                            store.toggleTrackerFilter(entry.name)
+                            store.list.toggleTrackerFilter(entry.name)
                         }
                     }
                 } header: {
@@ -81,9 +81,9 @@ struct SidebarView: View {
                 }
             }
 
-            if !store.facets.folders.isEmpty {
+            if !store.list.facets.folders.isEmpty {
                 Section(isExpanded: $isFoldersExpanded) {
-                    ForEach(store.facets.folders) { entry in
+                    ForEach(store.list.facets.folders) { entry in
                         let isDefaultFolder = entry.name == FolderFilter.defaultFolderName
                         SidebarFilterRow(
                             label: isDefaultFolder ? "Default Folder" : entry.name,
@@ -91,9 +91,9 @@ struct SidebarView: View {
                                 Image(systemName: isDefaultFolder ? "folder.fill" : "folder")
                             },
                             count: entry.count,
-                            isSelected: store.selectedSidebarFilters.contains(.folder(name: entry.name))
+                            isSelected: store.list.selectedSidebarFilters.contains(.folder(name: entry.name))
                         ) {
-                            store.toggleFolderFilter(entry.name)
+                            store.list.toggleFolderFilter(entry.name)
                         }
                     }
                 } header: {
@@ -102,17 +102,17 @@ struct SidebarView: View {
                 }
             }
 
-            if !store.facets.labels.isEmpty {
+            if !store.list.facets.labels.isEmpty {
                 Section(isExpanded: $isLabelsExpanded) {
                     SidebarFilterRow(
                         label: "No label",
                         leading: { Image(systemName: "tag.slash") },
-                        count: store.facets.noLabelCount,
-                        isSelected: store.selectedSidebarFilters.contains(.label(name: LabelFilter.noLabelName))
+                        count: store.list.facets.noLabelCount,
+                        isSelected: store.list.selectedSidebarFilters.contains(.label(name: LabelFilter.noLabelName))
                     ) {
-                        store.toggleLabelFilter(LabelFilter.noLabelName)
+                        store.list.toggleLabelFilter(LabelFilter.noLabelName)
                     }
-                    ForEach(store.facets.labels) { entry in
+                    ForEach(store.list.facets.labels) { entry in
                         let tagColor = tagColors.color(for: entry.name)
                         SidebarFilterRow(
                             label: entry.name,
@@ -125,9 +125,9 @@ struct SidebarView: View {
                                 }
                             },
                             count: entry.count,
-                            isSelected: store.selectedSidebarFilters.contains(.label(name: entry.name))
+                            isSelected: store.list.selectedSidebarFilters.contains(.label(name: entry.name))
                         ) {
-                            store.toggleLabelFilter(entry.name)
+                            store.list.toggleLabelFilter(entry.name)
                         }
                         .contextMenu {
                             TagColorPickerMenu(current: tagColor) { color in

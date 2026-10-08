@@ -109,7 +109,7 @@ struct StatusBarView: View {
             .popover(isPresented: $showServerStats, arrowEdge: .bottom) {
                 ServerStatsPopoverView()
             }
-            Text("\(store.torrents.count) torrents · \(activeCount) active")
+            Text("\(store.list.torrents.count) torrents · \(activeCount) active")
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
                 .accessibilityIdentifier("statusBar.count")
@@ -179,7 +179,7 @@ struct StatusBarView: View {
     }
 
     private var activeCount: Int {
-        store.torrents.filter { $0.status == .downloading || $0.status == .seeding }.count
+        store.list.torrents.filter { $0.status == .downloading || $0.status == .seeding }.count
     }
 
     /// Mirrors the active-torrent count onto the Dock icon when the
@@ -187,10 +187,10 @@ struct StatusBarView: View {
     private func updateDockBadge() {
         NSApp.dockTile.badgeLabel = (badgeAppIcon && activeCount > 0) ? "\(activeCount)" : ""
     }
-    private var totalDown: Int64 { store.torrents.reduce(0) { $0 + $1.downloadSpeed } }
-    private var totalUp: Int64 { store.torrents.reduce(0) { $0 + $1.uploadSpeed } }
+    private var totalDown: Int64 { store.list.torrents.reduce(0) { $0 + $1.downloadSpeed } }
+    private var totalUp: Int64 { store.list.torrents.reduce(0) { $0 + $1.uploadSpeed } }
     private var overallRatio: Double {
-        guard !store.torrents.isEmpty else { return 0 }
-        return store.torrents.map(\.ratio).reduce(0, +) / Double(store.torrents.count)
+        guard !store.list.torrents.isEmpty else { return 0 }
+        return store.list.torrents.map(\.ratio).reduce(0, +) / Double(store.list.torrents.count)
     }
 }

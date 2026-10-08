@@ -12,8 +12,8 @@ import TransmissionCore
 /// scope is safe.
 let previewTorrentStore: TorrentStore = {
     let store = TorrentStore(service: MockTorrentService())
-    store.seedTorrents(MockFixtures.torrents())
-    store.seedDownloadDirectory("/downloads")
+    store.list.setTorrents(MockFixtures.torrents())
+    store.list.setDownloadDirectory("/downloads")
     store.simulateConnection(.connected)
     return store
 }()

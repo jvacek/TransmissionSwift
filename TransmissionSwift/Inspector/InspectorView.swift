@@ -10,9 +10,9 @@ struct InspectorView: View {
     var body: some View {
         @Bindable var store = store
 
-        if let torrent = store.selectedTorrents.first {
+        if let torrent = store.list.selectedTorrents.first {
             VStack(spacing: 0) {
-                InspectorHeader(torrent: torrent, selectionCount: store.selectedTorrents.count)
+                InspectorHeader(torrent: torrent, selectionCount: store.list.selectedTorrents.count)
 
                 Picker("Inspector Tab", selection: $store.inspectorTab) {
                     ForEach(InspectorTab.allCases, id: \.self) { tab in
@@ -118,7 +118,7 @@ private struct InspectorHeader: View {
         .environment(store)
         .environment(TagColorStore())
         .frame(width: 322, height: 600)
-        .task { store.selectedTorrentIDs = [5] }
+        .task { store.list.selectedTorrentIDs = [5] }
 }
 
 #Preview("Empty") {

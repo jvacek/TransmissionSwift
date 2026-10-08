@@ -79,7 +79,7 @@ struct MainWindow: View {
         // Retries when the torrent list reloads after a server switch.
         .task { applyOpenRequest() }
         .onChange(of: openBus.request) { _, _ in applyOpenRequest() }
-        .onChange(of: store.torrents) { _, _ in applyOpenRequest() }
+        .onChange(of: store.list.torrents) { _, _ in applyOpenRequest() }
         .sheet(isPresented: $store.showAddTorrent) {
             AddTorrentSheet(
                 isPresented: $store.showAddTorrent,
@@ -145,6 +145,7 @@ struct MainWindow: View {
 
     private var splitView: some View {
         @Bindable var store = store
+        @Bindable var list = store.list
         return NavigationSplitView {
             SidebarView()
                 .navigationSplitViewColumnWidth(
@@ -161,7 +162,7 @@ struct MainWindow: View {
                     }
                 }
                 .searchable(
-                    text: $store.searchQuery,
+                    text: $list.searchQuery,
                     placement: .toolbar,
                     prompt: "Search torrents"
                 )
@@ -209,12 +210,12 @@ struct MainWindow: View {
             try? profileStore.setActive(serverID)
             return
         }
-        guard store.torrents.contains(where: { $0.id == request.torrentID }) else { return }
+        guard store.list.torrents.contains(where: { $0.id == request.torrentID }) else { return }
 
         openBus.request = nil
-        store.searchQuery = ""
-        store.resetFilters()
-        store.selectedTorrentIDs = [request.torrentID]
+        store.list.searchQuery = ""
+        store.list.resetFilters()
+        store.list.selectedTorrentIDs = [request.torrentID]
         store.inspectorVisible = true
     }
 
@@ -266,20 +267,20 @@ struct MainWindow: View {
             case .disconnected(let reason):
                 disconnectedView(reason: reason)
             case .connected:
-                if !store.searchQuery.isEmpty && store.visibleTorrents.isEmpty {
-                    ContentUnavailableView.search(text: store.searchQuery)
+                if !store.list.searchQuery.isEmpty && store.list.visibleTorrents.isEmpty {
+                    ContentUnavailableView.search(text: store.list.searchQuery)
                         .overlay(alignment: .bottom) {
                             HStack(spacing: 8) {
-                                Button("Clear Search") { store.searchQuery = "" }
+                                Button("Clear Search") { store.list.searchQuery = "" }
                                 Button("Reset Filters") {
-                                    store.searchQuery = ""
-                                    store.resetFilters()
+                                    store.list.searchQuery = ""
+                                    store.list.resetFilters()
                                 }
                             }
                             .buttonStyle(.borderless)
                             .padding(.bottom, 48)
                         }
-                } else if store.torrents.isEmpty {
+                } else if store.list.torrents.isEmpty {
                     noTorrentsView
                 } else {
                     TorrentListView()
