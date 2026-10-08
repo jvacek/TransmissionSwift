@@ -265,10 +265,22 @@ private struct MappingEditorSheet: View {
     /// still shows the URL shape.
     private var previewTorrent: Torrent {
         if let sampleTorrent { return sampleTorrent }
-        var fallback = Torrent.sample
-        fallback.downloadFolder = "/folder"
-        fallback.name = "name"
-        return fallback
+        // A placeholder so the preview URL renders when no torrent is selected.
+        // Built inline rather than reusing a test fixture: the mocks are
+        // Debug-only and product code must not reference them.
+        return Torrent(
+            id: -1,
+            name: "name",
+            hash: "",
+            size: 0,
+            status: .downloading,
+            progress: 0,
+            primaryTracker: "",
+            downloadFolder: "/folder",
+            addedAt: Date(),
+            pieces: 0,
+            pieceSize: 0,
+            havePieces: 0)
     }
 
     private var previewURL: URL? {
