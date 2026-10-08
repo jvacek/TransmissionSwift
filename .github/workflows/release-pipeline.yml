@@ -172,6 +172,7 @@ jobs:
             -destination 'platform=macOS' \
             -derivedDataPath build/DerivedData \
             CODE_SIGNING_ALLOWED=NO \
+            ENABLE_CODE_COVERAGE=NO \
             ONLY_ACTIVE_ARCH=NO \
             CURRENT_PROJECT_VERSION="$RELEASE_BUILD_VERSION" \
             $BUILD_EXTRA_FLAGS \
@@ -211,6 +212,12 @@ jobs:
             echo "Expected app bundle not found at ${app_path}."
             exit 1
           fi
+
+          # Sentry symbolicates from the uploaded dSYM (matched by the binary's
+          # UUID, which strip preserves), never from the shipped executable's
+          # symbol table. Strip before signing to drop the symbol table; the
+          # arm64 copy below is thinned from this already-stripped bundle.
+          xcrun strip -x "$app_path/Contents/MacOS/TransmissionSwift"
 
           # Sign with the imported team identity — ad-hoc signatures make App
           # Intents unusable, which is the whole point of shipping them. Nested
