@@ -320,9 +320,17 @@ struct TorrentTableRepresentable: NSViewRepresentable {
 
         private func populateRowMenu(_ menu: NSMenu, ids: [Torrent.ID]) {
             menu.removeAllItems()
-            let canAct = actionsEnabled && !ids.isEmpty
+            let priorities = ids.compactMap { id in
+                displayedRows.first { $0.id == id }?.torrent.priority
+            }
+            let specs = TorrentRowMenu.items(
+                ids: ids,
+                priorities: priorities,
+                actionsEnabled: actionsEnabled,
+                labelsSupported: labelsSupported,
+                mappings: mappings)
             let payload = { action in MenuPayload(action: action, ids: ids) }
-            let item = { (title: String, symbol: String, action: TorrentRowAction) in
+            let actionItem = { (title: String, symbol: String, action: TorrentRowAction) in
                 let item = NSMenuItem(
                     title: title,
                     action: #selector(TorrentTableRepresentable.Coordinator.contextMenuItemClicked(_:)),
@@ -332,15 +340,17 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                 item.representedObject = payload(action)
                 return item
             }
-            let destructiveItem = { (title: String, symbol: String, action: TorrentRowAction) in
+            let destructiveItem = {
+                (title: String, symbol: String, action: TorrentRowAction, enabled: Bool) in
                 let item = DestructiveMenuItem(
                     title: title,
-                    baseColor: canAct ? .systemRed : .secondaryLabelColor)
+                    baseColor: enabled ? .systemRed : .secondaryLabelColor)
                 item.action = #selector(TorrentTableRepresentable.Coordinator.contextMenuItemClicked(_:))
                 item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
                 item.target = self
                 item.representedObject = payload(action)
                 item.tag = Self.destructiveItemTag
+                item.isEnabled = enabled
                 return item
             }
             let openItem = { (mapping: OpenMapping) in
@@ -361,67 +371,82 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                 item.tag = Self.openMappingItemTag
                 return item
             }
-            // Priority submenu. Checks the option matching the affected torrents
-            // when they all share one priority; nothing is checked on a mixed
-            // selection.
-            let prioritySubmenu = NSMenu()
-            let affectedPriorities = ids.compactMap { id in
-                displayedRows.first { $0.id == id }?.torrent.priority
-            }
-            let uniformPriority = Set(affectedPriorities).count == 1 ? affectedPriorities.first : nil
-            for priority in TorrentPriority.allCases {
-                let (title, symbol) = Self.priorityMenuItemContent(priority)
-                let priorityItem = item(title, symbol, .setPriority(priority))
-                priorityItem.state = priority == uniformPriority ? .on : .off
-                prioritySubmenu.addItem(priorityItem)
-            }
-            let priorityMenuItem = NSMenuItem(title: "Priority", action: nil, keyEquivalent: "")
-            priorityMenuItem.image = NSImage(
-                systemSymbolName: "arrow.up.arrow.down", accessibilityDescription: "Priority")
-            priorityMenuItem.submenu = prioritySubmenu
-            priorityMenuItem.isEnabled = canAct
 
             menu.autoenablesItems = false
-            menu.addItem(item("Resume", "play.fill", .resume))
-            menu.addItem(item("Pause", "pause.fill", .pause))
-            menu.addItem(priorityMenuItem)
-            menu.addItem(.separator())
-            menu.addItem(item("Verify Local Data", "checkmark.shield", .verify))
-            menu.addItem(item("Update Tracker", "megaphone", .reannounce))
-            menu.addItem(.separator())
-            if !mappings.isEmpty {
-                for mapping in mappings {
-                    menu.addItem(openItem(mapping))
+            var index = 0
+            while index < specs.count {
+                let spec = specs[index]
+                switch spec.kind {
+                case .priority:
+                    // A run of consecutive priority entries becomes one submenu.
+                    let submenu = NSMenu()
+                    var submenuEnabled = true
+                    while index < specs.count {
+                        guard case .priority(let priority) = specs[index].kind else { break }
+                        let prioritySpec = specs[index]
+                        let (title, symbol) = Self.priorityMenuItemContent(priority)
+                        let priorityItem = actionItem(title, symbol, .setPriority(priority))
+                        priorityItem.state = prioritySpec.isChecked ? .on : .off
+                        priorityItem.isEnabled = prioritySpec.isEnabled
+                        submenu.addItem(priorityItem)
+                        submenuEnabled = prioritySpec.isEnabled
+                        index += 1
+                    }
+                    let container = NSMenuItem(title: "Priority", action: nil, keyEquivalent: "")
+                    container.image = NSImage(
+                        systemSymbolName: "arrow.up.arrow.down",
+                        accessibilityDescription: "Priority")
+                    container.submenu = submenu
+                    container.isEnabled = submenuEnabled
+                    menu.addItem(container)
+                    continue
+                case .resume:
+                    let item = actionItem("Resume", "play.fill", .resume)
+                    item.isEnabled = spec.isEnabled
+                    menu.addItem(item)
+                case .pause:
+                    let item = actionItem("Pause", "pause.fill", .pause)
+                    item.isEnabled = spec.isEnabled
+                    menu.addItem(item)
+                case .separator:
+                    menu.addItem(.separator())
+                case .verify:
+                    let item = actionItem("Verify Local Data", "checkmark.shield", .verify)
+                    item.isEnabled = spec.isEnabled
+                    menu.addItem(item)
+                case .reannounce:
+                    let item = actionItem("Update Tracker", "megaphone", .reannounce)
+                    item.isEnabled = spec.isEnabled
+                    menu.addItem(item)
+                case .mapping(let mapping):
+                    let item = openItem(mapping)
+                    item.isEnabled = spec.isEnabled
+                    menu.addItem(item)
+                case .editLabels:
+                    let item = actionItem("Edit Labels…", "tag", .editLabels)
+                    item.tag = Self.editLabelsItemTag
+                    item.isEnabled = spec.isEnabled
+                    menu.addItem(item)
+                case .setLocation:
+                    let item = actionItem("Set Location…", "folder", .setLocation)
+                    item.tag = Self.setLocationItemTag
+                    item.isEnabled = spec.isEnabled
+                    menu.addItem(item)
+                case .rename:
+                    let item = actionItem("Rename…", "pencil", .rename)
+                    item.tag = Self.renameItemTag
+                    item.isEnabled = spec.isEnabled
+                    menu.addItem(item)
+                case .remove:
+                    menu.addItem(
+                        destructiveItem("Remove\u{2026}", "trash", .remove, spec.isEnabled))
+                case .removeAndDeleteData:
+                    menu.addItem(
+                        destructiveItem(
+                            "Remove and Delete Data\u{2026}", "trash.fill", .removeAndDeleteData,
+                            spec.isEnabled))
                 }
-                menu.addItem(.separator())
-            }
-            let editLabelsItem = item("Edit Labels…", "tag", .editLabels)
-            editLabelsItem.tag = Self.editLabelsItemTag
-            menu.addItem(editLabelsItem)
-            let setLocationItem = item("Set Location…", "folder", .setLocation)
-            setLocationItem.tag = Self.setLocationItemTag
-            menu.addItem(setLocationItem)
-            let renameItem = item("Rename…", "pencil", .rename)
-            renameItem.tag = Self.renameItemTag
-            menu.addItem(renameItem)
-            menu.addItem(.separator())
-            menu.addItem(destructiveItem("Remove\u{2026}", "trash", .remove))
-            menu.addItem(
-                destructiveItem("Remove and Delete Data\u{2026}", "trash.fill", .removeAndDeleteData))
-            for menuItem in menu.items where menuItem.action != nil {
-                switch menuItem.tag {
-                case Self.editLabelsItemTag:
-                    menuItem.isEnabled = canAct && labelsSupported
-                case Self.openMappingItemTag:
-                    menuItem.isEnabled = actionsEnabled && ids.count == 1
-                case Self.setLocationItemTag:
-                    menuItem.isEnabled = canAct
-                case Self.renameItemTag:
-                    // `torrent-rename-path` takes exactly one torrent.
-                    menuItem.isEnabled = canAct && ids.count == 1
-                default:
-                    menuItem.isEnabled = canAct
-                }
+                index += 1
             }
         }
 
