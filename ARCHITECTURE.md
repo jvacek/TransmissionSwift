@@ -44,6 +44,25 @@ TransmissionSwift/                          ← Xcode project root
 - `TransmissionCore` is the "service layer" — server profiles, credentials, polling orchestration, the things every UI surface will need.
 - The app target stays thin: views observe view models, view models call into core, core calls into RPC.
 
+### Store layer
+
+`TorrentStore` (TransmissionCore) is the single `@Observable` object the app
+injects into the environment. It is a coordinator, not a god object: it owns the
+connection state machine and the poll loop, and composes focused collaborators
+that each own one concern.
+
+| Collaborator | Concern |
+|---|---|
+| `list` (`TorrentListModel`) | torrents, facets, visible rows, selection, search, filters, sort |
+| `session` (`SessionModel`) | session settings, turtle speed, free space, version, stats, port |
+| `inspector` (`InspectorModel`) | inspector detail, visibility, tab |
+| `actions` (`TorrentActionModel`) | every torrent mutation + the staged removal |
+| `ui` (`TorrentSheetState`) | sheet presentation state |
+
+Views read `store.<collaborator>.<member>`; the poll loop distributes snapshots
+to the models. User-action failures funnel through the coordinator's
+`lastActionError`. The split is tracked in `doc/torrentstore-split.md`.
+
 ## 3. RPC client design
 
 ### Wire protocol notes worth knowing
@@ -133,4 +152,5 @@ What we persist locally — the daemon owns everything else.
 | 2026-06-10 | warnings-as-errors enforced via CI flags, not Package.swift (conflicts with Xcode's `-suppress-warnings` for package deps) | Active |
 | 2026-06-10 | E2E golden-path XCUITest, opt-in via `TEST_RUNNER_TRANSMISSION_E2E=1` (needs a live local daemon) | Active |
 | 2026-06-11 | Mock-first UI buildout: views consume `protocol TorrentService` (TransmissionCore), built against `MockTorrentService` first; `RPCTorrentService` swaps in last with zero view changes. Plan + progress in `doc/ui-buildout.md` | Active |
-| 2026-06-0? | Split RPC client files per method group
+| 2026-06-0? | Split RPC client files per method group | Active |
+| 2026-10-08 | `TorrentStore` is a coordinator over focused `@Observable` collaborators (`list`/`session`/`inspector`/`actions`/`ui`), not a god object; plan + progress in `doc/torrentstore-split.md` | Active |

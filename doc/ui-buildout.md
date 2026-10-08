@@ -259,3 +259,13 @@ Finder-style tag colours, built on the multi-label slice.
   - Slice 5: Speed pane limits are `@AppStorage` only — wire to `session-set` in slice 7.
   - Decide on status-bar turtle button — keep or drop (same action as toolbar alt-speed toggle)?
   - Filter-change row animations.
+
+### Store decomposition (2026-10-08)
+
+`TorrentStore` was split from an 833-line god object into a coordinator plus
+five focused `@Observable` collaborators, one commit per slice: `list`
+(`TorrentListModel`), `session` (`SessionModel`), `inspector`
+(`InspectorModel`), `actions` (`TorrentActionModel`) and `ui`
+(`TorrentSheetState`). Views read `store.<slice>.<member>`; each slice has its
+own direct test suite. No UI behaviour changed. Tracked in
+`doc/torrentstore-split.md`.

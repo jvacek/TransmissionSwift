@@ -1,8 +1,9 @@
 # Splitting `TorrentStore`
 
-Status: in progress. Phase 1 (TorrentListModel) landed. Target: reduce the
-817-line `TorrentStore` (`Packages/TransmissionCore/Sources/TransmissionCore/TorrentStore.swift`)
-into a coordinator plus focused `@Observable` collaborators, without a flag-day
+Status: complete. All phases landed; `TorrentStore` is now a coordinator over
+five focused collaborators. Original target: reduce the 817-line `TorrentStore`
+(`Packages/TransmissionCore/Sources/TransmissionCore/TorrentStore.swift`) into a
+coordinator plus focused `@Observable` collaborators, without a flag-day
 rewrite and without changing behaviour.
 
 ## Progress
@@ -14,7 +15,7 @@ rewrite and without changing behaviour.
 | 3 — `InspectorModel` | done |
 | 4 — `TorrentActionModel` | done |
 | 5 — `TorrentSheetState` | done |
-| 6 — docs / sweep | not started |
+| 6 — docs / sweep | done |
 
 Phase 1 moved the torrent list, its derivation (facets, visible rows), selection,
 search, filters, sort, `downloadDirectory` and the sort preference onto
