@@ -3,7 +3,7 @@ import TransmissionCore
 
 /// Per-torrent transfer options as a System-Settings-style grouped form.
 /// Edits a local draft and pushes the whole struct through
-/// `store.setOptions` on every change; detail rows appear only while their
+/// `store.actions.setOptions` on every change; detail rows appear only while their
 /// enabling toggle is on (progressive disclosure, like System Settings).
 struct InspectorOptionsTab: View {
     @Environment(TorrentStore.self) private var store
@@ -65,7 +65,7 @@ struct InspectorOptionsTab: View {
         // Option writes exist, but current option values are not fetched from RPC yet.
         .disabled(true)
         .onChange(of: options) { _, newValue in
-            Task { await store.setOptions(torrent.id, options: newValue) }
+            Task { await store.actions.setOptions(torrent.id, options: newValue) }
         }
     }
 

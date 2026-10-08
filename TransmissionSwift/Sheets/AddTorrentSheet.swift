@@ -376,7 +376,7 @@ struct AddTorrentSheet: View {
         isAdding = true
         defer { isAdding = false }
         saveError = nil
-        let succeeded = await store.add(
+        let succeeded = await store.actions.add(
             fileURL: mode == .file ? fileURL : nil,
             magnetURL: mode == .magnet ? magnetString : nil,
             destination: resolveServerPath(destination, relativeTo: store.list.downloadDirectory),

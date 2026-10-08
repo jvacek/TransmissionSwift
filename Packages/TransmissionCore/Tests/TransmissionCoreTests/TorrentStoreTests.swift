@@ -373,7 +373,7 @@ struct TorrentStoreTests {
         let store = TorrentStore(service: service)
         await waitFor { !store.list.torrents.isEmpty }
 
-        await store.stop([1])
+        await store.actions.stop([1])
         await waitFor { store.list.torrents.first { $0.id == 1 }?.status == .paused }
         #expect(store.list.torrents.first { $0.id == 1 }?.status == .paused)
     }
@@ -413,7 +413,7 @@ struct TorrentStoreTests {
         await waitFor { !store.list.torrents.isEmpty }
 
         store.list.selectedTorrentIDs = [1, 2, 3]
-        await store.remove([2])
+        await store.actions.remove([2])
         #expect(store.list.selectedTorrentIDs == [1, 3])
     }
 
@@ -424,8 +424,8 @@ struct TorrentStoreTests {
         let store = TorrentStore(service: service)
         await waitFor { !store.list.torrents.isEmpty }
 
-        store.requestRemove([1], deleteLocalData: true, confirm: true)
-        let pending = try #require(store.pendingRemoval)
+        store.actions.requestRemove([1], deleteLocalData: true, confirm: true)
+        let pending = try #require(store.actions.pendingRemoval)
         #expect(pending.ids == [1])
         #expect(pending.deleteLocalData == true)
         // Staged, not yet removed.
@@ -439,8 +439,8 @@ struct TorrentStoreTests {
         let store = TorrentStore(service: service)
         await waitFor { !store.list.torrents.isEmpty }
 
-        store.requestRemove([1], confirm: false)
-        #expect(store.pendingRemoval == nil)
+        store.actions.requestRemove([1], confirm: false)
+        #expect(store.actions.pendingRemoval == nil)
         await waitFor { !store.list.torrents.contains { $0.id == 1 } }
         #expect(!store.list.torrents.contains { $0.id == 1 })
     }
@@ -452,10 +452,10 @@ struct TorrentStoreTests {
         let store = TorrentStore(service: service)
         await waitFor { !store.list.torrents.isEmpty }
 
-        store.requestRemove([1, 2], confirm: true)
-        try #require(store.pendingRemoval != nil)
-        store.confirmPendingRemoval()
-        #expect(store.pendingRemoval == nil)
+        store.actions.requestRemove([1, 2], confirm: true)
+        try #require(store.actions.pendingRemoval != nil)
+        store.actions.confirmPendingRemoval()
+        #expect(store.actions.pendingRemoval == nil)
         await waitFor { !store.list.torrents.contains { $0.id == 1 } }
         #expect(!store.list.torrents.contains { $0.id == 2 })
     }
@@ -467,10 +467,10 @@ struct TorrentStoreTests {
         let store = TorrentStore(service: service)
         await waitFor { !store.list.torrents.isEmpty }
 
-        store.requestRemove([1], confirm: true)
-        try #require(store.pendingRemoval != nil)
-        store.cancelPendingRemoval()
-        #expect(store.pendingRemoval == nil)
+        store.actions.requestRemove([1], confirm: true)
+        try #require(store.actions.pendingRemoval != nil)
+        store.actions.cancelPendingRemoval()
+        #expect(store.actions.pendingRemoval == nil)
         #expect(store.list.torrents.contains { $0.id == 1 })
     }
 
@@ -508,7 +508,7 @@ struct TorrentStoreTests {
         try Data("not really bencoded".utf8).write(to: file)
         try #require(FileManager.default.fileExists(atPath: file.path))
 
-        let added = await store.add(
+        let added = await store.actions.add(
             fileURL: file, magnetURL: nil, destination: "",
             labels: [], priority: .normal, startWhenAdded: true,
             deleteFileAfterAdding: true)
@@ -529,13 +529,13 @@ struct TorrentStoreTests {
         try Data("fake torrent".utf8).write(to: torrent)
         try Data("notes".utf8).write(to: other)
 
-        await store.add(
+        await store.actions.add(
             fileURL: torrent, magnetURL: nil, destination: "",
             labels: [], priority: .normal, startWhenAdded: true,
             deleteFileAfterAdding: false)
         // The extension guard is the last line of defence against a caller
         // asking us to delete something that isn't a torrent file.
-        await store.add(
+        await store.actions.add(
             fileURL: other, magnetURL: nil, destination: "",
             labels: [], priority: .normal, startWhenAdded: true,
             deleteFileAfterAdding: true)
@@ -551,7 +551,7 @@ struct TorrentStoreTests {
         let store = TorrentStore(service: service)
         await waitFor { !store.list.torrents.isEmpty }
 
-        await store.setLabels([2, 5], labels: ["Archive"])
+        await store.actions.setLabels([2, 5], labels: ["Archive"])
         await waitFor { store.list.torrents.first { $0.id == 2 }?.labels == ["Archive"] }
         #expect(store.list.torrents.first { $0.id == 5 }?.labels == ["Archive"])
     }
@@ -563,7 +563,7 @@ struct TorrentStoreTests {
         let store = TorrentStore(service: service)
         await waitFor { !store.list.torrents.isEmpty }
 
-        let succeeded = await store.renameTorrent(2, newName: "Renamed via Store")
+        let succeeded = await store.actions.renameTorrent(2, newName: "Renamed via Store")
         #expect(succeeded)
         await waitFor { store.list.torrents.first { $0.id == 2 }?.name == "Renamed via Store" }
     }
@@ -584,7 +584,7 @@ struct TorrentStoreTests {
         let store = TorrentStore(service: service)
         await waitFor { !store.list.torrents.isEmpty }
 
-        await store.setPriority([2, 5], priority: .low)
+        await store.actions.setPriority([2, 5], priority: .low)
         await waitFor { store.list.torrents.first { $0.id == 2 }?.priority == .low }
         #expect(store.list.torrents.first { $0.id == 5 }?.priority == .low)
     }
@@ -601,13 +601,13 @@ struct TorrentStoreTests {
         let detail = try #require(store.inspector.detail)
         let target = try #require(detail.files.first { $0.priority == .normal }?.id)
 
-        await store.setFilePriority(5, fileIDs: [target], priority: .high)
+        await store.actions.setFilePriority(5, fileIDs: [target], priority: .high)
         await waitFor {
             store.inspector.detail?.files.first { $0.id == target }?.priority == .high
         }
         #expect(store.inspector.detail?.files.first { $0.id == target }?.priority == .high)
 
-        await store.setFilesWanted(5, fileIDs: [target], wanted: false)
+        await store.actions.setFilesWanted(5, fileIDs: [target], wanted: false)
         await waitFor {
             store.inspector.detail?.files.first { $0.id == target }?.wanted == false
         }
@@ -671,7 +671,7 @@ struct TorrentStoreTests {
         #expect(store.list.selectedSidebarFilters.contains(.label(name: "Linux")))
 
         let linuxIDs = store.list.torrents.filter { $0.labels.contains("Linux") }.map(\.id)
-        await store.remove(linuxIDs)
+        await store.actions.remove(linuxIDs)
         await waitFor { !store.list.torrents.contains { $0.labels.contains("Linux") } }
 
         #expect(!store.list.selectedSidebarFilters.contains(.label(name: "Linux")))
@@ -689,7 +689,7 @@ struct TorrentStoreTests {
         #expect(store.list.selectedSidebarFilters.contains(.label(name: LabelFilter.noLabelName)))
 
         let labelledIDs = store.list.torrents.filter { !$0.labels.isEmpty }.map(\.id)
-        await store.remove(labelledIDs)
+        await store.actions.remove(labelledIDs)
         await waitFor { store.list.facets.labels.isEmpty }
 
         #expect(!store.list.selectedSidebarFilters.contains(.label(name: LabelFilter.noLabelName)))
@@ -706,7 +706,7 @@ struct TorrentStoreTests {
         #expect(store.list.selectedSidebarFilters.contains(.folder(name: "Linux ISOs")))
 
         let ids = store.list.torrents.filter { $0.downloadFolder == "Linux ISOs" }.map(\.id)
-        await store.remove(ids)
+        await store.actions.remove(ids)
         await waitFor { !store.list.torrents.contains { $0.downloadFolder == "Linux ISOs" } }
 
         #expect(!store.list.selectedSidebarFilters.contains(.folder(name: "Linux ISOs")))
@@ -724,7 +724,7 @@ struct TorrentStoreTests {
         #expect(store.list.selectedSidebarFilters.contains(.tracker(host: "releases.ubuntu.com")))
 
         let ids = store.list.torrents.filter { $0.primaryTracker == "releases.ubuntu.com" }.map(\.id)
-        await store.remove(ids)
+        await store.actions.remove(ids)
         await waitFor { !store.list.torrents.contains { $0.primaryTracker == "releases.ubuntu.com" } }
 
         #expect(!store.list.selectedSidebarFilters.contains(.tracker(host: "releases.ubuntu.com")))
@@ -740,7 +740,7 @@ struct TorrentStoreTests {
 
         store.list.toggleLabelFilter("Linux")
         let mediaIDs = store.list.torrents.filter { $0.labels.contains("Media") }.map(\.id)
-        await store.remove(mediaIDs)
+        await store.actions.remove(mediaIDs)
         await waitFor { !store.list.torrents.contains { $0.labels.contains("Media") } }
 
         #expect(store.list.selectedSidebarFilters.contains(.label(name: "Linux")))

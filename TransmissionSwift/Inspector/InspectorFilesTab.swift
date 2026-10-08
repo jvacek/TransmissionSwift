@@ -173,7 +173,7 @@ struct InspectorFilesTab: View {
         Binding(
             get: { file.wanted },
             set: { wanted in
-                Task { await store.setFilesWanted(torrent.id, fileIDs: [file.id], wanted: wanted) }
+                Task { await store.actions.setFilesWanted(torrent.id, fileIDs: [file.id], wanted: wanted) }
             }
         )
     }
@@ -185,13 +185,13 @@ struct InspectorFilesTab: View {
                 Task {
                     if let priority = choice.priority {
                         if !file.wanted {
-                            await store.setFilesWanted(
+                            await store.actions.setFilesWanted(
                                 torrent.id, fileIDs: [file.id], wanted: true)
                         }
-                        await store.setFilePriority(
+                        await store.actions.setFilePriority(
                             torrent.id, fileIDs: [file.id], priority: priority)
                     } else {
-                        await store.setFilesWanted(torrent.id, fileIDs: [file.id], wanted: false)
+                        await store.actions.setFilesWanted(torrent.id, fileIDs: [file.id], wanted: false)
                     }
                 }
             }

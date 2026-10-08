@@ -90,7 +90,7 @@ struct RenameTorrentSheet: View {
         isSaving = true
         defer { isSaving = false }
         saveError = nil
-        let succeeded = await store.renameTorrent(id, newName: trimmedName)
+        let succeeded = await store.actions.renameTorrent(id, newName: trimmedName)
         if succeeded {
             isPresented = false
         } else {

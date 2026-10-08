@@ -12,7 +12,7 @@ rewrite and without changing behaviour.
 | 1 — `TorrentListModel` | done |
 | 2 — `SessionModel` | done |
 | 3 — `InspectorModel` | done |
-| 4 — `TorrentActionModel` | not started |
+| 4 — `TorrentActionModel` | done |
 | 5 — `TorrentSheetState` | not started |
 | 6 — docs / sweep | not started |
 
@@ -36,6 +36,14 @@ onto `InspectorModel` as `store.inspector`, plus `fetch(for:)` and the
 selection-gated `refreshIfShowing(_:)` used after mutations. The view binding
 uses `@Bindable var inspector = store.inspector`. New direct suite:
 `InspectorModelTests.swift`.
+
+Phase 4 moved every torrent mutation (start/stop/verify/re-announce, files,
+options, labels, location, rename, add) and `pendingRemoval` onto
+`TorrentActionModel` as `store.actions`. It holds the list model (selection
+prune on remove) and the inspector model (refresh after file/rename
+mutations); failures reach the coordinator's `lastActionError` via an
+`onError` sink. The `open*` sheet entry points stay on the coordinator.
+New direct suite: `TorrentActionModelTests.swift`.
 
 ## Why
 

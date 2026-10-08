@@ -138,7 +138,7 @@ struct SetLocationSheet: View {
         isSaving = true
         defer { isSaving = false }
         saveError = nil
-        let succeeded = await store.setLocation(ids, location: resolvedLocation, move: moveData)
+        let succeeded = await store.actions.setLocation(ids, location: resolvedLocation, move: moveData)
         if succeeded {
             isPresented = false
         } else {

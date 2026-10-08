@@ -3,7 +3,7 @@ import TransmissionCore
 
 /// Dedicated popup for editing a torrent's labels. Prefills with the labels
 /// common to the whole target set (empty when the selection shares none) and
-/// applies via `store.setLabels` — which replaces the full set on every
+/// applies via `store.actions.setLabels` — which replaces the full set on every
 /// targeted torrent, matching Transmission's `torrent-set labels` semantics.
 struct EditLabelsSheet: View {
     @Environment(TorrentStore.self) private var store
@@ -60,7 +60,7 @@ struct EditLabelsSheet: View {
     private func apply() async {
         isSaving = true
         defer { isSaving = false }
-        await store.setLabels(ids, labels: tags)
+        await store.actions.setLabels(ids, labels: tags)
         isPresented = false
     }
 }

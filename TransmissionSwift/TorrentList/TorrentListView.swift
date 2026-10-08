@@ -26,14 +26,14 @@ struct TorrentListView: View {
             onRowAction: { action, ids in
                 Task {
                     switch action {
-                    case .resume: await store.start(ids)
-                    case .pause: await store.stop(ids)
-                    case .setPriority(let priority): await store.setPriority(ids, priority: priority)
-                    case .verify: await store.verify(ids)
-                    case .reannounce: await store.reannounce(ids)
-                    case .remove: store.requestRemove(ids)
+                    case .resume: await store.actions.start(ids)
+                    case .pause: await store.actions.stop(ids)
+                    case .setPriority(let priority): await store.actions.setPriority(ids, priority: priority)
+                    case .verify: await store.actions.verify(ids)
+                    case .reannounce: await store.actions.reannounce(ids)
+                    case .remove: store.actions.requestRemove(ids)
                     case .removeAndDeleteData:
-                        store.requestRemove(ids, deleteLocalData: true)
+                        store.actions.requestRemove(ids, deleteLocalData: true)
                     case .editLabels:
                         store.openEditLabels(for: ids)
                     case .setLocation:

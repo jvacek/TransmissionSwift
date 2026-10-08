@@ -37,7 +37,7 @@ struct MainToolbar: ToolbarContent {
         // Group 2 — selection actions
         ToolbarItem(placement: .primaryAction) {
             Button("Resume", systemImage: "play.fill") {
-                Task { await store.start(Array(store.list.selectedTorrentIDs)) }
+                Task { await store.actions.start(Array(store.list.selectedTorrentIDs)) }
             }
             .disabled(!store.actionsEnabled || store.list.selectedTorrentIDs.isEmpty)
             .help("Resume selected torrents")
@@ -45,7 +45,7 @@ struct MainToolbar: ToolbarContent {
         }
         ToolbarItem(placement: .primaryAction) {
             Button("Pause", systemImage: "pause.fill") {
-                Task { await store.stop(Array(store.list.selectedTorrentIDs)) }
+                Task { await store.actions.stop(Array(store.list.selectedTorrentIDs)) }
             }
             .disabled(!store.actionsEnabled || store.list.selectedTorrentIDs.isEmpty)
             .help("Pause selected torrents")
@@ -53,7 +53,7 @@ struct MainToolbar: ToolbarContent {
         }
         ToolbarItem(placement: .primaryAction) {
             Button("Remove", systemImage: "trash", role: .destructive) {
-                store.requestRemove(Array(store.list.selectedTorrentIDs))
+                store.actions.requestRemove(Array(store.list.selectedTorrentIDs))
             }
             .disabled(!store.actionsEnabled || store.list.selectedTorrentIDs.isEmpty)
             .help("Remove selected torrents")

@@ -277,7 +277,7 @@ struct InspectorGeneralTab: View {
             get: { torrent.priority },
             set: { newPriority in
                 guard newPriority != torrent.priority else { return }
-                Task { await store.setPriority([torrent.id], priority: newPriority) }
+                Task { await store.actions.setPriority([torrent.id], priority: newPriority) }
             }
         )
     }

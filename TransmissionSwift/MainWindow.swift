@@ -117,13 +117,13 @@ struct MainWindow: View {
         .confirmationDialog(
             removeDialogTitle,
             isPresented: Binding(
-                get: { store.pendingRemoval != nil },
-                set: { if !$0 { store.cancelPendingRemoval() } }
+                get: { store.actions.pendingRemoval != nil },
+                set: { if !$0 { store.actions.cancelPendingRemoval() } }
             ),
-            presenting: store.pendingRemoval
+            presenting: store.actions.pendingRemoval
         ) { _ in
-            Button("Remove", role: .destructive) { store.confirmPendingRemoval() }
-            Button("Cancel", role: .cancel) { store.cancelPendingRemoval() }
+            Button("Remove", role: .destructive) { store.actions.confirmPendingRemoval() }
+            Button("Cancel", role: .cancel) { store.actions.cancelPendingRemoval() }
         } message: { pending in
             Text(removeDialogMessage(for: pending))
         }
@@ -187,7 +187,7 @@ struct MainWindow: View {
 
     /// Title / message for the remove confirmation dialog.
     private var removeDialogTitle: String {
-        guard let pending = store.pendingRemoval else { return "Remove Torrents" }
+        guard let pending = store.actions.pendingRemoval else { return "Remove Torrents" }
         return pending.ids.count == 1 ? "Remove Torrent?" : "Remove \(pending.ids.count) Torrents?"
     }
 

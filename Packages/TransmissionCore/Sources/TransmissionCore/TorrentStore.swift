@@ -1,9 +1,6 @@
 import Foundation
-import OSLog
 import Observation
 import TransmissionRPC
-
-private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category: "inspector")
 
 /// Surfaced to the UI when a user-initiated action fails. Identifiable so it
 /// can drive SwiftUI `.alert(item:)` directly.
@@ -52,7 +49,8 @@ public struct PendingRemoval: Identifiable, Sendable {
 /// models.
 ///
 /// Views read this from the environment and reach the collaborators through it
-/// (e.g. `store.list.visibleTorrents`).
+/// (e.g. `store.list.visibleTorrents`, `store.session.freeSpace`,
+/// `store.actions.start(_:)`).
 @MainActor
 @Observable
 public final class TorrentStore {
@@ -63,6 +61,8 @@ public final class TorrentStore {
     public let session = SessionModel()
     /// The inspector pane's detail, visibility and tab.
     public let inspector: InspectorModel
+    /// Every torrent mutation, plus the staged remove confirmation.
+    public let actions: TorrentActionModel
 
     public private(set) var connection: ConnectionState = .connecting
     /// Non-nil when a user action failed. Cleared by the view when the alert is dismissed.
@@ -86,9 +86,6 @@ public final class TorrentStore {
     public var showRenameTorrent: Bool = false
     public var renameTorrentTargetID: Torrent.ID?
 
-    // Remove confirmation
-    public var pendingRemoval: PendingRemoval? = nil
-
     /// True while the app has a live connection to a daemon. Gates any
     /// session-side setting that can only be read/changed when connected.
     public var isConnected: Bool {
@@ -99,21 +96,22 @@ public final class TorrentStore {
     public private(set) var actionsEnabled: Bool = true
 
     private var service: any TorrentReading
-    /// The mutation half of the service, when it has one. Nil for read-only
-    /// sources (snapshot replay), which disables every action.
-    private var mutations: (any TorrentMutating)?
     private var streamTask: Task<Void, Never>?
     private var freeSpaceTask: Task<Void, Never>?
 
     public init(service: any TorrentReading) {
         let list = TorrentListModel()
         self.list = list
-        self.inspector = InspectorModel(list: list)
+        let inspector = InspectorModel(list: list)
+        self.inspector = inspector
+        self.actions = TorrentActionModel(list: list, inspector: inspector)
         self.service = service
-        self.mutations = service as? any TorrentMutating
-        self.actionsEnabled = self.mutations != nil
+        let mutations = service as? any TorrentMutating
+        self.actionsEnabled = mutations != nil
         session.connect(reading: service, mutations: mutations)
         session.onError = { [weak self] in self?.lastActionError = $0 }
+        actions.connect(mutations: mutations)
+        actions.onError = { [weak self] in self?.lastActionError = $0 }
         inspector.connect(reading: service)
         startStream()
     }
@@ -143,10 +141,11 @@ public final class TorrentStore {
         streamTask?.cancel()
         freeSpaceTask?.cancel()
         self.service = service
-        mutations = service as? any TorrentMutating
+        let mutations = service as? any TorrentMutating
         actionsEnabled = mutations != nil
         session.connect(reading: service, mutations: mutations)
         session.reset()
+        actions.connect(mutations: mutations)
         inspector.connect(reading: service)
         connection = .connecting
         list.setDownloadDirectory(nil)
@@ -203,88 +202,7 @@ public final class TorrentStore {
         }
     }
 
-    // MARK: - Actions
-
-    public func start(_ ids: [Torrent.ID]) async {
-        guard let mutations else { return }
-        do { try await mutations.start(ids) } catch { recordError(error) }
-    }
-
-    public func stop(_ ids: [Torrent.ID]) async {
-        guard let mutations else { return }
-        do { try await mutations.stop(ids) } catch { recordError(error) }
-    }
-
-    public func remove(_ ids: [Torrent.ID], deleteLocalData: Bool = false) async {
-        guard let mutations else { return }
-        do { try await mutations.remove(ids, deleteLocalData: deleteLocalData) } catch { recordError(error) }
-        list.selectedTorrentIDs.subtract(ids)
-    }
-
-    /// Request a removal, honouring the "Confirm before removing" app pref.
-    /// With confirmation on, stages a `PendingRemoval` for the view to confirm;
-    /// with it off, removes immediately. No-ops when nothing is selected.
-    /// `confirm` defaults to the app pref so tests can inject it directly
-    /// (parallel tests can't safely share `UserDefaults`).
-    public func requestRemove(
-        _ ids: [Torrent.ID], deleteLocalData: Bool = false,
-        confirm: Bool = UserDefaults.standard.bool(forKey: PreferenceKeys.confirmRemove)
-    ) {
-        guard actionsEnabled, !ids.isEmpty else { return }
-        if confirm {
-            pendingRemoval = PendingRemoval(ids: ids, deleteLocalData: deleteLocalData)
-        } else {
-            Task { await remove(ids, deleteLocalData: deleteLocalData) }
-        }
-    }
-
-    public func confirmPendingRemoval() {
-        guard let pending = pendingRemoval else { return }
-        pendingRemoval = nil
-        Task { await remove(pending.ids, deleteLocalData: pending.deleteLocalData) }
-    }
-
-    public func cancelPendingRemoval() {
-        pendingRemoval = nil
-    }
-
-    public func verify(_ ids: [Torrent.ID]) async {
-        guard let mutations else { return }
-        do { try await mutations.verify(ids) } catch { recordError(error) }
-    }
-
-    public func reannounce(_ ids: [Torrent.ID]) async {
-        guard let mutations else { return }
-        do { try await mutations.reannounce(ids) } catch { recordError(error) }
-    }
-
-    public func setFilesWanted(_ id: Torrent.ID, fileIDs: [TorrentFile.ID], wanted: Bool) async {
-        guard let mutations else { return }
-        do {
-            try await mutations.setFilesWanted(id, fileIDs: fileIDs, wanted: wanted)
-            await refreshInspectorIfCurrent(id)
-        } catch { recordError(error) }
-    }
-
-    public func setFilePriority(
-        _ id: Torrent.ID, fileIDs: [TorrentFile.ID], priority: TorrentPriority
-    ) async {
-        guard let mutations else { return }
-        do {
-            try await mutations.setFilePriority(id, fileIDs: fileIDs, priority: priority)
-            await refreshInspectorIfCurrent(id)
-        } catch { recordError(error) }
-    }
-
-    public func setPriority(_ ids: [Torrent.ID], priority: TorrentPriority) async {
-        guard let mutations else { return }
-        do { try await mutations.setPriority(ids, priority: priority) } catch { recordError(error) }
-    }
-
-    public func setOptions(_ id: Torrent.ID, options: TorrentOptions) async {
-        guard let mutations else { return }
-        do { try await mutations.setOptions(id, options: options) } catch { recordError(error) }
-    }
+    // MARK: - Session delegates
 
     public func toggleAlternativeSpeed() async {
         await session.toggleAlternativeSpeed()
@@ -302,6 +220,8 @@ public final class TorrentStore {
         guard isConnected else { return }
         await session.testPort()
     }
+
+    // MARK: - Sheet entry points
 
     public func openAddSheet(magnetMode: Bool = false, prefilledURL: URL? = nil) {
         addTorrentStartInMagnetMode = magnetMode
@@ -326,12 +246,12 @@ public final class TorrentStore {
                 forKey: PreferenceKeys.deleteTorrentFileAfterAdding)
             Task {
                 if isMagnet {
-                    await add(
+                    await actions.add(
                         fileURL: nil, magnetURL: url.absoluteString, destination: "",
                         labels: [], priority: .normal, startWhenAdded: true,
                         deleteFileAfterAdding: deleteAfterAdding)
                 } else {
-                    await add(
+                    await actions.add(
                         fileURL: url, magnetURL: nil, destination: "",
                         labels: [], priority: .normal, startWhenAdded: true,
                         deleteFileAfterAdding: deleteAfterAdding)
@@ -341,6 +261,7 @@ public final class TorrentStore {
         }
         openAddSheet(magnetMode: isMagnet, prefilledURL: url)
     }
+
     public func openEditLabels(for ids: [Torrent.ID]) {
         guard actionsEnabled, session.supportsLabels, !ids.isEmpty else { return }
         editLabelsTargetIDs = ids
@@ -359,103 +280,7 @@ public final class TorrentStore {
         showRenameTorrent = true
     }
 
-    /// Rename a torrent's root (its display name). `newName` must be a single
-    /// path component — no `/`. Returns true on success; surfaces daemon
-    /// errors via `lastActionError` like every other mutation.
-    @discardableResult
-    public func renameTorrent(_ id: Torrent.ID, newName: String) async -> Bool {
-        guard let mutations, let current = list.torrents.first(where: { $0.id == id }) else {
-            return false
-        }
-        do {
-            try await mutations.renamePath(id, path: current.name, newName: newName)
-            await refreshInspectorIfCurrent(id)
-            return true
-        } catch {
-            recordError(error)
-            return false
-        }
-    }
-
-    @discardableResult
-    public func setLocation(_ ids: [Torrent.ID], location: String, move: Bool) async -> Bool {
-        guard let mutations else { return false }
-        do {
-            try await mutations.setLocation(ids, location: location, move: move)
-            return true
-        } catch {
-            recordError(error)
-            return false
-        }
-    }
-
-    @discardableResult
-    public func add(
-        fileURL: URL?,
-        magnetURL: String?,
-        destination: String,
-        labels: [String],
-        priority: TorrentPriority,
-        startWhenAdded: Bool,
-        deleteFileAfterAdding: Bool = false
-    ) async -> Bool {
-        guard let mutations else { return false }
-        do {
-            try await mutations.add(
-                fileURL: fileURL,
-                magnetURL: magnetURL,
-                destination: destination,
-                labels: labels,
-                priority: priority,
-                startWhenAdded: startWhenAdded
-            )
-            if deleteFileAfterAdding, let fileURL {
-                deleteLocalTorrentFile(fileURL)
-            }
-            return true
-        } catch {
-            recordError(error)
-            return false
-        }
-    }
-
-    /// Best-effort cleanup of the source `.torrent` file after the daemon
-    /// accepted it. Restricted to `.torrent` files so a caller mistake can't
-    /// delete arbitrary user data; a failure (locked file, lost sandbox
-    /// access) is logged and leaves the file in place — the add itself
-    /// already succeeded.
-    private func deleteLocalTorrentFile(_ url: URL) {
-        guard url.isFileURL, url.pathExtension.lowercased() == "torrent" else { return }
-        // `.fileImporter` URLs are security-scoped; re-claim access for the
-        // deletion (the read inside the service already released its scope).
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        do {
-            try FileManager.default.removeItem(at: url)
-        } catch {
-            logger.error(
-                "Added torrent but failed to delete \(url.path, privacy: .public): \(error.localizedDescription, privacy: .public)"
-            )
-        }
-    }
-
-    public func setLabels(_ ids: [Torrent.ID], labels: [String]) async {
-        guard let mutations else { return }
-        logger.info("setLabels store action: ids=\(ids) labels=\(labels)")
-        do {
-            try await mutations.setLabels(ids, labels: labels)
-            logger.info("setLabels store action succeeded for ids=\(ids)")
-        } catch {
-            logger.error("setLabels store action failed for ids=\(ids): \(error)")
-            recordError(error)
-        }
-    }
-
-    /// After a mutation that only affects inspector-scoped data, re-fetch the
-    /// inspector detail when the mutated torrent is the one currently shown.
-    private func refreshInspectorIfCurrent(_ id: Torrent.ID) async {
-        await inspector.refreshIfShowing(id)
-    }
+    // MARK: - Service reads
 
     /// The torrent to resolve a mapping against. From the torrent list the
     /// `files` array isn't fetched, so fetch inspector detail on demand when
@@ -515,6 +340,8 @@ public final class TorrentStore {
         return SnapshotCaptureResult(summary: summary, torrentCount: scoped.count)
     }
 
+    // MARK: - Connection state
+
     public func setConnectionFailed(reason: String) {
         connection = .disconnected(reason: reason)
     }
@@ -533,11 +360,5 @@ public final class TorrentStore {
     /// Override the connection state — used by the debug menu (slice 6).
     public func simulateConnection(_ state: ConnectionState) {
         connection = state
-    }
-
-    // MARK: - Private helpers
-
-    private func recordError(_ error: any Error) {
-        lastActionError = ActionError.from(error)
     }
 }
