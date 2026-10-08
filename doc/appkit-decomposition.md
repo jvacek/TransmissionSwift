@@ -1,8 +1,8 @@
 # Decomposing the large AppKit / editor files
 
-Status: **in progress — scope confirmed: Slice A + B, Slice C deferred.** This
-is item 1 of the senior review's maintainability leftovers (see the session that
-produced `doc/torrentstore-split.md`).
+Status: **complete.** All slices (A, B1–B4, C) have landed. This is item 1 of
+the senior review's maintainability leftovers (see the session that produced
+`doc/torrentstore-split.md`).
 
 ## Progress
 
@@ -13,7 +13,7 @@ produced `doc/torrentstore-split.md`).
 | B2 — `TorrentTableSelection` (index ⇄ ID mapping) | done |
 | B3 — `TorrentTableSort` (primary-descriptor normalisation) | done |
 | B4 — `TorrentRowMenu` spec (context-menu enablement model) | done |
-| C — `OpenMappingEditor.swift` split | deferred |
+| C — `OpenMappingEditor.swift` split | done |
 
 Slice A added direct `TorrentCellContent.make` coverage (name/progress/label/
 priority/queuePosition/errorMessage/downloadFolder). Slice B moved `classifyChange`
@@ -21,7 +21,9 @@ into `TorrentTableRowStore` and pinned its `Update` outcomes plus the selection
 and sort rules in `TorrentTableLogicTests`. B4 moved the row context-menu
 enablement matrix into a pure `TorrentRowMenu` spec; the `Coordinator` now maps
 that spec to `NSMenuItem`s. `TorrentTableRepresentable.swift`'s `Coordinator` is
-a thin AppKit adapter over the four pure types.
+a thin AppKit adapter over the four pure types. Slice C split `OpenMappingEditor`
+into the list view, `MappingEditorModel`, `MappingEditorSheet` and an
+`OpenMappingPlaceholders` catalog.
 
 ## Why
 
