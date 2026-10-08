@@ -847,10 +847,6 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = TransmissionCore;
 		};
-		FE1C71F22FD9E5AC009C9F04 /* TransmissionTestSupport */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = TransmissionTestSupport;
-		};
 		FE1C71D12FD9E5AC009C9EEE /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = FE1C71D02FD9E5AC009C9EEE /* XCRemoteSwiftPackageReference "Sparkle" */;
@@ -860,6 +856,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = FE1C71E02FD9E5AC009C9F01 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
 			productName = Sentry;
+		};
+		FE1C71F22FD9E5AC009C9F04 /* TransmissionTestSupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TransmissionTestSupport;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
