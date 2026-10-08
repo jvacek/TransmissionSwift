@@ -183,3 +183,4 @@ tested without the shared defaults.
 | 2026-10-08 | Table sort persists through a `TablePreferencesStoring` seam; the persisted value is the single source of truth | Active |
 | 2026-10-08 | Mocks/fixtures moved out of `TransmissionCore` into a `TransmissionTestSupport` target; `EmptyTorrentService` is the production no-server placeholder | Active |
 | 2026-10-08 | AppKit decomposition: the cell view and the table `Coordinator` split into focused files and pure types; plan in `doc/appkit-decomposition.md` | Active |
+| 2026-10-08 | `TransmissionCore` sources grouped into `Models/`/`Services/`/`Stores/`/`Snapshot/`/`Mapping/` subfolders (navigation only; SwiftPM compiles the target flat). `TransmissionRPC` stays flat at 7 files | Active |
