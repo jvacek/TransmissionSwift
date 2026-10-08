@@ -96,10 +96,10 @@ struct TransmissionSwiftApp: App {
             } catch {
                 logger.error(
                     "Snapshot load failed: \(error.localizedDescription, privacy: .public)")
-                service = MockTorrentService(initial: [])
+                service = EmptyTorrentService()
             }
         } else {
-            service = MockTorrentService(initial: [])
+            service = EmptyTorrentService()
         }
         let store = TorrentStore(service: service)
         self._torrentStore = State(wrappedValue: store)
