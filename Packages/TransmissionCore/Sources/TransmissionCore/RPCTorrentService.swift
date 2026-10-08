@@ -46,9 +46,15 @@ public actor RPCTorrentService: TorrentService {
     /// is the only place `cachedSession` is refreshed, so the cache is as
     /// fresh as the caller's polling cadence.
     public func freeSpace() async -> Int64? {
-        let session = try? await client.sessionGet()
+        // A transient failure must not clobber `cachedSession`: it also backs
+        // `supportsLabels()` and `downloadDirectory()`, so wiping it would flip
+        // capability detection for a daemon that is merely slow to answer. Keep
+        // the last-known-good and return its (stale but usable) free space.
+        guard let session = try? await client.sessionGet() else {
+            return cachedSession?.downloadDirFreeSpace
+        }
         cachedSession = session
-        return session?.downloadDirFreeSpace
+        return session.downloadDirFreeSpace
     }
 
     public func downloadDirectory() async -> String? {

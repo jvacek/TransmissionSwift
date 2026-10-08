@@ -800,21 +800,28 @@ struct LabelMappingTests {
 struct RPCSetLabelsTests {
     private actor StubClient: TransmissionClient {
         private let rpcVersion: Int
+        private var sessionGetError: TransmissionError?
         private(set) var sessionGetCount = 0
         private(set) var setCallCount = 0
         private(set) var lastSetIDs: [Int]?
         private(set) var lastSetLabels: [String]?
         private var appliedLabels: [String]?
 
-        init(rpcVersion: Int) {
+        init(rpcVersion: Int, sessionGetError: TransmissionError? = nil) {
             self.rpcVersion = rpcVersion
+            self.sessionGetError = sessionGetError
+        }
+
+        func setSessionGetError(_ error: TransmissionError?) {
+            sessionGetError = error
         }
 
         func sessionGet() async throws(TransmissionError) -> SessionInfo {
             sessionGetCount += 1
+            if let sessionGetError { throw sessionGetError }
             return SessionInfo(
                 version: "test", rpcVersion: rpcVersion, rpcVersionMinimum: 16,
-                downloadDirFreeSpace: 0, altSpeedEnabled: false, downloadDir: "/x")
+                downloadDirFreeSpace: 42, altSpeedEnabled: false, downloadDir: "/x")
         }
 
         func sessionStats() async throws(TransmissionError) -> SessionStats {
@@ -914,6 +921,21 @@ struct RPCSetLabelsTests {
         let stub = StubClient(rpcVersion: 16)
         let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
         #expect(await service.supportsLabels() == true)
+    }
+
+    @Test("a failed session-get keeps the last-known-good cache")
+    func freeSpaceKeepsCacheOnFailure() async throws {
+        let stub = StubClient(rpcVersion: 16)
+        let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
+
+        #expect(await service.freeSpace() == 42)
+        #expect(await service.supportsLabels() == false)
+
+        await stub.setSessionGetError(.serverError("offline"))
+
+        // A transient failure must not wipe the cache or flip capabilities.
+        #expect(await service.freeSpace() == 42)
+        #expect(await service.supportsLabels() == false)
     }
 }
 
