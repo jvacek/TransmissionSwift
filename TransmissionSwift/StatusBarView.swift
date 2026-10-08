@@ -66,7 +66,7 @@ struct StatusBarView: View {
 
     private var reportBugButton: some View {
         Button {
-            if let url = BugReport.url(daemonVersion: store.daemonVersion) {
+            if let url = BugReport.url(daemonVersion: store.session.daemonVersion) {
                 openURL(url)
             }
         } label: {
@@ -121,20 +121,21 @@ struct StatusBarView: View {
             speedLabel(total: totalDown, systemImage: "arrow.down", color: .blue, capKBps: effectiveDownCapKBps)
             speedLabel(total: totalUp, systemImage: "arrow.up", color: .green, capKBps: effectiveUpCapKBps)
             Button {
-                Task { await store.toggleAlternativeSpeed() }
+                Task { await store.session.toggleAlternativeSpeed() }
             } label: {
-                Image(systemName: store.isAlternativeSpeedEnabled ? "tortoise.fill" : "tortoise")
+                Image(systemName: store.session.isAlternativeSpeedEnabled ? "tortoise.fill" : "tortoise")
             }
             .buttonStyle(.borderless)
             .disabled(!store.actionsEnabled)
             .help("Alternative speed limits")
             .foregroundStyle(
-                store.isAlternativeSpeedEnabled ? Color(NSColor.controlAccentColor) : Color(NSColor.secondaryLabelColor)
+                store.session.isAlternativeSpeedEnabled
+                    ? Color(NSColor.controlAccentColor) : Color(NSColor.secondaryLabelColor)
             )
-            if let freeSpace = store.freeSpace {
+            if let freeSpace = store.session.freeSpace {
                 Divider().frame(height: 14)
                 Button {
-                    Task { await store.refreshFreeSpace() }
+                    Task { await store.session.refreshFreeSpace() }
                 } label: {
                     Label(ColumnFormatters.humanizedSize(freeSpace) + " free", systemImage: "internaldrive")
                         .foregroundStyle(.secondary)
@@ -166,13 +167,13 @@ struct StatusBarView: View {
     /// Effective per-torrent speed cap in KB/s, whichever scheme is active:
     /// turtle limits win while `altSpeedEnabled`, otherwise the global limits.
     private var effectiveDownCapKBps: Int? {
-        guard let s = store.sessionSettings else { return nil }
+        guard let s = store.session.settings else { return nil }
         if s.altSpeedEnabled { return s.altSpeedDownKBps }
         if s.downLimited { return s.downLimitKBps }
         return nil
     }
     private var effectiveUpCapKBps: Int? {
-        guard let s = store.sessionSettings else { return nil }
+        guard let s = store.session.settings else { return nil }
         if s.altSpeedEnabled { return s.altSpeedUpKBps }
         if s.upLimited { return s.upLimitKBps }
         return nil

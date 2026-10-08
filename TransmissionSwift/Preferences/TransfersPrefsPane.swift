@@ -24,7 +24,7 @@ struct TransfersPrefsPane: View {
 
                 Section {
                     Toggle("Honour seeding ratio by default", isOn: boolBinding(\.seedRatioLimited))
-                    if store.effectiveSessionSettings.seedRatioLimited {
+                    if store.session.effectiveSessionSettings.seedRatioLimited {
                         LabeledContent("Stop at ratio") {
                             plainCell(
                                 TextField(
@@ -33,7 +33,7 @@ struct TransfersPrefsPane: View {
                         }
                     }
                     Toggle("Honour idle seeding by default", isOn: boolBinding(\.idleSeedingLimitEnabled))
-                    if store.effectiveSessionSettings.idleSeedingLimitEnabled {
+                    if store.session.effectiveSessionSettings.idleSeedingLimitEnabled {
                         LabeledContent("Stop after") {
                             unitCell(
                                 TextField("", value: intBinding(\.idleSeedingLimitMinutes), format: .number),
@@ -48,15 +48,15 @@ struct TransfersPrefsPane: View {
 
                 Section {
                     Toggle("Limit simultaneous downloads", isOn: boolBinding(\.downloadQueueEnabled))
-                    if store.effectiveSessionSettings.downloadQueueEnabled {
+                    if store.session.effectiveSessionSettings.downloadQueueEnabled {
                         queueSizeRow(label: "Download queue", keyPath: \.downloadQueueSize)
                     }
                     Toggle("Limit simultaneous seeds", isOn: boolBinding(\.seedQueueEnabled))
-                    if store.effectiveSessionSettings.seedQueueEnabled {
+                    if store.session.effectiveSessionSettings.seedQueueEnabled {
                         queueSizeRow(label: "Seed queue", keyPath: \.seedQueueSize)
                     }
                     Toggle("Treat idle torrents as stalled", isOn: boolBinding(\.queueStalledEnabled))
-                    if store.effectiveSessionSettings.queueStalledEnabled {
+                    if store.session.effectiveSessionSettings.queueStalledEnabled {
                         LabeledContent("Stalled after") {
                             unitCell(
                                 TextField("", value: intBinding(\.queueStalledMinutes), format: .number),
@@ -77,17 +77,17 @@ struct TransfersPrefsPane: View {
 
     private var ratioBinding: Binding<Double> {
         Binding(
-            get: { store.effectiveSessionSettings.seedRatioLimit },
-            set: { newValue in Task { await store.updateSessionSettings { $0.seedRatioLimit = newValue } } }
+            get: { store.session.effectiveSessionSettings.seedRatioLimit },
+            set: { newValue in Task { await store.session.updateSessionSettings { $0.seedRatioLimit = newValue } } }
         )
     }
 
     private func boolBinding(_ keyPath: WritableKeyPath<SessionSettings, Bool>) -> Binding<Bool> {
-        store.binding(keyPath: keyPath)
+        store.session.binding(keyPath: keyPath)
     }
 
     private func intBinding(_ keyPath: WritableKeyPath<SessionSettings, Int>) -> Binding<Int> {
-        store.binding(keyPath: keyPath)
+        store.session.binding(keyPath: keyPath)
     }
 
     private func queueSizeRow(label: String, keyPath: WritableKeyPath<SessionSettings, Int>) -> some View {
@@ -120,7 +120,7 @@ struct TransfersPrefsPane: View {
     }
 
     private func stringBinding(_ keyPath: WritableKeyPath<SessionSettings, String>) -> Binding<String> {
-        store.binding(keyPath: keyPath)
+        store.session.binding(keyPath: keyPath)
     }
 }
 

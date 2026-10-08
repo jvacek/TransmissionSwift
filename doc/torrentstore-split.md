@@ -10,7 +10,7 @@ rewrite and without changing behaviour.
 | Phase | State |
 |---|---|
 | 1 — `TorrentListModel` | done |
-| 2 — `SessionModel` | not started |
+| 2 — `SessionModel` | done |
 | 3 — `InspectorModel` | not started |
 | 4 — `TorrentActionModel` | not started |
 | 5 — `TorrentSheetState` | not started |
@@ -22,6 +22,14 @@ search, filters, sort, `downloadDirectory` and the sort preference onto
 `store.list.<member>` (the one binding, `searchQuery`, uses
 `@Bindable var list = store.list`). New direct suite:
 `TorrentListModelTests.swift`.
+
+Phase 2 moved the session-level daemon state (settings, turtle speed, free
+space, version, stats, port, label support) and its reads/writes onto
+`SessionModel` as `store.session`. The SwiftUI `binding(keyPath:)` /
+`effectiveSessionSettings` helpers moved to a `SessionModel` extension
+(`PrefsShared.swift`). The poll loop drives it via `session.load(from:)` /
+`session.poll(from:)` with the captured service; user actions use the bound
+service. New direct suite: `SessionModelTests.swift`.
 
 ## Why
 

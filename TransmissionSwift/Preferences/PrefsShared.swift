@@ -95,35 +95,35 @@ struct TurtleScheduleDays: View {
 /// reads the store's current value (defaulted when disconnected), and writes
 /// through `updateSessionSettings` (which diffs to a partial `session-set`).
 /// Lives in the app target because `Binding` is SwiftUI.
-extension TorrentStore {
+extension SessionModel {
     /// The daemon's session settings, falling back to the realistic sample so a
     /// connected-but-still-loading store (or a preview) renders populated forms.
-    var effectiveSessionSettings: SessionSettings { sessionSettings ?? .sample }
+    var effectiveSessionSettings: SessionSettings { settings ?? .sample }
 
     func binding(keyPath: WritableKeyPath<SessionSettings, Bool>) -> Binding<Bool> {
         Binding(
-            get: { self.sessionSettings?[keyPath: keyPath] ?? SessionSettings.sample[keyPath: keyPath] },
+            get: { self.settings?[keyPath: keyPath] ?? SessionSettings.sample[keyPath: keyPath] },
             set: { newValue in Task { await self.updateSessionSettings { $0[keyPath: keyPath] = newValue } } }
         )
     }
 
     func binding(keyPath: WritableKeyPath<SessionSettings, Int>) -> Binding<Int> {
         Binding(
-            get: { self.sessionSettings?[keyPath: keyPath] ?? SessionSettings.sample[keyPath: keyPath] },
+            get: { self.settings?[keyPath: keyPath] ?? SessionSettings.sample[keyPath: keyPath] },
             set: { newValue in Task { await self.updateSessionSettings { $0[keyPath: keyPath] = newValue } } }
         )
     }
 
     func binding(keyPath: WritableKeyPath<SessionSettings, Double>) -> Binding<Double> {
         Binding(
-            get: { self.sessionSettings?[keyPath: keyPath] ?? SessionSettings.sample[keyPath: keyPath] },
+            get: { self.settings?[keyPath: keyPath] ?? SessionSettings.sample[keyPath: keyPath] },
             set: { newValue in Task { await self.updateSessionSettings { $0[keyPath: keyPath] = newValue } } }
         )
     }
 
     func binding(keyPath: WritableKeyPath<SessionSettings, String>) -> Binding<String> {
         Binding(
-            get: { self.sessionSettings?[keyPath: keyPath] ?? SessionSettings.sample[keyPath: keyPath] },
+            get: { self.settings?[keyPath: keyPath] ?? SessionSettings.sample[keyPath: keyPath] },
             set: { newValue in Task { await self.updateSessionSettings { $0[keyPath: keyPath] = newValue } } }
         )
     }

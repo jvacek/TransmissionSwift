@@ -21,7 +21,7 @@ struct TorrentListView: View {
                 store.list.setSortOrder(column: column, ascending: ascending)
             },
             actionsEnabled: store.actionsEnabled,
-            labelsSupported: store.supportsLabels,
+            labelsSupported: store.session.supportsLabels,
             tagColors: tagColors.colors,
             onRowAction: { action, ids in
                 Task {

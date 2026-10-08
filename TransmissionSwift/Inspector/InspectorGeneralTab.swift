@@ -235,7 +235,7 @@ struct InspectorGeneralTab: View {
                         labelChip(label)
                     }
                 }
-                if store.actionsEnabled && store.supportsLabels {
+                if store.actionsEnabled && store.session.supportsLabels {
                     Spacer()
                     Button("Edit…") {
                         store.openEditLabels(for: [torrent.id])

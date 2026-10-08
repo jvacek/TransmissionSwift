@@ -287,7 +287,7 @@ private struct HelpCommands: Commands {
     var body: some Commands {
         CommandGroup(after: .help) {
             Button("Report Bug…") {
-                if let url = BugReport.url(daemonVersion: torrentStore.daemonVersion) {
+                if let url = BugReport.url(daemonVersion: torrentStore.session.daemonVersion) {
                     openURL(url)
                 }
             }

@@ -9,11 +9,11 @@ struct SpeedPrefsPane: View {
             Form {
                 Section {
                     Toggle("Enable global download limit", isOn: boolBinding(\.downLimited))
-                    if store.effectiveSessionSettings.downLimited {
+                    if store.session.effectiveSessionSettings.downLimited {
                         limitRow(label: "Download limit", keyPath: \.downLimitKBps)
                     }
                     Toggle("Enable global upload limit", isOn: boolBinding(\.upLimited))
-                    if store.effectiveSessionSettings.upLimited {
+                    if store.session.effectiveSessionSettings.upLimited {
                         limitRow(label: "Upload limit", keyPath: \.upLimitKBps)
                     }
                 } header: {
@@ -24,12 +24,12 @@ struct SpeedPrefsPane: View {
 
                 Section {
                     Toggle("Enable alternative (turtle) speed limits", isOn: boolBinding(\.altSpeedEnabled))
-                    if store.effectiveSessionSettings.altSpeedEnabled {
+                    if store.session.effectiveSessionSettings.altSpeedEnabled {
                         limitRow(label: "Turtle download", keyPath: \.altSpeedDownKBps)
                         limitRow(label: "Turtle upload", keyPath: \.altSpeedUpKBps)
                     }
                     Toggle("Enable scheduled turtle times", isOn: boolBinding(\.altSpeedTimeEnabled))
-                    if store.effectiveSessionSettings.altSpeedTimeEnabled {
+                    if store.session.effectiveSessionSettings.altSpeedTimeEnabled {
                         TurtleTimeRow(
                             begin: intBinding(\.altSpeedTimeBeginMinutes), end: intBinding(\.altSpeedTimeEndMinutes))
                         TurtleScheduleDays(mask: intBinding(\.altSpeedTimeDayMask))
@@ -58,11 +58,11 @@ struct SpeedPrefsPane: View {
     }
 
     private func boolBinding(_ keyPath: WritableKeyPath<SessionSettings, Bool>) -> Binding<Bool> {
-        store.binding(keyPath: keyPath)
+        store.session.binding(keyPath: keyPath)
     }
 
     private func intBinding(_ keyPath: WritableKeyPath<SessionSettings, Int>) -> Binding<Int> {
-        store.binding(keyPath: keyPath)
+        store.session.binding(keyPath: keyPath)
     }
 }
 

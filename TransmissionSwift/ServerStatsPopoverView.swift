@@ -9,7 +9,7 @@ struct ServerStatsPopoverView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if let stats = store.sessionStats {
+            if let stats = store.session.sessionStats {
                 section("Current session", stats.currentStats)
                 Divider()
                 section("All time", stats.cumulativeStats)
@@ -23,7 +23,7 @@ struct ServerStatsPopoverView: View {
         }
         .padding(14)
         .frame(width: 280, alignment: .leading)
-        .task { await store.refreshSessionStats() }
+        .task { await store.session.refreshSessionStats() }
     }
 
     private func section(_ title: String, _ stats: SessionStats.Stats) -> some View {

@@ -28,6 +28,14 @@ public enum ActionError: Error, Identifiable, Sendable {
         case .torrentDuplicate: return "Already in List"
         }
     }
+
+    /// Map any thrown error to the alert to show.
+    public static func from(_ error: any Error) -> ActionError {
+        if case .torrentDuplicate(let name) = error as? TransmissionError {
+            return .torrentDuplicate(name: name)
+        }
+        return .failed(message: error.localizedDescription)
+    }
 }
 
 /// A removal awaiting user confirmation. Identifiable so it can drive
@@ -51,29 +59,12 @@ public final class TorrentStore {
     /// The torrent list and everything derived from it: rows, facets,
     /// selection, search, filters, sort.
     public let list = TorrentListModel()
+    /// The connected daemon's session-level state and reads/writes.
+    public let session = SessionModel()
 
     public private(set) var connection: ConnectionState = .connecting
-    public private(set) var isAlternativeSpeedEnabled: Bool = false
-    /// Session-level settings (speed limits, network, queue, seed ratio/idle)
-    /// for the connected daemon. Nil until the first session-poll completes, or
-    /// when disconnected. Not the same shape as `@AppStorage` — these are the
-    /// daemon's values, so the Speed/Network panes bind here rather than to
-    /// UserDefaults.
-    public private(set) var sessionSettings: SessionSettings? = nil
-    /// Result of the last `port-test`: nil means "not tested / unknown", true
-    /// means the peer port is reachable, false means it is not.
-    public private(set) var portIsOpen: Bool? = nil
     /// Non-nil when a user action failed. Cleared by the view when the alert is dismissed.
     public var lastActionError: ActionError?
-    /// Free space (bytes) on the daemon's download directory. Nil until the first poll completes.
-    public private(set) var freeSpace: Int64? = nil
-    /// The daemon's long version string (e.g. `"4.1.2 (f234716f3e)"`). Nil until
-    /// the first session-poll completes, or when disconnected. Pre-fills the
-    /// bug-report template.
-    public private(set) var daemonVersion: String? = nil
-    /// Current + lifetime transfer statistics (`session-stats`). Fetched on
-    /// demand when the status-bar stats popover opens; nil until then.
-    public private(set) var sessionStats: SessionStats? = nil
 
     /// Torrent fetched with full inspector fields for the selected torrent.
     /// Nil when no torrent is selected or before the first inspector fetch.
@@ -118,10 +109,6 @@ public final class TorrentStore {
     /// True when the backing service supports mutation actions.
     public private(set) var actionsEnabled: Bool = true
 
-    /// Whether the connected daemon supports labels (rpc-version >= 17). Gates
-    /// the "Edit Labels" affordances; refreshed whenever the session is polled.
-    public private(set) var supportsLabels: Bool = true
-
     private var service: any TorrentReading
     /// The mutation half of the service, when it has one. Nil for read-only
     /// sources (snapshot replay), which disables every action.
@@ -133,6 +120,8 @@ public final class TorrentStore {
         self.service = service
         self.mutations = service as? any TorrentMutating
         self.actionsEnabled = self.mutations != nil
+        session.connect(reading: service, mutations: mutations)
+        session.onError = { [weak self] in self?.lastActionError = $0 }
         if UserDefaults.standard.object(forKey: PreferenceKeys.inspectorVisible) != nil {
             self.inspectorVisible = UserDefaults.standard.bool(forKey: PreferenceKeys.inspectorVisible)
         }
@@ -166,12 +155,10 @@ public final class TorrentStore {
         self.service = service
         mutations = service as? any TorrentMutating
         actionsEnabled = mutations != nil
+        session.connect(reading: service, mutations: mutations)
+        session.reset()
         connection = .connecting
-        freeSpace = nil
-        daemonVersion = nil
         list.setDownloadDirectory(nil)
-        sessionSettings = nil
-        supportsLabels = true
         list.setTorrents([])
         // Sidebar filters are per-server state — a tracker/folder/label filter
         // from server A would otherwise show "0 torrents" against server B's
@@ -188,15 +175,11 @@ public final class TorrentStore {
             guard let self, !Task.isCancelled else { return }
             let stream = await capturedService.torrentsStream()
             guard !Task.isCancelled else { return }
-            // freeSpace() also warms the session cache in RPCTorrentService.
-            self.freeSpace = await capturedService.freeSpace()
-            self.daemonVersion = await capturedService.daemonVersion()
+            // freeSpace() also warms the session cache in RPCTorrentService;
+            // `session.load` runs it first, so the cache-backed reads after it
+            // see warm values.
+            await self.session.load(from: capturedService)
             self.list.setDownloadDirectory(await capturedService.downloadDirectory())
-            // Sync alt-speed state from the now-warm cache — avoids showing the
-            // wrong turtle toggle state if alt speed was enabled before launch.
-            self.isAlternativeSpeedEnabled = await capturedService.isAlternativeSpeedEnabled()
-            self.supportsLabels = await capturedService.supportsLabels()
-            self.sessionSettings = await capturedService.sessionSettings()
             guard !Task.isCancelled else { return }
             self.startFreeSpacePoll()
             do {
@@ -224,10 +207,7 @@ public final class TorrentStore {
                 let interval = v > 0 ? v : 60.0
                 try? await Task.sleep(for: .seconds(interval))
                 guard !Task.isCancelled else { break }
-                self.freeSpace = await capturedService.freeSpace()
-                self.daemonVersion = await capturedService.daemonVersion()
-                self.supportsLabels = await capturedService.supportsLabels()
-                self.sessionSettings = await capturedService.sessionSettings()
+                await self.session.poll(from: capturedService)
             }
         }
     }
@@ -316,49 +296,20 @@ public final class TorrentStore {
     }
 
     public func toggleAlternativeSpeed() async {
-        guard let mutations else { return }
-        let newValue = !isAlternativeSpeedEnabled
-        do {
-            try await mutations.setAlternativeSpeedEnabled(newValue)
-            isAlternativeSpeedEnabled = newValue
-            sessionSettings?.altSpeedEnabled = newValue
-        } catch {
-            recordError(error)
-        }
+        await session.toggleAlternativeSpeed()
     }
 
-    /// Apply a session-side setting change. `mutate` mutates a copy of the
-    /// current `SessionSettings`; the store diffs it to build a patch (only the
-    /// changed fields are sent), applies it optimistically, and rolls back /
-    /// re-reads on failure. Requires a live session; no-ops otherwise.
+    /// Apply a session-side setting change. Delegates to `session`; see
+    /// `SessionModel.updateSessionSettings` for the optimistic/rollback flow.
     public func updateSessionSettings(_ mutate: (inout SessionSettings) -> Void) async {
-        guard let mutations, var current = sessionSettings else { return }
-        let before = current
-        mutate(&current)
-        guard current != before else { return }
-        let patch = SessionSettingsPatch(before: before, updated: current)
-        sessionSettings = current
-        isAlternativeSpeedEnabled = current.altSpeedEnabled
-        do {
-            try await mutations.applySessionSettings(patch)
-            sessionSettings = await service.sessionSettings() ?? current
-            isAlternativeSpeedEnabled = sessionSettings?.altSpeedEnabled ?? current.altSpeedEnabled
-        } catch {
-            recordError(error)
-            sessionSettings = await service.sessionSettings() ?? before
-            isAlternativeSpeedEnabled = sessionSettings?.altSpeedEnabled ?? before.altSpeedEnabled
-        }
+        await session.updateSessionSettings(mutate)
     }
 
     /// Ask the daemon whether its peer port is reachable from the outside
-    /// (`port-test`). No-ops when disconnected or the service can't answer.
+    /// (`port-test`). No-ops when disconnected.
     public func testPort() async {
         guard isConnected else { return }
-        guard let result = await service.isPortOpen() else {
-            lastActionError = .failed(message: "The connected server couldn't report its port status.")
-            return
-        }
-        portIsOpen = result
+        await session.testPort()
     }
 
     public func openAddSheet(magnetMode: Bool = false, prefilledURL: URL? = nil) {
@@ -400,7 +351,7 @@ public final class TorrentStore {
         openAddSheet(magnetMode: isMagnet, prefilledURL: url)
     }
     public func openEditLabels(for ids: [Torrent.ID]) {
-        guard actionsEnabled, supportsLabels, !ids.isEmpty else { return }
+        guard actionsEnabled, session.supportsLabels, !ids.isEmpty else { return }
         editLabelsTargetIDs = ids
         showEditLabels = true
     }
@@ -549,7 +500,7 @@ public final class TorrentStore {
     }
 
     public func refreshFreeSpace() async {
-        freeSpace = await service.freeSpace()
+        await session.refreshFreeSpace()
     }
 
     /// Fetch current + lifetime transfer stats (`session-stats`) for the
@@ -558,9 +509,7 @@ public final class TorrentStore {
     /// which doesn't warrant an alert.
     public func refreshSessionStats() async {
         guard isConnected else { return }
-        if let stats = await service.sessionStats() {
-            sessionStats = stats
-        }
+        await session.refreshSessionStats()
     }
 
     /// Capture an anonymized snapshot of the current daemon state and write it
@@ -610,8 +559,7 @@ public final class TorrentStore {
         freeSpaceTask?.cancel()
         connection = .awaitingKeychain
         list.setTorrents([])
-        freeSpace = nil
-        daemonVersion = nil
+        session.reset()
     }
 
     /// Override the connection state — used by the debug menu (slice 6).
@@ -622,10 +570,6 @@ public final class TorrentStore {
     // MARK: - Private helpers
 
     private func recordError(_ error: any Error) {
-        if case .torrentDuplicate(let name) = error as? TransmissionError {
-            lastActionError = .torrentDuplicate(name: name)
-        } else {
-            lastActionError = .failed(message: error.localizedDescription)
-        }
+        lastActionError = ActionError.from(error)
     }
 }

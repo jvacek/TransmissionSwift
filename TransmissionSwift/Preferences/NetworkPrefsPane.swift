@@ -38,7 +38,7 @@ struct NetworkPrefsPane: View {
                         .frame(maxWidth: .infinity, alignment: .trailing)
                     }
                     Toggle("Enable blocklist", isOn: boolBinding(\.blocklistEnabled))
-                    if store.effectiveSessionSettings.blocklistEnabled {
+                    if store.session.effectiveSessionSettings.blocklistEnabled {
                         TextField("Blocklist URL", text: stringBinding(\.blocklistURL))
                             .font(.monospaced(.body)())
                     }
@@ -63,7 +63,7 @@ struct NetworkPrefsPane: View {
 
     private var portStatusRow: some View {
         HStack {
-            switch store.portIsOpen {
+            switch store.session.portIsOpen {
             case .some(true):
                 Label("Open", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
@@ -75,7 +75,7 @@ struct NetworkPrefsPane: View {
                     .foregroundStyle(.secondary)
             }
             Button {
-                Task { await store.testPort() }
+                Task { await store.session.testPort() }
             } label: {
                 Label("Test", systemImage: "arrow.clockwise")
                     .labelStyle(.titleAndIcon)
@@ -86,7 +86,9 @@ struct NetworkPrefsPane: View {
 
     private var encryptionBinding: Binding<EncryptionChoice> {
         Binding(
-            get: { EncryptionChoice(rawValue: store.effectiveSessionSettings.encryption.rawValue) ?? .preferred },
+            get: {
+                EncryptionChoice(rawValue: store.session.effectiveSessionSettings.encryption.rawValue) ?? .preferred
+            },
             set: { choice in
                 let value: SessionEncryption
                 switch choice {
@@ -94,21 +96,21 @@ struct NetworkPrefsPane: View {
                 case .preferred: value = .preferred
                 case .tolerated: value = .tolerated
                 }
-                Task { await store.updateSessionSettings { $0.encryption = value } }
+                Task { await store.session.updateSessionSettings { $0.encryption = value } }
             }
         )
     }
 
     private func boolBinding(_ keyPath: WritableKeyPath<SessionSettings, Bool>) -> Binding<Bool> {
-        store.binding(keyPath: keyPath)
+        store.session.binding(keyPath: keyPath)
     }
 
     private func intBinding(_ keyPath: WritableKeyPath<SessionSettings, Int>) -> Binding<Int> {
-        store.binding(keyPath: keyPath)
+        store.session.binding(keyPath: keyPath)
     }
 
     private func stringBinding(_ keyPath: WritableKeyPath<SessionSettings, String>) -> Binding<String> {
-        store.binding(keyPath: keyPath)
+        store.session.binding(keyPath: keyPath)
     }
 }
 
