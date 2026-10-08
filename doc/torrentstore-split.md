@@ -13,7 +13,7 @@ rewrite and without changing behaviour.
 | 2 — `SessionModel` | done |
 | 3 — `InspectorModel` | done |
 | 4 — `TorrentActionModel` | done |
-| 5 — `TorrentSheetState` | not started |
+| 5 — `TorrentSheetState` | done |
 | 6 — docs / sweep | not started |
 
 Phase 1 moved the torrent list, its derivation (facets, visible rows), selection,
@@ -44,6 +44,14 @@ prune on remove) and the inspector model (refresh after file/rename
 mutations); failures reach the coordinator's `lastActionError` via an
 `onError` sink. The `open*` sheet entry points stay on the coordinator.
 New direct suite: `TorrentActionModelTests.swift`.
+
+Phase 5 moved the sheet presentation state (add/edit-labels/set-location/
+rename) onto `TorrentSheetState`, reached as `store.ui`. The coordinator's
+`open*` entry points stay on `TorrentStore` and fill it in; `MainWindow` binds
+through `@Bindable var ui = store.ui`. `TorrentStore` is now the coordinator
+only: connection/poll wiring, capability flags, the shared error channel, the
+`open*` entry points, snapshot capture and the service reads that don't belong
+to a collaborator.
 
 ## Why
 

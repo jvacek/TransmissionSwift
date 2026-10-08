@@ -39,7 +39,7 @@ struct MainWindow: View {
     }
 
     var body: some View {
-        @Bindable var store = store
+        @Bindable var ui = store.ui
 
         HStack(spacing: 0) {
             splitView
@@ -80,30 +80,30 @@ struct MainWindow: View {
         .task { applyOpenRequest() }
         .onChange(of: openBus.request) { _, _ in applyOpenRequest() }
         .onChange(of: store.list.torrents) { _, _ in applyOpenRequest() }
-        .sheet(isPresented: $store.showAddTorrent) {
+        .sheet(isPresented: $ui.showAddTorrent) {
             AddTorrentSheet(
-                isPresented: $store.showAddTorrent,
-                initialMagnetMode: store.addTorrentStartInMagnetMode,
-                prefilledURL: store.addTorrentPrefilledURL,
+                isPresented: $ui.showAddTorrent,
+                initialMagnetMode: ui.addTorrentStartInMagnetMode,
+                prefilledURL: ui.addTorrentPrefilledURL,
                 serverName: profileStore.activeProfile?.label
             )
         }
-        .sheet(isPresented: $store.showEditLabels) {
+        .sheet(isPresented: $ui.showEditLabels) {
             EditLabelsSheet(
-                isPresented: $store.showEditLabels,
-                ids: store.editLabelsTargetIDs
+                isPresented: $ui.showEditLabels,
+                ids: ui.editLabelsTargetIDs
             )
         }
-        .sheet(isPresented: $store.showSetLocation) {
+        .sheet(isPresented: $ui.showSetLocation) {
             SetLocationSheet(
-                isPresented: $store.showSetLocation,
-                ids: store.setLocationTargetIDs,
+                isPresented: $ui.showSetLocation,
+                ids: ui.setLocationTargetIDs,
                 serverName: profileStore.activeProfile?.label
             )
         }
-        .sheet(isPresented: $store.showRenameTorrent) {
-            if let id = store.renameTorrentTargetID {
-                RenameTorrentSheet(isPresented: $store.showRenameTorrent, id: id)
+        .sheet(isPresented: $ui.showRenameTorrent) {
+            if let id = ui.renameTorrentTargetID {
+                RenameTorrentSheet(isPresented: $ui.showRenameTorrent, id: id)
             }
         }
         .dropDestination(for: URL.self) { urls, _ in

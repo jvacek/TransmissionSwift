@@ -63,28 +63,12 @@ public final class TorrentStore {
     public let inspector: InspectorModel
     /// Every torrent mutation, plus the staged remove confirmation.
     public let actions: TorrentActionModel
+    /// Presentation state for the main window's sheets.
+    public let ui = TorrentSheetState()
 
     public private(set) var connection: ConnectionState = .connecting
     /// Non-nil when a user action failed. Cleared by the view when the alert is dismissed.
     public var lastActionError: ActionError?
-
-    // Add-torrent sheet
-    public var showAddTorrent: Bool = false
-    public var addTorrentStartInMagnetMode: Bool = false
-    public var addTorrentPrefilledURL: URL? = nil
-
-    // Edit-labels popup
-    public var showEditLabels: Bool = false
-    public var editLabelsTargetIDs: [Torrent.ID] = []
-
-    // Set-location popup
-    public var showSetLocation: Bool = false
-    public var setLocationTargetIDs: [Torrent.ID] = []
-
-    // Rename-torrent popup (single-torrent only — `torrent-rename-path`
-    // requires exactly one id)
-    public var showRenameTorrent: Bool = false
-    public var renameTorrentTargetID: Torrent.ID?
 
     /// True while the app has a live connection to a daemon. Gates any
     /// session-side setting that can only be read/changed when connected.
@@ -224,9 +208,9 @@ public final class TorrentStore {
     // MARK: - Sheet entry points
 
     public func openAddSheet(magnetMode: Bool = false, prefilledURL: URL? = nil) {
-        addTorrentStartInMagnetMode = magnetMode
-        addTorrentPrefilledURL = prefilledURL
-        showAddTorrent = true
+        ui.addTorrentStartInMagnetMode = magnetMode
+        ui.addTorrentPrefilledURL = prefilledURL
+        ui.showAddTorrent = true
     }
 
     /// Entry point for adds that already carry a payload (dropped file, magnet
@@ -264,20 +248,20 @@ public final class TorrentStore {
 
     public func openEditLabels(for ids: [Torrent.ID]) {
         guard actionsEnabled, session.supportsLabels, !ids.isEmpty else { return }
-        editLabelsTargetIDs = ids
-        showEditLabels = true
+        ui.editLabelsTargetIDs = ids
+        ui.showEditLabels = true
     }
 
     public func openSetLocation(for ids: [Torrent.ID]) {
         guard actionsEnabled, !ids.isEmpty else { return }
-        setLocationTargetIDs = ids
-        showSetLocation = true
+        ui.setLocationTargetIDs = ids
+        ui.showSetLocation = true
     }
 
     public func openRenameTorrent(for id: Torrent.ID) {
         guard actionsEnabled else { return }
-        renameTorrentTargetID = id
-        showRenameTorrent = true
+        ui.renameTorrentTargetID = id
+        ui.showRenameTorrent = true
     }
 
     // MARK: - Service reads

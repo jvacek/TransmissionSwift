@@ -483,7 +483,7 @@ struct TorrentStoreTests {
         let count = store.list.torrents.count
 
         store.addFromExternalURL(URL(string: "magnet:?xt=urn:btih:abc123")!, showDialog: true)
-        #expect(store.showAddTorrent)
+        #expect(store.ui.showAddTorrent)
         #expect(store.list.torrents.count == count)
     }
 
@@ -493,7 +493,7 @@ struct TorrentStoreTests {
         let service = MockTorrentService(initial: [])
         let store = TorrentStore(service: service)
         store.addFromExternalURL(URL(string: "magnet:?xt=urn:btih:abc123")!, showDialog: false)
-        #expect(!store.showAddTorrent)
+        #expect(!store.ui.showAddTorrent)
         await waitFor { !store.list.torrents.isEmpty }
         #expect(store.list.torrents.count == 1)
     }
@@ -573,8 +573,8 @@ struct TorrentStoreTests {
     func openRenameTorrent() async {
         let store = TorrentStore(service: MockTorrentService())
         store.openRenameTorrent(for: 2)
-        #expect(store.showRenameTorrent)
-        #expect(store.renameTorrentTargetID == 2)
+        #expect(store.ui.showRenameTorrent)
+        #expect(store.ui.renameTorrentTargetID == 2)
     }
 
     @Test("setPriority action updates the selected torrents through the stream")
@@ -622,12 +622,12 @@ struct TorrentStoreTests {
         await waitFor { !store.list.torrents.isEmpty }
 
         store.openEditLabels(for: [2])
-        #expect(store.showEditLabels)
-        #expect(store.editLabelsTargetIDs == [2])
+        #expect(store.ui.showEditLabels)
+        #expect(store.ui.editLabelsTargetIDs == [2])
 
-        store.showEditLabels = false
+        store.ui.showEditLabels = false
         store.openEditLabels(for: [])
-        #expect(!store.showEditLabels)
+        #expect(!store.ui.showEditLabels)
     }
 
     @Test("visibleTorrents applies filter then search")
