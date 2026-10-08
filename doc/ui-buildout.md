@@ -13,7 +13,7 @@
 ### Mock at the service layer, not the RPC layer
 We could mock `TransmissionClient` (the RPC protocol) and inject fakes. We won't, because:
 - The UI doesn't think in RPC envelopes — it thinks in domain types (Torrent, File, Peer, Tracker, FilterFacets).
-- Mirrors how `session-get` → `SessionInfo` → `ConnectionService` already layers today.
+- Mirrors how `session-get` → `SessionInfo` already layers today.
 - The "wire real RPC" slice at the end becomes additive: define the RPC requests, map wire→domain, swap the service backing. Views don't move.
 
 So the abstraction the views consume is `protocol TorrentService` in `TransmissionCore`, with two implementations:
