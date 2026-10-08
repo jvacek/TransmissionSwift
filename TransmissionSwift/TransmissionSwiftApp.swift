@@ -9,6 +9,9 @@ import AppKit
 import Sparkle
 import SwiftUI
 import TransmissionCore
+import os
+
+private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category: "App")
 
 @main
 struct TransmissionSwiftApp: App {
@@ -91,7 +94,8 @@ struct TransmissionSwiftApp: App {
                 snapshotServerName = snapshotService.displayServerName
                 service = snapshotService
             } catch {
-                NSLog("Snapshot load failed: \(error.localizedDescription)")
+                logger.error(
+                    "Snapshot load failed: \(error.localizedDescription, privacy: .public)")
                 service = MockTorrentService(initial: [])
             }
         } else {

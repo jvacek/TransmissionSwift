@@ -1,5 +1,8 @@
 import Foundation
 import Sentry
+import os
+
+private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category: "CrashReporting")
 
 /// Opt-in crash reporting via Sentry.
 ///
@@ -61,7 +64,7 @@ enum CrashReporting {
     /// only boots the SDK so a previously captured crash uploads.
     nonisolated static func startForTesting() {
         guard dsn != nil else {
-            NSLog("[Sentry] crash test ignored: this build has no DSN")
+            logger.warning("[Sentry] crash test ignored: this build has no DSN")
             return
         }
         if !SentrySDK.isEnabled { start() }
