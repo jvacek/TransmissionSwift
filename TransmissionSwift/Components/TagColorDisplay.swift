@@ -99,7 +99,7 @@ enum TagColorMenuImage {
             )?.withSymbolConfiguration(.init(pointSize: 9, weight: .semibold))
         else { return nil }
         symbol.isTemplate = true
-        let tinted = symbol.copy() as! NSImage
+        guard let tinted = symbol.copy() as? NSImage else { return nil }
         tinted.lockFocus()
         checkColor.set()
         NSRect(origin: .zero, size: tinted.size).fill(using: .sourceAtop)
