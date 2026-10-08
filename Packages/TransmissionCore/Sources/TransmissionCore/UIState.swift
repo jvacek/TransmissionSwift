@@ -1,7 +1,7 @@
 import Foundation
 
 /// Lifecycle of the active server connection. Drives empty / skeleton / error
-/// surfaces in the main window per `doc/ui-buildout.md` slice 6.
+/// surfaces in the main window.
 public enum ConnectionState: Sendable, Equatable {
     case connecting
     /// Waiting for the macOS keychain access dialog before connecting.

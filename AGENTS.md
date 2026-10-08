@@ -7,7 +7,7 @@ This file gives AI coding agents (Claude, Cursor, Codex, Aider, etc.) the persis
 ## Read first
 
 - `ARCHITECTURE.md` — durable architectural decisions and the rationale behind them.
-- `doc/ui-buildout.md` — **the current implementation plan** (mock-first UI slices). Its "Picking up from a new session" section says exactly where work stands; start there.
+- `doc/appkit-decomposition.md` — **the current implementation plan** (in-progress split of the large AppKit/editor files). Start here for where work stands.
 - `doc/snapshot-replay.md` — design + redaction policy for snapshot capture/replay (see below).
 
 If anything in this file contradicts `ARCHITECTURE.md`, treat `ARCHITECTURE.md` as the source of truth and propose updating this file.
@@ -100,7 +100,7 @@ Gotchas:
 
 - **Token economy** (sessions here default to a mid-tier model on purpose):
   - Delegate broad codebase exploration ("find where X is handled", "which views use Y") to a cheap subagent (Claude Code: the `Explore` agent or `Agent` tool with a `haiku` model) instead of reading many files in the main loop.
-  - Orient from `doc/ui-buildout.md`'s "Picking up from a new session" section before reading source files — it usually answers "where were we" in one read.
+  - Orient from `doc/appkit-decomposition.md` (the current plan) before reading source files — it usually answers "where were we" in one read.
   - Don't re-read files already in context; don't dump raw `xcodebuild` output (use the `xcode` MCP tools).
   - If a task turns out genuinely hard (architecture change, concurrency debugging, slice 7 RPC design) and progress stalls, **say so and suggest the human switch to a stronger model** (`/model opus` or `/model fable`) rather than grinding.
 - **Adding files to a Swift package**: just create the file under `Sources/<package>/`. SPM picks it up automatically — no project file edits.

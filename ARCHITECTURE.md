@@ -147,6 +147,8 @@ tested without the shared defaults.
 - **App layer:** pure logic extracted from the views (table row store, selection, sort, row-menu spec, cell-content builder, formatters) is unit-tested directly in `TransmissionSwiftTests`, as is `ConnectionCoordinator` with an injected Keychain reader, service builder and `AppEnvironment`. Views themselves are covered by previews and UI tests.
 - **UI:** a daemon-free snapshot-replay test (`just test-snapshot`) and an opt-in E2E golden path (`TEST_RUNNER_TRANSMISSION_E2E=1`, needs a live local daemon).
 - Package tests run with `-warnings-as-errors` (see the decision log).
+- **Known gaps:** `session-get` and `torrent-add` fixtures are captured from a live daemon; `torrent-get` (list + inspector), `torrent-set`, `torrent-start/stop/remove` and `free-space` are still hand-made JSON in the tests. Recapture from the dev daemon when the RPC surface is next touched.
+- The E2E XCUITest suite (`TEST_RUNNER_TRANSMISSION_E2E=1`) has not been re-run against the live daemon since the RPC layer landed; only `testAddServerAndTestConnection` is daemon-gated today.
 
 ## 9. Open questions (decide as they come up)
 
@@ -173,7 +175,7 @@ tested without the shared defaults.
 | 2026-08-21 | User-selected file access upgraded to read-write (`ENABLE_USER_SELECTED_FILES = readwrite`) so the Developer pane's snapshot save panel can write | Active |
 | 2026-06-10 | warnings-as-errors enforced via CI flags, not Package.swift (conflicts with Xcode's `-suppress-warnings` for package deps) | Active |
 | 2026-06-10 | E2E golden-path XCUITest, opt-in via `TEST_RUNNER_TRANSMISSION_E2E=1` (needs a live local daemon) | Active |
-| 2026-06-11 | Mock-first UI buildout: views consume `protocol TorrentService` (TransmissionCore), built against `MockTorrentService` first; `RPCTorrentService` swaps in last with zero view changes. Plan + progress in `doc/ui-buildout.md` | Active |
+| 2026-06-11 | Mock-first UI buildout: views consume `protocol TorrentService` (TransmissionCore), built against `MockTorrentService` first; `RPCTorrentService` swaps in last with zero view changes | Done |
 | 2026-06-0? | Split RPC client files per method group | Active |
 | 2026-10-08 | `TorrentStore` is a coordinator over focused `@Observable` collaborators (`list`/`session`/`inspector`/`actions`/`ui`), not a god object; plan + progress in `doc/torrentstore-split.md` | Active |
 | 2026-10-08 | `TorrentService` split into `TorrentReading` + `TorrentMutating`; callers resolve the mutation half via `TorrentReading.mutations` | Active |

@@ -319,8 +319,8 @@ Verify: `just test-core`, `just build`, `just test-app`.
 
 ### Phase 6 — Docs + dead-path sweep
 
-- Update `ARCHITECTURE.md` (module-layout section) and `doc/ui-buildout.md`
-  ("Output" / pick-up notes) to describe the coordinator + collaborators.
+- Update `ARCHITECTURE.md` (module-layout section) to describe the coordinator +
+  collaborators.
 - Delete the temporary test helpers that built a whole `TorrentStore` where a
   single collaborator now suffices (`PreviewStores.swift` shrinks).
 - Confirm no `store.<member>` references remain that should have moved
