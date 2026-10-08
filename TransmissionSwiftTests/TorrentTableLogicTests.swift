@@ -21,6 +21,10 @@ struct TorrentTableLogicTests {
         downloadSpeed: Int64 = 0,
         pieceSize: Int64 = 1,
         options: TorrentOptions = TorrentOptions(),
+        labels: [String] = [],
+        priority: TorrentPriority = .normal,
+        queuePosition: Int? = nil,
+        errorMessage: String? = nil,
         files: [TorrentFile] = []
     ) -> Torrent {
         Torrent(
@@ -34,9 +38,13 @@ struct TorrentTableLogicTests {
             primaryTracker: "tracker",
             downloadFolder: "/downloads",
             addedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            labels: labels,
+            priority: priority,
             pieces: 10,
             pieceSize: pieceSize,
             havePieces: 5,
+            queuePosition: queuePosition,
+            errorMessage: errorMessage,
             options: options,
             files: files)
     }
@@ -101,6 +109,91 @@ struct TorrentTableLogicTests {
         TorrentTableRepresentable.Coordinator.classifyChange(
             from: old.map { TorrentRowDisplay(makeTorrent(id: $0)) },
             to: new.map { TorrentRowDisplay(makeTorrent(id: $0)) })
+    }
+
+
+    // MARK: - TorrentCellContent.make
+
+    @Test func cellContent_nameCarriesStatusDotAndTagDots() {
+        let torrent = makeTorrent(labels: ["A", "B"])
+        let content = TorrentCellContent.make(
+            for: .name, row: TorrentRowDisplay(torrent), downloadDirectoryBase: nil,
+            tagColors: ["A": .red])
+        #expect(content.shape == .dotAndText)
+        #expect(content.text == torrent.name)
+        #expect(content.dotColor == torrent.status.nsDisplayColor)
+        // A coloured tag uses its colour; an uncoloured tag falls back to grey.
+        #expect(content.trailingDotColors == [TagColor.red.nsColor, .tertiaryLabelColor])
+    }
+
+    @Test func cellContent_progressExposesValuePercentAndTint() {
+        let torrent = makeTorrent(progress: 0.42)
+        let content = TorrentCellContent.make(
+            for: .progress, row: TorrentRowDisplay(torrent), downloadDirectoryBase: nil)
+        #expect(content.shape == .progress)
+        #expect(content.progressValue == 0.42)
+        #expect(content.percentText == "42%")
+        #expect(content.accessibilityLabel == "42 percent")
+        #expect(content.progressTint == torrent.status.nsDisplayColor)
+    }
+
+    @Test func cellContent_labelWithoutTagsIsAnEmDash() {
+        let content = TorrentCellContent.make(
+            for: .label, row: TorrentRowDisplay(makeTorrent()), downloadDirectoryBase: nil)
+        #expect(content.shape == .text)
+        #expect(content.text == "\u{2014}")
+    }
+
+    @Test func cellContent_labelWithTagsUsesPillsAndColours() {
+        let torrent = makeTorrent(labels: ["A", "B"])
+        let content = TorrentCellContent.make(
+            for: .label, row: TorrentRowDisplay(torrent), downloadDirectoryBase: nil,
+            tagColors: ["A": .blue])
+        #expect(content.shape == .pills)
+        #expect(content.pillTexts == ["A", "B"])
+        #expect(content.pillBackgroundColors?.first == TagColor.blue.nsColor)
+        #expect(content.pillForegroundColors?.first == TagColor.blue.nsPillForeground)
+    }
+
+    @Test func cellContent_priorityCarriesSymbolAndLabel() {
+        let content = TorrentCellContent.make(
+            for: .priority, row: TorrentRowDisplay(makeTorrent(priority: .high)),
+            downloadDirectoryBase: nil)
+        #expect(content.shape == .symbolAndText)
+        #expect(content.text == TorrentPriority.high.displayLabel)
+        #expect(content.symbolName == TorrentPriority.high.systemImage)
+        #expect(content.accessibilityLabel == "high priority")
+    }
+
+    @Test func cellContent_queuePositionNilIsAnEmDash() {
+        let content = TorrentCellContent.make(
+            for: .queuePosition, row: TorrentRowDisplay(makeTorrent()), downloadDirectoryBase: nil)
+        #expect(content.text == "\u{2014}")
+        #expect(content.color == .tertiaryLabelColor)
+    }
+
+    @Test func cellContent_queuePositionRendersHashPrefix() {
+        let content = TorrentCellContent.make(
+            for: .queuePosition, row: TorrentRowDisplay(makeTorrent(queuePosition: 3)),
+            downloadDirectoryBase: nil)
+        #expect(content.text == "#3")
+    }
+
+    @Test func cellContent_errorMessagePresentIsRed() {
+        let content = TorrentCellContent.make(
+            for: .errorMessage, row: TorrentRowDisplay(makeTorrent(errorMessage: "tracker down")),
+            downloadDirectoryBase: nil)
+        #expect(content.text == "tracker down")
+        #expect(content.color == .systemRed)
+    }
+
+    @Test func cellContent_downloadFolderKeepsFullPathInToolTip() {
+        let torrent = makeTorrent()
+        let content = TorrentCellContent.make(
+            for: .downloadFolder, row: TorrentRowDisplay(torrent),
+            downloadDirectoryBase: "/downloads")
+        #expect(content.toolTip == torrent.downloadFolder)
+        #expect(content.accessibilityLabel == torrent.downloadFolder)
     }
 
     // MARK: - ColumnFormatters.speedParts
