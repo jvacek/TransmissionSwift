@@ -1,5 +1,6 @@
 import SwiftUI
 import TransmissionCore
+import TransmissionTestSupport
 
 /// Per-torrent transfer options as a System-Settings-style grouped form.
 /// Edits a local draft and pushes the whole struct through

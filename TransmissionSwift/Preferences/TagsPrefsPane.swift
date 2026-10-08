@@ -1,5 +1,6 @@
 import SwiftUI
 import TransmissionCore
+import TransmissionTestSupport
 
 /// Finder-style tag colour management. Lists every tag in use on the daemon
 /// plus any tag that already has a colour assigned (so colours can be cleared

@@ -11,6 +11,7 @@
 		FE1C71C62FD9E5AC009C9EED /* TransmissionCore in Frameworks */ = {isa = PBXBuildFile; productRef = FE1C71C42FD9E5AC009C9EED /* TransmissionCore */; };
 		FE1C71D22FD9E5AC009C9EEE /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = FE1C71D12FD9E5AC009C9EEE /* Sparkle */; };
 		FE1C71E22FD9E5AC009C9F01 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FE1C71E12FD9E5AC009C9F01 /* Sentry */; };
+		FE1C71F02FD9E5AC009C9F02 /* TransmissionTestSupport in Frameworks */ = {isa = PBXBuildFile; productRef = FE1C71F22FD9E5AC009C9F04 /* TransmissionTestSupport */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -76,6 +77,7 @@
 				FE1C71C62FD9E5AC009C9EED /* TransmissionCore in Frameworks */,
 				FE1C71D22FD9E5AC009C9EEE /* Sparkle in Frameworks */,
 				FE1C71E22FD9E5AC009C9F01 /* Sentry in Frameworks */,
+				FE1C71F02FD9E5AC009C9F02 /* TransmissionTestSupport in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -140,6 +142,7 @@
 				FE1C71C42FD9E5AC009C9EED /* TransmissionCore */,
 				FE1C71D12FD9E5AC009C9EEE /* Sparkle */,
 				FE1C71E12FD9E5AC009C9F01 /* Sentry */,
+				FE1C71F22FD9E5AC009C9F04 /* TransmissionTestSupport */,
 			);
 			productName = TransmissionSwift;
 			productReference = FE1C718D2FD9E5A9009C9EED /* TransmissionSwift.app */;
@@ -843,6 +846,10 @@
 		FE1C71C42FD9E5AC009C9EED /* TransmissionCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = TransmissionCore;
+		};
+		FE1C71F22FD9E5AC009C9F04 /* TransmissionTestSupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TransmissionTestSupport;
 		};
 		FE1C71D12FD9E5AC009C9EEE /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;

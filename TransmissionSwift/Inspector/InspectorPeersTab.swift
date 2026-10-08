@@ -1,5 +1,6 @@
 import SwiftUI
 import TransmissionCore
+import TransmissionTestSupport
 
 /// Read-only table of connected peers.
 struct InspectorPeersTab: View {

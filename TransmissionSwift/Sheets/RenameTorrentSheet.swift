@@ -1,5 +1,6 @@
 import SwiftUI
 import TransmissionCore
+import TransmissionTestSupport
 
 /// Sheet for renaming a torrent's root (its display name).
 ///

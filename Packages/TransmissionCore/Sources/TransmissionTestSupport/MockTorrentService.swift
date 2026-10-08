@@ -1,4 +1,5 @@
 import Foundation
+import TransmissionCore
 
 /// In-memory `TorrentService` backed by `MockFixtures`. Mutations advance the
 /// state immediately and broadcast to subscribers. Optionally runs a 1-second

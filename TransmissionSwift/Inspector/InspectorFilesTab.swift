@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import TransmissionCore
+import TransmissionTestSupport
 
 /// Per-file selection and bandwidth priority. Mutations dispatch through the
 /// store; the service broadcasts a fresh snapshot, which flows back in via

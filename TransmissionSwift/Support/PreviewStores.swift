@@ -1,4 +1,5 @@
 import TransmissionCore
+import TransmissionTestSupport
 
 /// Shared store for `#Preview`s that need a populated torrent list (the sheets,
 /// which derive their "known folders" from the torrents).

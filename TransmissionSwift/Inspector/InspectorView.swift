@@ -1,5 +1,6 @@
 import SwiftUI
 import TransmissionCore
+import TransmissionTestSupport
 
 /// Right-pane inspector — header, icon-segmented tab bar, and one of five
 /// tab bodies. Renders the first selected torrent; selection changes flow in

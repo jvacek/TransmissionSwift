@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import TransmissionCore
+import TransmissionTestSupport
 
 private enum Layout {
     static let sidebarMin: CGFloat = 180

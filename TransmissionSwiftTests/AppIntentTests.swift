@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import TransmissionCore
+import TransmissionTestSupport
 
 @testable import TransmissionSwift
 

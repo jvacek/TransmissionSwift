@@ -1,4 +1,5 @@
 import Foundation
+import TransmissionCore
 
 /// Hand-curated sample data — ported from the design handoff's `data.jsx`.
 /// Used by `MockTorrentService` and by SwiftUI previews. Don't depend on these

@@ -1,5 +1,6 @@
 import SwiftUI
 import TransmissionCore
+import TransmissionTestSupport
 
 /// Dedicated popup for editing a torrent's labels. Prefills with the labels
 /// common to the whole target set (empty when the selection shares none) and

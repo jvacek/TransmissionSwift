@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import TransmissionTestSupport
 
 @testable import TransmissionCore
 

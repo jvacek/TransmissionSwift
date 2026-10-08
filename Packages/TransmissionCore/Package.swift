@@ -7,7 +7,8 @@ let package = Package(
         .macOS(.v26)
     ],
     products: [
-        .library(name: "TransmissionCore", targets: ["TransmissionCore"])
+        .library(name: "TransmissionCore", targets: ["TransmissionCore"]),
+        .library(name: "TransmissionTestSupport", targets: ["TransmissionTestSupport"]),
     ],
     dependencies: [
         .package(path: "../TransmissionRPC")
@@ -20,9 +21,16 @@ let package = Package(
                 .swiftLanguageMode(.v6)
             ]
         ),
+        .target(
+            name: "TransmissionTestSupport",
+            dependencies: ["TransmissionCore"],
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
         .testTarget(
             name: "TransmissionCoreTests",
-            dependencies: ["TransmissionCore", "TransmissionRPC"],
+            dependencies: ["TransmissionCore", "TransmissionRPC", "TransmissionTestSupport"],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]

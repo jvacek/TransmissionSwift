@@ -1,5 +1,6 @@
 import SwiftUI
 import TransmissionCore
+import TransmissionTestSupport
 
 /// Tracker announce endpoints grouped by failover tier, one `GroupBox` card
 /// per tracker.

@@ -1,5 +1,6 @@
 import SwiftUI
 import TransmissionCore
+import TransmissionTestSupport
 
 /// Key-value overview of the selected torrent: transfer state up top, then
 /// immutable torrent metadata, then location/labels/priority.
