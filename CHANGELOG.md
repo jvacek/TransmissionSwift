@@ -15,11 +15,10 @@ Please visit the [release page](https://github.com/jvacek/TransmissionSwift/rele
 9th Oct 2026
 
 - Add App Intents support
-  - Adds support for Shortcuts.app
-    - Get Servers
-    - Get Server Stats
-    - Get Server Free space
-    - Add torrent to server
+  - Adds TransmissionSwift to Shortcuts.app
+    - Get server stats
+    - Manage torrents (adding, removing, verifying, re-announcing)
+    - Change speed limits server/torrent-wide
   - Allows control from Spotlight and non-AI Siri
 - Fix definiton of "Active" status
 - Add opt-in for crash reporting
