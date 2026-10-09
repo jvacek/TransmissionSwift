@@ -235,3 +235,7 @@ This is basically the first stable release. These are some of the things that wo
     - View details only
   - Verify local data
   - Delete (with or without data)
+
+# Changes since prerelease-2026-10-09-02-0dd295cacfa5
+
+dfe3c20 Collapse migrated mappings if identical
