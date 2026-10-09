@@ -31,7 +31,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-main { flex: 1 0 auto; }
+main { flex: 1 0 auto; width: 100%; min-width: 0; }
 
 .wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 1.25rem; }
 
