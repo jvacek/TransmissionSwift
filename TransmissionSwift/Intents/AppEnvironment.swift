@@ -68,10 +68,15 @@ nonisolated final class AppEnvironment: Sendable {
     }
 
     /// The chosen server, else the active profile, else the first profile.
+    ///
+    /// A supplied server that no longer matches a profile resolves to nil rather
+    /// than silently falling back to a different one: for a mutating intent that
+    /// would act on the wrong daemon. Callers that must report the failure treat
+    /// nil as an error (`requireService`).
     func resolve(_ server: ServerEntity?) -> ServerProfile? {
         let loaded = profiles()
-        if let server, let match = loaded.profiles.first(where: { $0.id.uuidString == server.id }) {
-            return match
+        if let server {
+            return loaded.profiles.first { $0.id.uuidString == server.id }
         }
         if let id = loaded.activeProfileID,
             let match = loaded.profiles.first(where: { $0.id == id })
@@ -87,10 +92,19 @@ nonisolated final class AppEnvironment: Sendable {
         profile: ServerProfile, service: any TorrentReading
     ) {
         guard let profile = resolve(server) else {
-            throw IntentError(
-                message: "No Transmission servers are configured. Add one in TransmissionSwift first.")
+            throw IntentError(message: Self.missingServerMessage(server))
         }
         return (profile, try resolvedService(for: profile))
+    }
+
+    /// The error for a server that can't be resolved. A named server that no
+    /// longer exists is distinct from having none configured at all, and must
+    /// not be silently replaced by the active profile.
+    private static func missingServerMessage(_ server: ServerEntity?) -> String {
+        if server != nil {
+            return "That server is no longer configured. Pick another one in the shortcut."
+        }
+        return "No Transmission servers are configured. Add one in TransmissionSwift first."
     }
 
     /// The app's live service when it matches `profile`; otherwise a fresh
