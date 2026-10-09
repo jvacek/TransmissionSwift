@@ -12,7 +12,7 @@ Please visit the [release page](https://github.com/jvacek/TransmissionSwift/rele
 
 ## 0.7.0
 
-8th Oct 2026
+9th Oct 2026
 
 - Add App Intents support
   - Adds support for Shortcuts.app
@@ -23,7 +23,7 @@ Please visit the [release page](https://github.com/jvacek/TransmissionSwift/rele
   - Allows control from Spotlight and non-AI Siri
 - Fix definiton of "Active" status
 - Add opt-in for crash reporting
-- Fix Favicon cache not being re-used on startup
+- Fix Favicon cache behaviour to an actual request cache
 - Add donation link to the status bar
   - Add option to hide it (and also the bug report link)
 - Major refactor behind the scenes
