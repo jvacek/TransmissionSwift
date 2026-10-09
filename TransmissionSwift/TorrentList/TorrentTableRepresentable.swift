@@ -389,7 +389,6 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                 case .priority:
                     // A run of consecutive priority entries becomes one submenu.
                     let submenu = NSMenu()
-                    var submenuEnabled = true
                     while index < specs.count {
                         guard case .priority(let priority) = specs[index].kind else { break }
                         let prioritySpec = specs[index]
@@ -398,7 +397,6 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                         priorityItem.state = prioritySpec.isChecked ? .on : .off
                         priorityItem.isEnabled = prioritySpec.isEnabled
                         submenu.addItem(priorityItem)
-                        submenuEnabled = prioritySpec.isEnabled
                         index += 1
                     }
                     let container = NSMenuItem(title: "Priority", action: nil, keyEquivalent: "")
@@ -406,7 +404,9 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                         systemSymbolName: "arrow.up.arrow.down",
                         accessibilityDescription: "Priority")
                     container.submenu = submenu
-                    container.isEnabled = submenuEnabled
+                    // Every priority entry shares one enablement, so the first
+                    // is representative of the whole submenu.
+                    container.isEnabled = submenu.items.first?.isEnabled ?? false
                     menu.addItem(container)
                     continue
                 case .resume:

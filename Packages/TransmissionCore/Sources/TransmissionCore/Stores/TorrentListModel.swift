@@ -153,6 +153,9 @@ public final class TorrentListModel {
     // MARK: - Derivation
 
     private func rebuildVisibleTorrents() {
+        // Runs on every snapshot: sort keys (speeds, progress, ETA) move each
+        // poll, so unlike the facets this cannot be gated by a signature. The
+        // table's `TorrentTableRowStore` guard keeps it from repainting.
         // The persisted preference is the single sort source; read it once per
         // rebuild rather than caching a second copy that can drift.
         let prefs = tablePreferences
