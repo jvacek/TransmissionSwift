@@ -121,7 +121,7 @@ struct InspectorFilesTab: View {
     @ViewBuilder
     private func mappingMenu(for file: TorrentFile) -> some View {
         let profile = profileStore.activeProfile
-        let mappings = profile.map { mappingStore.mappings(for: $0.id) } ?? []
+        let mappings = profile.map { mappingStore.mappings(for: $0) } ?? []
         if mappings.isEmpty {
             Button("No file mappings configured") {}.disabled(true)
         } else {

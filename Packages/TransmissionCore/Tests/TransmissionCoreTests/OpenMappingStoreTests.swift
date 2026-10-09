@@ -25,7 +25,9 @@ struct OpenMappingCodableTests {
     func scopeRoundTrip() throws {
         let first = UUID()
         let second = UUID()
-        for scope in [MappingServerScope.all, .only([first, second])] {
+        for scope in [
+            MappingServerScope.all, .local, .remote, .only([first, second]),
+        ] {
             let mapping = OpenMapping(name: "x", template: "file:///", scope: scope)
             let decoded = try JSONDecoder().decode(
                 OpenMapping.self, from: JSONEncoder().encode(mapping))
@@ -92,20 +94,41 @@ struct OpenMappingStoreTests {
         try Data(json.utf8).write(to: url)
     }
 
-    @Test("mappings(for:) includes .all and matching .only, in order")
+    @Test("mappings(for:) matches all, local, remote and the selected set, in order")
     @MainActor
     func scopeFilter() throws {
         let urls = tempURLs()
         defer { try? FileManager.default.removeItem(at: urls.directory) }
-        let serverA = UUID()
-        let serverB = UUID()
+        let local = ServerProfile(label: "NAS", host: "192.168.1.2")
+        let remote = ServerProfile(label: "Seedbox", host: "seedbox.example.com")
         let store = OpenMappingStore(fileURL: urls.mappings)
         try store.add(OpenMapping(name: "everywhere", template: "a", scope: .all))
-        try store.add(OpenMapping(name: "a-only", template: "b", scope: .only([serverA])))
-        try store.add(OpenMapping(name: "nobody", template: "c", scope: .only([])))
+        try store.add(OpenMapping(name: "locally", template: "b", scope: .local))
+        try store.add(OpenMapping(name: "remotely", template: "c", scope: .remote))
+        try store.add(OpenMapping(name: "nas-only", template: "d", scope: .only([local.id])))
+        try store.add(OpenMapping(name: "nobody", template: "e", scope: .only([])))
 
-        #expect(store.mappings(for: serverA).map(\.name) == ["everywhere", "a-only"])
-        #expect(store.mappings(for: serverB).map(\.name) == ["everywhere"])
+        #expect(
+            store.mappings(for: local).map(\.name)
+                == ["everywhere", "locally", "nas-only"])
+        #expect(
+            store.mappings(for: remote).map(\.name)
+                == ["everywhere", "remotely"])
+    }
+
+    @Test("isLocal classifies loopback, private, link-local and .local hosts")
+    func hostClassification() {
+        for host in [
+            "localhost", "127.0.0.1", "::1", "10.0.0.5", "172.16.4.1", "172.31.255.1",
+            "192.168.1.2", "169.254.0.1", "nas.local", "fe80::1",
+        ] {
+            #expect(ServerProfile(label: "x", host: host).isLocal, "\(host) should be local")
+        }
+        for host in [
+            "seedbox.example.com", "8.8.8.8", "172.32.0.1", "192.169.1.1", "203.0.113.9",
+        ] {
+            #expect(!ServerProfile(label: "x", host: host).isLocal, "\(host) should be remote")
+        }
     }
 
     @Test("first run imports per-server mappings scoped to their server")
@@ -133,7 +156,7 @@ struct OpenMappingStoreTests {
         #expect(store.mappings[0].name == "Finder")
         #expect(store.mappings[0].action == .finder)
         #expect(store.mappings[0].scope == .only([profileID]))
-        #expect(store.mappings(for: profileID).count == 1)
+        #expect(store.mappings(for: ServerProfile(id: profileID, label: "NAS", host: "nas")).count == 1)
 
         // Written to disk, and given a fresh id.
         #expect(FileManager.default.fileExists(atPath: urls.mappings.path))

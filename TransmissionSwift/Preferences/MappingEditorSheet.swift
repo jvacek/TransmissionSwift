@@ -178,18 +178,26 @@ struct MappingEditorSheet: View {
         return true
     }
 
-    private enum ScopeChoice: Hashable { case all, selected }
+    private enum ScopeChoice: Hashable { case all, remote, local, selected }
 
     private var scopeChoice: Binding<ScopeChoice> {
         Binding(
             get: {
-                if case .only = model.scope { return .selected }
-                return .all
+                switch model.scope {
+                case .all: return .all
+                case .remote: return .remote
+                case .local: return .local
+                case .only: return .selected
+                }
             },
             set: { choice in
                 switch choice {
                 case .all:
                     model.scope = .all
+                case .remote:
+                    model.scope = .remote
+                case .local:
+                    model.scope = .local
                 case .selected:
                     if case .only = model.scope { return }
                     // Seed with every current server so unchecking one is one
@@ -215,15 +223,23 @@ struct MappingEditorSheet: View {
     @ViewBuilder
     private var scopeSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Applies to")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Picker("Applies to", selection: scopeChoice) {
-                Text("All Servers").tag(ScopeChoice.all)
-                Text("Selected Servers").tag(ScopeChoice.selected)
+            HStack {
+                Text("Applies to")
+                Spacer()
+                Picker("Applies to", selection: scopeChoice) {
+                    Text("All Servers").tag(ScopeChoice.all)
+                    Text("All Remote Servers").tag(ScopeChoice.remote)
+                    Text("All Local Servers").tag(ScopeChoice.local)
+                    Text("Selected Servers").tag(ScopeChoice.selected)
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
+
+            Text(scopeHelp)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             if case .only = model.scope {
                 if profileStore.profiles.isEmpty {
@@ -252,6 +268,23 @@ struct MappingEditorSheet: View {
                     }
                 }
             }
+        }
+    }
+
+    /// Explains what the chosen scope matches, so the local/remote split is
+    /// explicit: "remote" is defined as the complement of a local server.
+    private var scopeHelp: String {
+        switch model.scope {
+        case .all:
+            return "Matches every server, including servers you add later."
+        case .remote:
+            return
+                "Matches servers outside your local network, such as a seedbox or a public address. Includes servers you add later."
+        case .local:
+            return
+                "Matches localhost and your local network: private addresses (10.x, 172.16–31.x, 192.168.x), link-local addresses, and .local names. Includes servers you add later."
+        case .only:
+            return "Matches only the servers you tick below."
         }
     }
 

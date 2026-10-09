@@ -100,6 +100,10 @@ struct MappingsPrefsPane: View {
         switch scope {
         case .all:
             return "All Servers"
+        case .local:
+            return "All Local Servers"
+        case .remote:
+            return "All Remote Servers"
         case .only(let ids):
             let labels = profileStore.profiles.filter { ids.contains($0.id) }.map(\.label)
             switch labels.count {

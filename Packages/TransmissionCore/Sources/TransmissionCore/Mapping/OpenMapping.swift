@@ -13,27 +13,38 @@ public enum OpenMappingAction: String, Codable, Sendable, Equatable {
 public enum MappingServerScope: Sendable, Equatable {
     /// Every server, including servers added later.
     case all
+    /// Servers on this Mac or the local network, including ones added later.
+    case local
+    /// Servers that aren't local, including ones added later.
+    case remote
     /// Only the given server profile IDs. A stale ID (a deleted server) simply
     /// matches nothing.
     case only(Set<UUID>)
 
-    public func includes(_ serverID: UUID) -> Bool {
+    public func includes(_ server: ServerProfile) -> Bool {
         switch self {
         case .all: return true
-        case .only(let ids): return ids.contains(serverID)
+        case .local: return server.isLocal
+        case .remote: return !server.isLocal
+        case .only(let ids): return ids.contains(server.id)
         }
     }
 }
 
-/// Encoded as `"all"` or a sorted array of server UUID strings, so the JSON
-/// stays readable and stable. Anything unrecognized widens to `.all`.
+/// Encoded as `"all"`, `"local"`, `"remote"`, or a sorted array of server UUID
+/// strings, so the JSON stays readable and stable. Anything unrecognized widens
+/// to `.all`.
 extension MappingServerScope: Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         if let ids = try? container.decode([UUID].self) {
             self = .only(Set(ids))
-        } else {
-            self = .all
+            return
+        }
+        switch try? container.decode(String.self) {
+        case "local": self = .local
+        case "remote": self = .remote
+        default: self = .all
         }
     }
 
@@ -41,6 +52,8 @@ extension MappingServerScope: Codable {
         var container = encoder.singleValueContainer()
         switch self {
         case .all: try container.encode("all")
+        case .local: try container.encode("local")
+        case .remote: try container.encode("remote")
         case .only(let ids): try container.encode(ids.sorted { $0.uuidString < $1.uuidString })
         }
     }

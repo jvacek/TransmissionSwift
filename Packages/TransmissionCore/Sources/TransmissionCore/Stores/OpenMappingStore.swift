@@ -41,9 +41,9 @@ public final class OpenMappingStore {
         try? persist()
     }
 
-    /// The mappings that apply to `serverID`, in order.
-    public func mappings(for serverID: UUID) -> [OpenMapping] {
-        mappings.filter { $0.scope.includes(serverID) }
+    /// The mappings that apply to `server`, in order.
+    public func mappings(for server: ServerProfile) -> [OpenMapping] {
+        mappings.filter { $0.scope.includes(server) }
     }
 
     public func add(_ mapping: OpenMapping) throws {
