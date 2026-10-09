@@ -47,8 +47,14 @@ public final class TorrentActionModel {
 
     public func remove(_ ids: [Torrent.ID], deleteLocalData: Bool = false) async {
         guard let mutations else { return }
-        do { try await mutations.remove(ids, deleteLocalData: deleteLocalData) } catch { report(error) }
-        list.selectedTorrentIDs.subtract(ids)
+        do {
+            try await mutations.remove(ids, deleteLocalData: deleteLocalData)
+            // Only drop the selection once the daemon accepted the removal; a
+            // failed remove leaves the torrents in place, so keep them selected.
+            list.selectedTorrentIDs.subtract(ids)
+        } catch {
+            report(error)
+        }
     }
 
     /// Request a removal, honouring the "Confirm before removing" app pref.

@@ -15,6 +15,7 @@ public actor MockTorrentService: TorrentService {
     private var sessionSettingsValue = SessionSettings.sample
     private var tickTask: Task<Void, Never>?
     private var torrentsError: Error?
+    private var removeError: Error?
 
     public init(initial: [Torrent] = MockFixtures.torrents()) {
         self.state = initial
@@ -24,6 +25,12 @@ public actor MockTorrentService: TorrentService {
     /// exercise the "server unreachable" path with no network.
     public func setTorrentsError(_ error: Error?) {
         torrentsError = error
+    }
+
+    /// When set, `remove(_:deleteLocalData:)` throws, letting tests exercise the
+    /// "removal failed" path.
+    public func setRemoveError(_ error: Error?) {
+        removeError = error
     }
 
     /// Begin a 1-second loop that advances progress on downloading torrents.
@@ -111,6 +118,7 @@ public actor MockTorrentService: TorrentService {
     }
 
     public func remove(_ ids: [Torrent.ID], deleteLocalData: Bool) async throws {
+        if let removeError { throw removeError }
         let set = Set(ids)
         state.removeAll { set.contains($0.id) }
         broadcast()
