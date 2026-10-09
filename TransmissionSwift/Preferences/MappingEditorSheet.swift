@@ -354,20 +354,48 @@ struct MappingEditorSheet: View {
                 }
             }
 
-            HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Preview")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let url = previewURL {
+                    Text(previewDisplayString ?? url.absoluteString)
+                        .font(.caption)
+                        .monospaced()
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if trimmedTemplate.isEmpty {
+                    Text("Enter a template to see a preview.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(
+                        "This template can't form a valid URL. Check the placeholders and the scheme (e.g. \("{host}") is required for \("https://")."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                }
+            }
+
+            HStack {
+                Text("Action")
+                Spacer()
                 Picker("Action", selection: $model.action) {
                     Text("Reveal in Finder").tag(OpenMappingAction.finder)
                     Text("Open").tag(OpenMappingAction.open)
                 }
                 .pickerStyle(.menu)
+                .labelsHidden()
                 .help(
                     "Reveal selects the item in Finder; Open hands the URL to the system's protocol handler or a chosen app"
                 )
-                Spacer()
             }
 
             if model.action == .open {
-                HStack(spacing: 10) {
+                HStack {
+                    Text("Open with")
+                    Spacer()
                     Picker("Open with", selection: $model.applicationBundleID) {
                         Text("Let the system handle it").tag(String?.none)
                         if !handlerApps.isEmpty {
@@ -378,10 +406,10 @@ struct MappingEditorSheet: View {
                         }
                     }
                     .pickerStyle(.menu)
+                    .labelsHidden()
                     .help("Which app receives the URL; the system default for the scheme when unset")
                     Button("Choose App…") { chooseApp() }
                         .controlSize(.small)
-                    Spacer()
                 }
                 if model.action == .open && templateScheme == "file" {
                     HStack(alignment: .top, spacing: 10) {
@@ -417,30 +445,6 @@ struct MappingEditorSheet: View {
                 Label(warning, systemImage: "exclamationmark.triangle")
                     .font(.caption)
                     .foregroundStyle(.orange)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Preview")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if let url = previewURL {
-                    Text(previewDisplayString ?? url.absoluteString)
-                        .font(.caption)
-                        .monospaced()
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else if trimmedTemplate.isEmpty {
-                    Text("Enter a template to see a preview.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text(
-                        "This template can't form a valid URL. Check the placeholders and the scheme (e.g. \("{host}") is required for \("https://")."
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                }
             }
 
             HStack(spacing: 10) {
