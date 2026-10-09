@@ -116,6 +116,32 @@ nonisolated final class AppEnvironment: Sendable {
         try requireService(server ?? self.server(for: torrents))
     }
 
+    /// The mutation half of a resolved service, or a user-facing error when the
+    /// source is read-only (snapshot replay).
+    func requireMutations(_ service: any TorrentReading) throws -> any TorrentMutating {
+        guard let mutations = service.mutations else {
+            throw IntentError(message: "This server is read-only.")
+        }
+        return mutations
+    }
+
+    /// Resolves the server, its mutation service and the torrents an action
+    /// should target — the shared preamble of every mutating intent. Throws a
+    /// user-facing error when the server is read-only or nothing matches.
+    func mutableTargets(
+        server: ServerEntity?, torrents: [TorrentEntity]?
+    ) async throws -> (
+        profile: ServerProfile, mutations: any TorrentMutating, targets: [Torrent]
+    ) {
+        let (profile, service) = try requireService(server, torrents: torrents)
+        let mutations = try requireMutations(service)
+        let targets = try await TorrentCatalog.targets(torrents, profile: profile, service: service)
+        guard !targets.isEmpty else {
+            throw IntentError(message: "No matching torrents on \(profile.label).")
+        }
+        return (profile, mutations, targets)
+    }
+
     /// The profile the given torrents belong to, when they name one that still
     /// exists. The server UUID is baked into the entity, so this needs no picker.
     private func server(for torrents: [TorrentEntity]?) -> ServerEntity? {
