@@ -78,7 +78,7 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "--snapshot $(PROJECT_DIR)/TransmissionSwiftUITests/Fixtures/snapshot-10-torrents.json"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
    </LaunchAction>
