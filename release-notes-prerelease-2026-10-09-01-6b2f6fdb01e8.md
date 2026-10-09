@@ -232,3 +232,27 @@ This is basically the first stable release. These are some of the things that wo
     - View details only
   - Verify local data
   - Delete (with or without data)
+
+# Changes since prerelease-2026-10-08-01-6d8e2df81956
+
+6b2f6fd ci(release): require the Sentry dSYM upload before publishing
+58fa8f7 test(core): replace the fake sorting perf suite with comparator coverage
+bae23e6 Update CHANGELOG.md
+906789d fix(connection): route Reconnect through ConnectionCoordinator
+0ec7b6e Changelog, debug args
+bfffa6b chore(core,app): tidy small rough edges
+8caebad fix(intents): require a limit value when enabling a torrent speed limit
+349273d refactor(core): route the send-to-shortcut pref through PreferenceKeys
+9171b16 refactor(core): drop the unused TorrentStore session pass-throughs
+16b0de9 test(app): guard TorrentRowDisplay against render-field drift
+9aeb7a6 refactor(intents): share the mutating-intent preamble
+f1f9a22 fix(actions): keep the selection when a removal fails
+8f5a70c fix(intents): refuse an unknown server instead of retargeting another
+ebb3ec0 feat(intents): send torrents to a Shortcut by URI
+3888914 feat(intents): expand the Shortcuts/App Intents surface
+24a69d7 fix(filters): make 'Active' mean a live transfer, matching web/GTK
+b12b033 Update AGENTS.md
+8b788a0 refactor(core): group TransmissionCore sources into folders
+851c831 update sizes in copy
+3638591 docs: remove completed ui-buildout plan
+898e81b docs: sync ARCHITECTURE.md with the store, service and testing changes
