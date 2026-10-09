@@ -219,11 +219,11 @@ public actor RPCTorrentService: TorrentService {
             throw TransmissionError.serverError(
                 "This daemon (rpc-version \(session.rpcVersion)) does not support labels")
         }
-        logger.info("setLabels: ids=\(ids, privacy: .public) labels=\(labels, privacy: .public)")
+        logger.debug("setLabels: ids=\(ids, privacy: .public) labels=\(labels, privacy: .public)")
         var args = TorrentSetArguments(ids: ids)
         args.labels = labels
         try await client.torrentSet(args)
-        logger.info("setLabels succeeded for ids=\(ids, privacy: .public)")
+        logger.debug("setLabels succeeded for ids=\(ids, privacy: .public)")
         await refreshAfterMutation()
     }
 

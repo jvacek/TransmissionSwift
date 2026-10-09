@@ -159,8 +159,8 @@ public final class TorrentStore {
             do {
                 for try await snapshot in stream {
                     self.list.setTorrents(snapshot)
-                    if case .connected = self.connection {
-                    } else {
+                    // Only write once: a poll tick must not churn observers.
+                    if self.connection != .connected {
                         self.connection = .connected
                     }
                 }
