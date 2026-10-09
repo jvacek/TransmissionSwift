@@ -16,6 +16,9 @@ on:
     secrets:
       SPARKLE_PRIVATE_KEY:
         required: true
+      # Required: a release without dSYMs ships unsymbolicated crash reports.
+      SENTRY_AUTH_TOKEN:
+        required: true
 
 # Serialise with the Pages workflow, which also deploys the Pages site.
 concurrency:
@@ -179,11 +182,12 @@ jobs:
             build | xcbeautify --renderer github-actions
 
       - name: Upload dSYMs to Sentry
-        # Best-effort: add the SENTRY_AUTH_TOKEN secret to enable it; without it
-        # the crash backend stays empty and the release proceeds. Upload before
-        # signing so the dSYM is the one the compiler produced; symbolication
-        # matches by build version. The DSN itself is baked into the app's
-        # Release build settings, so no DSN is needed here.
+        # Mandatory: a release whose dSYMs never reach Sentry ships
+        # unsymbolicated crash reports, so a missing token fails the run here,
+        # before the GitHub release is created below. Upload before signing so
+        # the dSYM is the one the compiler produced; symbolication matches by
+        # build version. The DSN itself is baked into the app's Release build
+        # settings, so no DSN is needed here.
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: flamerelay
@@ -193,8 +197,8 @@ jobs:
           set -euo pipefail
 
           if [ -z "${SENTRY_AUTH_TOKEN:-}" ]; then
-            echo "SENTRY_AUTH_TOKEN not set; skipping dSYM upload."
-            exit 0
+            echo "::error::SENTRY_AUTH_TOKEN is not set; refusing to publish a release without dSYMs."
+            exit 1
           fi
 
           brew install getsentry/tools/sentry-cli
