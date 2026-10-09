@@ -84,6 +84,7 @@ struct PreferencesView: View {
         case .updates: UpdatesPrefsPane()
         case .developer: DeveloperPrefsPane()
         case .tags: TagsPrefsPane()
+        case .mappings: MappingsPrefsPane()
         }
     }
 
@@ -100,10 +101,12 @@ struct PreferencesView: View {
 /// so "Server Settings…" can deep-link to a specific pane without depending on
 /// the sidebar order.
 enum PrefsTab: String, Hashable, CaseIterable, Identifiable {
-    case general, servers, speed, transfers, network, updates, developer, tags
+    case general, servers, speed, transfers, network, updates, developer, tags, mappings
 
     /// App-local prefs, with the server list last.
-    static var applicationTabs: [PrefsTab] { [.general, .tags, .updates, .developer, .servers] }
+    static var applicationTabs: [PrefsTab] {
+        [.general, .tags, .updates, .developer, .mappings, .servers]
+    }
     /// Daemon-side settings for the active server.
     static var serverTabs: [PrefsTab] { [.speed, .transfers, .network] }
 
@@ -119,6 +122,7 @@ enum PrefsTab: String, Hashable, CaseIterable, Identifiable {
         case .updates: return "Updates"
         case .developer: return "Developer"
         case .tags: return "Tags"
+        case .mappings: return "Mappings"
         }
     }
 
@@ -132,6 +136,7 @@ enum PrefsTab: String, Hashable, CaseIterable, Identifiable {
         case .updates: return "arrow.down.circle"
         case .developer: return "wrench.and.screwdriver"
         case .tags: return "tag"
+        case .mappings: return "arrow.up.forward.square"
         }
     }
 }
@@ -139,6 +144,7 @@ enum PrefsTab: String, Hashable, CaseIterable, Identifiable {
 #Preview("Preferences — Connected") {
     PreferencesView()
         .environment(prefsPreviewProfileStore)
+        .environment(prefsPreviewMappingStore)
         .environment(prefsPreviewStore)
         .environment(FaviconStore())
         .environment(TagColorStore())

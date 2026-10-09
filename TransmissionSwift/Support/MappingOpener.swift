@@ -20,7 +20,7 @@ enum MappingOpener {
         file: TorrentFile?,
         profile: ServerProfile,
         store: TorrentStore,
-        profileStore: ServerProfileStore
+        mappingStore: OpenMappingStore
     ) async {
         // The password lives in the Keychain, not on the profile. Reading it is
         // a user-initiated action, so a transient keychain prompt is acceptable.
@@ -62,9 +62,11 @@ enum MappingOpener {
         }
 
         // A stored bookmark grants access to the mapped folder (persisted from
-        // an earlier Allow prompt). Activate its scope for the duration of the
-        // open so LaunchServices accepts the URL.
-        if let scopeURL = resolveBookmark(mapping.accessBookmark) {
+        // an earlier Allow prompt). A mapping may span servers whose files live
+        // in different folders, so trust only the bookmark whose folder contains
+        // the target; activate its scope for the duration of the open. Otherwise
+        // fall through and prompt.
+        if let scopeURL = grantedScopeURL(for: url, bookmarks: mapping.accessBookmarks) {
             let accessing = scopeURL.startAccessingSecurityScopedResource()
             defer { if accessing { scopeURL.stopAccessingSecurityScopedResource() } }
             dispatch(url, mapping: mapping, store: store)
@@ -75,7 +77,7 @@ enum MappingOpener {
         case .finder:
             revealInFinder(url, store: store)
         case .open:
-            promptForAccess(to: url, mapping: mapping, profile: profile, store: store, profileStore: profileStore)
+            promptForAccess(to: url, mapping: mapping, store: store, mappingStore: mappingStore)
         }
     }
 
@@ -107,20 +109,30 @@ enum MappingOpener {
         MappingLauncher.revealInFinder(url)
     }
 
-    /// Resolves a stored security-scoped bookmark back to a folder URL, or nil.
-    private static func resolveBookmark(_ data: Data?) -> URL? {
-        MappingLauncher.resolveBookmark(data)
+    /// The stored bookmark whose folder contains `url`, if any. Activating a
+    /// bookmark only grants its own subtree, so a mapping that spans servers
+    /// must check the target against each grant before trusting one.
+    private static func grantedScopeURL(for url: URL, bookmarks: [Data]) -> URL? {
+        let target = url.standardizedFileURL.path
+        for data in bookmarks {
+            guard let scopeURL = MappingLauncher.resolveBookmark(data) else { continue }
+            let folder = scopeURL.standardizedFileURL.path
+            let prefix = folder.hasSuffix("/") ? folder : folder + "/"
+            if target == folder || target.hasPrefix(prefix) {
+                return scopeURL
+            }
+        }
+        return nil
     }
 
-    /// No bookmark yet, so the user must grant access to the folder once.
-    /// Persist the grant as a security-scoped bookmark on the mapping, then
-    /// retry the open with the scope active.
+    /// No bookmark covers `url` yet, so the user must grant access to the folder
+    /// once. Append the grant to the mapping's bookmarks, then retry the open
+    /// with the scope active.
     private static func promptForAccess(
         to url: URL,
         mapping: OpenMapping,
-        profile: ServerProfile,
         store: TorrentStore,
-        profileStore: ServerProfileStore
+        mappingStore: OpenMappingStore
     ) {
         let folder = url.deletingLastPathComponent()
         let panel = NSOpenPanel()
@@ -136,11 +148,14 @@ enum MappingOpener {
             guard response == .OK, let granted = panel.url else { return }
             do {
                 var updated = mapping
-                updated.accessBookmark = try granted.bookmarkData(
+                let bookmark = try granted.bookmarkData(
                     options: .withSecurityScope,
                     includingResourceValuesForKeys: nil,
                     relativeTo: nil)
-                try profileStore.replaceMapping(updated, inProfile: profile.id)
+                if !updated.accessBookmarks.contains(bookmark) {
+                    updated.accessBookmarks.append(bookmark)
+                }
+                try mappingStore.replace(updated)
                 let accessing = granted.startAccessingSecurityScopedResource()
                 defer { if accessing { granted.stopAccessingSecurityScopedResource() } }
                 dispatch(url, mapping: mapping, store: store)

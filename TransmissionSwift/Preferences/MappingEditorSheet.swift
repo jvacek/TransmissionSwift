@@ -19,6 +19,9 @@ struct MappingEditorSheet: View {
     let resolveSamplePassword: () -> String
     let onSave: (OpenMapping) -> Void
 
+    /// The servers the "Selected Servers" checklist offers.
+    @Environment(ServerProfileStore.self) private var profileStore
+
     @FocusState private var templateFocused: Bool
     /// Whether the placeholder reference popover is visible.
     @State private var showPlaceholderHelp = false
@@ -165,7 +168,91 @@ struct MappingEditorSheet: View {
     }
 
     private var canSave: Bool {
-        !trimmedName.isEmpty && !trimmedTemplate.isEmpty && previewURL != nil
+        !trimmedName.isEmpty && !trimmedTemplate.isEmpty && previewURL != nil && scopeIsValid
+    }
+
+    /// A "Selected Servers" mapping must target at least one server; "All
+    /// Servers" is always valid.
+    private var scopeIsValid: Bool {
+        if case .only(let ids) = model.scope { return !ids.isEmpty }
+        return true
+    }
+
+    private enum ScopeChoice: Hashable { case all, selected }
+
+    private var scopeChoice: Binding<ScopeChoice> {
+        Binding(
+            get: {
+                if case .only = model.scope { return .selected }
+                return .all
+            },
+            set: { choice in
+                switch choice {
+                case .all:
+                    model.scope = .all
+                case .selected:
+                    if case .only = model.scope { return }
+                    // Seed with every current server so unchecking one is one
+                    // click; servers added later won't be included.
+                    model.scope = .only(Set(profileStore.profiles.map(\.id)))
+                }
+            })
+    }
+
+    private func serverToggle(_ id: UUID) -> Binding<Bool> {
+        Binding(
+            get: {
+                if case .only(let ids) = model.scope { return ids.contains(id) }
+                return true
+            },
+            set: { on in
+                guard case .only(var ids) = model.scope else { return }
+                if on { ids.insert(id) } else { ids.remove(id) }
+                model.scope = .only(ids)
+            })
+    }
+
+    @ViewBuilder
+    private var scopeSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Applies to")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Picker("Applies to", selection: scopeChoice) {
+                Text("All Servers").tag(ScopeChoice.all)
+                Text("Selected Servers").tag(ScopeChoice.selected)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            if case .only = model.scope {
+                if profileStore.profiles.isEmpty {
+                    Text("No servers configured yet.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(profileStore.profiles) { profile in
+                            Toggle(isOn: serverToggle(profile.id)) {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(profile.label)
+                                    Text("\(profile.host):\(profile.port)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .monospaced()
+                                }
+                            }
+                            .toggleStyle(.checkbox)
+                        }
+                    }
+                    if !scopeIsValid {
+                        Text("Select at least one server.")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+        }
     }
 
     var body: some View {
@@ -264,26 +351,34 @@ struct MappingEditorSheet: View {
                     Spacer()
                 }
                 if model.action == .open && templateScheme == "file" {
-                    HStack(spacing: 10) {
+                    HStack(alignment: .top, spacing: 10) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("File access")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            Text(
-                                model.accessGrantedPath.map { "Access granted to \($0)" }
-                                    ?? "macOS needs permission to hand local files to another app."
-                            )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            let paths = model.accessGrantedPaths
+                            if paths.isEmpty {
+                                Text("macOS needs permission to hand local files to another app.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                ForEach(paths, id: \.self) { path in
+                                    Text("Access granted to \(path)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
                         }
                         Spacer()
-                        Button(model.accessBookmark == nil ? "Pre-approve directory…" : "Change directory…") {
+                        Button(model.accessBookmarks.isEmpty ? "Pre-approve directory…" : "Add directory…") {
                             chooseAccessFolder()
                         }
                         .controlSize(.small)
                     }
                 }
             }
+
+            scopeSection
 
             if let warning = safariBasicAuthWarning {
                 Label(warning, systemImage: "exclamationmark.triangle")
@@ -415,10 +510,13 @@ struct MappingEditorSheet: View {
         panel.begin { response in
             if response == .OK, let url = panel.url {
                 do {
-                    model.accessBookmark = try url.bookmarkData(
+                    let bookmark = try url.bookmarkData(
                         options: .withSecurityScope,
                         includingResourceValuesForKeys: nil,
                         relativeTo: nil)
+                    if !model.accessBookmarks.contains(bookmark) {
+                        model.accessBookmarks.append(bookmark)
+                    }
                 } catch {
                     model.testMessage = "Could not save access permission: \(error.localizedDescription)"
                     model.testFailed = true
@@ -432,7 +530,7 @@ struct MappingEditorSheet: View {
     /// up-front (default download dir) instead of surprising the user at first
     /// use. `.finder` needs no bookmark, so it never prompts.
     private var shouldPromptForAccess: Bool {
-        model.action == .open && templateScheme == "file" && model.accessBookmark == nil
+        model.action == .open && templateScheme == "file" && model.accessBookmarks.isEmpty
     }
 
     private var accessPromptMessage: String {
@@ -490,7 +588,8 @@ struct MappingEditorSheet: View {
                 template: trimmedTemplate,
                 action: model.action,
                 applicationBundleID: model.applicationBundleID,
-                accessBookmark: model.accessBookmark))
+                scope: model.scope,
+                accessBookmarks: model.accessBookmarks))
         onCancel()
     }
 }

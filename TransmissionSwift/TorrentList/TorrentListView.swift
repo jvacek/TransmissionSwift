@@ -5,6 +5,7 @@ struct TorrentListView: View {
     @Environment(TorrentStore.self) private var store
     @Environment(TagColorStore.self) private var tagColors
     @Environment(ServerProfileStore.self) private var profileStore
+    @Environment(OpenMappingStore.self) private var mappingStore
 
     var body: some View {
         let prefs = store.list.tablePreferences
@@ -46,7 +47,7 @@ struct TorrentListView: View {
             onInspectorRequest: {
                 store.inspector.isVisible = true
             },
-            mappings: profileStore.activeProfile?.mappings ?? [],
+            mappings: profileStore.activeProfile.map { mappingStore.mappings(for: $0.id) } ?? [],
             onOpenMapping: { mapping, ids in
                 openMapping(mapping, ids: ids)
             }
@@ -69,7 +70,7 @@ struct TorrentListView: View {
         Task {
             await MappingOpener.open(
                 mapping, torrent: torrent, file: nil, profile: profile, store: store,
-                profileStore: profileStore)
+                mappingStore: mappingStore)
         }
     }
 }

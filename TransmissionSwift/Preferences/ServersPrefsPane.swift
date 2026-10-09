@@ -234,7 +234,6 @@ struct ServerProfileForm: View {
     }
 
     @Environment(ServerProfileStore.self) private var profileStore
-    @Environment(TorrentStore.self) private var torrentStore
 
     let mode: Mode
     var onCancel: (() -> Void)?
@@ -247,7 +246,6 @@ struct ServerProfileForm: View {
     @State private var password: String = ""
     @State private var hasStoredPassword: Bool = false
     @State private var useHTTPS: Bool = false
-    @State private var mappings: [OpenMapping] = []
     @State private var isTesting = false
     @State private var testResultMessage: String?
     @State private var testResultIsFailure = false
@@ -289,16 +287,6 @@ struct ServerProfileForm: View {
                     )
                     .monospaced()
                 }
-            }
-
-            Section("File Mappings") {
-                OpenMappingEditor(
-                    mappings: $mappings,
-                    sampleServer: sampleServer,
-                    sampleTorrent: sampleTorrent,
-                    samplePassword: password,
-                    resolveSamplePassword: { effectiveSamplePassword() },
-                    sampleDownloadDir: torrentStore.list.downloadDirectory)
             }
         }
         .formStyle(.grouped)
@@ -398,34 +386,6 @@ struct ServerProfileForm: View {
         return false
     }
 
-    /// Server-shaped context from the current form fields, used to preview
-    /// mappings against a sample torrent.
-    private var sampleServer: ServerProfile {
-        ServerProfile(
-            label: "",
-            host: host,
-            port: port,
-            username: username.isEmpty ? nil : username)
-    }
-
-    /// The torrent the mapping preview/Test acts on: the one currently in the
-    /// inspector, else the first in the full list. Nil when there are none.
-    private var sampleTorrent: Torrent? {
-        torrentStore.inspector.detail ?? torrentStore.list.torrents.first
-    }
-
-    /// Password the mapping Test uses: the typed field if filled, else the
-    /// stored Keychain secret (the form field intentionally stays blank for
-    /// existing profiles). Resolved on demand so the Keychain isn't read
-    /// during rendering.
-    private func effectiveSamplePassword() -> String {
-        if !password.isEmpty { return password }
-        if case .edit(let profile) = mode {
-            return (try? keychain.password(for: profile.id)) ?? ""
-        }
-        return ""
-    }
-
     private func loadFromMode() {
         guard case .edit(let profile) = mode else { return }
         label = profile.label
@@ -434,7 +394,6 @@ struct ServerProfileForm: View {
         rpcPath = profile.rpcPath
         username = profile.username ?? ""
         useHTTPS = profile.useHTTPS
-        mappings = profile.mappings
         hasStoredPassword = keychain.hasPassword(for: profile.id)
         // password field starts empty — keychain secret is never read on load
     }
@@ -448,8 +407,7 @@ struct ServerProfileForm: View {
                 port: port,
                 rpcPath: rpcPath,
                 username: username.isEmpty ? nil : username,
-                useHTTPS: useHTTPS,
-                mappings: mappings
+                useHTTPS: useHTTPS
             )
             do {
                 if !password.isEmpty { try keychain.setPassword(password, for: profile.id) }
@@ -466,7 +424,6 @@ struct ServerProfileForm: View {
             profile.rpcPath = rpcPath
             profile.username = username.isEmpty ? nil : username
             profile.useHTTPS = useHTTPS
-            profile.mappings = mappings
             do {
                 if !password.isEmpty { try keychain.setPassword(password, for: profile.id) }
                 try profileStore.update(profile)

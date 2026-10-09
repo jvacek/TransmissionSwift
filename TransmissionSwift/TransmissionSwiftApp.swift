@@ -16,6 +16,7 @@ private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category:
 @main
 struct TransmissionSwiftApp: App {
     @State private var profileStore: ServerProfileStore
+    @State private var mappingStore: OpenMappingStore
     @State private var torrentStore: TorrentStore
     @State private var faviconStore = FaviconStore()
     @State private var tagColorStore: TagColorStore
@@ -76,6 +77,29 @@ struct TransmissionSwiftApp: App {
                 ?? FileManager.default.temporaryDirectory.appendingPathComponent("servers.json")
         }
         let profileStore = ServerProfileStore(fileURL: profileURL)
+
+        // --- mapping store
+        // App-wide "Open with…" mappings. First-run migration imports the
+        // per-server mappings from servers.json, scoped to their server, so
+        // behaviour is unchanged. Ephemeral/snapshot runs use a throwaway file
+        // and never migrate.
+        let mappingURL: URL
+        if ephemeral {
+            mappingURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("ephemeral-profiles-\(UUID().uuidString)", isDirectory: true)
+                .appendingPathComponent("mappings.json")
+        } else {
+            mappingURL =
+                (try? OpenMappingStore.defaultFileURL())
+                ?? FileManager.default.temporaryDirectory.appendingPathComponent("mappings.json")
+        }
+        let mappingStore: OpenMappingStore
+        if !ephemeral, let serversURL = try? ServerProfileStore.defaultFileURL() {
+            mappingStore = OpenMappingStore(fileURL: mappingURL, migratingFrom: serversURL)
+        } else {
+            mappingStore = OpenMappingStore(fileURL: mappingURL)
+        }
+        self._mappingStore = State(wrappedValue: mappingStore)
 
         // --- torrent store
         // Snapshot mode decodes the captured file through SnapshotTorrentService
@@ -150,6 +174,7 @@ struct TransmissionSwiftApp: App {
                 disableOnboarding: disableOnboarding
             )
             .environment(profileStore)
+            .environment(mappingStore)
             .environment(torrentStore)
             .environment(faviconStore)
             .environment(tagColorStore)
@@ -188,6 +213,7 @@ struct TransmissionSwiftApp: App {
         Window("", id: "preferences") {
             PreferencesView()
                 .environment(profileStore)
+                .environment(mappingStore)
                 .environment(faviconStore)
                 .environment(torrentStore)
                 .environment(tagColorStore)

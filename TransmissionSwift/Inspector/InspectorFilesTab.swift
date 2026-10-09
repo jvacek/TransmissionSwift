@@ -9,6 +9,7 @@ import TransmissionTestSupport
 struct InspectorFilesTab: View {
     @Environment(TorrentStore.self) private var store
     @Environment(ServerProfileStore.self) private var profileStore
+    @Environment(OpenMappingStore.self) private var mappingStore
     let torrent: Torrent
 
     @State private var selectedFiles: Set<TorrentFile.ID> = []
@@ -119,17 +120,18 @@ struct InspectorFilesTab: View {
 
     @ViewBuilder
     private func mappingMenu(for file: TorrentFile) -> some View {
-        let mappings = profileStore.activeProfile?.mappings ?? []
+        let profile = profileStore.activeProfile
+        let mappings = profile.map { mappingStore.mappings(for: $0.id) } ?? []
         if mappings.isEmpty {
             Button("No file mappings configured") {}.disabled(true)
         } else {
             ForEach(mappings) { mapping in
                 Button {
-                    guard let profile = profileStore.activeProfile else { return }
+                    guard let profile else { return }
                     Task {
                         await MappingOpener.open(
                             mapping, torrent: torrent, file: file, profile: profile, store: store,
-                            profileStore: profileStore)
+                            mappingStore: mappingStore)
                     }
                 } label: {
                     Label(
@@ -384,6 +386,9 @@ private enum FilePriorityChoice: CaseIterable, Hashable {
         .environment(
             ServerProfileStore(
                 fileURL: URL.temporaryDirectory.appending(path: "preview-servers.json"))
+        )
+        .environment(
+            OpenMappingStore(fileURL: URL.temporaryDirectory.appending(path: "preview-mappings.json"))
         )
         .frame(width: 322, height: 400)
 }

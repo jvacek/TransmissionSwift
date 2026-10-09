@@ -412,6 +412,9 @@ private struct InspectorResizeHandle: View {
     MainWindow()
         .environment(store)
         .environment(emptyProfiles)
+        .environment(
+            OpenMappingStore(fileURL: URL.temporaryDirectory.appending(path: "preview-mappings.json"))
+        )
         .environment(FaviconStore())
         .environment(TagColorStore())
         .environment(ConnectionCoordinator(store: store))

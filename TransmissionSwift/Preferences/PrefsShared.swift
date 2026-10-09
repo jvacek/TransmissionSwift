@@ -162,3 +162,10 @@ let prefsPreviewProfileStore: ServerProfileStore = {
     try? store.setActive(store.profiles.first!.id)
     return store
 }()
+
+let prefsPreviewMappingStore: OpenMappingStore = {
+    let store = OpenMappingStore(
+        fileURL: FileManager.default.temporaryDirectory
+            .appendingPathComponent("mappings-preview-\(UUID().uuidString).json"))
+    return store
+}()

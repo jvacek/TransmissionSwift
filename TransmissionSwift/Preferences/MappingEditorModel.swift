@@ -14,9 +14,11 @@ final class MappingEditorModel: Identifiable {
     var template: String
     var action: OpenMappingAction
     var applicationBundleID: String?
-    /// Persisted so editing a mapping doesn't drop a granted file-access
-    /// bookmark; also the test/preview never touches it.
-    var accessBookmark: Data?
+    /// Which servers this mapping applies to.
+    var scope: MappingServerScope
+    /// Persisted so editing a mapping doesn't drop its file-access grants; also
+    /// the test/preview never touches them.
+    var accessBookmarks: [Data]
     var testMessage: String?
     var testFailed = false
 
@@ -26,7 +28,8 @@ final class MappingEditorModel: Identifiable {
         template = existing?.template ?? ""
         action = existing?.action ?? .open
         applicationBundleID = existing?.applicationBundleID
-        accessBookmark = existing?.accessBookmark
+        scope = existing?.scope ?? .all
+        accessBookmarks = existing?.accessBookmarks ?? []
     }
 
     func resetTestState() {
@@ -34,9 +37,9 @@ final class MappingEditorModel: Identifiable {
         testFailed = false
     }
 
-    /// The folder a stored access bookmark points at, for display. Resolving
+    /// The folders stored access bookmarks point at, for display. Resolving
     /// decodes the bookmark data and needs no active scope.
-    var accessGrantedPath: String? {
-        MappingLauncher.resolveBookmark(accessBookmark)?.path
+    var accessGrantedPaths: [String] {
+        accessBookmarks.compactMap { MappingLauncher.resolveBookmark($0)?.path }
     }
 }

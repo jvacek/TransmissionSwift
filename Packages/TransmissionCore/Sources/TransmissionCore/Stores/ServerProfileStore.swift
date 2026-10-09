@@ -75,20 +75,7 @@ public final class ServerProfileStore {
         try persist()
     }
 
-    /// Replaces a single mapping on a profile (used when a mapping gains a
-    /// security-scoped bookmark) and persists. No-op when the profile or the
-    /// mapping can't be found.
-    public func replaceMapping(_ mapping: OpenMapping, inProfile profileID: UUID) throws {
-        guard
-            let profileIndex = profiles.firstIndex(where: { $0.id == profileID }),
-            let mappingIndex = profiles[profileIndex].mappings.firstIndex(where: { $0.id == mapping.id })
-        else { return }
-        profiles[profileIndex].mappings[mappingIndex] = mapping
-        try persist()
-    }
-
-    /// Creates a copy of the profile with a fresh ID (and fresh mapping IDs so
-    /// the two profiles' mappings stay independent), appends it, and persists.
+    /// Creates a copy of the profile with a fresh ID, appends it, and persists.
     /// Returns the new profile, or nil when no profile has that id.
     @discardableResult
     public func duplicate(id: UUID) throws -> ServerProfile? {
@@ -100,16 +87,7 @@ public final class ServerProfileStore {
             port: original.port,
             rpcPath: original.rpcPath,
             username: original.username,
-            useHTTPS: original.useHTTPS,
-            mappings: original.mappings.map { mapping in
-                OpenMapping(
-                    id: UUID(),
-                    name: mapping.name,
-                    template: mapping.template,
-                    action: mapping.action,
-                    applicationBundleID: mapping.applicationBundleID,
-                    accessBookmark: mapping.accessBookmark)
-            })
+            useHTTPS: original.useHTTPS)
         profiles.append(copy)
         try persist()
         return copy
