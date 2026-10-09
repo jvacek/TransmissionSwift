@@ -50,10 +50,10 @@ struct PreferencesView: View {
                 // and AppKit toolbar packing won't pin an item to the
                 // detail's leading edge either. Regular content sidesteps both.
                 .safeAreaInset(edge: .top, spacing: 0) {
-                    Text(selection.title)
-                        .font(.system(size: 22, weight: .semibold))
+                    headerText
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.leading, 20)
+                        .padding(.trailing, 20)
                         .padding(.vertical, 10)
                         .background(.bar)
                 }
@@ -88,6 +88,20 @@ struct PreferencesView: View {
         }
     }
 
+    /// The pane title, plus an optional help line, as a single `Text`.
+    /// Deliberately not a `VStack`: stacking views inside this
+    /// `safeAreaInset` under the `NavigationSplitView` detail lays the pane
+    /// content out above the window, which shows as a blank window.
+    private var headerText: Text {
+        var title = AttributedString(selection.title)
+        title.font = .system(size: 22, weight: .semibold)
+        guard let help = selection.help else { return Text(title) }
+        var helpLine = AttributedString("\n" + help)
+        helpLine.font = .caption
+        helpLine.foregroundColor = .secondary
+        return Text(title + helpLine)
+    }
+
     /// "Server (Home NAS)" — the server panes act on the active profile.
     private var serverSectionTitle: String {
         if let label = profileStore.activeProfile?.label, !label.isEmpty {
@@ -111,6 +125,17 @@ enum PrefsTab: String, Hashable, CaseIterable, Identifiable {
     static var serverTabs: [PrefsTab] { [.speed, .transfers, .network] }
 
     var id: String { rawValue }
+
+    /// Optional explanation shown under the pane title in the header bar.
+    var help: String? {
+        switch self {
+        case .mappings:
+            return
+                "A mapping describes how a server's download folders are reachable from this Mac, so a torrent's context menu can open them in an external app. Mappings are app-wide; each one lists the servers it applies to."
+        default:
+            return nil
+        }
+    }
 
     var title: String {
         switch self {

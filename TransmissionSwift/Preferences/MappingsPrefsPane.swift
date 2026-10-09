@@ -17,12 +17,6 @@ struct MappingsPrefsPane: View {
     var body: some View {
         Form {
             Section {
-                Text(
-                    "A mapping describes how a server's download folders are reachable from this Mac, so a torrent's context menu can open them in an external app. Mappings are app-wide; each one lists the servers it applies to."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
                 if mappingStore.mappings.isEmpty {
                     Text("No mappings yet.")
                         .foregroundStyle(.secondary)
