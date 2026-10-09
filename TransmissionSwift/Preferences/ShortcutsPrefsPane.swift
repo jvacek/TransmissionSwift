@@ -1,12 +1,10 @@
 import SwiftUI
-
-/// The `@AppStorage` key this pane writes and the torrent list reads.
-let sendToShortcutNameKey = "sendToShortcutName"
+import TransmissionCore
 
 /// Names the Shortcut that "Send to Shortcut" runs. A sandboxed app can't
 /// enumerate the user's shortcuts, so the exact name is typed here.
 struct ShortcutsPrefsPane: View {
-    @AppStorage(sendToShortcutNameKey) private var shortcutName = ""
+    @AppStorage(PreferenceKeys.sendToShortcutName) private var shortcutName = ""
 
     var body: some View {
         Form {

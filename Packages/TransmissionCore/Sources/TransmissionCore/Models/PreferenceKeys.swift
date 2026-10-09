@@ -40,6 +40,9 @@ public enum PreferenceKeys {
     // Components
     public static let serverPathHelpExpanded = "serverPathHelpExpanded"
 
+    // Shortcuts
+    public static let sendToShortcutName = "sendToShortcutName"
+
     // Table / tags
     public static let tablePreferencesSort = "tablePreferencesSort"
     public static let tagColors = "tagColors"

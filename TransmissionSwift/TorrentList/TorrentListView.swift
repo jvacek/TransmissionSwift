@@ -5,7 +5,7 @@ struct TorrentListView: View {
     @Environment(TorrentStore.self) private var store
     @Environment(TagColorStore.self) private var tagColors
     @Environment(ServerProfileStore.self) private var profileStore
-    @AppStorage(sendToShortcutNameKey) private var sendToShortcutName = ""
+    @AppStorage(PreferenceKeys.sendToShortcutName) private var sendToShortcutName = ""
 
     var body: some View {
         let prefs = store.list.tablePreferences
