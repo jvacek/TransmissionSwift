@@ -190,7 +190,7 @@ public struct SessionSettings: Sendable, Equatable {
 
 /// A partial write for `session-set`: only the non-nil fields get sent, so an
 /// unrelated toggle never clobbers another setting. Built by diffing the before
-/// and after `SessionSettings` in `TorrentStore.updateSessionSettings`.
+/// and after `SessionSettings` in `SessionModel.updateSessionSettings`.
 public struct SessionSettingsPatch: Sendable, Equatable {
     public var downLimited: Bool?
     public var downLimitKBps: Int?
