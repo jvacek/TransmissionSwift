@@ -301,7 +301,6 @@ struct MainWindow: View {
                 .fill(.background)
             VStack(spacing: 16) {
                 ProgressView()
-                    .scaleEffect(1.2)
                 Text(message)
                     .font(.headline)
                 Button("Cancel") {
