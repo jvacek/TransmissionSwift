@@ -15,10 +15,14 @@ public struct FaviconServiceConfiguration: Sendable {
     public static let defaultRequestTimeout: TimeInterval = 8
     public static let defaultMaxRedirects = 5
     public static let defaultRevalidationInterval: TimeInterval = 7 * 86_400
+    /// How long a host that produced no icon is remembered as a miss. Shorter
+    /// than `revalidationInterval` because a domain can start serving one at any time.
+    public static let defaultNegativeCacheInterval: TimeInterval = 24 * 3600
 
     public var requestTimeout: TimeInterval = Self.defaultRequestTimeout
     public var maxRedirects: Int = Self.defaultMaxRedirects
     public var revalidationInterval: TimeInterval = Self.defaultRevalidationInterval
+    public var negativeCacheInterval: TimeInterval = Self.defaultNegativeCacheInterval
 
     public init() {}
 
@@ -34,6 +38,7 @@ public actor FaviconService {
     private let cacheDirectory: URL
     private let session: URLSession
     private let revalidationInterval: TimeInterval
+    private let negativeCacheInterval: TimeInterval
     private let requestTimeout: TimeInterval
     private let maxRedirects: Int
     private let maxAttempts = 8
@@ -45,6 +50,7 @@ public actor FaviconService {
     ) {
         self.cacheDirectory = cacheDirectory
         self.revalidationInterval = configuration.revalidationInterval
+        self.negativeCacheInterval = configuration.negativeCacheInterval
         self.requestTimeout = configuration.requestTimeout
         self.maxRedirects = configuration.maxRedirects
 
@@ -62,39 +68,76 @@ public actor FaviconService {
     }
 
     /// Returns cached-or-fetched favicon data for `host`, or `nil` when no
-    /// usable icon could be resolved. `forceRevalidate` issues a conditional GET
-    /// even when the cache is still fresh, to force an update check.
+    /// usable icon could be resolved.
+    ///
+    /// A positive cache entry is revalidated with a single conditional GET to
+    /// the URL that produced it, so a stale icon never re-runs discovery. A miss
+    /// is negative-cached for `negativeCacheInterval`, so a host known to serve
+    /// no icon costs no network. `forceRevalidate` bypasses the freshness
+    /// short-circuit and revalidates the recorded source early.
     public func icon(for host: String, forceRevalidate: Bool = false) async -> Data? {
         guard !host.isEmpty, let base = URL(string: "https://" + host) else { return nil }
         logger.info("Fetching favicon for host: \(host, privacy: .public) (forceRevalidate: \(forceRevalidate))")
-        let cached = readCached(host: host)
-        if let cached, !forceRevalidate, Date().timeIntervalSince(cached.meta.fetchedAt) < revalidationInterval {
-            logger.info(
-                "Returning cached favicon for \(host, privacy: .public) (age: \(Date().timeIntervalSince(cached.meta.fetchedAt), privacy: .public)s)"
-            )
-            return cached.data
+
+        let cachedData = readData(host: host)
+        let meta = readMeta(host: host)
+        let age = meta.map { Date().timeIntervalSince($0.fetchedAt) } ?? 0
+
+        if let cachedData {
+            if meta != nil, !forceRevalidate, age < revalidationInterval {
+                logger.info(
+                    "Returning cached favicon for \(host, privacy: .public) (age: \(age, privacy: .public)s)")
+                return cachedData
+            }
+            // Stale or forced: revalidate the source we recorded instead of
+            // re-running discovery. Handles the common path in one request.
+            if let meta, !meta.sourceURL.isEmpty, let sourceURL = URL(string: meta.sourceURL) {
+                switch await fetch(url: sourceURL, meta: meta) {
+                case .notModified:
+                    touchMeta(host: host, meta: meta)
+                    return cachedData
+                case .image(let data, let url, let etag, let lastModified):
+                    writeCached(host: host, data: data, sourceURL: url, etag: etag, lastModified: lastModified)
+                    return data
+                case .transportFailure:
+                    return cachedData
+                case .httpFailure:
+                    break  // source moved; fall through to discovery
+                }
+            }
+        } else if meta != nil, !forceRevalidate, age < negativeCacheInterval {
+            logger.info("Negative favicon cache hit for \(host, privacy: .public) (age: \(age, privacy: .public)s)")
+            return nil
         }
+
         let candidates = await candidateURLs(host: host, base: base)
         logger.debug(
             "Candidate URLs for \(host, privacy: .public): \(candidates.map(\.absoluteString), privacy: .public)")
         for url in candidates.prefix(maxAttempts) {
             logger.debug("Trying \(url.absoluteString, privacy: .public) for \(host, privacy: .public)")
-            if let result = await fetch(url: url, meta: cached?.meta) {
-                writeCached(
-                    host: host, data: result.data, sourceURL: result.url, etag: result.etag,
-                    lastModified: result.lastModified)
+            switch await fetch(url: url, meta: nil) {
+            case .image(let data, let sourceURL, let etag, let lastModified):
+                writeCached(host: host, data: data, sourceURL: sourceURL, etag: etag, lastModified: lastModified)
                 logger.info(
-                    "Successfully fetched favicon for \(host, privacy: .public) from \(result.url.absoluteString, privacy: .public) (\(result.data.count) bytes)"
+                    "Successfully fetched favicon for \(host, privacy: .public) from \(sourceURL.absoluteString, privacy: .public) (\(data.count) bytes)"
                 )
-                return result.data
-            } else {
+                return data
+            case .notModified:
+                // Impossible without validators; treat as a miss for this candidate.
+                continue
+            case .httpFailure, .transportFailure:
                 logger.debug(
                     "Failed to fetch favicon from \(url.absoluteString, privacy: .public) for \(host, privacy: .public)"
                 )
             }
         }
-        logger.warning("All favicon candidates failed for \(host, privacy: .public), returning cached if available")
-        return cached?.data
+        if let cachedData {
+            logger.warning("All favicon candidates failed for \(host, privacy: .public), returning stale cache")
+            return cachedData
+        }
+        logger.warning("All favicon candidates failed for \(host, privacy: .public), negative-caching the miss")
+        writeNegative(host: host)
+        return nil
     }
 
     private func candidateURLs(host: String, base: URL) async -> [URL] {
@@ -186,23 +229,32 @@ public actor FaviconService {
         return html
     }
 
-    private func fetch(url: URL, meta: FaviconCacheMeta?) async
-        -> (data: Data, url: URL, etag: String?, lastModified: String?)?
-    {
+    private enum FetchOutcome {
+        case notModified
+        case image(data: Data, url: URL, etag: String?, lastModified: String?)
+        /// The server answered, but not with a usable image (404, 410, wrong content type, ...).
+        case httpFailure
+        /// No usable response at all (offline, timeout, ...).
+        case transportFailure
+    }
+
+    private func fetch(url: URL, meta: FaviconCacheMeta?) async -> FetchOutcome {
         var request = URLRequest(url: url, timeoutInterval: requestTimeout)
         request.setValue("TransmissionSwift", forHTTPHeaderField: "User-Agent")
         if let etag = meta?.etag { request.setValue(etag, forHTTPHeaderField: "If-None-Match") }
         if let lm = meta?.lastModified { request.setValue(lm, forHTTPHeaderField: "If-Modified-Since") }
         guard let (data, response) = try? await session.data(for: request),
             let http = response as? HTTPURLResponse
-        else { return nil }
-        if http.statusCode == 304 { return nil }
-        guard (200...299).contains(http.statusCode) else { return nil }
+        else { return .transportFailure }
+        if http.statusCode == 304 { return .notModified }
+        guard (200...299).contains(http.statusCode) else { return .httpFailure }
         guard let type = http.value(forHTTPHeaderField: "Content-Type")?.lowercased(), type.hasPrefix("image/") else {
-            return nil
+            return .httpFailure
         }
-        guard !data.isEmpty, data.count <= Self.maxIconBytes else { return nil }
-        return (data, url, http.value(forHTTPHeaderField: "ETag"), http.value(forHTTPHeaderField: "Last-Modified"))
+        guard !data.isEmpty, data.count <= Self.maxIconBytes else { return .httpFailure }
+        return .image(
+            data: data, url: url, etag: http.value(forHTTPHeaderField: "ETag"),
+            lastModified: http.value(forHTTPHeaderField: "Last-Modified"))
     }
 
     private func extractIconLinks(html: String, base: URL) -> [(url: URL, priority: Int)] {
@@ -264,14 +316,17 @@ public actor FaviconService {
         cacheDirectory.appendingPathComponent(sanitized(host) + ".meta.json")
     }
 
-    private func readCached(host: String) -> (data: Data, meta: FaviconCacheMeta)? {
-        let dURL = dataURL(host: host)
-        let mURL = metaURL(host: host)
-        guard let data = try? Data(contentsOf: dURL),
-            let metaData = try? Data(contentsOf: mURL),
-            let meta = try? JSONDecoder().decode(FaviconCacheMeta.self, from: metaData)
-        else { return nil }
-        return (data, meta)
+    private func readData(host: String) -> Data? {
+        try? Data(contentsOf: dataURL(host: host))
+    }
+
+    private func readMeta(host: String) -> FaviconCacheMeta? {
+        guard let metaData = try? Data(contentsOf: metaURL(host: host)) else { return nil }
+        return try? JSONDecoder().decode(FaviconCacheMeta.self, from: metaData)
+    }
+
+    private func writeMeta(host: String, meta: FaviconCacheMeta) {
+        try? JSONEncoder().encode(meta).write(to: metaURL(host: host), options: .atomic)
     }
 
     private func writeCached(host: String, data: Data, sourceURL: URL, etag: String?, lastModified: String?) {
@@ -282,7 +337,22 @@ public actor FaviconService {
             fetchedAt: Date()
         )
         try? data.write(to: dataURL(host: host), options: .atomic)
-        try? JSONEncoder().encode(meta).write(to: metaURL(host: host), options: .atomic)
+        writeMeta(host: host, meta: meta)
+    }
+
+    /// Records a miss (no `.bin`): the presence of `.bin` distinguishes a
+    /// positive entry from a negative one.
+    private func writeNegative(host: String) {
+        writeMeta(
+            host: host,
+            meta: FaviconCacheMeta(sourceURL: "", etag: nil, lastModified: nil, fetchedAt: Date()))
+    }
+
+    /// Marks a positive entry fresh again after a 304 revalidation.
+    private func touchMeta(host: String, meta: FaviconCacheMeta) {
+        var updated = meta
+        updated.fetchedAt = Date()
+        writeMeta(host: host, meta: updated)
     }
 }
 
