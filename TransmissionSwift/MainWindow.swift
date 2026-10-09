@@ -17,6 +17,7 @@ private enum Layout {
 struct MainWindow: View {
     @Environment(TorrentStore.self) private var store
     @Environment(ServerProfileStore.self) private var profileStore
+    @Environment(ConnectionCoordinator.self) private var connection
     @Environment(\.openWindow) private var openWindow
     @AppStorage(PreferenceKeys.prefsPendingNavTab) private var pendingNavTab: String = ""
     @AppStorage(PreferenceKeys.inspectorWidth) private var storedInspectorWidth: Double = Double(Layout.inspectorIdeal)
@@ -327,7 +328,8 @@ struct MainWindow: View {
             Text("Could not connect to \(address).\n\(reason)")
         } actions: {
             Button("Reconnect") {
-                store.reconnect()
+                guard let profile else { return }
+                Task { await connection.connect(to: profile) }
             }
             .buttonStyle(.glassProminent)
             Button("Server Settings…") {
@@ -403,13 +405,15 @@ private struct InspectorResizeHandle: View {
 }
 
 #Preview("No Servers") {
+    let store = TorrentStore(service: MockTorrentService(initial: []))
     let emptyProfiles = ServerProfileStore(
         fileURL: URL.temporaryDirectory.appending(path: "preview-no-servers.json")
     )
     MainWindow()
-        .environment(TorrentStore(service: MockTorrentService(initial: [])))
+        .environment(store)
         .environment(emptyProfiles)
         .environment(FaviconStore())
         .environment(TagColorStore())
+        .environment(ConnectionCoordinator(store: store))
         .frame(width: 1100, height: 640)
 }

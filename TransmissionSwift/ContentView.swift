@@ -71,6 +71,7 @@ struct ContentView: View {
         // Donate the server list to Spotlight once at launch. (Torrents are
         // donated by Get Torrents to avoid indexing on every poll.)
         .task { await SpotlightIndexer.indexServers(profileStore.profiles) }
+        .environment(connection)
     }
 
     /// Show the first-run splash only for a real, interactive, DSN-carrying

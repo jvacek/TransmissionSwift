@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import TransmissionCore
 import TransmissionRPC
 
@@ -9,6 +10,7 @@ import TransmissionRPC
 /// failure, invalid URL, success — is unit-testable without a daemon, a real
 /// Keychain, or the process-wide `AppEnvironment`.
 @MainActor
+@Observable
 final class ConnectionCoordinator {
     /// Reads a profile's stored password. Throws when the Keychain read fails
     /// (locked, cancelled) — distinct from "no password".

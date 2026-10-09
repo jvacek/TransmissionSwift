@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import TransmissionCore
+import TransmissionRPC
 import TransmissionTestSupport
 
 @testable import TransmissionSwift
@@ -84,6 +85,33 @@ struct ConnectionCoordinatorTests {
         await coordinator.connect(to: profile)
 
         #expect(disconnectedReason(store.connection)?.contains("Keychain") == true)
+    }
+
+    @Test("a retry after a Keychain failure re-reads the Keychain and connects")
+    func retryAfterKeychainFailureConnects() async {
+        let store = makeStore()
+        let profile = ServerProfile(label: "S", host: "host.local", username: "user")
+        let mock = MockTorrentService(initial: [])
+        var reads = 0
+        let coordinator = ConnectionCoordinator(
+            store: store,
+            environment: makeEnvironment(),
+            isAuxiliaryProcess: false,
+            readCredentials: { _ in
+                reads += 1
+                if reads == 1 { throw Boom() }
+                return Credentials(username: "user", password: "pw")
+            },
+            makeService: { _, _ in mock })
+
+        await coordinator.connect(to: profile)
+        #expect(disconnectedReason(store.connection)?.contains("Keychain") == true)
+
+        // Reconnect must re-read the Keychain and install the real service,
+        // not reuse the no-server placeholder that "connected" on its own.
+        await coordinator.connect(to: profile)
+        #expect(reads == 2)
+        #expect(disconnectedReason(store.connection) == nil)
     }
 
     @Test("an invalid address reports the invalid-URL error")
