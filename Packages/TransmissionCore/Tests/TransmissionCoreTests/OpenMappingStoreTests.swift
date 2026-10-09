@@ -131,7 +131,7 @@ struct OpenMappingStoreTests {
         }
     }
 
-    @Test("first run imports per-server mappings scoped to their server")
+    @Test("first run imports a mapping present on every server as .all")
     @MainActor
     func migratesFromEnvelope() throws {
         let urls = tempURLs()
@@ -155,7 +155,7 @@ struct OpenMappingStoreTests {
         #expect(store.mappings.count == 1)
         #expect(store.mappings[0].name == "Finder")
         #expect(store.mappings[0].action == .finder)
-        #expect(store.mappings[0].scope == .only([profileID]))
+        #expect(store.mappings[0].scope == .all)
         #expect(store.mappings(for: ServerProfile(id: profileID, label: "NAS", host: "nas")).count == 1)
 
         // Written to disk, and given a fresh id.
@@ -184,7 +184,55 @@ struct OpenMappingStoreTests {
 
         let store = OpenMappingStore(fileURL: urls.mappings, migratingFrom: urls.servers)
         #expect(store.mappings.count == 1)
-        #expect(store.mappings[0].scope == .only([profileID]))
+        #expect(store.mappings[0].scope == .all)
+    }
+
+    @Test("identical mappings across servers collapse and select those servers")
+    @MainActor
+    func collapsesIdenticalMappings() throws {
+        let urls = tempURLs()
+        defer { try? FileManager.default.removeItem(at: urls.directory) }
+        let a = UUID()
+        let b = UUID()
+        let c = UUID()
+        // Same name + template; "Everywhere" is on all three, "Web" on A+B,
+        // "Finder" on A+C, "VLC" on B.
+        let everywhere = #""name": "Everywhere", "template": "https://{host}/x/{file}""#
+        let web = #""name": "Web", "template": "https://{host}/d/{file}""#
+        let finder = #""name": "Finder", "template": "file:///{file}""#
+        let vlc = #""name": "VLC", "template": "file:///{file}", "applicationBundleID": "org.videolan.vlc""#
+        try writeServers(
+            """
+            { "profiles": [
+              { "id": "\(a.uuidString)", "label": "A", "host": "a",
+                "port": 9091, "rpcPath": "/transmission/rpc", "useHTTPS": false,
+                "mappings": [
+                  { "id": "\(UUID().uuidString)", \(everywhere) },
+                  { "id": "\(UUID().uuidString)", \(web) },
+                  { "id": "\(UUID().uuidString)", \(finder) }
+                ] },
+              { "id": "\(b.uuidString)", "label": "B", "host": "b",
+                "port": 9091, "rpcPath": "/transmission/rpc", "useHTTPS": false,
+                "mappings": [
+                  { "id": "\(UUID().uuidString)", \(everywhere) },
+                  { "id": "\(UUID().uuidString)", \(web) },
+                  { "id": "\(UUID().uuidString)", \(vlc) }
+                ] },
+              { "id": "\(c.uuidString)", "label": "C", "host": "c",
+                "port": 9091, "rpcPath": "/transmission/rpc", "useHTTPS": false,
+                "mappings": [
+                  { "id": "\(UUID().uuidString)", \(everywhere) },
+                  { "id": "\(UUID().uuidString)", \(finder) }
+                ] }
+            ] }
+            """, to: urls.servers)
+
+        let store = OpenMappingStore(fileURL: urls.mappings, migratingFrom: urls.servers)
+        #expect(store.mappings.map(\.name) == ["Everywhere", "Web", "Finder", "VLC"])
+        #expect(store.mappings[0].scope == .all)
+        #expect(store.mappings[1].scope == .only([a, b]))
+        #expect(store.mappings[2].scope == .only([a, c]))
+        #expect(store.mappings[3].scope == .only([b]))
     }
 
     @Test("migration runs once and never resurrects servers.json state")

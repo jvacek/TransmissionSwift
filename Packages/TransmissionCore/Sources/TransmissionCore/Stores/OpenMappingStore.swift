@@ -72,8 +72,11 @@ public final class OpenMappingStore {
 
     // MARK: - Persistence
 
-    /// Merges every profile's mappings, each scoped to its server and given a
-    /// fresh id (so an id reused across profiles can't collide app-wide).
+    /// Merges every profile's mappings. Identical mappings (same name, template,
+    /// action, app and file-access grants) collapse into one entry scoped to
+    /// every server that carried it; when that is every server, the scope is
+    /// `.all` rather than listing them. Each entry gets a fresh id so an id
+    /// reused across profiles can't collide app-wide.
     private nonisolated static func importLegacy(from fileURL: URL) -> [OpenMapping] {
         guard let data = try? Data(contentsOf: fileURL) else { return [] }
         let decoder = JSONDecoder()
@@ -83,13 +86,31 @@ public final class OpenMappingStore {
             (try? decoder.decode(LegacyEnvelope.self, from: data))?.profiles
             ?? (try? decoder.decode([LegacyProfile].self, from: data))
             ?? []
-        return profiles.flatMap { profile in
-            (profile.mappings ?? []).map { legacy in
-                var mapping = legacy
-                mapping.id = UUID()
-                mapping.scope = .only([profile.id])
-                return mapping
+        let allServerIDs = Set(profiles.map(\.id))
+
+        // Insertion-ordered identities, with the servers each was seen on.
+        var order: [MappingIdentity] = []
+        var firstByID: [MappingIdentity: OpenMapping] = [:]
+        var serversByID: [MappingIdentity: Set<UUID>] = [:]
+
+        for profile in profiles {
+            for legacy in profile.mappings ?? [] {
+                let identity = MappingIdentity(legacy)
+                if firstByID[identity] == nil {
+                    order.append(identity)
+                    firstByID[identity] = legacy
+                    serversByID[identity] = []
+                }
+                serversByID[identity]?.insert(profile.id)
             }
+        }
+
+        return order.compactMap { identity in
+            guard var mapping = firstByID[identity], let servers = serversByID[identity]
+            else { return nil }
+            mapping.id = UUID()
+            mapping.scope = (!allServerIDs.isEmpty && servers == allServerIDs) ? .all : .only(servers)
+            return mapping
         }
     }
 
@@ -115,4 +136,22 @@ private struct LegacyEnvelope: Decodable { var profiles: [LegacyProfile] }
 private struct LegacyProfile: Decodable {
     var id: UUID
     var mappings: [OpenMapping]?
+}
+
+/// A mapping's content, ignoring `id` and `scope`, so identical mappings on
+/// different servers collapse into one entry during migration.
+private struct MappingIdentity: Hashable {
+    var name: String
+    var template: String
+    var action: OpenMappingAction
+    var applicationBundleID: String?
+    var accessBookmarks: [Data]
+
+    init(_ mapping: OpenMapping) {
+        name = mapping.name
+        template = mapping.template
+        action = mapping.action
+        applicationBundleID = mapping.applicationBundleID
+        accessBookmarks = mapping.accessBookmarks
+    }
 }

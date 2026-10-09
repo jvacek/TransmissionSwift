@@ -25,7 +25,7 @@ Please visit the [release page](https://github.com/jvacek/TransmissionSwift/rele
 - Fix Favicon cache behaviour to an actual request cache
 - Move file mappings to Application settings as app-wide entries
   - Each mapping can apply to all servers, all local servers, all remote servers, or only selected ones
-  - Existing per-server mappings are migrated to their server on first launch
+  - Existing per-server mappings are migrated on first launch; identical ones merge into one entry scoped to the servers they were on, or all servers
 - Add donation link to the status bar
   - Add option to hide it (and also the bug report link)
 - Major refactor behind the scenes
