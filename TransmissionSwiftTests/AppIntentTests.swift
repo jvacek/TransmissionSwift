@@ -72,6 +72,43 @@ struct AppIntentTests {
         #expect(environment.resolve(nil)?.id == first.id)
     }
 
+    @Test func resolveRejectsAnUnknownServer() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("AppIntentTests-ghost-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = ServerProfileStore(fileURL: directory.appendingPathComponent("servers.json"))
+        let real = ServerProfile(label: "Real", host: "real.local")
+        try store.add(real)
+
+        let environment = AppEnvironment(
+            mode: .live, profileFileURL: directory.appendingPathComponent("servers.json"))
+
+        // A named server that no longer exists must not fall back to the active
+        // profile — that would silently target a different daemon.
+        let ghost = ServerEntity(id: UUID().uuidString, label: "Gone")
+        #expect(environment.resolve(ghost) == nil)
+        #expect(environment.resolve(nil)?.id == real.id)
+    }
+
+    @Test func requireServiceRejectsAnUnknownServer() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("AppIntentTests-ghost-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = ServerProfileStore(fileURL: directory.appendingPathComponent("servers.json"))
+        try store.add(ServerProfile(label: "Real", host: "real.local"))
+
+        let environment = AppEnvironment(
+            mode: .live, profileFileURL: directory.appendingPathComponent("servers.json"))
+
+        let ghost = ServerEntity(id: UUID().uuidString, label: "Gone")
+        do {
+            _ = try environment.requireService(ghost)
+            Issue.record("Expected an unknown server to throw")
+        } catch let error as IntentError {
+            #expect(error.message.contains("no longer"))
+        }
+    }
+
     @Test func serviceUsesConnectedThenFactoryElseNil() throws {
         let harness = try makeHarness()
         defer { cleanup(harness) }
