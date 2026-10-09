@@ -235,3 +235,31 @@ This is basically the first stable release. These are some of the things that wo
     - View details only
   - Verify local data
   - Delete (with or without data)
+
+# Changes since prerelease-2026-10-08-01-6d8e2df81956
+
+0dd295c Update MainWindow.swift
+30b7285 refactor(mappings): reorder the editor and align the row controls
+c168938 refactor(preferences): move the Mappings description into the pane header
+37edef7 feat(mappings): add all-local and all-remote server scopes
+e548c2c feat(mappings): move file mappings to app-wide settings with per-server scope
+22e3bc7 fix(favicons): revalidate the recorded source and negative-cache misses
+87097c0 ci(release): require the Sentry dSYM upload before publishing
+9365ca8 test(core): replace the fake sorting perf suite with comparator coverage
+965f8fb Update CHANGELOG.md
+a9d3c18 fix(connection): route Reconnect through ConnectionCoordinator
+d8600c0 Changelog, debug args
+51bd56e chore(core,app): tidy small rough edges
+a10fc09 fix(intents): require a limit value when enabling a torrent speed limit
+eda26f9 refactor(core): drop the unused TorrentStore session pass-throughs
+c2d724f test(app): guard TorrentRowDisplay against render-field drift
+3a35ec8 refactor(intents): share the mutating-intent preamble
+30ca213 fix(actions): keep the selection when a removal fails
+9a886f3 fix(intents): refuse an unknown server instead of retargeting another
+3888914 feat(intents): expand the Shortcuts/App Intents surface
+24a69d7 fix(filters): make 'Active' mean a live transfer, matching web/GTK
+b12b033 Update AGENTS.md
+8b788a0 refactor(core): group TransmissionCore sources into folders
+851c831 update sizes in copy
+3638591 docs: remove completed ui-buildout plan
+898e81b docs: sync ARCHITECTURE.md with the store, service and testing changes
