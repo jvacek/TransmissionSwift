@@ -89,9 +89,7 @@ private func addTorrent(
 ) async throws -> String {
     let environment = try AppEnvironment.require()
     let (profile, service) = try environment.requireService(server)
-    guard let mutations = service.mutations else {
-        throw IntentError(message: "This server is read-only.")
-    }
+    let mutations = try environment.requireMutations(service)
 
     var stagedDirectory: URL?
     defer { if let stagedDirectory { try? FileManager.default.removeItem(at: stagedDirectory) } }

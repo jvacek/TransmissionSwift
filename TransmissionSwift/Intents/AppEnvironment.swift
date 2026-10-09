@@ -107,6 +107,32 @@ nonisolated final class AppEnvironment: Sendable {
         return "No Transmission servers are configured. Add one in TransmissionSwift first."
     }
 
+    /// The mutation half of a resolved service, or a user-facing error when the
+    /// source is read-only (snapshot replay).
+    func requireMutations(_ service: any TorrentReading) throws -> any TorrentMutating {
+        guard let mutations = service.mutations else {
+            throw IntentError(message: "This server is read-only.")
+        }
+        return mutations
+    }
+
+    /// Resolves the server, its mutation service and the torrents an action
+    /// should target — the shared preamble of every mutating intent. Throws a
+    /// user-facing error when the server is read-only or nothing matches.
+    func mutableTargets(
+        server: ServerEntity?, torrents: [TorrentEntity]?
+    ) async throws -> (
+        profile: ServerProfile, mutations: any TorrentMutating, targets: [Torrent]
+    ) {
+        let (profile, service) = try requireService(server)
+        let mutations = try requireMutations(service)
+        let targets = try await TorrentCatalog.targets(torrents, profile: profile, service: service)
+        guard !targets.isEmpty else {
+            throw IntentError(message: "No matching torrents on \(profile.label).")
+        }
+        return (profile, mutations, targets)
+    }
+
     /// The app's live service when it matches `profile`; otherwise a fresh
     /// factory service. Snapshot replay serves the frozen file, read-only.
     /// Best-effort — resolution failures return nil (used by the entity pickers).
