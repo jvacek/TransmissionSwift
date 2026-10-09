@@ -41,6 +41,22 @@ struct TorrentActionModelTests {
         #expect(list.selectedTorrentIDs.isEmpty)
     }
 
+    private struct RemoveFailed: Error {}
+
+    @Test("a failed removal keeps the selection and the torrent")
+    func removeFailureKeepsSelection() async throws {
+        let (actions, list, service) = try await make()
+        let id = list.torrents[0].id
+        list.selectedTorrentIDs = [id]
+        await service.setRemoveError(RemoveFailed())
+
+        await actions.remove([id])
+
+        // The daemon never removed it, so the user's selection must survive.
+        #expect(list.selectedTorrentIDs == [id])
+        #expect(list.torrents.contains { $0.id == id })
+    }
+
     @Test("requestRemove stages a confirmation when asked, and cancel clears it")
     func requestRemoveStages() async throws {
         let (actions, list, _) = try await make()
