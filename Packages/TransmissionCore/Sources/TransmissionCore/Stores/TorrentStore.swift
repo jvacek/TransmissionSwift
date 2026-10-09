@@ -100,12 +100,6 @@ public final class TorrentStore {
         startStream()
     }
 
-    /// Restart the poll stream using the current service. Called by the
-    /// "Reconnect" button after a disconnection.
-    public func reconnect() {
-        connect(service: service)
-    }
-
     /// Suspend polling while the app is in the background. Cancels the stream
     /// and free-space tasks without changing the connection state.
     public func pausePolling() {
@@ -115,7 +109,13 @@ public final class TorrentStore {
 
     /// Resume polling after returning to the foreground. Restarts the stream
     /// from scratch, which also re-fetches free space and alt-speed state.
+    ///
+    /// No-op unless a stream was already live (`.connecting`/`.connected`). From
+    /// `.disconnected` or `.awaitingKeychain` a restart would drive the no-server
+    /// placeholder service back to `.connected`, masking the failure. Recovering
+    /// from those states is `ConnectionCoordinator`'s job, via the Reconnect button.
     public func resumePolling() {
+        guard connection == .connecting || connection.isConnected else { return }
         startStream()
     }
 
