@@ -186,25 +186,6 @@ public final class TorrentStore {
         }
     }
 
-    // MARK: - Session delegates
-
-    public func toggleAlternativeSpeed() async {
-        await session.toggleAlternativeSpeed()
-    }
-
-    /// Apply a session-side setting change. Delegates to `session`; see
-    /// `SessionModel.updateSessionSettings` for the optimistic/rollback flow.
-    public func updateSessionSettings(_ mutate: (inout SessionSettings) -> Void) async {
-        await session.updateSessionSettings(mutate)
-    }
-
-    /// Ask the daemon whether its peer port is reachable from the outside
-    /// (`port-test`). No-ops when disconnected.
-    public func testPort() async {
-        guard isConnected else { return }
-        await session.testPort()
-    }
-
     // MARK: - Sheet entry points
 
     public func openAddSheet(magnetMode: Bool = false, prefilledURL: URL? = nil) {
@@ -274,19 +255,6 @@ public final class TorrentStore {
     public func torrentForOpening(_ torrent: Torrent) async -> Torrent {
         if !torrent.files.isEmpty { return torrent }
         return (try? await service.inspectorData(for: torrent.id)) ?? torrent
-    }
-
-    public func refreshFreeSpace() async {
-        await session.refreshFreeSpace()
-    }
-
-    /// Fetch current + lifetime transfer stats (`session-stats`) for the
-    /// status-bar popover. No-ops when disconnected; silently keeps stale
-    /// values if the fetch fails — a failed refresh just shows old numbers,
-    /// which doesn't warrant an alert.
-    public func refreshSessionStats() async {
-        guard isConnected else { return }
-        await session.refreshSessionStats()
     }
 
     /// Capture an anonymized snapshot of the current daemon state and write it
