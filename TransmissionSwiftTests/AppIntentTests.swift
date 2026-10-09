@@ -405,6 +405,19 @@ struct AppIntentTests {
         #expect(options.downloadLimitKBps == 77)
     }
 
+    @Test func setTorrentSpeedLimitsRejectsLimitWithoutValue() async throws {
+        let harness = try makeHarness()
+        defer { cleanup(harness) }
+
+        let target = try #require(try await harness.service.torrents().first)
+        let intent = SetTorrentSpeedLimitsIntent()
+        intent.torrents = [
+            TorrentEntity(torrent: target, serverID: harness.profile.id.uuidString)
+        ]
+        intent.downloadLimited = true
+        await #expect(throws: IntentError.self) { _ = try await intent.perform() }
+    }
+
     // MARK: - Add
 
     @Test func addMagnetAddsTorrent() async throws {
