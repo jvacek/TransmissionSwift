@@ -22,6 +22,8 @@ public enum PreferenceKeys {
     public static let incrementalPollingIntervalSeconds = "incrementalPollingIntervalSeconds"
     public static let freeSpaceIntervalSeconds = "freeSpaceIntervalSeconds"
     public static let fetchTrackerFavicons = "fetchTrackerFavicons"
+    public static let showPeerCountryFlags = "showPeerCountryFlags"
+    public static let geoIPRefreshFrequency = "geoIPRefreshFrequency"
 
     // Updates
     public static let includePrereleases = "includePrereleases"

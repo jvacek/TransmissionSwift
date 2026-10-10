@@ -172,6 +172,7 @@ enum PrefsTab: String, Hashable, CaseIterable, Identifiable {
         .environment(prefsPreviewMappingStore)
         .environment(prefsPreviewStore)
         .environment(FaviconStore())
+        .environment(GeoIPStore())
         .environment(TagColorStore())
         .frame(width: 700, height: 560)
 }

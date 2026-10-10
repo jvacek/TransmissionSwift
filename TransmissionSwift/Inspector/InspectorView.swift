@@ -119,6 +119,7 @@ private struct InspectorHeader: View {
     return InspectorView()
         .environment(store)
         .environment(TagColorStore())
+        .environment(GeoIPStore())
         .frame(width: 322, height: 600)
         .task { store.list.selectedTorrentIDs = [5] }
 }
@@ -127,5 +128,6 @@ private struct InspectorHeader: View {
     InspectorView()
         .environment(TorrentStore(service: MockTorrentService(initial: [])))
         .environment(TagColorStore())
+        .environment(GeoIPStore())
         .frame(width: 322, height: 600)
 }

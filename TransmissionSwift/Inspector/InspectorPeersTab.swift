@@ -6,17 +6,16 @@ import TransmissionTestSupport
 struct InspectorPeersTab: View {
     let torrent: Torrent
 
+    @Environment(GeoIPStore.self) private var geoip
+
     var body: some View {
         Table(torrent.peers) {
             TableColumn("Address") { peer in
                 HStack(spacing: 6) {
-                    if let country = peer.countryCode {
-                        Text(country)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 3)
-                            .padding(.vertical, 1)
-                            .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(.separator))
+                    if let code = countryCode(for: peer), let flag = countryFlagEmoji(for: code) {
+                        Text(flag)
+                            .font(.title3)
+                            .accessibilityLabel(code)
                     }
                     Text(peer.ipAddress)
                         .font(.callout.monospaced())
@@ -60,6 +59,9 @@ struct InspectorPeersTab: View {
             .width(64)
         }
         .accessibilityIdentifier("inspector.peers.table")
+        .task(id: torrent.peers.map(\.ipAddress)) {
+            await geoip.resolve(torrent.peers)
+        }
         .overlay {
             if torrent.peers.isEmpty {
                 ContentUnavailableView(
@@ -70,9 +72,16 @@ struct InspectorPeersTab: View {
             }
         }
     }
+
+    /// The GeoIP result wins when resolved; mock/snapshot fixtures may carry a
+    /// code directly.
+    private func countryCode(for peer: Peer) -> String? {
+        geoip.code(for: peer.ipAddress) ?? peer.countryCode
+    }
 }
 
 #Preview {
     InspectorPeersTab(torrent: Torrent.samples[4])
+        .environment(GeoIPStore())
         .frame(width: 322, height: 400)
 }

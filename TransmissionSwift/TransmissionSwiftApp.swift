@@ -19,6 +19,7 @@ struct TransmissionSwiftApp: App {
     @State private var mappingStore: OpenMappingStore
     @State private var torrentStore: TorrentStore
     @State private var faviconStore = FaviconStore()
+    @State private var geoipStore = GeoIPStore()
     @State private var tagColorStore: TagColorStore
     private let snapshotPath: String?
     private let disableOnboarding: Bool
@@ -178,6 +179,7 @@ struct TransmissionSwiftApp: App {
             .environment(mappingStore)
             .environment(torrentStore)
             .environment(faviconStore)
+            .environment(geoipStore)
             .environment(tagColorStore)
             .onOpenURL { url in
                 // transmissionswift://<serverUUID>/<torrentID> opens the app on a
@@ -216,6 +218,7 @@ struct TransmissionSwiftApp: App {
                 .environment(profileStore)
                 .environment(mappingStore)
                 .environment(faviconStore)
+                .environment(geoipStore)
                 .environment(torrentStore)
                 .environment(tagColorStore)
         }

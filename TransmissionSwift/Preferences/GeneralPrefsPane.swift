@@ -17,7 +17,10 @@ struct GeneralPrefsPane: View {
     @AppStorage(PreferenceKeys.freeSpaceIntervalSeconds) private var freeSpaceInterval: Double = PollingIntervals
         .defaultFreeSpace
     @AppStorage(PreferenceKeys.fetchTrackerFavicons) private var fetchFavicons = true
+    @AppStorage(PreferenceKeys.showPeerCountryFlags) private var showPeerFlags = true
+    @AppStorage(PreferenceKeys.geoIPRefreshFrequency) private var geoIPRefresh = GeoIPRefreshFrequency.monthly
     @Environment(FaviconStore.self) private var favicons
+    @Environment(GeoIPStore.self) private var geoip
 
     var body: some View {
         Form {
@@ -55,6 +58,31 @@ struct GeneralPrefsPane: View {
                     .onChange(of: fetchFavicons) { _, newValue in
                         favicons.setEnabled(newValue)
                     }
+            }
+            Section {
+                Toggle("Show country flags for peers", isOn: $showPeerFlags)
+                    .onChange(of: showPeerFlags) { _, newValue in
+                        geoip.setEnabled(newValue)
+                    }
+                Picker("Check for updates", selection: $geoIPRefresh) {
+                    ForEach(GeoIPRefreshFrequency.allCases, id: \.self) { frequency in
+                        Text(frequency.displayLabel).tag(frequency)
+                    }
+                }
+                .onChange(of: geoIPRefresh) { _, newValue in
+                    geoip.setRefreshFrequency(newValue)
+                }
+                .disabled(!showPeerFlags)
+            } header: {
+                Text("Peers")
+            } footer: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(
+                        "Downloads a public IP-to-country database (about 4.5 MB). DB-IP releases it monthly, so daily or weekly checks usually just confirm it's current. Peer IP addresses never leave your Mac."
+                    )
+                    Link("IP Geolocation by DB-IP", destination: URL(string: "https://db-ip.com")!)
+                }
+                .font(.caption)
             }
             Section("Application") {
                 Toggle("Badge app icon with active count", isOn: $badgeAppIcon)
@@ -141,5 +169,6 @@ struct GeneralPrefsPane: View {
 #Preview("General") {
     GeneralPrefsPane()
         .environment(FaviconStore())
+        .environment(GeoIPStore())
         .frame(width: 480, height: 1080)
 }

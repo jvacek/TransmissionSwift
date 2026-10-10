@@ -115,7 +115,6 @@ extension InspectorTab {
         case .options: return "Options"
         }
     }
-
     var systemImage: String {
         switch self {
         case .general: return "info.circle"
@@ -151,6 +150,27 @@ extension TorrentStatusFilter {
         case .checking: return "arrow.clockwise.circle"
         case .queued: return "clock"
         case .error: return "exclamationmark.triangle"
+        }
+    }
+}
+
+/// ISO-3166 alpha-2 country code → regional-indicator emoji flag, e.g. "NL" →
+/// "🇳🇱". Returns nil unless the code is exactly two A–Z letters; macOS
+/// renders the pair as the flag glyph.
+nonisolated func countryFlagEmoji(for code: String) -> String? {
+    let letters = code.uppercased().unicodeScalars.filter { (65...90).contains($0.value) }
+    guard letters.count == 2 else { return nil }
+    let scalars = letters.compactMap { Unicode.Scalar(0x1F1E6 + $0.value - 0x41) }
+    return String(scalars.map(Character.init))
+}
+
+extension GeoIPRefreshFrequency {
+    var displayLabel: String {
+        switch self {
+        case .onStartup: return "On startup"
+        case .daily: return "Daily"
+        case .weekly: return "Weekly"
+        case .monthly: return "Monthly"
         }
     }
 }

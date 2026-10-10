@@ -415,6 +415,7 @@ private struct InspectorResizeHandle: View {
             OpenMappingStore(fileURL: URL.temporaryDirectory.appending(path: "preview-mappings.json"))
         )
         .environment(FaviconStore())
+        .environment(GeoIPStore())
         .environment(TagColorStore())
         .environment(ConnectionCoordinator(store: store))
         .frame(width: 1100, height: 640)

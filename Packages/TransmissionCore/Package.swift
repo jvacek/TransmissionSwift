@@ -24,9 +24,12 @@ let package = Package(
         .package(path: "../TransmissionRPC")
     ],
     targets: [
+        // libz, to gunzip DB-IP's compressed GeoIP dump. A system library, not a
+        // third-party package; ships with macOS/iOS.
+        .systemLibrary(name: "CZlib", path: "Sources/CZlib"),
         .target(
             name: "TransmissionCore",
-            dependencies: ["TransmissionRPC"],
+            dependencies: ["TransmissionRPC", "CZlib"],
             swiftSettings: swiftSettings
         ),
         .target(
