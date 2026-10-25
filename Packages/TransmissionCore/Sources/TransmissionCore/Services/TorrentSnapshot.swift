@@ -24,8 +24,11 @@ struct TorrentSnapshot {
     /// full poll restores the daemon's order.
     mutating func applyChanges(_ fresh: [Torrent], removed: [Torrent.ID]) {
         let dropped = Set(removed)
+        // `uniquingKeysWith` rather than `uniqueKeysWithValues`: a duplicate id
+        // in a daemon response must not trap.
         var byID = Dictionary(
-            uniqueKeysWithValues: fresh.lazy.filter { !dropped.contains($0.id) }.map { ($0.id, $0) })
+            fresh.lazy.filter { !dropped.contains($0.id) }.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first })
         var merged = torrents.compactMap { torrent -> Torrent? in
             guard !dropped.contains(torrent.id) else { return nil }
             return byID.removeValue(forKey: torrent.id) ?? torrent

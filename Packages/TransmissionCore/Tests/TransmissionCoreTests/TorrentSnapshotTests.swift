@@ -85,4 +85,22 @@ struct TorrentSnapshotTests {
 
         #expect(snapshot.torrents.isEmpty)
     }
+
+    @Test("a duplicate id in one response keeps the first and does not trap")
+    func duplicateIDsInChanges() {
+        var snapshot = TorrentSnapshot()
+        var existing = fixture(id: 1, active: false)
+        existing.name = "existing"
+        snapshot.applyFull([existing], at: Date())
+
+        var first = fixture(id: 1, active: true)
+        first.name = "first"
+        var duplicate = fixture(id: 1, active: true)
+        duplicate.name = "duplicate"
+
+        snapshot.applyChanges([first, duplicate], removed: [])
+
+        #expect(snapshot.torrents.count == 1)
+        #expect(snapshot.torrents[0].name == "first")
+    }
 }
