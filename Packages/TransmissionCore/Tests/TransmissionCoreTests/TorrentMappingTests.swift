@@ -7,6 +7,7 @@ import Testing
 // MARK: - Wire fixture
 
 private func makeWire(
+    id: Int = 1,
     status: Int = 0,
     error: Int = 0,
     errorString: String = "",
@@ -50,7 +51,7 @@ private func makeWire(
     peerLimit: Int? = nil
 ) -> WireTorrent {
     WireTorrent(
-        id: 1,
+        id: id,
         name: "Test",
         hashString: "abc123",
         totalSize: 102_400,
@@ -729,9 +730,32 @@ struct RPCTorrentServiceTests {
         private var fullPollTorrents: [WireTorrent] = []
         private var incrementalTorrents: [WireTorrent] = []
 
+        /// Which response a test can hold, so it lands after the snapshot it
+        /// must no longer be allowed to write.
+        enum Gate: Equatable {
+            case full
+            case incremental
+        }
+
+        private var nextGate: Gate?
+        private var gate: CheckedContinuation<Void, Never>?
+        private(set) var isGated = false
+
         func setStubTorrents(full: [WireTorrent], incremental: [WireTorrent] = []) {
             fullPollTorrents = full
             incrementalTorrents = incremental
+        }
+
+        /// Answer the next request of this kind from current state, then block
+        /// until `release()`.
+        func holdNextResponse(_ kind: Gate) {
+            nextGate = kind
+        }
+
+        func release() {
+            gate?.resume()
+            gate = nil
+            isGated = false
         }
 
         func sessionGet() async throws(TransmissionError) -> SessionInfo {
@@ -746,17 +770,33 @@ struct RPCTorrentServiceTests {
             -> TorrentGetResponse
         {
             callCount += 1
-            guard ids == nil else {
-                return TorrentGetResponse(torrents: incrementalTorrents)
+            let kind: Gate
+            let response: TorrentGetResponse
+            if ids == nil {
+                fullPolls += 1
+                kind = .full
+                response = TorrentGetResponse(torrents: fullPollTorrents)
+            } else {
+                kind = .incremental
+                response = TorrentGetResponse(torrents: incrementalTorrents)
             }
-            fullPolls += 1
-            return TorrentGetResponse(torrents: fullPollTorrents)
+            if nextGate == kind {
+                nextGate = nil
+                await withCheckedContinuation { continuation in
+                    gate = continuation
+                    isGated = true
+                }
+            }
+            return response
         }
 
         func torrentAction(_ method: String, ids: [Int]) async throws(TransmissionError) {
             guard method == "torrent-stop" else { return }
             for index in fullPollTorrents.indices where ids.contains(fullPollTorrents[index].id) {
                 fullPollTorrents[index].status = 0
+            }
+            for index in incrementalTorrents.indices where ids.contains(incrementalTorrents[index].id) {
+                incrementalTorrents[index].status = 0
             }
         }
         func torrentRemove(ids: [Int], deleteLocalData: Bool) async throws(TransmissionError) {}
@@ -872,6 +912,66 @@ struct RPCTorrentServiceTests {
         _ = try await iterator.next()
         // Without the wake-up this would wait out the whole 2-second interval.
         #expect(Date().timeIntervalSince(posted) < 1.5)
+    }
+
+    @Test("a response from a replaced stream cannot seed the new stream's cache")
+    func replacedStreamResponseDropped() async throws {
+        let stub = StubClient()
+        await stub.setStubTorrents(full: [makeWire(id: 99, status: 4)])
+        let service = RPCTorrentService(
+            client: stub, pollingInterval: { 60 }, incrementalPollingInterval: { 1 })
+
+        // The first stream's initial full poll answers with id 99, then hangs.
+        await stub.holdNextResponse(.full)
+        // Held for the whole test: dropping the stream would cancel the loop
+        // before it ever reaches the gate.
+        let firstStream = await service.torrentsStream()
+        while !(await stub.isGated) {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        // A new stream cancels the first and resets the cache; the daemon now
+        // reports a different torrent.
+        await stub.setStubTorrents(full: [makeWire(id: 2, status: 4)])
+        let secondStream = await service.torrentsStream()
+        var second = secondStream.makeAsyncIterator()
+        let initial = try #require(try await second.next())
+        #expect(initial.map(\.id) == [2])
+
+        // The cancelled response lands late and must not resurrect id 99.
+        await stub.release()
+        let next = try #require(try await second.next())
+        #expect(next.map(\.id) == [2])
+        withExtendedLifetime(firstStream) {}
+    }
+
+    @Test("an incremental response that lost to a mutation refresh is dropped")
+    func staleIncrementalDropped() async throws {
+        let stub = StubClient()
+        await stub.setStubTorrents(
+            full: [makeWire(status: 4)], incremental: [makeWire(status: 4)])
+        let service = RPCTorrentService(
+            client: stub, pollingInterval: { 60 }, incrementalPollingInterval: { 1 })
+
+        let stream = await service.torrentsStream()
+        var iterator = stream.makeAsyncIterator()
+        let initial = try #require(try await iterator.next())
+        #expect(initial.first?.status == .downloading)
+
+        // The next tick answers from pre-stop state, then hangs.
+        await stub.holdNextResponse(.incremental)
+        while !(await stub.isGated) {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        try await service.stop([1])
+        let afterStop = try #require(try await iterator.next())
+        #expect(afterStop.first?.status == .paused)
+
+        // The stale tick lands after the refresh and must not revert the stop.
+        await stub.release()
+        let next = try #require(try await iterator.next())
+        #expect(next.first?.status == .paused)
     }
 }
 

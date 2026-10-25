@@ -18,6 +18,9 @@ public actor RPCTorrentService: TorrentService {
     private var consecutiveFailures = 0
     /// Last full list plus the incremental changes merged into it.
     private var snapshot = TorrentSnapshot()
+    /// Bumped whenever the snapshot is written from outside the loop, so a
+    /// response that was already in flight can tell it is stale.
+    private var snapshotGeneration = 0
 
     /// Cached result from the most recent `session-get`. Updated by `freeSpace()`
     /// which is called on connect and periodically thereafter. Used for:
@@ -106,18 +109,27 @@ public actor RPCTorrentService: TorrentService {
             let incremental = PollingIntervals.clampedIncremental(
                 incrementalPollingInterval(), refresh: base)
             let fullDue = snapshot.isFullPollDue(base: base, now: Date())
+            // A post-mutation refresh writes the snapshot outside this loop; a
+            // response already in flight must not land on top of it.
+            let generation = snapshotGeneration
+            var failed = false
             do {
                 let resp = try await client.torrentGet(
                     fields: TorrentGetResponse.listFields,
                     ids: fullDue ? nil : .recentlyActive)
-                let fresh = resp.torrents.map { Torrent(wire: $0) }
-                if fullDue {
-                    snapshot.applyFull(fresh, at: Date())
-                } else {
-                    snapshot.applyChanges(fresh, removed: resp.removed ?? [])
+                // A cancelled loop belongs to a stream that was replaced; its
+                // response must not re-seed the snapshot the new one reset.
+                guard !Task.isCancelled else { break }
+                if generation == snapshotGeneration {
+                    let fresh = resp.torrents.map { Torrent(wire: $0) }
+                    if fullDue {
+                        snapshot.applyFull(fresh, at: Date())
+                    } else {
+                        snapshot.applyChanges(fresh, removed: resp.removed ?? [])
+                    }
+                    stream.yield(snapshot.torrents)
                 }
                 consecutiveFailures = 0
-                stream.yield(snapshot.torrents)
             } catch {
                 logger.error("Poll error: \(error)")
                 consecutiveFailures += 1
@@ -127,14 +139,19 @@ public actor RPCTorrentService: TorrentService {
                     stream.finish(throwing: error)
                     return
                 }
+                failed = true
             }
-            await sleep(incremental)
+            // Retries keep the old full-list cadence: at the incremental
+            // interval three attempts would give a restarting daemon ~3s.
+            await sleep(failed ? max(incremental, Self.retryDelay) : incremental)
         }
         stream.finish()
     }
 
     /// Sleep between ticks. Cancelling this task, or a polling-preference
     /// change, ends the wait early so the new interval takes effect at once.
+    /// `pollSleep` is never cleared: a cancelled predecessor resuming from its
+    /// wait must not drop the handle the live loop stored meanwhile.
     private func sleep(_ seconds: TimeInterval) async {
         let task = Task<Void, Never> {
             do { try await Task.sleep(for: .seconds(seconds)) } catch {}
@@ -145,7 +162,6 @@ public actor RPCTorrentService: TorrentService {
         } onCancel: {
             task.cancel()
         }
-        pollSleep = nil
     }
 
     private func wakePoll() {
@@ -157,6 +173,9 @@ public actor RPCTorrentService: TorrentService {
         case retry
         case stop
     }
+
+    /// How long a failed poll waits before retrying.
+    private static let retryDelay: TimeInterval = 5
 
     /// Fatal errors end the stream at once; anything else gets three attempts.
     static func failureDecision(for error: TransmissionError, consecutiveFailures: Int)
@@ -467,6 +486,7 @@ public actor RPCTorrentService: TorrentService {
     private func refreshAfterMutation() async {
         do {
             let full = try await torrents()
+            snapshotGeneration += 1
             snapshot.applyFull(full, at: Date())
             continuation?.yield(snapshot.torrents)
             logger.debug("Post-mutation refresh yielded \(full.count) torrents")
