@@ -370,6 +370,15 @@ struct TorrentStoreTests {
     /// Spins until the predicate holds or the deadline passes. The store's
     /// stream task processes on the MainActor, so this gives the run loop a
     /// chance to drain.
+    /// Isolated defaults so a test can't read or write the developer's
+    /// inspector visibility preference.
+    private func ephemeralDefaults() throws -> UserDefaults {
+        let suite = "TorrentStoreTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        return defaults
+    }
+
     @MainActor
     private func waitFor(
         timeout seconds: Double = 1,
@@ -618,20 +627,8 @@ struct TorrentStoreTests {
     @Test("each list snapshot refreshes the inspector detail for the selection")
     @MainActor
     func snapshotRefreshesInspectorDetail() async throws {
-        // The store builds its inspector against the shared defaults, so put the
-        // real visibility preference back afterwards.
-        let key = PreferenceKeys.inspectorVisible
-        let saved = UserDefaults.standard.object(forKey: key)
-        defer {
-            if let saved {
-                UserDefaults.standard.set(saved, forKey: key)
-            } else {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
-
         let service = MockTorrentService()
-        let store = TorrentStore(service: service)
+        let store = TorrentStore(service: service, inspectorDefaults: try ephemeralDefaults())
         await waitFor { !store.list.torrents.isEmpty }
 
         store.inspector.isVisible = true

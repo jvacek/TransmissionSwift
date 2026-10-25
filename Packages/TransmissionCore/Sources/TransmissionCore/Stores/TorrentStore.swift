@@ -83,10 +83,10 @@ public final class TorrentStore {
     private var streamTask: Task<Void, Never>?
     private var freeSpaceTask: Task<Void, Never>?
 
-    public init(service: any TorrentReading) {
+    public init(service: any TorrentReading, inspectorDefaults: UserDefaults = .standard) {
         let list = TorrentListModel()
         self.list = list
-        let inspector = InspectorModel(list: list)
+        let inspector = InspectorModel(list: list, defaults: inspectorDefaults)
         self.inspector = inspector
         self.actions = TorrentActionModel(list: list, inspector: inspector)
         self.service = service
