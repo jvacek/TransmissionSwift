@@ -32,7 +32,7 @@ public actor RPCTorrentService: TorrentService {
         client: any TransmissionClient,
         pollingInterval: @escaping @Sendable () -> TimeInterval = {
             let v = UserDefaults.standard.double(forKey: PreferenceKeys.pollingIntervalSeconds)
-            return v > 0 ? v : 5.0
+            return v > 0 ? v : 15.0
         },
         incrementalPollingInterval: @escaping @Sendable () -> TimeInterval = {
             let v = UserDefaults.standard.double(

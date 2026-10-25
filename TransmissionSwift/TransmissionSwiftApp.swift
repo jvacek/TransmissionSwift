@@ -26,7 +26,7 @@ struct TransmissionSwiftApp: App {
 
     init() {
         UserDefaults.standard.register(defaults: [
-            PreferenceKeys.pollingIntervalSeconds: 5.0,
+            PreferenceKeys.pollingIntervalSeconds: 15.0,
             PreferenceKeys.incrementalPollingIntervalSeconds: 1.0,
             PreferenceKeys.showAddDialogBeforeAdding: true,
             PreferenceKeys.deleteTorrentFileAfterAdding: false,

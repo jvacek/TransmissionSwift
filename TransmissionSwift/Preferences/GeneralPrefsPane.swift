@@ -10,7 +10,7 @@ struct GeneralPrefsPane: View {
     @AppStorage(PreferenceKeys.showDonateButton) private var showDonateButton = true
     @AppStorage(PreferenceKeys.showBugReportButton) private var showBugReportButton = true
     @AppStorage(PreferenceKeys.sendCrashReports) private var sendCrashReports = false
-    @AppStorage(PreferenceKeys.pollingIntervalSeconds) private var pollingInterval: Double = 5.0
+    @AppStorage(PreferenceKeys.pollingIntervalSeconds) private var pollingInterval: Double = 15.0
     @AppStorage(PreferenceKeys.incrementalPollingIntervalSeconds) private var incrementalPollingInterval: Double = 1.0
     @AppStorage(PreferenceKeys.freeSpaceIntervalSeconds) private var freeSpaceInterval: Double = 60.0
     @AppStorage(PreferenceKeys.fetchTrackerFavicons) private var fetchFavicons = true
