@@ -93,7 +93,7 @@ public actor RPCTorrentService: TorrentService {
     private func runPollLoop() async {
         while !Task.isCancelled {
             let base = pollingInterval()
-            let fast = min(activePollingInterval(), base)
+            let fast = Self.incrementalInterval(active: activePollingInterval(), base: base)
             let now = Date()
             guard let plan = Self.plan(cache: cache, lastFullPoll: lastFullPoll, base: base, now: now)
             else {
@@ -104,13 +104,14 @@ public actor RPCTorrentService: TorrentService {
             }
             do {
                 let resp = try await client.torrentGet(
-                    fields: TorrentGetResponse.listFields, ids: plan.ids.map(TorrentIDs.list))
+                    fields: TorrentGetResponse.listFields,
+                    ids: plan == .full ? nil : .recentlyActive)
                 let fresh = resp.torrents.map { Torrent(wire: $0) }
-                if plan.isFull {
+                if plan == .full {
                     cache = fresh
                     lastFullPoll = Date()
                 } else {
-                    cache = Self.merging(fresh, into: cache)
+                    cache = Self.merging(fresh, removing: resp.removed ?? [], into: cache)
                 }
                 consecutiveFailures = 0
                 continuation?.yield(cache)
@@ -131,31 +132,51 @@ public actor RPCTorrentService: TorrentService {
         continuation?.finish()
     }
 
-    /// One iteration's fetch plan. `ids == nil` means the whole list; nil plan
-    /// means there is nothing to fetch before the next full poll is due.
-    struct PollPlan: Equatable {
-        let ids: [Torrent.ID]?
-        let isFull: Bool
+    /// One iteration's fetch. Nil from `plan(cache:lastFullPoll:base:now:)` means
+    /// there is nothing to fetch before the next full poll is due.
+    enum PollPlan: Equatable {
+        case full
+        case recentlyActive
     }
 
-    /// Full list once per base interval, the active subset in between. Files and
-    /// peers live in the inspector's own fetch; this only covers list fields.
+    /// The daemon reports changes from the last 60 seconds only, so a slower
+    /// incremental poll would silently skip them between full polls.
+    private static let recentlyActiveWindow: TimeInterval = 45
+
+    /// Incremental cadence: never slower than the full poll, and never slower
+    /// than the daemon's change window.
+    static func incrementalInterval(active: TimeInterval, base: TimeInterval) -> TimeInterval {
+        max(1, min(active, base, recentlyActiveWindow))
+    }
+
+    /// Full list once per base interval, the daemon's changed set in between.
+    /// Files and peers live in the inspector's own fetch; this covers list
+    /// fields only.
     static func plan(
         cache: [Torrent], lastFullPoll: Date?, base: TimeInterval, now: Date
     ) -> PollPlan? {
         guard let lastFullPoll, now.timeIntervalSince(lastFullPoll) < base else {
-            return PollPlan(ids: nil, isFull: true)
+            return .full
         }
-        let active = cache.filter(\.isActive).map(\.id)
-        return active.isEmpty ? nil : PollPlan(ids: active, isFull: false)
+        return cache.contains(where: \.isActive) ? .recentlyActive : nil
     }
 
-    /// Overlay a partial response on the last full snapshot, keeping the
-    /// daemon's order. Ids the partial didn't include keep their last values;
-    /// ids it doesn't know about are ignored rather than resurrected.
-    static func merging(_ fresh: [Torrent], into cache: [Torrent]) -> [Torrent] {
-        let byID = Dictionary(uniqueKeysWithValues: fresh.map { ($0.id, $0) })
-        return cache.map { byID[$0.id] ?? $0 }
+    /// Overlay a recently-active response on the last full snapshot. Unlike a
+    /// partial keyed on cached ids this can bring torrents we have never seen
+    /// and ids the daemon removed. Existing entries keep their order; new ones
+    /// go on the end until the next full poll restores the daemon's order.
+    static func merging(
+        _ fresh: [Torrent], removing removed: [Torrent.ID], into cache: [Torrent]
+    ) -> [Torrent] {
+        let dropped = Set(removed)
+        var byID = Dictionary(
+            uniqueKeysWithValues: fresh.lazy.filter { !dropped.contains($0.id) }.map { ($0.id, $0) })
+        var merged = cache.compactMap { torrent -> Torrent? in
+            guard !dropped.contains(torrent.id) else { return nil }
+            return byID.removeValue(forKey: torrent.id) ?? torrent
+        }
+        merged.append(contentsOf: byID.values.sorted { $0.id < $1.id })
+        return merged
     }
 
     private func isFatal(_ error: TransmissionError) -> Bool {
