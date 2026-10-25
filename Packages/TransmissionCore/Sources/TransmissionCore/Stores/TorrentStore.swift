@@ -182,7 +182,7 @@ public final class TorrentStore {
             guard let self else { return }
             while !Task.isCancelled {
                 let v = UserDefaults.standard.double(forKey: PreferenceKeys.freeSpaceIntervalSeconds)
-                let interval = v > 0 ? v : 60.0
+                let interval = v > 0 ? v : PollingIntervals.defaultFreeSpace
                 try? await Task.sleep(for: .seconds(interval))
                 guard !Task.isCancelled else { break }
                 await self.session.poll(from: capturedService)

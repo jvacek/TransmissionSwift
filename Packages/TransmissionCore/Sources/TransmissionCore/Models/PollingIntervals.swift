@@ -15,6 +15,12 @@ public enum PollingIntervals {
     /// and an hour is indistinguishable from off.
     public static let freeSpace: ClosedRange<Double> = 5...3600
 
+    /// Defaults, shared by the pane, the registration and the services'
+    /// fallbacks so the three can't drift.
+    public static let defaultRefresh: TimeInterval = 15
+    public static let defaultIncremental: TimeInterval = 1
+    public static let defaultFreeSpace: TimeInterval = 60
+
     /// Posted when a polling preference changes, so a loop asleep on the old
     /// value can stop waiting it out.
     public static let changed = Notification.Name("PollingIntervalsChanged")
