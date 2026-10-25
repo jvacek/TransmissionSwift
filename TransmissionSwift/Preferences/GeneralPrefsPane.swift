@@ -11,6 +11,7 @@ struct GeneralPrefsPane: View {
     @AppStorage(PreferenceKeys.showBugReportButton) private var showBugReportButton = true
     @AppStorage(PreferenceKeys.sendCrashReports) private var sendCrashReports = false
     @AppStorage(PreferenceKeys.pollingIntervalSeconds) private var pollingInterval: Double = 5.0
+    @AppStorage(PreferenceKeys.activePollingIntervalSeconds) private var activePollingInterval: Double = 1.0
     @AppStorage(PreferenceKeys.freeSpaceIntervalSeconds) private var freeSpaceInterval: Double = 60.0
     @AppStorage(PreferenceKeys.fetchTrackerFavicons) private var fetchFavicons = true
     @Environment(FaviconStore.self) private var favicons
@@ -27,7 +28,7 @@ struct GeneralPrefsPane: View {
                     "The Add Torrent dialog starts with this option checked; you can turn it off for a single add. Adds that skip the dialog — drag & drop and “Open With” — follow this default directly. Magnet links have no file to delete."
                 )
             }
-            Section("Connection") {
+            Section {
                 LabeledContent("Refresh interval") {
                     HStack {
                         TextField("", value: $pollingInterval, format: .number)
@@ -36,6 +37,15 @@ struct GeneralPrefsPane: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                LabeledContent("Active refresh interval") {
+                    HStack {
+                        TextField("", value: $activePollingInterval, format: .number)
+                            .frame(width: 52)
+                        Text("seconds")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .help("Refresh rate for torrents that are transferring, between full list refreshes")
                 LabeledContent("Free space interval") {
                     HStack {
                         TextField("", value: $freeSpaceInterval, format: .number)
@@ -44,6 +54,12 @@ struct GeneralPrefsPane: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+            } header: {
+                Text("Connection")
+            } footer: {
+                Text(
+                    "The list refreshes every “Refresh interval” seconds. While torrents are transferring, they and the inspector refresh at the active interval in between. The active interval never runs slower than the refresh interval."
+                )
             }
             Section("Sidebar") {
                 Toggle("Fetch tracker favicons", isOn: $fetchFavicons)
