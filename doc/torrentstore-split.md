@@ -33,10 +33,11 @@ space, version, stats, port, label support) and its reads/writes onto
 service. New direct suite: `SessionModelTests.swift`.
 
 Phase 3 moved the inspector's detail, visibility (persisted preference) and tab
-onto `InspectorModel` as `store.inspector`, plus `fetch(for:)` and the
-selection-gated `refreshIfShowing(_:)` used after mutations. The view binding
-uses `@Bindable var inspector = store.inspector`. New direct suite:
-`InspectorModelTests.swift`.
+onto `InspectorModel` as `store.inspector`, plus `fetch(for:)`, the
+selection-gated `refreshIfShowing(_:)` used after mutations, and `poll()`, which
+the list tick drives for the selected torrent and skips when its snapshot didn't
+change. The view binding uses `@Bindable var inspector = store.inspector`. New
+direct suite: `InspectorModelTests.swift`.
 
 Phase 4 moved every torrent mutation (start/stop/verify/re-announce, files,
 options, labels, location, rename, add) and `pendingRemoval` onto

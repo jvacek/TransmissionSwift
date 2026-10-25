@@ -61,8 +61,11 @@ that each own one concern.
 | `ui` (`TorrentSheetState`) | sheet presentation state |
 
 Views read `store.<collaborator>.<member>`; the poll loop distributes snapshots
-to the models. User-action failures funnel through the coordinator's
-`lastActionError`. The split is tracked in `doc/torrentstore-split.md`.
+to the models. The inspector is the exception: its files and peers come from
+`InspectorModel.poll()`, which rides each snapshot, because the list snapshot
+carries no `files` or `peers`. User-action failures funnel through the
+coordinator's `lastActionError`. The split is tracked in
+`doc/torrentstore-split.md`.
 
 The services behind the store are split by capability: `TorrentReading` (always
 available) and `TorrentMutating` (live and mock services only). Callers resolve
@@ -123,12 +126,37 @@ the main actor, builds the service and drives `TorrentStore` plus the shared
 
 ## 5. Polling strategy
 
-- **Default interval: 5 seconds**, while the relevant UI is visible.
-- **Adaptive** based on visibility:
-  - When the window is in the foreground and the torrent list is visible → 5s.
-  - When the window is backgrounded or the user is on a non-list screen (settings, etc.) → slow down or pause.
-- Implement as an `AsyncStream` driven by a `Task` that loops with `Task.sleep`. The poller belongs in `TransmissionCore`, started/stopped by view models via `.task { }` lifecycles.
-- Future: scale the rate based on whether torrents are actively transferring vs. all idle.
+Two cadences share one loop in `RPCTorrentService`:
+
+- **Full refresh** (`pollingIntervalSeconds`, default 15s) asks for the whole
+  torrent list. It reconciles membership and the daemon's order, and covers the
+  fields the daemon doesn't mark as changed.
+- **Incremental refresh** (`incrementalPollingIntervalSeconds`, default 1s) asks
+  for `ids: "recently-active"`: every torrent changed in the daemon's 60-second
+  window, plus the ids removed in it. The response is merged into the last full
+  snapshot, and the merged array is what the store receives. That is the
+  protocol's only incremental primitive, and it is why a torrent added, stopped
+  or removed from another client arrives within one incremental interval.
+
+Bounds and defaults live in `PollingIntervals` and are shared with the
+preferences pane, so a field can't promise a value the service silently
+overrides. The incremental interval is clamped to 1...45 seconds and to the
+full interval; the 45-second cap keeps it inside the daemon's 60-second change
+window with room for sleep jitter.
+
+- Polling pauses when the app is inactive or the window closes
+  (`pausePolling`/`resumePolling`), and a new stream always starts with a full
+  refresh, clearing the cached snapshot.
+- Editing an interval posts `PollingIntervals.changed`; the loop cancels its
+  current sleep, so the new value applies immediately instead of after the old
+  one elapses.
+- The inspector rides the list tick: each snapshot asks `InspectorModel.poll()`
+  for the selected torrent's detail. It skips the fetch when the selected
+  torrent's list snapshot didn't change, so a paused torrent doesn't re-request
+  its file list every second.
+- Implemented as an `AsyncStream` driven by a `Task` that loops with
+  `Task.sleep`. The poller belongs in `TransmissionCore`, started and stopped
+  with the window's lifecycle.
 
 ## 6. Storage
 
@@ -180,7 +208,9 @@ tested without the shared defaults.
 | 2026-06-10 | Three-layer module split via local Swift Packages | Active |
 | 2026-06-10 | Hand-rolled RPC client; reject mogeko/transmission-rpc dependency | Active |
 | 2026-06-10 | async/await + `@Observable`, no Combine | Active |
-| 2026-06-10 | Adaptive polling, default 5s | Active |
+| 2026-06-10 | Adaptive polling, default 5s | Superseded |
+| 2026-10-25 | Two-cadence polling: full list every 15s (default) and the daemon's `recently-active` set every 1s (default), merged into one snapshot; bounds and defaults live in `PollingIntervals` | Active |
+| 2026-10-25 | The inspector's detail rides the list tick and refreshes only when the selected torrent's snapshot changed | Active |
 | 2026-06-10 | Multi-server first-class; switcher in UI | Active |
 | 2026-06-10 | Keychain for passwords, JSON file for profiles | Active |
 | 2026-06-10 | Drop SwiftData scaffolding from the default template | Active |

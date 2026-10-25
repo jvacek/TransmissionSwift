@@ -84,7 +84,6 @@ Alternatively, you can open the project in Xcode and build it from there.
 
 ## What's being planned
 
-1. Separate polling loop for active torrents
 1. iCloud Sync for settings
 1. iPhone Version
 
