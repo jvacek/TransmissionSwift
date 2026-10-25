@@ -31,34 +31,44 @@ struct GeneralPrefsPane: View {
             Section {
                 LabeledContent("Refresh interval") {
                     HStack {
-                        TextField("", value: $pollingInterval, format: .number)
+                        TextField("", value: $pollingInterval, format: .number.precision(.fractionLength(0)))
                             .frame(width: 52)
                         Text("seconds")
                             .foregroundStyle(.secondary)
                     }
                 }
+                .help("How often the whole list refreshes, \(rangeText(PollingIntervals.refresh))")
                 LabeledContent("Active refresh interval") {
                     HStack {
-                        TextField("", value: $activePollingInterval, format: .number)
-                            .frame(width: 52)
+                        TextField(
+                            "", value: $activePollingInterval,
+                            format: .number.precision(.fractionLength(0))
+                        )
+                        .frame(width: 52)
                         Text("seconds")
                             .foregroundStyle(.secondary)
                     }
                 }
-                .help("Refresh rate for torrents that are transferring, between full list refreshes")
+                .help(
+                    "How often transferring torrents and the inspector refresh, \(rangeText(PollingIntervals.active)) and never above the refresh interval"
+                )
                 LabeledContent("Free space interval") {
                     HStack {
-                        TextField("", value: $freeSpaceInterval, format: .number)
-                            .frame(width: 52)
+                        TextField(
+                            "", value: $freeSpaceInterval,
+                            format: .number.precision(.fractionLength(0))
+                        )
+                        .frame(width: 52)
                         Text("seconds")
                             .foregroundStyle(.secondary)
                     }
                 }
+                .help("How often free disk space is re-read, \(rangeText(PollingIntervals.freeSpace))")
             } header: {
                 Text("Connection")
             } footer: {
                 Text(
-                    "The list refreshes every “Refresh interval” seconds. While torrents are transferring, they and the inspector refresh at the active interval in between. The active interval never runs slower than the refresh interval."
+                    "The list refreshes every “Refresh interval” seconds. While torrents are transferring, they and the inspector refresh at the active interval in between, which is capped at 45 seconds and at the refresh interval. Values are whole seconds."
                 )
             }
             Section("Sidebar") {
@@ -88,6 +98,34 @@ struct GeneralPrefsPane: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear { normalizeIntervals() }
+        .onChange(of: pollingInterval) { _, _ in normalizeIntervals() }
+        .onChange(of: activePollingInterval) { _, _ in normalizeIntervals() }
+        .onChange(of: freeSpaceInterval) { _, _ in normalizeIntervals() }
+    }
+
+    /// Keep every field inside the range the service honors, including the
+    /// active interval's dependence on the refresh interval. Runs after each
+    /// edit so no invalid value is ever stored.
+    private func normalizeIntervals() {
+        let refresh = PollingIntervals.normalized(pollingInterval, to: PollingIntervals.refresh)
+        if refresh != pollingInterval {
+            pollingInterval = refresh
+        }
+
+        let active = PollingIntervals.incremental(active: activePollingInterval, refresh: refresh)
+        if active != activePollingInterval {
+            activePollingInterval = active
+        }
+
+        let freeSpace = PollingIntervals.normalized(freeSpaceInterval, to: PollingIntervals.freeSpace)
+        if freeSpace != freeSpaceInterval {
+            freeSpaceInterval = freeSpace
+        }
+    }
+
+    private func rangeText(_ range: ClosedRange<Double>) -> String {
+        "between \(Int(range.lowerBound)) and \(Int(range.upperBound)) seconds"
     }
 }
 
