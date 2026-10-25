@@ -93,6 +93,26 @@ struct InspectorModelTests {
         #expect(fetches == 2)
     }
 
+    @Test("poll retries after a failed detail fetch")
+    func failedFetchRetries() async throws {
+        let reader = FlakyReader()
+        let list = TorrentListModel()
+        list.setTorrents(MockFixtures.torrents())
+        let model = InspectorModel(list: list, defaults: try ephemeralDefaults())
+        model.connect(reading: reader)
+        let id = MockFixtures.torrents()[0].id
+        list.selectedTorrentIDs = [id]
+
+        await model.poll()
+        #expect(model.detail == nil)
+
+        // Same list snapshot, but the failure must not have closed the gate.
+        await model.poll()
+        #expect(model.detail?.id == id)
+        let calls = await reader.calls
+        #expect(calls == 2)
+    }
+
     @Test("a stale detail response cannot overwrite a newer one")
     func staleResponseDropped() async throws {
         let reader = GatedReader()
@@ -103,7 +123,7 @@ struct InspectorModelTests {
         let id = MockFixtures.torrents()[0].id
 
         // The first fetch blocks inside the reader.
-        let stale = Task { await model.fetch(for: id) }
+        let stale = Task { _ = await model.fetch(for: id) }
         while !(await reader.isSuspended) {
             try await Task.sleep(for: .milliseconds(5))
         }
@@ -150,5 +170,26 @@ private actor GatedReader: TorrentReading {
     func release() {
         gate?.resume()
         gate = nil
+    }
+}
+
+/// Reader that fails the first detail fetch, so the retry path can be tested.
+private actor FlakyReader: TorrentReading {
+    private(set) var calls = 0
+
+    func torrents() async throws -> [Torrent] { [] }
+    func torrentsStream() async -> AsyncThrowingStream<[Torrent], Error> {
+        AsyncThrowingStream { _ in }
+    }
+    func isAlternativeSpeedEnabled() async -> Bool { false }
+
+    func inspectorData(for id: Torrent.ID) async throws -> Torrent {
+        calls += 1
+        if calls == 1 {
+            throw URLError(.timedOut)
+        }
+        var torrent = MockFixtures.torrents()[0]
+        torrent.id = id
+        return torrent
     }
 }

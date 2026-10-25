@@ -56,10 +56,12 @@ public final class InspectorModel {
     }
 
     /// Fetch inspector-level detail (files, peers, trackerStats) for one torrent.
-    /// Clears stale detail first if the ID changed. Silently swallows errors —
-    /// the tabs fall back to showing empty arrays if the fetch fails.
-    public func fetch(for id: Torrent.ID) async {
-        guard let reading else { return }
+    /// Clears stale detail first if the ID changed. Errors are logged and
+    /// swallowed — the tabs fall back to empty arrays — but reported to the
+    /// caller so `poll()` can retry instead of treating the tick as done.
+    @discardableResult
+    public func fetch(for id: Torrent.ID) async -> Bool {
+        guard let reading else { return false }
         if detail?.id != id {
             detail = nil
         }
@@ -69,15 +71,20 @@ public final class InspectorModel {
         defer { isFetching = false }
         do {
             let fetched = try await reading.inspectorData(for: id)
+            // A newer fetch owns the result; this one is stale.
+            guard generation == fetchGeneration else { return false }
             // An unchanged result must not churn observers: `detail` feeds the
             // inspector's tables, which would otherwise rebuild every tick.
-            guard generation == fetchGeneration, fetched != detail else { return }
-            logger.debug(
-                "Inspector fetch succeeded for id \(id): \(fetched.files.count) files, \(fetched.peers.count) peers, \(fetched.trackers.count) trackers"
-            )
-            detail = fetched
+            if fetched != detail {
+                logger.debug(
+                    "Inspector fetch succeeded for id \(id): \(fetched.files.count) files, \(fetched.peers.count) peers, \(fetched.trackers.count) trackers"
+                )
+                detail = fetched
+            }
+            return true
         } catch {
             logger.error("Inspector fetch failed for id \(id): \(error)")
+            return false
         }
     }
 
@@ -87,8 +94,12 @@ public final class InspectorModel {
     func poll() async {
         guard isVisible, !isFetching, let torrent = list.selectedTorrents.first else { return }
         guard torrent != lastPolledSnapshot else { return }
-        lastPolledSnapshot = torrent
-        await fetch(for: torrent.id)
+        // Record only a completed fetch: a failure must stay eligible so the
+        // next tick retries rather than showing empty tabs until the torrent
+        // changes.
+        if await fetch(for: torrent.id) {
+            lastPolledSnapshot = torrent
+        }
     }
 
     /// After a mutation that only affects inspector-scoped data, re-fetch the
