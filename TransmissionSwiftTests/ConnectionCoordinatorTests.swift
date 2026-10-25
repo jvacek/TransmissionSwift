@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 import TransmissionCore
 import TransmissionRPC
@@ -92,14 +93,17 @@ struct ConnectionCoordinatorTests {
         let store = makeStore()
         let profile = ServerProfile(label: "S", host: "host.local", username: "user")
         let mock = MockTorrentService(initial: [])
-        var reads = 0
+        let reads = Mutex(0)
         let coordinator = ConnectionCoordinator(
             store: store,
             environment: makeEnvironment(),
             isAuxiliaryProcess: false,
             readCredentials: { _ in
-                reads += 1
-                if reads == 1 { throw Boom() }
+                let read = reads.withLock { count in
+                    count += 1
+                    return count
+                }
+                if read == 1 { throw Boom() }
                 return Credentials(username: "user", password: "pw")
             },
             makeService: { _, _ in mock })
@@ -110,7 +114,7 @@ struct ConnectionCoordinatorTests {
         // Reconnect must re-read the Keychain and install the real service,
         // not reuse the no-server placeholder that "connected" on its own.
         await coordinator.connect(to: profile)
-        #expect(reads == 2)
+        #expect(reads.withLock { $0 } == 2)
         #expect(disconnectedReason(store.connection) == nil)
     }
 

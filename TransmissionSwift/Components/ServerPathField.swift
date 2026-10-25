@@ -11,7 +11,7 @@ import TransmissionCore
 /// so a relative entry like `Movies` still yields a real full path
 /// (`/downloads/Movies`) — both for the "On server" preview and for the RPC
 /// call, which needs an absolute path on the daemon.
-func resolveServerPath(_ input: String, relativeTo base: String?) -> String {
+nonisolated func resolveServerPath(_ input: String, relativeTo base: String?) -> String {
     let trimmed = input.trimmingCharacters(in: .whitespaces)
     let baseTrimmed = (base ?? "").trimmingCharacters(in: .whitespaces)
     let absoluteInput = trimmed.hasPrefix("/")
@@ -58,7 +58,7 @@ func resolveServerPath(_ input: String, relativeTo base: String?) -> String {
 /// the base on submit) or when there is no existing path (new torrent).
 /// Anything outside the base stays absolute. Trailing slashes are normalized
 /// by `relativeDownloadFolder`.
-func initialServerPath(existing: String?, relativeTo base: String?) -> String {
+nonisolated func initialServerPath(existing: String?, relativeTo base: String?) -> String {
     guard let existing else { return "" }
     return relativeDownloadFolder(
         existing.trimmingCharacters(in: .whitespaces),
@@ -67,7 +67,7 @@ func initialServerPath(existing: String?, relativeTo base: String?) -> String {
 
 /// Whether a destination field value is submittable: anything non-empty always
 /// is; empty resolves to the base, so it needs a known base.
-func isSubmittableServerPath(_ input: String, relativeTo base: String?) -> Bool {
+nonisolated func isSubmittableServerPath(_ input: String, relativeTo base: String?) -> Bool {
     guard input.trimmingCharacters(in: .whitespaces).isEmpty else { return true }
     guard let base = base?.trimmingCharacters(in: .whitespaces) else { return false }
     return !base.isEmpty
@@ -76,7 +76,7 @@ func isSubmittableServerPath(_ input: String, relativeTo base: String?) -> Bool 
 /// Known-folder suggestions from the sidebar facet rollup, dropping the
 /// default-folder sentinel. Takes the facets directly so both sheets share the
 /// mapping instead of each repeating it.
-func serverPathSuggestions(from facets: FilterFacets) -> [String] {
+nonisolated func serverPathSuggestions(from facets: FilterFacets) -> [String] {
     knownFolderSuggestions(facets.folders.map(\.name))
 }
 
@@ -85,7 +85,7 @@ func serverPathSuggestions(from facets: FilterFacets) -> [String] {
 /// `/`). Absolute paths outside the base chosen explicitly (e.g.
 /// `/media/torrents`) are intentional, not climbs, so only excess `..` counts
 /// for them.
-func serverPathClimbsAboveBase(_ input: String, relativeTo base: String?) -> Bool {
+nonisolated func serverPathClimbsAboveBase(_ input: String, relativeTo base: String?) -> Bool {
     let trimmed = input.trimmingCharacters(in: .whitespaces)
     if trimmed.isEmpty { return false }
     if trimmed.hasPrefix("/") {
@@ -114,7 +114,7 @@ func serverPathClimbsAboveBase(_ input: String, relativeTo base: String?) -> Boo
 /// not the base itself, not root, and not among the known relative folders.
 /// The daemon — not this client — decides writability, so callers show this as
 /// a neutral hint, never a block.
-func serverPathIsNewFolder(resolved: String, relativeTo base: String?, folders: [String]) -> Bool {
+nonisolated func serverPathIsNewFolder(resolved: String, relativeTo base: String?, folders: [String]) -> Bool {
     guard !resolved.isEmpty, resolved != "/" else { return false }
     guard let baseTrimmed = base?.trimmingCharacters(in: .whitespaces), !baseTrimmed.isEmpty
     else { return false }
@@ -129,7 +129,7 @@ func serverPathIsNewFolder(resolved: String, relativeTo base: String?, folders: 
 /// Prefill for the Set Location sheet: the single shared folder made relative
 /// to the base, or empty when the selection spans several folders (or has no
 /// folder) so the field never implies they all live in one place.
-func setLocationInitialState(folders: [String], relativeTo base: String?) -> (
+nonisolated func setLocationInitialState(folders: [String], relativeTo base: String?) -> (
     path: String, distinctCount: Int
 ) {
     let distinct = Set(folders.map { $0.normalizedDownloadPath })

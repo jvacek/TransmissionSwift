@@ -42,9 +42,10 @@ enum SpotlightIndexer {
 /// that vanished while the app was closed is otherwise never unindexed. Daemon
 /// torrent ids are only unique per server, so the log is keyed by server and
 /// holds fully-qualified identifiers (see `TorrentEntity.id`).
-final class SpotlightDonationLog: Sendable {
+nonisolated final class SpotlightDonationLog: Sendable {
     private let state: Mutex<[String: Set<String>]>
-    private let defaults: UserDefaults
+    /// `UserDefaults` is documented thread-safe but isn't `Sendable`.
+    nonisolated(unsafe) private let defaults: UserDefaults
     private let key: String
 
     init(defaults: UserDefaults = .standard, key: String = "spotlightIndexedTorrentIDs") {

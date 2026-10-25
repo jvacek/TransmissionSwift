@@ -7,6 +7,7 @@ import TransmissionCore
 /// The display-value builder that feeds one table cell. `TorrentCellContent` is
 /// the seam the AppKit cell renders, so its output is what the row shows.
 @Suite("TorrentCellContent.make")
+@MainActor
 struct TorrentCellContentTests {
     @Test func cellContent_nameCarriesStatusDotAndTagDots() {
         let torrent = makeTableTorrent(labels: ["A", "B"])

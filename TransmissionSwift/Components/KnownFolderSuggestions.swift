@@ -6,6 +6,6 @@ import Foundation
 /// download directory. That sentinel names the default folder itself, not a
 /// destination worth jumping to, so it is dropped. The result is deliberately
 /// independent of any typed path: every known folder stays one click away.
-func knownFolderSuggestions(_ known: [String]) -> [String] {
+nonisolated func knownFolderSuggestions(_ known: [String]) -> [String] {
     known.filter { !$0.isEmpty }
 }
