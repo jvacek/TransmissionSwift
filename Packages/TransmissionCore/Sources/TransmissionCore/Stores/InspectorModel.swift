@@ -53,6 +53,10 @@ public final class InspectorModel {
 
     func connect(reading: any TorrentReading) {
         self.reading = reading
+        // Detail belongs to the previous server; a same-id torrent on the new
+        // one would otherwise show its files until the first fetch lands.
+        detail = nil
+        lastPolledSnapshot = nil
     }
 
     /// Fetch inspector-level detail (files, peers, trackerStats) for one torrent.
