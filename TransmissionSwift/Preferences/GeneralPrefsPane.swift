@@ -78,17 +78,23 @@ struct GeneralPrefsPane: View {
         }
         .formStyle(.grouped)
         .onAppear { normalizeIntervals() }
-        .onChange(of: pollingInterval) { _, _ in normalizeIntervals() }
-        .onChange(of: incrementalPollingInterval) { _, _ in normalizeIntervals() }
-        .onChange(of: freeSpaceInterval) { _, _ in normalizeIntervals() }
+        .onChange(of: pollingInterval) { _, _ in intervalEdited() }
+        .onChange(of: incrementalPollingInterval) { _, _ in intervalEdited() }
+        .onChange(of: freeSpaceInterval) { _, _ in intervalEdited() }
+    }
+
+    /// Every edit, valid or clamped, has to reach a loop that may already be
+    /// asleep: a plain 15 -> 20 change is exactly the case that must cut the
+    /// current sleep short, so this can't depend on a clamp having fired.
+    private func intervalEdited() {
+        normalizeIntervals()
+        NotificationCenter.default.post(name: PollingIntervals.changed, object: nil)
     }
 
     /// Keep every field inside the range the service honors, including the
     /// incremental interval's dependence on the refresh interval. Runs after
     /// each edit so no invalid value is ever stored.
     private func normalizeIntervals() {
-        let original = (pollingInterval, incrementalPollingInterval, freeSpaceInterval)
-
         let refresh = PollingIntervals.normalized(pollingInterval, to: PollingIntervals.refresh)
         if refresh != pollingInterval {
             pollingInterval = refresh
@@ -103,12 +109,6 @@ struct GeneralPrefsPane: View {
         let freeSpace = PollingIntervals.normalized(freeSpaceInterval, to: PollingIntervals.freeSpace)
         if freeSpace != freeSpaceInterval {
             freeSpaceInterval = freeSpace
-        }
-
-        // Let a sleeping poll loop pick the new value up now instead of after
-        // the old interval has elapsed.
-        if (pollingInterval, incrementalPollingInterval, freeSpaceInterval) != original {
-            NotificationCenter.default.post(name: PollingIntervals.changed, object: nil)
         }
     }
 
