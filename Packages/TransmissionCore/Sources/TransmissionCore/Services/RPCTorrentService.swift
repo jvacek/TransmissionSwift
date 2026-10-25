@@ -16,11 +16,8 @@ public actor RPCTorrentService: TorrentService {
     /// short instead of waiting out the old interval.
     private var pollSleep: Task<Void, Never>?
     private var consecutiveFailures = 0
-    /// Last full-list snapshot, kept so incremental polls can be merged into a
-    /// complete array for the store. Torrents the daemon didn't return keep
-    /// their last values.
-    private var cache: [Torrent] = []
-    private var lastFullPoll: Date?
+    /// Last full list plus the incremental changes merged into it.
+    private var snapshot = TorrentSnapshot()
 
     /// Cached result from the most recent `session-get`. Updated by `freeSpace()`
     /// which is called on connect and periodically thereafter. Used for:
@@ -49,10 +46,9 @@ public actor RPCTorrentService: TorrentService {
         // Unicast: cancel any existing poll loop before handing back a new stream.
         pollTask?.cancel()
         consecutiveFailures = 0
-        // A new stream means a new connection; the cached snapshot belongs to
-        // the old one, so start with a full poll.
-        cache = []
-        lastFullPoll = nil
+        // A new stream means a new connection; the snapshot belongs to the old
+        // one, so start with a full poll.
+        snapshot.reset()
         let (stream, cont) = AsyncThrowingStream<[Torrent], Error>.makeStream()
         self.continuation = cont
         // The loop owns the stream it was started for. A cancelled predecessor
@@ -109,20 +105,19 @@ public actor RPCTorrentService: TorrentService {
             let base = pollingInterval()
             let incremental = PollingIntervals.clampedIncremental(
                 incrementalPollingInterval(), refresh: base)
-            let fullDue = Self.isFullPollDue(lastFullPoll: lastFullPoll, base: base, now: Date())
+            let fullDue = snapshot.isFullPollDue(base: base, now: Date())
             do {
                 let resp = try await client.torrentGet(
                     fields: TorrentGetResponse.listFields,
                     ids: fullDue ? nil : .recentlyActive)
                 let fresh = resp.torrents.map { Torrent(wire: $0) }
                 if fullDue {
-                    cache = fresh
-                    lastFullPoll = Date()
+                    snapshot.applyFull(fresh, at: Date())
                 } else {
-                    cache = Self.merging(fresh, removing: resp.removed ?? [], into: cache)
+                    snapshot.applyChanges(fresh, removed: resp.removed ?? [])
                 }
                 consecutiveFailures = 0
-                stream.yield(cache)
+                stream.yield(snapshot.torrents)
             } catch {
                 logger.error("Poll error: \(error)")
                 if isFatal(error) {
@@ -138,13 +133,6 @@ public actor RPCTorrentService: TorrentService {
             await sleep(incremental)
         }
         stream.finish()
-    }
-
-    /// Full list once per refresh interval, and on the first tick. Incremental
-    /// otherwise.
-    static func isFullPollDue(lastFullPoll: Date?, base: TimeInterval, now: Date) -> Bool {
-        guard let lastFullPoll else { return true }
-        return now.timeIntervalSince(lastFullPoll) >= base
     }
 
     /// Sleep between ticks. Cancelling this task, or a polling-preference
@@ -164,24 +152,6 @@ public actor RPCTorrentService: TorrentService {
 
     private func wakePoll() {
         pollSleep?.cancel()
-    }
-
-    /// Overlay a recently-active response on the last full snapshot. Unlike a
-    /// partial keyed on cached ids this can bring torrents we have never seen
-    /// and ids the daemon removed. Existing entries keep their order; new ones
-    /// go on the end until the next full poll restores the daemon's order.
-    static func merging(
-        _ fresh: [Torrent], removing removed: [Torrent.ID], into cache: [Torrent]
-    ) -> [Torrent] {
-        let dropped = Set(removed)
-        var byID = Dictionary(
-            uniqueKeysWithValues: fresh.lazy.filter { !dropped.contains($0.id) }.map { ($0.id, $0) })
-        var merged = cache.compactMap { torrent -> Torrent? in
-            guard !dropped.contains(torrent.id) else { return nil }
-            return byID.removeValue(forKey: torrent.id) ?? torrent
-        }
-        merged.append(contentsOf: byID.values.sorted { $0.id < $1.id })
-        return merged
     }
 
     private func isFatal(_ error: TransmissionError) -> Bool {
@@ -482,11 +452,10 @@ public actor RPCTorrentService: TorrentService {
     /// unavoidable.
     private func refreshAfterMutation() async {
         do {
-            let snapshot = try await torrents()
-            cache = snapshot
-            lastFullPoll = Date()
-            continuation?.yield(cache)
-            logger.debug("Post-mutation refresh yielded \(snapshot.count) torrents")
+            let full = try await torrents()
+            snapshot.applyFull(full, at: Date())
+            continuation?.yield(snapshot.torrents)
+            logger.debug("Post-mutation refresh yielded \(full.count) torrents")
         } catch {
             logger.error("Post-mutation refresh failed: \(error)")
         }
