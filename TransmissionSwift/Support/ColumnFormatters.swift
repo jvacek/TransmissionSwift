@@ -77,15 +77,10 @@ nonisolated enum ColumnFormatters {
         }
     }
 
-    // Formatter allocation is expensive (locale tables); reuse one instance.
-    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter
-    }()
-
+    // A Sendable FormatStyle rather than a shared RelativeDateTimeFormatter: Swift 6
+    // rejects non-Sendable statics, and Foundation caches the locale data itself.
     static func relativeDate(_ date: Date) -> String {
-        relativeDateFormatter.localizedString(for: date, relativeTo: Date())
+        date.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated))
     }
 
     static func queuePosition(_ position: Int?) -> String {
