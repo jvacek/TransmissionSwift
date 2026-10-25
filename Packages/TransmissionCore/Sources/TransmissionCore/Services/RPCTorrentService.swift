@@ -7,9 +7,16 @@ private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category:
 public actor RPCTorrentService: TorrentService {
     private let client: any TransmissionClient
     private let pollingInterval: @Sendable () -> TimeInterval
+    /// Interval for the active subset between full polls; clamped to
+    /// `pollingInterval` so the fast path can never be slower than the base.
+    private let activePollingInterval: @Sendable () -> TimeInterval
     private var continuation: AsyncThrowingStream<[Torrent], Error>.Continuation?
     private var pollTask: Task<Void, Never>?
     private var consecutiveFailures = 0
+    /// Last full-list snapshot, kept so partial polls can be merged into a
+    /// complete array for the store. Idle torrents are not re-fetched.
+    private var cache: [Torrent] = []
+    private var lastFullPoll: Date?
 
     /// Cached result from the most recent `session-get`. Updated by `freeSpace()`
     /// which is called on connect and periodically thereafter. Used for:
@@ -22,16 +29,25 @@ public actor RPCTorrentService: TorrentService {
         pollingInterval: @escaping @Sendable () -> TimeInterval = {
             let v = UserDefaults.standard.double(forKey: PreferenceKeys.pollingIntervalSeconds)
             return v > 0 ? v : 5.0
+        },
+        activePollingInterval: @escaping @Sendable () -> TimeInterval = {
+            let v = UserDefaults.standard.double(forKey: PreferenceKeys.activePollingIntervalSeconds)
+            return v > 0 ? v : 1.0
         }
     ) {
         self.client = client
         self.pollingInterval = pollingInterval
+        self.activePollingInterval = activePollingInterval
     }
 
     public func torrentsStream() async -> AsyncThrowingStream<[Torrent], Error> {
         // Unicast: cancel any existing poll loop before handing back a new stream.
         pollTask?.cancel()
         consecutiveFailures = 0
+        // A new stream means a new connection; the cached snapshot belongs to
+        // the old one, so start with a full poll.
+        cache = []
+        lastFullPoll = nil
         let (stream, cont) = AsyncThrowingStream<[Torrent], Error>.makeStream()
         self.continuation = cont
         let task = Task { await self.runPollLoop() }
@@ -76,15 +92,32 @@ public actor RPCTorrentService: TorrentService {
 
     private func runPollLoop() async {
         while !Task.isCancelled {
+            let base = pollingInterval()
+            let fast = min(activePollingInterval(), base)
+            let now = Date()
+            guard let plan = Self.plan(cache: cache, lastFullPoll: lastFullPoll, base: base, now: now)
+            else {
+                // Nothing transferring and the full poll isn't due: wait for it.
+                let elapsed = lastFullPoll.map { now.timeIntervalSince($0) } ?? base
+                try? await Task.sleep(for: .seconds(max(1, base - elapsed)))
+                continue
+            }
             do {
-                let snapshot = try await torrents()
+                let resp = try await client.torrentGet(
+                    fields: TorrentGetResponse.listFields, ids: plan.ids)
+                let fresh = resp.torrents.map { Torrent(wire: $0) }
+                if plan.isFull {
+                    cache = fresh
+                    lastFullPoll = Date()
+                } else {
+                    cache = Self.merging(fresh, into: cache)
+                }
                 consecutiveFailures = 0
-                continuation?.yield(snapshot)
+                continuation?.yield(cache)
             } catch {
                 logger.error("Poll error: \(error)")
-                let txError = error as? TransmissionError
-                if let txError, isFatal(txError) {
-                    continuation?.finish(throwing: txError)
+                if isFatal(error) {
+                    continuation?.finish(throwing: error)
                     return
                 }
                 consecutiveFailures += 1
@@ -93,9 +126,36 @@ public actor RPCTorrentService: TorrentService {
                     return
                 }
             }
-            try? await Task.sleep(for: .seconds(max(1, pollingInterval())))
+            try? await Task.sleep(for: .seconds(max(1, cache.contains(where: \.isActive) ? fast : base)))
         }
         continuation?.finish()
+    }
+
+    /// One iteration's fetch plan. `ids == nil` means the whole list; nil plan
+    /// means there is nothing to fetch before the next full poll is due.
+    struct PollPlan: Equatable {
+        let ids: [Torrent.ID]?
+        let isFull: Bool
+    }
+
+    /// Full list once per base interval, the active subset in between. Files and
+    /// peers live in the inspector's own fetch; this only covers list fields.
+    static func plan(
+        cache: [Torrent], lastFullPoll: Date?, base: TimeInterval, now: Date
+    ) -> PollPlan? {
+        guard let lastFullPoll, now.timeIntervalSince(lastFullPoll) < base else {
+            return PollPlan(ids: nil, isFull: true)
+        }
+        let active = cache.filter(\.isActive).map(\.id)
+        return active.isEmpty ? nil : PollPlan(ids: active, isFull: false)
+    }
+
+    /// Overlay a partial response on the last full snapshot, keeping the
+    /// daemon's order. Ids the partial didn't include keep their last values;
+    /// ids it doesn't know about are ignored rather than resurrected.
+    static func merging(_ fresh: [Torrent], into cache: [Torrent]) -> [Torrent] {
+        let byID = Dictionary(uniqueKeysWithValues: fresh.map { ($0.id, $0) })
+        return cache.map { byID[$0.id] ?? $0 }
     }
 
     private func isFatal(_ error: TransmissionError) -> Bool {
@@ -397,7 +457,9 @@ public actor RPCTorrentService: TorrentService {
     private func refreshAfterMutation() async {
         do {
             let snapshot = try await torrents()
-            continuation?.yield(snapshot)
+            cache = snapshot
+            lastFullPoll = Date()
+            continuation?.yield(cache)
             logger.debug("Post-mutation refresh yielded \(snapshot.count) torrents")
         } catch {
             logger.error("Post-mutation refresh failed: \(error)")
