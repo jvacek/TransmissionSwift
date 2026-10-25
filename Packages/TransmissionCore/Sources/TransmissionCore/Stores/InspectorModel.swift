@@ -22,13 +22,16 @@ public final class InspectorModel {
     public var isVisible: Bool = true {
         didSet {
             if oldValue != isVisible {
-                UserDefaults.standard.set(isVisible, forKey: PreferenceKeys.inspectorVisible)
+                defaults.set(isVisible, forKey: PreferenceKeys.inspectorVisible)
             }
         }
     }
     public var tab: InspectorTab = .general
 
     private let list: TorrentListModel
+    /// Where the visibility preference lives. Injected so tests don't touch (or
+    /// depend on) the developer's real preference.
+    private let defaults: UserDefaults
     private var reading: (any TorrentReading)?
     /// Bumped per fetch so a slow response can't overwrite a newer one. Poll
     /// ticks and post-mutation refreshes overlap, and the loser would flip a
@@ -40,10 +43,11 @@ public final class InspectorModel {
     /// list field has no new files or peers to fetch.
     private var lastPolledSnapshot: Torrent?
 
-    public init(list: TorrentListModel) {
+    public init(list: TorrentListModel, defaults: UserDefaults = .standard) {
         self.list = list
-        if UserDefaults.standard.object(forKey: PreferenceKeys.inspectorVisible) != nil {
-            self.isVisible = UserDefaults.standard.bool(forKey: PreferenceKeys.inspectorVisible)
+        self.defaults = defaults
+        if defaults.object(forKey: PreferenceKeys.inspectorVisible) != nil {
+            self.isVisible = defaults.bool(forKey: PreferenceKeys.inspectorVisible)
         }
     }
 

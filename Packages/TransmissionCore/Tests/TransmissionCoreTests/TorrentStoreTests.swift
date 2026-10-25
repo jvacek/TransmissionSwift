@@ -615,6 +615,42 @@ struct TorrentStoreTests {
         #expect(store.list.torrents.first { $0.id == 5 }?.priority == .low)
     }
 
+    @Test("each list snapshot refreshes the inspector detail for the selection")
+    @MainActor
+    func snapshotRefreshesInspectorDetail() async throws {
+        // The store builds its inspector against the shared defaults, so put the
+        // real visibility preference back afterwards.
+        let key = PreferenceKeys.inspectorVisible
+        let saved = UserDefaults.standard.object(forKey: key)
+        defer {
+            if let saved {
+                UserDefaults.standard.set(saved, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.list.torrents.isEmpty }
+
+        store.inspector.isVisible = true
+        store.list.selectedTorrentIDs = [5]
+        let before = await service.inspectorFetchCount
+
+        await service.tick()
+
+        var fetches = before
+        let deadline = Date().addingTimeInterval(1)
+        while Date() < deadline {
+            fetches = await service.inspectorFetchCount
+            if fetches > before { break }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(fetches > before)
+        #expect(store.inspector.detail?.id == 5)
+    }
+
     @Test("file wanted/priority mutations refresh the inspected torrent's detail")
     @MainActor
     func fileMutationRefreshesInspectorDetail() async throws {

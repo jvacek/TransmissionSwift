@@ -19,6 +19,21 @@ struct RPCPollCadenceTests {
         return torrent
     }
 
+    @Test("the full list is due on the first tick and once per refresh interval")
+    func fullPollSchedule() {
+        let now = Date()
+        #expect(RPCTorrentService.isFullPollDue(lastFullPoll: nil, base: 15, now: now))
+        #expect(
+            !RPCTorrentService.isFullPollDue(
+                lastFullPoll: now, base: 15, now: now.addingTimeInterval(1)))
+        #expect(
+            !RPCTorrentService.isFullPollDue(
+                lastFullPoll: now, base: 15, now: now.addingTimeInterval(14.9)))
+        #expect(
+            RPCTorrentService.isFullPollDue(
+                lastFullPoll: now, base: 15, now: now.addingTimeInterval(15)))
+    }
+
     @Test("the incremental interval is capped at 45 seconds and at the refresh interval")
     func intervalClamp() {
         #expect(PollingIntervals.clampedIncremental(1, refresh: 5) == 1)
