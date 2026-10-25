@@ -51,16 +51,17 @@ struct InspectorView: View {
 
     @ViewBuilder
     private func tabContent(for torrent: Torrent) -> some View {
-        // For tabs that need rich per-file/peer/tracker data, use the separately-
-        // fetched inspectorDetail when it matches the current torrent. The main
-        // list poll only carries list fields, so those arrays would otherwise
-        // always be empty.
+        // For tabs that need rich per-file/peer data, use the separately-fetched
+        // inspectorDetail when it matches the current torrent. The main list poll
+        // only carries list fields, so those arrays would otherwise be empty.
+        // Trackers ride the list poll (`trackerStats` is a list field), so they
+        // stay live without the detail fetch.
         let detail = store.inspector.detail?.id == torrent.id ? store.inspector.detail! : torrent
         switch store.inspector.tab {
         case .general: InspectorGeneralTab(torrent: torrent.mergingMetadata(from: store.inspector.detail))
         case .files: InspectorFilesTab(torrent: detail)
         case .peers: InspectorPeersTab(torrent: detail)
-        case .trackers: InspectorTrackersTab(torrent: detail)
+        case .trackers: InspectorTrackersTab(torrent: torrent)
         case .options: InspectorOptionsTab(torrent: torrent)
         }
     }

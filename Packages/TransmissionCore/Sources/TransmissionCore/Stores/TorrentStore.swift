@@ -159,6 +159,10 @@ public final class TorrentStore {
             do {
                 for try await snapshot in stream {
                     self.list.setTorrents(snapshot)
+                    // The list snapshot carries no files/peers; the inspector
+                    // fetches its own detail on the same cadence. Fire-and-forget
+                    // so a slow detail request can't stretch the list interval.
+                    Task { await self.inspector.poll() }
                     // Only write once: a poll tick must not churn observers.
                     if self.connection != .connected {
                         self.connection = .connected

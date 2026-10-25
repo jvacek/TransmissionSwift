@@ -16,6 +16,9 @@ public actor MockTorrentService: TorrentService {
     private var tickTask: Task<Void, Never>?
     private var torrentsError: Error?
     private var removeError: Error?
+    /// Number of `inspectorData(for:)` calls, so tests can assert how often the
+    /// inspector refreshes.
+    public private(set) var inspectorFetchCount = 0
 
     public init(initial: [Torrent] = MockFixtures.torrents()) {
         self.state = initial
@@ -278,6 +281,7 @@ public actor MockTorrentService: TorrentService {
     }
 
     public func inspectorData(for id: Torrent.ID) async throws -> Torrent {
+        inspectorFetchCount += 1
         guard let torrent = state.first(where: { $0.id == id }) else {
             struct NotFound: Error {}
             throw NotFound()

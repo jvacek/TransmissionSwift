@@ -8,9 +8,10 @@ private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category:
 /// visibility (a persisted preference) and its selected tab, plus the fetch
 /// that keeps the detail current.
 ///
-/// The coordinator binds the current read service on connect and drives the
-/// post-mutation refresh through `refreshIfShowing(_:)`, which consults the list
-/// model's selection.
+/// The coordinator binds the current read service on connect, drives the
+/// periodic refresh through `poll()` off the list tick, and the post-mutation
+/// refresh through `refreshIfShowing(_:)`. Both consult the list model's
+/// selection.
 @MainActor
 @Observable
 public final class InspectorModel {
@@ -29,6 +30,12 @@ public final class InspectorModel {
 
     private let list: TorrentListModel
     private var reading: (any TorrentReading)?
+    /// Bumped per fetch so a slow response can't overwrite a newer one. Poll
+    /// ticks and post-mutation refreshes overlap, and the loser would flip a
+    /// freshly toggled checkbox back to its pre-mutation state.
+    private var fetchGeneration = 0
+    /// Set while a fetch is in flight so a slow daemon doesn't pile up requests.
+    private var isFetching = false
 
     public init(list: TorrentListModel) {
         self.list = list
@@ -49,8 +56,15 @@ public final class InspectorModel {
         if detail?.id != id {
             detail = nil
         }
+        fetchGeneration += 1
+        let generation = fetchGeneration
+        isFetching = true
+        defer { isFetching = false }
         do {
             let fetched = try await reading.inspectorData(for: id)
+            // An unchanged result must not churn observers: `detail` feeds the
+            // inspector's tables, which would otherwise rebuild every tick.
+            guard generation == fetchGeneration, fetched != detail else { return }
             logger.debug(
                 "Inspector fetch succeeded for id \(id): \(fetched.files.count) files, \(fetched.peers.count) peers, \(fetched.trackers.count) trackers"
             )
@@ -58,6 +72,14 @@ public final class InspectorModel {
         } catch {
             logger.error("Inspector fetch failed for id \(id): \(error)")
         }
+    }
+
+    /// One refresh driven by the list tick. The list snapshot carries no
+    /// files/peers, so the detail pane needs its own request; riding the tick
+    /// keeps a single cadence and stops with pause/resume and on disconnect.
+    func poll() async {
+        guard isVisible, !isFetching, let id = list.selectedTorrents.first?.id else { return }
+        await fetch(for: id)
     }
 
     /// After a mutation that only affects inspector-scoped data, re-fetch the
