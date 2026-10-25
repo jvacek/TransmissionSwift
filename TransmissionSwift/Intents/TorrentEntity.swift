@@ -12,7 +12,9 @@ struct TorrentEntity: AppEntity, URLRepresentableEntity, Identifiable, Hashable,
 
     /// The deep link the system opens the entity with, e.g.
     /// `transmissionswift://<serverUUID>/<torrentID>`. See `OpenRequest`.
-    static var urlRepresentation = URLRepresentation("transmissionswift://\(.id)")
+    static var urlRepresentation: URLRepresentation {
+        URLRepresentation("transmissionswift://\(.id)")
+    }
 
     /// `"<serverUUID>/<torrentID>"`. Daemon torrent ids are only unique per
     /// server, so the server is baked in: an identifier of just the torrent id
