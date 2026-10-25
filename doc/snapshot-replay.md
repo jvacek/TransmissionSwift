@@ -2,8 +2,8 @@
 
 Status: **capture + replay implemented** (2026-08-21) — machinery, Developer
 pane UI (Settings → Developer), and the `--snapshot <path>` replay launch path
-are all in. A no-daemon XCUITest against a committed fixture landed 2026-08-23
-(Slice C). No separate CLI binary.
+are all in, with a no-daemon XCUITest against a committed fixture. No separate
+CLI binary.
 
 ## Problem
 
@@ -212,87 +212,6 @@ alongside `--ephemeral-profiles`:
    daemon; a snapshot-backed XCUITest runs anywhere, including CI.
 4. **Committable regression fixtures** — capture an edge-case state once, keep it
    in the repo, reference it from unit + UI tests.
-
-## Plan
-
-### Slice A — capture machinery (TransmissionCore + TransmissionRPC) ✅
-
-- [x] `Encodable` on the wire types (`WireTorrent` + inspector types, `SessionInfo`).
-- [x] `SnapshotFile` / `SnapshotSourceInfo` / `SnapshotRedactionSummary` envelopes
-      (`Snapshot.swift`), `SnapshotRedactor.swift`, `SnapshotLeakChecker.swift`.
-- [x] `TorrentService.captureRawSnapshot()` (+ `RPCTorrentService` impl) and
-      `TorrentStore.captureSnapshot(to:options:)` orchestration.
-- [x] Tests: 3 new suites in TransmissionCore (redactor rules, leak detectors,
-      pipeline/file verification) + wire re-encode shape in TransmissionRPC.
-
-**Validation:** 125 core tests + 21 RPC tests pass, `swift format lint --strict`
-clean. The fixture-based pipeline tests cover the full loop — redact → leak-check
-→ write → read back → domain-map — with byte-determinism asserted. Real-daemon
-capture wasn't run (no `transmission-daemon` on PATH); worth doing once the local
-dev daemon is up (recipe in AGENTS.md).
-
-### Slice B — UI + replay
-
-Capture UI landed (2026-08-21): `DeveloperPrefsPane` (7th Settings tab,
-save panel, result/error alerts), `.environment(torrentStore)` on the Settings
-scene, button disabled until connected. Replay landed same day:
-
-- `SnapshotTorrentService` (TransmissionCore): decodes the envelope via the
-  same `SessionInfo` / `WireTorrent` / `Torrent(wire:)` path as a live poll,
-  yields the list once (frozen, no tick), answers `freeSpace` /
-  `downloadDirectory` / `isAlternativeSpeedEnabled` from the stored session,
-  `supportsActions == false`. Mutations throw `SnapshotError.replayReadOnly`.
-- `--snapshot <path>` (also `--snapshot=<path>`) in `TransmissionSwiftApp.init`:
-  forces ephemeral profiles, seeds a synthetic in-memory `ServerProfile`
-  (labelled from the file's optional `source.serverName`, else
-  "Snapshot — <filename>") so the toolbar title / status bar have a label, and
-  boots `SnapshotTorrentService` into the store.
-  `ContentView` routes to `MainWindow` like mock mode but skips the connect task.
-  If the file fails to decode, it logs "Snapshot load failed" and falls back to
-  the empty mock.
-- **Sandbox gotcha:** a sandboxed app cannot read an arbitrary path passed on the
-  command line. The target grants `ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readonly`
-  (the `com.apple.security.files.downloads.read-only` entitlement) so real
-  captures can be replayed from `~/Downloads`. Debug builds additionally carry a
-  read-only `/` temp exception
-  (`com.apple.security.temporary-exception.files.absolute-path.read-only`, from
-  `TransmissionSwift/TransmissionSwift-Debug.entitlements` — Debug config only),
-  so `--snapshot <repo fixture>` also works from Xcode Run / Debug `open`.
-  Read-only suffices — replay never writes.
-- Tests: `SnapshotTorrentServiceTests` (7 tests: serve → map → session fields →
-  frozen stream → read-only → inspector → unknown-version rejection).
-
-**Validation:** 145 core tests + 21 RPC tests pass, `swift format lint --strict`
-clean, app builds. Replay verified end-to-end against the committed fixture
-(`TransmissionSwiftUITests/Fixtures/snapshot-10-torrents.json`, the first 10
-`MockFixtures` torrents in wire form) launched with `--snapshot`.
-
-### Slice C — docs ✅
-
-- Result notes in this doc (Slice B validation above), an AGENTS.md dev-tools
-  line (with the `--snapshot` invocation + `ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER`
-  note), and a cross-ref from `reference/README.md`.
-- **No-daemon XCUITest** (`testSnapshotMainWindow`) landed 2026-08-23: boots the
-  app on a **committed fixture**
-  (`TransmissionSwiftUITests/Fixtures/snapshot-10-torrents.json`, the first 10
-  `MockFixtures` torrents in wire form — since 2026-08-23 this replaced the
-  anonymized Slice B capture, so the UI asserts against the design-handoff
-  sample set instead) located via `#filePath`-derived paths — no
-  resource bundling required (the filesystem-synced UITests group also copies
-  it into the bundle as a fallback). The app passes the checkout path straight
-  to `--snapshot`: when built for UI testing, Xcode injects
-  `com.apple.security.temporary-exception.files.absolute-path.read-only = /`
-  into the app's entitlements, so the sandbox doesn't block reading the repo.
-  This replaced the old test that scanned the developer's real `~/Downloads`
-  for "the smallest snapshot" — which was nondeterministic and, whenever the
-  small capture wasn't present, picked the 1098-row one and stalled ~30s per AX
-  query (~150s suite).
-
-Per Jonas's cross-stack preference, the validation loop closes early: capture a
-snapshot from the local dev daemon at the end of slice A, boot the app on it
-during slice B — end-to-end without ever touching the real server. Done: the
-committed fixture (`snapshot-10-torrents.json`, 10 mock torrents) is replayed
-via `--snapshot`.
 
 ## Open questions
 

@@ -64,8 +64,8 @@ Views read `store.<collaborator>.<member>`; the poll loop distributes snapshots
 to the models. The inspector is the exception: its files and peers come from
 `InspectorModel.poll()`, which rides each snapshot, because the list snapshot
 carries no `files` or `peers`. User-action failures funnel through the
-coordinator's `lastActionError`. The split is tracked in
-`doc/torrentstore-split.md`.
+coordinator's `lastActionError`. The layout and wiring are described in
+`doc/torrentstore.md`.
 
 The services behind the store are split by capability: `TorrentReading` (always
 available) and `TorrentMutating` (live and mock services only). Callers resolve
@@ -126,37 +126,29 @@ the main actor, builds the service and drives `TorrentStore` plus the shared
 
 ## 5. Polling strategy
 
-Two cadences share one loop in `RPCTorrentService`:
+One loop in `RPCTorrentService` runs two cadences and sends a complete array each
+tick:
 
-- **Full refresh** (`pollingIntervalSeconds`, default 15s) asks for the whole
-  torrent list. It reconciles membership and the daemon's order, and covers the
-  fields the daemon doesn't mark as changed.
-- **Incremental refresh** (`incrementalPollingIntervalSeconds`, default 1s) asks
-  for `ids: "recently-active"`: every torrent changed in the daemon's 60-second
-  window, plus the ids removed in it. The response is merged into the last full
-  snapshot, and the merged array is what the store receives. That is the
-  protocol's only incremental primitive, and it is why a torrent added, stopped
-  or removed from another client arrives within one incremental interval.
+- **Full refresh** (`pollingIntervalSeconds`, default 15s): the whole list. It
+  reconciles membership and the daemon's order, and covers fields the daemon
+  doesn't mark as changed.
+- **Incremental refresh** (`incrementalPollingIntervalSeconds`, default 1s):
+  `ids: "recently-active"`, the daemon's changed set from the last 60 seconds
+  plus the ids removed in it, merged into the cached full snapshot. This is the
+  protocol's only incremental primitive.
 
-Bounds and defaults live in `PollingIntervals` and are shared with the
-preferences pane, so a field can't promise a value the service silently
-overrides. The incremental interval is clamped to 1...45 seconds and to the
-full interval; the 45-second cap keeps it inside the daemon's 60-second change
-window with room for sleep jitter.
+`PollingIntervals` holds the bounds and defaults shared with the preferences
+pane: the incremental interval is clamped to 1...45 seconds (inside the daemon's
+window, with jitter headroom) and to the full interval. Polling pauses when the
+app is inactive or the window closes, and a new stream starts with a full
+refresh. Editing an interval posts `PollingIntervals.changed`, which cancels the
+current sleep so the new value applies immediately.
 
-- Polling pauses when the app is inactive or the window closes
-  (`pausePolling`/`resumePolling`), and a new stream always starts with a full
-  refresh, clearing the cached snapshot.
-- Editing an interval posts `PollingIntervals.changed`; the loop cancels its
-  current sleep, so the new value applies immediately instead of after the old
-  one elapses.
-- The inspector rides the list tick: each snapshot asks `InspectorModel.poll()`
-  for the selected torrent's detail. It skips the fetch when the selected
-  torrent's list snapshot didn't change, so a paused torrent doesn't re-request
-  its file list every second.
-- Implemented as an `AsyncStream` driven by a `Task` that loops with
-  `Task.sleep`. The poller belongs in `TransmissionCore`, started and stopped
-  with the window's lifecycle.
+The inspector rides the same tick: `InspectorModel.poll()` fetches the selected
+torrent's files and peers only when its list snapshot changed, so a paused
+torrent is not refetched every second.
+
+Implemented as an `AsyncStream` fed by a `Task` that sleeps between ticks.
 
 ## 6. Storage
 
@@ -208,9 +200,7 @@ tested without the shared defaults.
 | 2026-06-10 | Three-layer module split via local Swift Packages | Active |
 | 2026-06-10 | Hand-rolled RPC client; reject mogeko/transmission-rpc dependency | Active |
 | 2026-06-10 | async/await + `@Observable`, no Combine | Active |
-| 2026-06-10 | Adaptive polling, default 5s | Superseded |
-| 2026-10-25 | Two-cadence polling: full list every 15s (default) and the daemon's `recently-active` set every 1s (default), merged into one snapshot; bounds and defaults live in `PollingIntervals` | Active |
-| 2026-10-25 | The inspector's detail rides the list tick and refreshes only when the selected torrent's snapshot changed | Active |
+| 2026-10-25 | Two-cadence polling: full list every 15s (default), the daemon's `recently-active` set every 1s (default) merged into one snapshot; the inspector detail rides that tick and refreshes only when the selected torrent changed | Active |
 | 2026-06-10 | Multi-server first-class; switcher in UI | Active |
 | 2026-06-10 | Keychain for passwords, JSON file for profiles | Active |
 | 2026-06-10 | Drop SwiftData scaffolding from the default template | Active |
@@ -222,10 +212,10 @@ tested without the shared defaults.
 | 2026-06-10 | E2E golden-path XCUITest, opt-in via `TEST_RUNNER_TRANSMISSION_E2E=1` (needs a live local daemon) | Active |
 | 2026-06-11 | Mock-first UI buildout: views consume `protocol TorrentService` (TransmissionCore), built against `MockTorrentService` first; `RPCTorrentService` swaps in last with zero view changes | Done |
 | 2026-06-0? | Split RPC client files per method group | Active |
-| 2026-10-08 | `TorrentStore` is a coordinator over focused `@Observable` collaborators (`list`/`session`/`inspector`/`actions`/`ui`), not a god object; plan + progress in `doc/torrentstore-split.md` | Active |
+| 2026-10-08 | `TorrentStore` is a coordinator over focused `@Observable` collaborators (`list`/`session`/`inspector`/`actions`/`ui`), not a god object; layout in `doc/torrentstore.md` | Active |
 | 2026-10-08 | `TorrentService` split into `TorrentReading` + `TorrentMutating`; callers resolve the mutation half via `TorrentReading.mutations` | Active |
 | 2026-10-08 | Connect flow extracted from `ContentView` into an app-target `ConnectionCoordinator` (Keychain + factory + `AppEnvironment`), with injected dependencies | Active |
 | 2026-10-08 | Table sort persists through a `TablePreferencesStoring` seam; the persisted value is the single source of truth | Active |
 | 2026-10-08 | Mocks/fixtures moved out of `TransmissionCore` into a `TransmissionTestSupport` target; `EmptyTorrentService` is the production no-server placeholder | Active |
-| 2026-10-08 | AppKit decomposition: the cell view and the table `Coordinator` split into focused files and pure types; plan in `doc/appkit-decomposition.md` | Active |
+| 2026-10-08 | AppKit decomposition: the cell view and the table `Coordinator` split into focused files and pure types; layout in `doc/appkit-decomposition.md` | Active |
 | 2026-10-08 | `TransmissionCore` sources grouped into `Models/`/`Services/`/`Stores/`/`Snapshot/`/`Mapping/` subfolders (navigation only; SwiftPM compiles the target flat). `TransmissionRPC` stays flat at 7 files | Active |
