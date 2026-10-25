@@ -74,13 +74,22 @@ struct InspectorModelTests {
         fetches = await service.inspectorFetchCount
         #expect(fetches == 0)
 
-        // Visible with a selection: one fetch per tick.
+        // Visible with a selection: one fetch per changed snapshot.
         list.selectedTorrentIDs = [id]
         await model.poll()
         fetches = await service.inspectorFetchCount
         #expect(fetches == 1)
         #expect(model.detail?.id == id)
 
+        // Same snapshot again: nothing new to fetch.
+        await model.poll()
+        fetches = await service.inspectorFetchCount
+        #expect(fetches == 1)
+
+        // A changed torrent refetches.
+        var changed = MockFixtures.torrents()
+        changed[0].name = "renamed"
+        list.setTorrents(changed)
         await model.poll()
         fetches = await service.inspectorFetchCount
         #expect(fetches == 2)

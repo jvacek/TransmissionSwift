@@ -36,6 +36,9 @@ public final class InspectorModel {
     private var fetchGeneration = 0
     /// Set while a fetch is in flight so a slow daemon doesn't pile up requests.
     private var isFetching = false
+    /// List snapshot the current detail was fetched from. A tick that moved no
+    /// list field has no new files or peers to fetch.
+    private var lastPolledSnapshot: Torrent?
 
     public init(list: TorrentListModel) {
         self.list = list
@@ -75,11 +78,13 @@ public final class InspectorModel {
     }
 
     /// One refresh driven by the list tick. The list snapshot carries no
-    /// files/peers, so the detail pane needs its own request; riding the tick
-    /// keeps a single cadence and stops with pause/resume and on disconnect.
+    /// files/peers, so the detail pane needs its own request; a tick where the
+    /// selected torrent didn't change has nothing new to fetch.
     func poll() async {
-        guard isVisible, !isFetching, let id = list.selectedTorrents.first?.id else { return }
-        await fetch(for: id)
+        guard isVisible, !isFetching, let torrent = list.selectedTorrents.first else { return }
+        guard torrent != lastPolledSnapshot else { return }
+        lastPolledSnapshot = torrent
+        await fetch(for: torrent.id)
     }
 
     /// After a mutation that only affects inspector-scoped data, re-fetch the

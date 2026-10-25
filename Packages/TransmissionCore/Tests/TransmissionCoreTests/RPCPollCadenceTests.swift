@@ -4,9 +4,9 @@ import TransmissionTestSupport
 
 @testable import TransmissionCore
 
-/// The two-cadence poll: the full list once per base interval, the daemon's
-/// recently-active set in between. The schedule, the interval clamp and the
-/// merge are pure, so no clock is involved.
+/// The two-cadence poll: the full list once per refresh interval, the daemon's
+/// changed set on every tick in between. The schedule bounds and the merge are
+/// pure, so no clock is involved.
 @Suite("RPCTorrentService — poll cadence")
 struct RPCPollCadenceTests {
     private func fixture(id: Int, active: Bool) -> Torrent {
@@ -19,44 +19,14 @@ struct RPCPollCadenceTests {
         return torrent
     }
 
-    @Test("the first tick and every base interval fetch the full list")
-    func fullPollSchedule() {
-        let now = Date()
-        #expect(
-            RPCTorrentService.plan(cache: [], lastFullPoll: nil, base: 5, now: now) == .full)
-        #expect(
-            RPCTorrentService.plan(
-                cache: [fixture(id: 1, active: true)], lastFullPoll: now, base: 5,
-                now: now.addingTimeInterval(5)) == .full)
-    }
-
-    @Test("between full polls the changed set is fetched while something transfers")
-    func incrementalSchedule() {
-        let now = Date()
-        let cache = [fixture(id: 1, active: true), fixture(id: 2, active: false)]
-        #expect(
-            RPCTorrentService.plan(
-                cache: cache, lastFullPoll: now, base: 5, now: now.addingTimeInterval(1))
-                == .recentlyActive)
-    }
-
-    @Test("with nothing transferring the tick waits for the next full poll")
-    func idleSchedule() {
-        let now = Date()
-        #expect(
-            RPCTorrentService.plan(
-                cache: [fixture(id: 1, active: false)], lastFullPoll: now, base: 5,
-                now: now.addingTimeInterval(1)) == nil)
-    }
-
     @Test("the incremental interval is capped at 45 seconds and at the refresh interval")
     func intervalClamp() {
-        #expect(PollingIntervals.incremental(active: 1, refresh: 5) == 1)
-        #expect(PollingIntervals.incremental(active: 0, refresh: 5) == 1)
-        #expect(PollingIntervals.incremental(active: 0.4, refresh: 5) == 1)
-        #expect(PollingIntervals.incremental(active: 45, refresh: 300) == 45)
-        #expect(PollingIntervals.incremental(active: 60, refresh: 300) == 45)
-        #expect(PollingIntervals.incremental(active: 120, refresh: 10) == 10)
+        #expect(PollingIntervals.clampedIncremental(1, refresh: 5) == 1)
+        #expect(PollingIntervals.clampedIncremental(0, refresh: 5) == 1)
+        #expect(PollingIntervals.clampedIncremental(0.4, refresh: 5) == 1)
+        #expect(PollingIntervals.clampedIncremental(45, refresh: 300) == 45)
+        #expect(PollingIntervals.clampedIncremental(60, refresh: 300) == 45)
+        #expect(PollingIntervals.clampedIncremental(120, refresh: 10) == 10)
     }
 
     @Test("interval values are whole seconds inside their bounds")

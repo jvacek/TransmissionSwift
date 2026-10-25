@@ -792,6 +792,25 @@ struct RPCTorrentServiceTests {
         let after = await stub.callCount
         #expect(after >= before + 1)
     }
+
+    @Test("a polling-preference change cuts the current sleep short")
+    func intervalChangeWakesLoop() async throws {
+        let stub = StubClient()
+        let service = RPCTorrentService(
+            client: stub, pollingInterval: { 2 }, incrementalPollingInterval: { 2 })
+
+        let stream = await service.torrentsStream()
+        var iterator = stream.makeAsyncIterator()
+        _ = try await iterator.next()
+        // Let the loop reach its sleep before posting.
+        try await Task.sleep(for: .milliseconds(100))
+
+        let posted = Date()
+        NotificationCenter.default.post(name: PollingIntervals.changed, object: nil)
+        _ = try await iterator.next()
+        // Without the wake-up this would wait out the whole 2-second interval.
+        #expect(Date().timeIntervalSince(posted) < 1.5)
+    }
 }
 
 // MARK: - Labels mapping

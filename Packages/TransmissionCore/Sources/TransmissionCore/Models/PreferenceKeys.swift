@@ -17,9 +17,9 @@ public enum PreferenceKeys {
     public static let showBugReportButton = "showBugReportButton"
     public static let sendCrashReports = "sendCrashReports"
     public static let pollingIntervalSeconds = "pollingIntervalSeconds"
-    /// How often transferring torrents refresh between full-list polls. Capped
-    /// at `pollingIntervalSeconds` by the service.
-    public static let activePollingIntervalSeconds = "activePollingIntervalSeconds"
+    /// How often the daemon's changed set is polled between full-list refreshes.
+    /// Capped at `pollingIntervalSeconds` by the service.
+    public static let incrementalPollingIntervalSeconds = "incrementalPollingIntervalSeconds"
     public static let freeSpaceIntervalSeconds = "freeSpaceIntervalSeconds"
     public static let fetchTrackerFavicons = "fetchTrackerFavicons"
 

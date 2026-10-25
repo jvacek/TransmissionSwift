@@ -7,14 +7,18 @@ private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category:
 public actor RPCTorrentService: TorrentService {
     private let client: any TransmissionClient
     private let pollingInterval: @Sendable () -> TimeInterval
-    /// Interval for the active subset between full polls; clamped to
-    /// `pollingInterval` so the fast path can never be slower than the base.
-    private let activePollingInterval: @Sendable () -> TimeInterval
+    /// Interval for the daemon's changed set between full polls; clamped to
+    /// `pollingInterval` so the incremental path can't be slower than the base.
+    private let incrementalPollingInterval: @Sendable () -> TimeInterval
     private var continuation: AsyncThrowingStream<[Torrent], Error>.Continuation?
     private var pollTask: Task<Void, Never>?
+    /// The sleep between ticks, kept so a polling-preference change can cut it
+    /// short instead of waiting out the old interval.
+    private var pollSleep: Task<Void, Never>?
     private var consecutiveFailures = 0
-    /// Last full-list snapshot, kept so partial polls can be merged into a
-    /// complete array for the store. Idle torrents are not re-fetched.
+    /// Last full-list snapshot, kept so incremental polls can be merged into a
+    /// complete array for the store. Torrents the daemon didn't return keep
+    /// their last values.
     private var cache: [Torrent] = []
     private var lastFullPoll: Date?
 
@@ -30,14 +34,15 @@ public actor RPCTorrentService: TorrentService {
             let v = UserDefaults.standard.double(forKey: PreferenceKeys.pollingIntervalSeconds)
             return v > 0 ? v : 5.0
         },
-        activePollingInterval: @escaping @Sendable () -> TimeInterval = {
-            let v = UserDefaults.standard.double(forKey: PreferenceKeys.activePollingIntervalSeconds)
+        incrementalPollingInterval: @escaping @Sendable () -> TimeInterval = {
+            let v = UserDefaults.standard.double(
+                forKey: PreferenceKeys.incrementalPollingIntervalSeconds)
             return v > 0 ? v : 1.0
         }
     ) {
         self.client = client
         self.pollingInterval = pollingInterval
-        self.activePollingInterval = activePollingInterval
+        self.incrementalPollingInterval = incrementalPollingInterval
     }
 
     public func torrentsStream() async -> AsyncThrowingStream<[Torrent], Error> {
@@ -91,23 +96,24 @@ public actor RPCTorrentService: TorrentService {
     }
 
     private func runPollLoop() async {
+        let waker = NotificationCenter.default.addObserver(
+            forName: PollingIntervals.changed, object: nil, queue: nil
+        ) { [weak self] _ in
+            Task { await self?.wakePoll() }
+        }
+        defer { NotificationCenter.default.removeObserver(waker) }
+
         while !Task.isCancelled {
             let base = pollingInterval()
-            let fast = PollingIntervals.incremental(active: activePollingInterval(), refresh: base)
-            let now = Date()
-            guard let plan = Self.plan(cache: cache, lastFullPoll: lastFullPoll, base: base, now: now)
-            else {
-                // Nothing transferring and the full poll isn't due: wait for it.
-                let elapsed = lastFullPoll.map { now.timeIntervalSince($0) } ?? base
-                try? await Task.sleep(for: .seconds(max(1, base - elapsed)))
-                continue
-            }
+            let incremental = PollingIntervals.clampedIncremental(
+                incrementalPollingInterval(), refresh: base)
+            let fullDue = lastFullPoll.map { Date().timeIntervalSince($0) >= base } ?? true
             do {
                 let resp = try await client.torrentGet(
                     fields: TorrentGetResponse.listFields,
-                    ids: plan == .full ? nil : .recentlyActive)
+                    ids: fullDue ? nil : .recentlyActive)
                 let fresh = resp.torrents.map { Torrent(wire: $0) }
-                if plan == .full {
+                if fullDue {
                     cache = fresh
                     lastFullPoll = Date()
                 } else {
@@ -127,28 +133,28 @@ public actor RPCTorrentService: TorrentService {
                     return
                 }
             }
-            try? await Task.sleep(for: .seconds(max(1, cache.contains(where: \.isActive) ? fast : base)))
+            await sleep(incremental)
         }
         continuation?.finish()
     }
 
-    /// One iteration's fetch. Nil from `plan(cache:lastFullPoll:base:now:)` means
-    /// there is nothing to fetch before the next full poll is due.
-    enum PollPlan: Equatable {
-        case full
-        case recentlyActive
+    /// Sleep between ticks. Cancelling this task, or a polling-preference
+    /// change, ends the wait early so the new interval takes effect at once.
+    private func sleep(_ seconds: TimeInterval) async {
+        let task = Task<Void, Never> {
+            do { try await Task.sleep(for: .seconds(seconds)) } catch {}
+        }
+        pollSleep = task
+        await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+        pollSleep = nil
     }
 
-    /// Full list once per base interval, the daemon's changed set in between.
-    /// Files and peers live in the inspector's own fetch; this covers list
-    /// fields only.
-    static func plan(
-        cache: [Torrent], lastFullPoll: Date?, base: TimeInterval, now: Date
-    ) -> PollPlan? {
-        guard let lastFullPoll, now.timeIntervalSince(lastFullPoll) < base else {
-            return .full
-        }
-        return cache.contains(where: \.isActive) ? .recentlyActive : nil
+    private func wakePoll() {
+        pollSleep?.cancel()
     }
 
     /// Overlay a recently-active response on the last full snapshot. Unlike a

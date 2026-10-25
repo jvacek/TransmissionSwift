@@ -11,7 +11,7 @@ struct GeneralPrefsPane: View {
     @AppStorage(PreferenceKeys.showBugReportButton) private var showBugReportButton = true
     @AppStorage(PreferenceKeys.sendCrashReports) private var sendCrashReports = false
     @AppStorage(PreferenceKeys.pollingIntervalSeconds) private var pollingInterval: Double = 5.0
-    @AppStorage(PreferenceKeys.activePollingIntervalSeconds) private var activePollingInterval: Double = 1.0
+    @AppStorage(PreferenceKeys.incrementalPollingIntervalSeconds) private var incrementalPollingInterval: Double = 1.0
     @AppStorage(PreferenceKeys.freeSpaceIntervalSeconds) private var freeSpaceInterval: Double = 60.0
     @AppStorage(PreferenceKeys.fetchTrackerFavicons) private var fetchFavicons = true
     @Environment(FaviconStore.self) private var favicons
@@ -38,10 +38,10 @@ struct GeneralPrefsPane: View {
                     }
                 }
                 .help("How often the whole list refreshes, \(rangeText(PollingIntervals.refresh))")
-                LabeledContent("Active refresh interval") {
+                LabeledContent("Incremental refresh interval") {
                     HStack {
                         TextField(
-                            "", value: $activePollingInterval,
+                            "", value: $incrementalPollingInterval,
                             format: .number.precision(.fractionLength(0))
                         )
                         .frame(width: 52)
@@ -50,7 +50,7 @@ struct GeneralPrefsPane: View {
                     }
                 }
                 .help(
-                    "How often transferring torrents and the inspector refresh, \(rangeText(PollingIntervals.active)) and never above the refresh interval"
+                    "How often changed torrents refresh, \(rangeText(PollingIntervals.incremental)) and never above the refresh interval"
                 )
                 LabeledContent("Free space interval") {
                     HStack {
@@ -68,7 +68,7 @@ struct GeneralPrefsPane: View {
                 Text("Connection")
             } footer: {
                 Text(
-                    "The list refreshes every “Refresh interval” seconds. While torrents are transferring, they and the inspector refresh at the active interval in between, which is capped at 45 seconds and at the refresh interval. Values are whole seconds."
+                    "The full list refreshes every “Refresh interval” seconds. Changed torrents, and the inspector, refresh at the incremental interval in between, which is capped at 45 seconds and at the refresh interval. Values are whole seconds."
                 )
             }
             Section("Sidebar") {
@@ -100,27 +100,36 @@ struct GeneralPrefsPane: View {
         .formStyle(.grouped)
         .onAppear { normalizeIntervals() }
         .onChange(of: pollingInterval) { _, _ in normalizeIntervals() }
-        .onChange(of: activePollingInterval) { _, _ in normalizeIntervals() }
+        .onChange(of: incrementalPollingInterval) { _, _ in normalizeIntervals() }
         .onChange(of: freeSpaceInterval) { _, _ in normalizeIntervals() }
     }
 
     /// Keep every field inside the range the service honors, including the
-    /// active interval's dependence on the refresh interval. Runs after each
-    /// edit so no invalid value is ever stored.
+    /// incremental interval's dependence on the refresh interval. Runs after
+    /// each edit so no invalid value is ever stored.
     private func normalizeIntervals() {
+        let original = (pollingInterval, incrementalPollingInterval, freeSpaceInterval)
+
         let refresh = PollingIntervals.normalized(pollingInterval, to: PollingIntervals.refresh)
         if refresh != pollingInterval {
             pollingInterval = refresh
         }
 
-        let active = PollingIntervals.incremental(active: activePollingInterval, refresh: refresh)
-        if active != activePollingInterval {
-            activePollingInterval = active
+        let incremental = PollingIntervals.clampedIncremental(
+            incrementalPollingInterval, refresh: refresh)
+        if incremental != incrementalPollingInterval {
+            incrementalPollingInterval = incremental
         }
 
         let freeSpace = PollingIntervals.normalized(freeSpaceInterval, to: PollingIntervals.freeSpace)
         if freeSpace != freeSpaceInterval {
             freeSpaceInterval = freeSpace
+        }
+
+        // Let a sleeping poll loop pick the new value up now instead of after
+        // the old interval has elapsed.
+        if (pollingInterval, incrementalPollingInterval, freeSpaceInterval) != original {
+            NotificationCenter.default.post(name: PollingIntervals.changed, object: nil)
         }
     }
 
@@ -132,5 +141,5 @@ struct GeneralPrefsPane: View {
 #Preview("General") {
     GeneralPrefsPane()
         .environment(FaviconStore())
-        .frame(width: 480, height: 480)
+        .frame(width: 480, height: 1080)
 }
