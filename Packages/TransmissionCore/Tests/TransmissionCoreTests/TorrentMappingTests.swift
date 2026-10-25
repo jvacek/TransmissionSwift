@@ -721,10 +721,18 @@ struct TorrentInspectorMappingTests {
 
 // MARK: - RPCTorrentService stream lifecycle
 
-@Suite("RPCTorrentService — stream lifecycle")
+@Suite("RPCTorrentService — stream lifecycle", .serialized)
 struct RPCTorrentServiceTests {
     private actor StubClient: TransmissionClient {
         private(set) var callCount = 0
+        private(set) var fullPolls = 0
+        private var fullPollTorrents: [WireTorrent] = []
+        private var incrementalTorrents: [WireTorrent] = []
+
+        func setStubTorrents(full: [WireTorrent], incremental: [WireTorrent] = []) {
+            fullPollTorrents = full
+            incrementalTorrents = incremental
+        }
 
         func sessionGet() async throws(TransmissionError) -> SessionInfo {
             throw TransmissionError.serverError("not used in test")
@@ -738,10 +746,19 @@ struct RPCTorrentServiceTests {
             -> TorrentGetResponse
         {
             callCount += 1
-            return TorrentGetResponse(torrents: [])
+            guard ids == nil else {
+                return TorrentGetResponse(torrents: incrementalTorrents)
+            }
+            fullPolls += 1
+            return TorrentGetResponse(torrents: fullPollTorrents)
         }
 
-        func torrentAction(_ method: String, ids: [Int]) async throws(TransmissionError) {}
+        func torrentAction(_ method: String, ids: [Int]) async throws(TransmissionError) {
+            guard method == "torrent-stop" else { return }
+            for index in fullPollTorrents.indices where ids.contains(fullPollTorrents[index].id) {
+                fullPollTorrents[index].status = 0
+            }
+        }
         func torrentRemove(ids: [Int], deleteLocalData: Bool) async throws(TransmissionError) {}
         func torrentSet(_ args: TorrentSetArguments) async throws(TransmissionError) {}
         func torrentAdd(_ args: TorrentAddArguments) async throws(TransmissionError)
@@ -791,6 +808,51 @@ struct RPCTorrentServiceTests {
 
         let after = await stub.callCount
         #expect(after >= before + 1)
+    }
+
+    @Test("a mutation refresh seeds the cache later incremental polls merge into")
+    func mutationRefreshSeedsCache() async throws {
+        let stub = StubClient()
+        await stub.setStubTorrents(full: [makeWire(status: 4)])
+        let service = RPCTorrentService(
+            client: stub, pollingInterval: { 60 }, incrementalPollingInterval: { 1 })
+
+        let stream = await service.torrentsStream()
+        var iterator = stream.makeAsyncIterator()
+        let initial = try #require(try await iterator.next())
+        #expect(initial.first?.status == .downloading)
+
+        try await service.stop([1])
+        let afterStop = try #require(try await iterator.next())
+        #expect(afterStop.first?.status == .paused)
+
+        // The next tick is incremental and the stub reports no changes, so the
+        // emitted snapshot is the cache — which must carry the stop.
+        let next = try #require(try await iterator.next())
+        #expect(next.first?.status == .paused)
+    }
+
+    @Test("a new stream starts from a full poll instead of the old cache")
+    func newStreamStartsFull() async throws {
+        let stub = StubClient()
+        await stub.setStubTorrents(
+            full: [makeWire(status: 4)], incremental: [makeWire(status: 6)])
+        let service = RPCTorrentService(
+            client: stub, pollingInterval: { 60 }, incrementalPollingInterval: { 60 })
+
+        let firstStream = await service.torrentsStream()
+        var first = firstStream.makeAsyncIterator()
+        let initial = try #require(try await first.next())
+        #expect(initial.first?.status == .downloading)
+
+        // The daemon now reports an empty list. Reusing the old cache or the old
+        // full-poll clock would emit the incremental torrent instead.
+        await stub.setStubTorrents(full: [])
+        let secondStream = await service.torrentsStream()
+        var second = secondStream.makeAsyncIterator()
+        let snapshot = try #require(try await second.next())
+        #expect(snapshot.isEmpty)
+        #expect(await stub.fullPolls >= 2)
     }
 
     @Test("a polling-preference change cuts the current sleep short")

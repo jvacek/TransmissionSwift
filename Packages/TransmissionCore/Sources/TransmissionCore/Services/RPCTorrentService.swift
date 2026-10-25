@@ -55,7 +55,9 @@ public actor RPCTorrentService: TorrentService {
         lastFullPoll = nil
         let (stream, cont) = AsyncThrowingStream<[Torrent], Error>.makeStream()
         self.continuation = cont
-        let task = Task { await self.runPollLoop() }
+        // The loop owns the stream it was started for. A cancelled predecessor
+        // finishing must not finish the stream that replaced it.
+        let task = Task { await self.runPollLoop(cont) }
         self.pollTask = task
         // Cancelling the consumer's for-await must cancel the unstructured poll task.
         cont.onTermination = { [task] _ in task.cancel() }
@@ -95,7 +97,7 @@ public actor RPCTorrentService: TorrentService {
         return resp.torrents.map { Torrent(wire: $0) }
     }
 
-    private func runPollLoop() async {
+    private func runPollLoop(_ stream: AsyncThrowingStream<[Torrent], Error>.Continuation) async {
         let waker = NotificationCenter.default.addObserver(
             forName: PollingIntervals.changed, object: nil, queue: nil
         ) { [weak self] _ in
@@ -107,7 +109,7 @@ public actor RPCTorrentService: TorrentService {
             let base = pollingInterval()
             let incremental = PollingIntervals.clampedIncremental(
                 incrementalPollingInterval(), refresh: base)
-            let fullDue = lastFullPoll.map { Date().timeIntervalSince($0) >= base } ?? true
+            let fullDue = Self.isFullPollDue(lastFullPoll: lastFullPoll, base: base, now: Date())
             do {
                 let resp = try await client.torrentGet(
                     fields: TorrentGetResponse.listFields,
@@ -120,22 +122,29 @@ public actor RPCTorrentService: TorrentService {
                     cache = Self.merging(fresh, removing: resp.removed ?? [], into: cache)
                 }
                 consecutiveFailures = 0
-                continuation?.yield(cache)
+                stream.yield(cache)
             } catch {
                 logger.error("Poll error: \(error)")
                 if isFatal(error) {
-                    continuation?.finish(throwing: error)
+                    stream.finish(throwing: error)
                     return
                 }
                 consecutiveFailures += 1
                 if consecutiveFailures >= 3 {
-                    continuation?.finish(throwing: error)
+                    stream.finish(throwing: error)
                     return
                 }
             }
             await sleep(incremental)
         }
-        continuation?.finish()
+        stream.finish()
+    }
+
+    /// Full list once per refresh interval, and on the first tick. Incremental
+    /// otherwise.
+    static func isFullPollDue(lastFullPoll: Date?, base: TimeInterval, now: Date) -> Bool {
+        guard let lastFullPoll else { return true }
+        return now.timeIntervalSince(lastFullPoll) >= base
     }
 
     /// Sleep between ticks. Cancelling this task, or a polling-preference
