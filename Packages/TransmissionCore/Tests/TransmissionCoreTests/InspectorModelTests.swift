@@ -137,6 +137,28 @@ struct InspectorModelTests {
         await stale.value
         #expect(model.detail?.name == "newer")
     }
+
+    @Test("a fetch in flight when the server changes cannot land in the new pane")
+    func connectDropsInFlightFetch() async throws {
+        let oldServer = GatedReader()
+        let list = TorrentListModel()
+        list.setTorrents(MockFixtures.torrents())
+        let model = InspectorModel(list: list, defaults: try ephemeralDefaults())
+        model.connect(reading: oldServer)
+        let id = MockFixtures.torrents()[0].id
+
+        let inFlight = Task { _ = await model.fetch(for: id) }
+        while !(await oldServer.isSuspended) {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+
+        // The user switches servers while the old fetch is still in flight.
+        model.connect(reading: MockTorrentService())
+        await oldServer.release()
+        await inFlight.value
+
+        #expect(model.detail == nil)
+    }
 }
 
 /// Reader whose first detail fetch blocks until `release()`, so the test can

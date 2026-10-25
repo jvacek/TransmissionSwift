@@ -57,6 +57,9 @@ public final class InspectorModel {
         // one would otherwise show its files until the first fetch lands.
         detail = nil
         lastPolledSnapshot = nil
+        // And a fetch already in flight against the old server must not land
+        // here when it returns.
+        fetchGeneration += 1
     }
 
     /// Fetch inspector-level detail (files, peers, trackerStats) for one torrent.
