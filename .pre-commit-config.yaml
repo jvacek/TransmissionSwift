@@ -13,7 +13,7 @@
 
 # Keep the hygiene/format hooks commit-only by default; the unit-test
 # hook below opts into `pre-push` explicitly.
-default_stages: [pre-commit]
+default_stages: [pre-commit, pre-push]
 
 repos:
   # Standard hygiene hooks.
