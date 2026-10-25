@@ -34,7 +34,7 @@ private actor CacheStubClient: TransmissionClient {
         throw TransmissionError.serverError("not used in test")
     }
 
-    func torrentGet(fields: [String], ids: [Int]?) async throws(TransmissionError)
+    func torrentGet(fields: [String], ids: TorrentIDs?) async throws(TransmissionError)
         -> TorrentGetResponse
     {
         TorrentGetResponse(torrents: [])

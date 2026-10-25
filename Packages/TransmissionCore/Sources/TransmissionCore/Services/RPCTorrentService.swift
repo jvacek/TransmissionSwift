@@ -104,7 +104,7 @@ public actor RPCTorrentService: TorrentService {
             }
             do {
                 let resp = try await client.torrentGet(
-                    fields: TorrentGetResponse.listFields, ids: plan.ids)
+                    fields: TorrentGetResponse.listFields, ids: plan.ids.map(TorrentIDs.list))
                 let fresh = resp.torrents.map { Torrent(wire: $0) }
                 if plan.isFull {
                     cache = fresh
@@ -353,7 +353,7 @@ public actor RPCTorrentService: TorrentService {
 
     public func inspectorData(for id: Torrent.ID) async throws -> Torrent {
         let fields = TorrentGetResponse.listFields + TorrentGetResponse.inspectorFields
-        let resp = try await client.torrentGet(fields: fields, ids: [id])
+        let resp = try await client.torrentGet(fields: fields, ids: .list([id]))
         guard let wire = resp.torrents.first else {
             throw TransmissionError.serverError("No torrent returned for id \(id)")
         }

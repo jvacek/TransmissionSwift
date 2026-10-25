@@ -190,14 +190,34 @@ public struct WireTorrent: Codable, Sendable {
 
 struct TorrentGetArguments: Encodable {
     var fields: [String]
-    var ids: [Int]?
+    var ids: TorrentIDs?
+}
+
+/// The `ids` argument of `torrent-get`. Leave the property nil to ask for every
+/// torrent; the key is then omitted.
+public enum TorrentIDs: Encodable, Sendable, Equatable {
+    case list([Int])
+    /// Only torrents the daemon considers changed in the last 60 seconds, plus
+    /// a `removed` array of ids deleted in that window.
+    case recentlyActive
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .list(let ids): try container.encode(ids)
+        case .recentlyActive: try container.encode("recently-active")
+        }
+    }
 }
 
 public struct TorrentGetResponse: Decodable, Sendable {
     public var torrents: [WireTorrent]
+    /// Ids removed in the `recently-active` window; nil for other requests.
+    public var removed: [Int]?
 
-    public init(torrents: [WireTorrent]) {
+    public init(torrents: [WireTorrent], removed: [Int]? = nil) {
         self.torrents = torrents
+        self.removed = removed
     }
 }
 

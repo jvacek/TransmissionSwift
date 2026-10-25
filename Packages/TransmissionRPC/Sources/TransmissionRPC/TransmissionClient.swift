@@ -7,7 +7,7 @@ public protocol TransmissionClient: Sendable {
 
     /// Current and lifetime transfer statistics (`session-stats`).
     func sessionStats() async throws(TransmissionError) -> SessionStats
-    func torrentGet(fields: [String], ids: [Int]?) async throws(TransmissionError) -> TorrentGetResponse
+    func torrentGet(fields: [String], ids: TorrentIDs?) async throws(TransmissionError) -> TorrentGetResponse
 
     /// Send `torrent-start`, `torrent-stop`, or `torrent-verify` for the given IDs.
     func torrentAction(_ method: String, ids: [Int]) async throws(TransmissionError)

@@ -119,4 +119,25 @@ struct WireEncodableTests {
         #expect(object["rpcVersion"] == nil)
         #expect(object["downloadDir"] == nil)
     }
+
+    @Test("torrent-get ids encode as an array, a string, or not at all")
+    func torrentGetIDsShape() throws {
+        func encoded(_ ids: TorrentIDs?) throws -> [String: Any] {
+            let data = try JSONEncoder().encode(TorrentGetArguments(fields: ["id"], ids: ids))
+            return try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        }
+
+        #expect(try encoded(nil)["ids"] == nil)
+        #expect(try encoded(.list([3, 5]))["ids"] as? [Int] == [3, 5])
+        #expect(try encoded(.recentlyActive)["ids"] as? String == "recently-active")
+    }
+
+    @Test("a recently-active response exposes the removed ids")
+    func torrentGetRemovedDecodes() throws {
+        let withRemoved = Data(#"{"torrents": [], "removed": [3, 5]}"#.utf8)
+        #expect(try JSONDecoder().decode(TorrentGetResponse.self, from: withRemoved).removed == [3, 5])
+
+        let plain = Data(#"{"torrents": []}"#.utf8)
+        #expect(try JSONDecoder().decode(TorrentGetResponse.self, from: plain).removed == nil)
+    }
 }
