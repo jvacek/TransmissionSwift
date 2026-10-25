@@ -10,6 +10,13 @@ Please visit the [release page](https://github.com/jvacek/TransmissionSwift/rele
 
 ---
 
+## 0.7.1
+
+25th Oct 2026
+
+- Refresh inspector detail
+
+
 ## 0.7.0
 
 9th Oct 2026
