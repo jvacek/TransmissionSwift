@@ -120,12 +120,10 @@ public actor RPCTorrentService: TorrentService {
                 stream.yield(snapshot.torrents)
             } catch {
                 logger.error("Poll error: \(error)")
-                if isFatal(error) {
-                    stream.finish(throwing: error)
-                    return
-                }
                 consecutiveFailures += 1
-                if consecutiveFailures >= 3 {
+                if Self.failureDecision(for: error, consecutiveFailures: consecutiveFailures)
+                    == .stop
+                {
                     stream.finish(throwing: error)
                     return
                 }
@@ -154,7 +152,23 @@ public actor RPCTorrentService: TorrentService {
         pollSleep?.cancel()
     }
 
-    private func isFatal(_ error: TransmissionError) -> Bool {
+    /// Whether a failed poll retries or ends the stream.
+    enum PollFailure: Equatable {
+        case retry
+        case stop
+    }
+
+    /// Fatal errors end the stream at once; anything else gets three attempts.
+    static func failureDecision(for error: TransmissionError, consecutiveFailures: Int)
+        -> PollFailure
+    {
+        if isFatal(error) || consecutiveFailures >= 3 {
+            return .stop
+        }
+        return .retry
+    }
+
+    private static func isFatal(_ error: TransmissionError) -> Bool {
         switch error {
         case .unauthorized:
             return true
