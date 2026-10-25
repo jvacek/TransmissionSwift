@@ -49,14 +49,24 @@ struct RPCPollCadenceTests {
                 now: now.addingTimeInterval(1)) == nil)
     }
 
-    @Test("the incremental interval is clamped to the full interval and the change window")
+    @Test("the incremental interval is capped at 45 seconds and at the refresh interval")
     func intervalClamp() {
-        #expect(RPCTorrentService.incrementalInterval(active: 1, base: 5) == 1)
-        #expect(RPCTorrentService.incrementalInterval(active: 0, base: 5) == 1)
-        #expect(RPCTorrentService.incrementalInterval(active: 0.5, base: 5) == 1)
-        #expect(RPCTorrentService.incrementalInterval(active: 45, base: 300) == 45)
-        #expect(RPCTorrentService.incrementalInterval(active: 60, base: 300) == 45)
-        #expect(RPCTorrentService.incrementalInterval(active: 120, base: 10) == 10)
+        #expect(PollingIntervals.incremental(active: 1, refresh: 5) == 1)
+        #expect(PollingIntervals.incremental(active: 0, refresh: 5) == 1)
+        #expect(PollingIntervals.incremental(active: 0.4, refresh: 5) == 1)
+        #expect(PollingIntervals.incremental(active: 45, refresh: 300) == 45)
+        #expect(PollingIntervals.incremental(active: 60, refresh: 300) == 45)
+        #expect(PollingIntervals.incremental(active: 120, refresh: 10) == 10)
+    }
+
+    @Test("interval values are whole seconds inside their bounds")
+    func intervalNormalization() {
+        #expect(PollingIntervals.normalized(0, to: PollingIntervals.refresh) == 1)
+        #expect(PollingIntervals.normalized(0.5, to: PollingIntervals.refresh) == 1)
+        #expect(PollingIntervals.normalized(2.6, to: PollingIntervals.refresh) == 3)
+        #expect(PollingIntervals.normalized(600, to: PollingIntervals.refresh) == 300)
+        #expect(PollingIntervals.normalized(2, to: PollingIntervals.freeSpace) == 5)
+        #expect(PollingIntervals.normalized(7200, to: PollingIntervals.freeSpace) == 3600)
     }
 
     @Test("a recently-active response replaces, appends and removes entries")

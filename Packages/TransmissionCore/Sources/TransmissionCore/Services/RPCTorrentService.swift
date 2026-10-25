@@ -93,7 +93,7 @@ public actor RPCTorrentService: TorrentService {
     private func runPollLoop() async {
         while !Task.isCancelled {
             let base = pollingInterval()
-            let fast = Self.incrementalInterval(active: activePollingInterval(), base: base)
+            let fast = PollingIntervals.incremental(active: activePollingInterval(), refresh: base)
             let now = Date()
             guard let plan = Self.plan(cache: cache, lastFullPoll: lastFullPoll, base: base, now: now)
             else {
@@ -137,16 +137,6 @@ public actor RPCTorrentService: TorrentService {
     enum PollPlan: Equatable {
         case full
         case recentlyActive
-    }
-
-    /// The daemon reports changes from the last 60 seconds only, so a slower
-    /// incremental poll would silently skip them between full polls.
-    private static let recentlyActiveWindow: TimeInterval = 45
-
-    /// Incremental cadence: never slower than the full poll, and never slower
-    /// than the daemon's change window.
-    static func incrementalInterval(active: TimeInterval, base: TimeInterval) -> TimeInterval {
-        max(1, min(active, base, recentlyActiveWindow))
     }
 
     /// Full list once per base interval, the daemon's changed set in between.
