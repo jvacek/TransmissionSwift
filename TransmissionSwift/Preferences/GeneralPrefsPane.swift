@@ -29,41 +29,17 @@ struct GeneralPrefsPane: View {
                 )
             }
             Section {
-                LabeledContent("Refresh interval") {
-                    HStack {
-                        TextField("", value: $pollingInterval, format: .number.precision(.fractionLength(0)))
-                            .frame(width: 52)
-                        Text("seconds")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .help("How often the whole list refreshes, \(rangeText(PollingIntervals.refresh))")
-                LabeledContent("Incremental refresh interval") {
-                    HStack {
-                        TextField(
-                            "", value: $incrementalPollingInterval,
-                            format: .number.precision(.fractionLength(0))
-                        )
-                        .frame(width: 52)
-                        Text("seconds")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .help(
-                    "How often changed torrents refresh, \(rangeText(PollingIntervals.incremental)) and never above the refresh interval"
+                secondsRow(
+                    "Refresh interval", value: $pollingInterval,
+                    help: "How often the whole list refreshes, \(rangeText(PollingIntervals.refresh))")
+                secondsRow(
+                    "Incremental refresh interval", value: $incrementalPollingInterval,
+                    help:
+                        "How often changed torrents refresh, \(rangeText(PollingIntervals.incremental)) and never above the refresh interval"
                 )
-                LabeledContent("Free space interval") {
-                    HStack {
-                        TextField(
-                            "", value: $freeSpaceInterval,
-                            format: .number.precision(.fractionLength(0))
-                        )
-                        .frame(width: 52)
-                        Text("seconds")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .help("How often free disk space is re-read, \(rangeText(PollingIntervals.freeSpace))")
+                secondsRow(
+                    "Free space interval", value: $freeSpaceInterval,
+                    help: "How often free disk space is re-read, \(rangeText(PollingIntervals.freeSpace))")
             } header: {
                 Text("Connection")
             } footer: {
@@ -131,6 +107,27 @@ struct GeneralPrefsPane: View {
         if (pollingInterval, incrementalPollingInterval, freeSpaceInterval) != original {
             NotificationCenter.default.post(name: PollingIntervals.changed, object: nil)
         }
+    }
+
+    /// A whole-seconds field with a fixed unit slot, so every interval row has
+    /// the same geometry and the numbers line up with each other and with the
+    /// switches in the sections above. Laid out by hand because a
+    /// `LabeledContent` sizes its content column instead of reaching the row's
+    /// trailing edge, which left the fields short of the switches.
+    private func secondsRow(_ title: String, value: Binding<Double>, help: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(title)
+            Spacer(minLength: 24)
+            TextField("", value: value, format: .number.precision(.fractionLength(0)))
+                .multilineTextAlignment(.trailing)
+                .monospacedDigit()
+                .frame(width: 60)
+                .accessibilityLabel(title)
+            Text(value.wrappedValue == 1 ? "second" : "seconds")
+                .foregroundStyle(.secondary)
+                .frame(width: 56, alignment: .leading)
+        }
+        .help(help)
     }
 
     private func rangeText(_ range: ClosedRange<Double>) -> String {
