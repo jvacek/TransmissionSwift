@@ -795,8 +795,16 @@ private final class DestructiveMenuItem: NSMenuItem {
         applyHighlight(highlighted: false)
     }
 
+    // NSMenuItem's designated inits are nonisolated; under the target's MainActor
+    // default, these overrides (one otherwise synthesized as an ObjC stub) would
+    // be main-actor and fail Swift 6's isolation-matching rule.
     @available(*, unavailable)
-    required init(coder: NSCoder) {
+    nonisolated override init(title: String, action: Selector?, keyEquivalent: String) {
+        fatalError("init(title:action:keyEquivalent:) has not been implemented")
+    }
+
+    @available(*, unavailable)
+    nonisolated required init(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
