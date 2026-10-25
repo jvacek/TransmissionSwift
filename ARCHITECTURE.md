@@ -105,6 +105,21 @@ the main actor, builds the service and drives `TorrentStore` plus the shared
   views, view models and app services are main-actor by default. Pure logic
   (the table row/selection/sort/menu helpers, process checks) is marked
   `nonisolated` so it can be unit-tested without the main actor.
+- **One language mode everywhere.** App, test targets and packages all build in
+  Swift 6 mode with the "Approachable Concurrency" features
+  (`NonisolatedNonsendingByDefault`, `InferIsolatedConformances`) plus
+  `MemberImportVisibility`. The packages set these via a shared `swiftSettings`
+  constant in each `Package.swift`; keep it in step with the Xcode build settings.
+- **Isolation differs by layer, on purpose.** Only the app target defaults to
+  `MainActor`. The packages default to nonisolated: `TransmissionRPC` must never
+  touch the main thread, and `TransmissionCore` marks its UI-facing stores
+  `@MainActor` explicitly. Moving a type from the app into Core therefore means
+  adding `@MainActor` if it is UI state; leaving it off is a compile error at
+  the call sites, not a silent change.
+- Heavy work stays on actors (`URLSessionTransmissionClient`, `RPCTorrentService`).
+  With `NonisolatedNonsendingByDefault`, a plain `nonisolated async` function runs
+  on its caller's actor — often the main actor — so CPU-bound helpers outside an
+  actor need `@concurrent`.
 
 ## 5. Polling strategy
 
