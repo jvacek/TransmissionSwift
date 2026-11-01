@@ -14,10 +14,11 @@ Please visit the [release page](https://github.com/jvacek/TransmissionSwift/rele
 
 25th Oct 2026
 
-- Refresh the inspector's files and peers live, and read tracker stats from the list poll
-- Poll the daemon's recently-active torrents between full refreshes, so changes made from another client show up within a second
-- Add an incremental refresh interval, move the full refresh default to 15 seconds, and validate both fields
-
+- Fix Inspector's file progress and tracker stats not updating
+- Add an incremental refresh interval, move the full refresh default to 15 seconds
+- Show a country flag next to each peer in the torrent inspector
+  - Local lookups against cached DB
+  - Refresh toggle in settings
 
 ## 0.7.0
 
