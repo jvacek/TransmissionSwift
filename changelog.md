@@ -10,6 +10,16 @@ Please visit the [release page](https://github.com/jvacek/TransmissionSwift/rele
 
 ---
 
+## 0.7.1
+
+25th Oct 2026
+
+- Fix Inspector's file progress and tracker stats not updating
+- Add an incremental refresh interval, move the full refresh default to 15 seconds
+- Show a country flag next to each peer in the torrent inspector
+  - Local lookups against cached DB
+  - Refresh toggle in settings
+
 ## 0.7.0
 
 9th Oct 2026
