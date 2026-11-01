@@ -28,6 +28,10 @@ TransmissionSwift/                          ← Xcode project root
     │   ├── Package.swift
     │   ├── Sources/TransmissionRPC/
     │   └── Tests/TransmissionRPCTests/
+    ├── TorrentMetainfo/                     ← `.torrent` metainfo (bencode) decode
+    │   ├── Package.swift
+    │   ├── Sources/TorrentMetainfo/
+    │   └── Tests/TorrentMetainfoTests/
     └── TransmissionCore/                   ← domain models, storage, services
         ├── Package.swift
         ├── Sources/TransmissionCore/
@@ -37,11 +41,13 @@ TransmissionSwift/                          ← Xcode project root
 
 **Layering rules:**
 - `TransmissionRPC` depends on **Foundation only** (plus `OSLog` for logging — fine, it's platform-agnostic). No SwiftUI, no AppKit, no SwiftData.
-- `TransmissionCore` depends on `TransmissionRPC` + Foundation + (optionally) SwiftData/Security for storage. The package also builds a second, non-product target, `TransmissionTestSupport`, holding the mocks/fixtures; only tests and previews link it.
+- `TorrentMetainfo` depends on **Foundation only**. It decodes `.torrent` metainfo (bencode). No UI, no RPC.
+- `TransmissionCore` depends on `TransmissionRPC` + `TorrentMetainfo` + Foundation + (optionally) SwiftData/Security for storage. The package also builds a second, non-product target, `TransmissionTestSupport`, holding the mocks/fixtures; only tests and previews link it.
 - The app target depends on both packages (and `TransmissionTestSupport`, for previews). It holds SwiftUI views and view models, plus thin app-only services that don't belong in Core — connection coordination, crash reporting, favicon/tag stores, App Intents.
 
-**Why three layers:**
+**Why the split:**
 - `TransmissionRPC` is a pure protocol implementation — testable without a UI, swappable, mockable via protocol.
+- `TorrentMetainfo` is a pure format codec — the `.torrent` file on disk, distinct from the daemon's JSON wire protocol. Isolated so it's testable with fixtures and can grow an encoder (`torrent-create`) later.
 - `TransmissionCore` is the "service layer" — server profiles, credentials, polling orchestration, the things every UI surface will need.
 - The app target stays thin: views observe view models, view models call into core, core calls into RPC.
 
@@ -211,6 +217,7 @@ tested without the shared defaults.
 | 2026-06-10 | warnings-as-errors enforced via CI flags, not Package.swift (conflicts with Xcode's `-suppress-warnings` for package deps) | Active |
 | 2026-06-10 | E2E golden-path XCUITest, opt-in via `TEST_RUNNER_TRANSMISSION_E2E=1` (needs a live local daemon) | Active |
 | 2026-06-11 | Mock-first UI buildout: views consume `protocol TorrentService` (TransmissionCore), built against `MockTorrentService` first; `RPCTorrentService` swaps in last with zero view changes | Done |
+| 2026-09-20 | Add `TorrentMetainfo` package (bencode `.torrent` decode); Core depends on it, app target stays off it. Read-only until `torrent-create` is needed | Active |
 | 2026-06-0? | Split RPC client files per method group | Active |
 | 2026-10-08 | `TorrentStore` is a coordinator over focused `@Observable` collaborators (`list`/`session`/`inspector`/`actions`/`ui`), not a god object; layout in `doc/torrentstore.md` | Active |
 | 2026-10-08 | `TorrentService` split into `TorrentReading` + `TorrentMutating`; callers resolve the mutation half via `TorrentReading.mutations` | Active |

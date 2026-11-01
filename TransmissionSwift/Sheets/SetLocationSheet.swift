@@ -43,7 +43,9 @@ struct SetLocationSheet: View {
                 path: $location,
                 defaultDirectory: store.list.downloadDirectory,
                 folders: suggestions,
-                serverName: serverName
+                serverName: serverName,
+                torrentName: store.list.torrents.first { ids.contains($0.id) }?.name,
+                isDisabled: isSaving
             )
 
             VStack(alignment: .leading, spacing: 4) {

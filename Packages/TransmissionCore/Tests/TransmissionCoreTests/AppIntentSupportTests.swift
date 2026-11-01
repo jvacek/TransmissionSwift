@@ -13,6 +13,7 @@ private actor CacheStubClient: TransmissionClient {
     private let altSpeedEnabled: Bool
     private let sessionGetError: TransmissionError?
     private(set) var sessionGetCount = 0
+    private(set) var lastAddArguments: TorrentAddArguments?
     private(set) var lastAddLabels: [String]?
     private(set) var torrentSetCalls: [TorrentSetArguments] = []
 
@@ -49,6 +50,7 @@ private actor CacheStubClient: TransmissionClient {
     func torrentAdd(_ args: TorrentAddArguments) async throws(TransmissionError)
         -> TorrentAddResponse
     {
+        lastAddArguments = args
         lastAddLabels = args.labels
         return TorrentAddResponse(torrentAdded: nil, torrentDuplicate: nil)
     }
@@ -85,7 +87,7 @@ struct RPCSessionCacheWarmTests {
 
         try await service.add(
             fileURL: nil, magnetURL: "magnet:?xt=urn:btih:abc",
-            destination: "", labels: ["Linux"], priority: .normal, startWhenAdded: true)
+            destination: "", labels: ["Linux"], priority: .normal, startWhenAdded: true, files: [])
 
         #expect(await stub.sessionGetCount == 1)
         #expect(await stub.lastAddLabels == ["Linux"])
@@ -98,7 +100,7 @@ struct RPCSessionCacheWarmTests {
 
         try await service.add(
             fileURL: nil, magnetURL: "magnet:?xt=urn:btih:abc",
-            destination: "", labels: ["Linux"], priority: .normal, startWhenAdded: true)
+            destination: "", labels: ["Linux"], priority: .normal, startWhenAdded: true, files: [])
 
         #expect(await stub.lastAddLabels == nil)
     }
@@ -112,7 +114,7 @@ struct RPCSessionCacheWarmTests {
         await #expect(throws: TransmissionError.self) {
             try await service.add(
                 fileURL: nil, magnetURL: "magnet:?xt=urn:btih:abc",
-                destination: "", labels: ["Linux"], priority: .normal, startWhenAdded: true)
+                destination: "", labels: ["Linux"], priority: .normal, startWhenAdded: true, files: [])
         }
         #expect(await stub.lastAddLabels == nil)
     }
@@ -236,5 +238,64 @@ struct ReadProfilesTests {
             from: URL(fileURLWithPath: "/nonexistent-\(UUID().uuidString)/servers.json"))
         #expect(loaded.profiles.isEmpty)
         #expect(loaded.activeProfileID == nil)
+    }
+}
+
+@Suite("RPCTorrentService — add file selection")
+struct RPCAddFileSelectionTests {
+    private func tempTorrent() throws -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("add-selection-\(UUID().uuidString).torrent")
+        try Data("not really bencoded".utf8).write(to: url)
+        return url
+    }
+
+    @Test("a custom selection becomes wanted/unwanted and priority arrays")
+    func customSelection() async throws {
+        let url = try tempTorrent()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let stub = CacheStubClient(rpcVersion: 17, altSpeedEnabled: false)
+        let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
+
+        try await service.add(
+            fileURL: url, magnetURL: nil, destination: "Downloads", labels: [], priority: .normal,
+            startWhenAdded: true,
+            files: [
+                TorrentAddFile(index: 0, path: ["a.mkv"], length: 1, priority: .high),
+                TorrentAddFile(index: 1, path: ["b.srt"], length: 2, wanted: false),
+                TorrentAddFile(index: 2, path: ["c.nfo"], length: 3, priority: .low),
+            ])
+
+        let captured = await stub.lastAddArguments
+        let args = try #require(captured)
+        #expect(args.filesWanted == [0, 2])
+        #expect(args.filesUnwanted == [1])
+        #expect(args.priorityHigh == [0])
+        #expect(args.priorityNormal == nil)
+        #expect(args.priorityLow == [2])
+    }
+
+    @Test("an untouched selection omits every file argument")
+    func defaultSelection() async throws {
+        let url = try tempTorrent()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let stub = CacheStubClient(rpcVersion: 17, altSpeedEnabled: false)
+        let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
+
+        try await service.add(
+            fileURL: url, magnetURL: nil, destination: "Downloads", labels: [], priority: .normal,
+            startWhenAdded: true,
+            files: [
+                TorrentAddFile(index: 0, path: ["a.mkv"], length: 1),
+                TorrentAddFile(index: 1, path: ["b.srt"], length: 2),
+            ])
+
+        let captured = await stub.lastAddArguments
+        let args = try #require(captured)
+        #expect(args.filesWanted == nil)
+        #expect(args.filesUnwanted == nil)
+        #expect(args.priorityHigh == nil)
+        #expect(args.priorityNormal == nil)
+        #expect(args.priorityLow == nil)
     }
 }

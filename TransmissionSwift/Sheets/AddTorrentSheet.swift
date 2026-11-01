@@ -24,6 +24,9 @@ struct AddTorrentSheet: View {
     @State private var mode: AddTorrentInputMode = .file
     @Namespace private var selectionNamespace
     @State private var fileURL: URL?
+    @State private var fileTorrentName: String?
+    @State private var addFiles: [TorrentAddFile] = []
+    @State private var fileFilter = ""
     @State private var magnetString: String = ""
     @State private var destination: String = ""
     @State private var tags: [String] = []
@@ -33,6 +36,8 @@ struct AddTorrentSheet: View {
     /// `@State` copy for this add only — it must never write back.
     @AppStorage(PreferenceKeys.deleteTorrentFileAfterAdding) private var deleteTorrentFileByDefault = false
     @State private var deleteSourceFile = false
+    /// Persisted so collapsing the file list once keeps it collapsed.
+    @AppStorage(PreferenceKeys.addTorrentFilesExpanded) private var filesExpanded = true
     @State private var showFileImporter: Bool = false
     @State private var isAdding: Bool = false
     @State private var saveError: String? = nil
@@ -51,6 +56,7 @@ struct AddTorrentSheet: View {
             ) { result in
                 if case .success(let url) = result {
                     fileURL = url
+                    loadFile(at: url)
                 }
             }
             .onAppear {
@@ -68,6 +74,7 @@ struct AddTorrentSheet: View {
                     } else {
                         mode = .file
                         fileURL = url
+                        loadFile(at: url)
                     }
                 }
                 // Explicit focus so macOS doesn't auto-focus (and select-all) the
@@ -86,6 +93,7 @@ struct AddTorrentSheet: View {
         VStack(alignment: .leading) {
             modePicker
             sourceSection
+            filesSection
             optionsSection
         }
         .padding(.top, 45)
@@ -198,6 +206,118 @@ struct AddTorrentSheet: View {
         }
     }
 
+    /// Add-time file selection. Hidden for magnets and single-file torrents,
+    /// which have nothing to choose. The expanded state persists.
+    @ViewBuilder
+    private var filesSection: some View {
+        if mode == .file, addFiles.count > 1 {
+            VStack(alignment: .leading, spacing: 8) {
+                Button {
+                    withAnimation(.snappy(duration: 0.2)) { filesExpanded.toggle() }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .rotationEffect(.degrees(filesExpanded ? 90 : 0))
+                        sourceLabel("Files", systemImage: "doc.on.doc")
+                        Spacer()
+                        Text(selectionSummary)
+                            .font(.caption)
+                            .foregroundStyle(hasNoWantedFiles ? Color.red : Color.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(filesExpanded ? "Hide files" : "Show files")
+                .accessibilityValue(filesExpanded ? "Expanded" : "Collapsed")
+                .help(filesExpanded ? "Hide the file list" : "Show the file list")
+
+                if filesExpanded {
+                    VStack(spacing: 6) {
+                        HStack(spacing: 8) {
+                            fileFilterField
+                            HStack(spacing: 6) {
+                                Button("Select All") { setAllWanted(true) }
+                                Divider().frame(height: 12)
+                                Button("None") { setAllWanted(false) }
+                            }
+                            .buttonStyle(.borderless)
+                            .controlSize(.small)
+                        }
+
+                        if filteredFileIndices.isEmpty {
+                            Text("No files match the filter.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 40)
+                        } else {
+                            ScrollView {
+                                LazyVStack(spacing: 0) {
+                                    ForEach(Array(filteredFileIndices.enumerated()), id: \.element) {
+                                        offset, index in
+                                        AddTorrentFileRow(
+                                            file: $addFiles[index],
+                                            shaded: !offset.isMultiple(of: 2))
+                                    }
+                                }
+                            }
+                            .frame(height: filesListHeight)
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        }
+                    }
+                    .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.secondary.opacity(0.07))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(Color.secondary.opacity(0.25))
+                    )
+
+                    if hasNoWantedFiles {
+                        Text("Choose at least one file to download.")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+        }
+    }
+
+    private var fileFilterField: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "magnifyingglass")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField("Filter files", text: $fileFilter)
+                .textFieldStyle(.plain)
+                .font(.callout)
+            if !fileFilter.isEmpty {
+                Button {
+                    fileFilter = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear file filter")
+            }
+        }
+        .padding(.horizontal, 7)
+        .frame(height: 24)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.secondary.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(Color.secondary.opacity(0.18))
+        )
+    }
+
     /// Shared options that apply to either source, in a grouped-form-style
     /// card: fixed-width label column, vertical separator, control leading.
     private var optionsSection: some View {
@@ -207,7 +327,8 @@ struct AddTorrentSheet: View {
                     path: $destination,
                     defaultDirectory: store.list.downloadDirectory,
                     folders: knownFolders,
-                    serverName: serverName)
+                    serverName: serverName,
+                    torrentName: expectedTorrentName)
             }
             Divider()
             formRow("Tags") {
@@ -257,6 +378,60 @@ struct AddTorrentSheet: View {
     /// Folders the daemon already knows about, offered as one-click destinations.
     private var knownFolders: [String] {
         serverPathSuggestions(from: store.list.facets)
+    }
+
+    /// Best-effort torrent name for the "Full path" preview: the chosen
+    /// `.torrent`'s `info.name`, falling back to its file stem when the file
+    /// can't be decoded, or the magnet's `dn` display name.
+    private var expectedTorrentName: String? {
+        if mode == .file, let fileURL {
+            return fileTorrentName ?? fileURL.deletingPathExtension().lastPathComponent
+        }
+        if mode == .magnet,
+            let dn = URLComponents(string: magnetString)?
+                .queryItems?.first(where: { $0.name == "dn" })?.value,
+            !dn.isEmpty
+        {
+            return dn
+        }
+        return nil
+    }
+
+    private func loadFile(at url: URL) {
+        fileTorrentName = TorrentMetainfoReader.displayName(at: url)
+        addFiles = TorrentMetainfoReader.files(at: url) ?? []
+        fileFilter = ""
+    }
+
+    private var filteredFileIndices: [Int] {
+        let query = fileFilter.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return Array(addFiles.indices) }
+        return addFiles.indices.filter {
+            addFiles[$0].pathString.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    private var filesListHeight: CGFloat {
+        CGFloat(min(max(filteredFileIndices.count, 1), 8)) * addFileRowHeight
+    }
+
+    private var selectedFiles: [TorrentAddFile] {
+        addFiles.filter(\.wanted)
+    }
+
+    private var hasNoWantedFiles: Bool {
+        mode == .file && !addFiles.isEmpty && selectedFiles.isEmpty
+    }
+
+    private var selectionSummary: String {
+        let size = ColumnFormatters.humanizedSize(selectedFiles.reduce(0) { $0 + $1.length })
+        return "\(selectedFiles.count) of \(addFiles.count) files, \(size)"
+    }
+
+    private func setAllWanted(_ wanted: Bool) {
+        for index in addFiles.indices {
+            addFiles[index].wanted = wanted
+        }
     }
 
     private let formLabelWidth: CGFloat = 90
@@ -369,7 +544,8 @@ struct AddTorrentSheet: View {
             case .file: fileURL != nil
             case .magnet: magnetString.hasPrefix("magnet:?xt=urn:btih:")
             }
-        return sourceValid && isSubmittableServerPath(destination, relativeTo: store.list.downloadDirectory)
+        return sourceValid && !hasNoWantedFiles
+            && isSubmittableServerPath(destination, relativeTo: store.list.downloadDirectory)
     }
 
     private func submit() async {
@@ -383,6 +559,7 @@ struct AddTorrentSheet: View {
             labels: tags,
             priority: priority,
             startWhenAdded: startWhenAdded,
+            files: mode == .file ? addFiles : [],
             deleteFileAfterAdding: mode == .file && deleteSourceFile
         )
         if succeeded {
@@ -397,6 +574,54 @@ extension UTType {
     fileprivate static let torrentFile = UTType(filenameExtension: "torrent") ?? .data
 }
 
+/// One row in the add sheet's flat file list. Skip and the checkbox both write
+/// `wanted`, so the two controls stay in sync.
+private let addFileRowHeight: CGFloat = 26
+
+private struct AddTorrentFileRow: View {
+    @Binding var file: TorrentAddFile
+    let shaded: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Toggle("Download", isOn: $file.wanted)
+                .toggleStyle(.checkbox)
+                .labelsHidden()
+                .accessibilityLabel("Download \(file.pathString)")
+
+            Text(file.pathString)
+                .font(.callout.monospaced())
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .foregroundStyle(file.wanted ? Color.primary : Color.secondary)
+
+            Spacer(minLength: 8)
+
+            Text(ColumnFormatters.humanizedSize(file.length))
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+
+            FilePriorityPicker(
+                choice: Binding(
+                    get: { FilePriorityChoice(wanted: file.wanted, priority: file.priority) },
+                    set: { choice in
+                        if let priority = choice.priority {
+                            file.wanted = true
+                            file.priority = priority
+                        } else {
+                            file.wanted = false
+                        }
+                    }),
+                label: "Priority for \(file.pathString)"
+            )
+        }
+        .padding(.horizontal, 6)
+        .frame(height: addFileRowHeight)
+        .background(shaded ? Color.secondary.opacity(0.05) : Color.clear)
+        .contentShape(Rectangle())
+    }
+}
+
 #Preview("Add Torrent") {
     AddTorrentSheet(isPresented: .constant(true))
         .environment(previewTorrentStore)
@@ -407,4 +632,59 @@ extension UTType {
     AddTorrentSheet(isPresented: .constant(true), initialMagnetMode: true)
         .environment(previewTorrentStore)
         .environment(TagColorStore())
+}
+
+#Preview("File selection") {
+    AddTorrentSheet(isPresented: .constant(true), prefilledURL: previewMultiFileTorrentURL())
+        .environment(previewTorrentStore)
+        .environment(TagColorStore())
+}
+
+#Preview("File selection collapsed") {
+    AddTorrentSheet(isPresented: .constant(true), prefilledURL: previewMultiFileTorrentURL())
+        .defaultAppStorage(previewCollapsedFilesDefaults)
+        .environment(previewTorrentStore)
+        .environment(TagColorStore())
+}
+
+/// A separate defaults store so the collapsed preview doesn't flip the real
+/// preview (or the app) into the collapsed state.
+private let previewCollapsedFilesDefaults: UserDefaults = {
+    let defaults = UserDefaults(suiteName: "preview-collapsed-files") ?? .standard
+    defaults.set(false, forKey: PreferenceKeys.addTorrentFilesExpanded)
+    return defaults
+}()
+
+/// A realistic multi-file `.torrent` for the file-selection preview. The sheet
+/// loads its file list from the URL on appear, so this has to be a real file.
+private func previewMultiFileTorrentURL() -> URL {
+    let entries: [(path: String, length: Int)] = [
+        ("Season 01/Episode 01.mkv", 1_482_000_000),
+        ("Season 01/Episode 02.mkv", 1_510_000_000),
+        ("Season 01/Episode 03.mkv", 1_463_000_000),
+        ("Season 01/Episode 04.mkv", 1_501_000_000),
+        ("Season 01/Episode 05.mkv", 1_444_000_000),
+        ("Season 01/Episode 06.mkv", 1_528_000_000),
+        ("Season 01/Episode 07.mkv", 1_490_000_000),
+        ("Season 01/Episode 08.mkv", 1_512_000_000),
+        ("Season 01/Episode 09.mkv", 1_477_000_000),
+        ("Season 01/Episode 10.mkv", 1_538_000_000),
+        ("Season 01/Subs/Episode 01.srt", 52_000),
+        ("Season 01/Subs/Episode 02.srt", 48_000),
+        ("README.nfo", 2_400),
+    ]
+
+    var info = "d5:filesl"
+    for entry in entries {
+        info += "d6:lengthi\(entry.length)e4:pathl"
+        info += entry.path.split(separator: "/").map { "\($0.utf8.count):\($0)" }.joined()
+        info += "ee"
+    }
+    let name = "Example Show S01"
+    info += "e4:name\(name.utf8.count):\(name)e"
+
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("preview-multi-file.torrent")
+    try? Data("d4:info\(info)e".utf8).write(to: url)
+    return url
 }

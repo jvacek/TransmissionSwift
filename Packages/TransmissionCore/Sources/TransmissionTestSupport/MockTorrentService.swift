@@ -13,6 +13,7 @@ public actor MockTorrentService: TorrentService {
     private var continuation: AsyncThrowingStream<[Torrent], Error>.Continuation?
     private var altSpeed = false
     private var sessionSettingsValue = SessionSettings.sample
+    private let downloadDirectoryValue: String?
     private var tickTask: Task<Void, Never>?
     private var torrentsError: Error?
     private var removeError: Error?
@@ -20,9 +21,15 @@ public actor MockTorrentService: TorrentService {
     /// inspector refreshes.
     public private(set) var inspectorFetchCount = 0
 
-    public init(initial: [Torrent] = MockFixtures.torrents()) {
+    public init(
+        initial: [Torrent] = MockFixtures.torrents(),
+        downloadDirectory: String? = nil
+    ) {
         self.state = initial
+        self.downloadDirectoryValue = downloadDirectory
     }
+
+    public func downloadDirectory() async -> String? { downloadDirectoryValue }
 
     /// When set, `torrents()` throws instead of returning state, letting tests
     /// exercise the "server unreachable" path with no network.
@@ -334,7 +341,8 @@ public actor MockTorrentService: TorrentService {
         destination: String,
         labels: [String],
         priority: TorrentPriority,
-        startWhenAdded: Bool
+        startWhenAdded: Bool,
+        files addFiles: [TorrentAddFile]
     ) async throws {
         let name: String
         if let url = fileURL {
@@ -347,12 +355,21 @@ public actor MockTorrentService: TorrentService {
         } else {
             name = "New Torrent"
         }
+        let files = addFiles.map {
+            TorrentFile(
+                id: $0.index,
+                name: $0.pathString,
+                size: $0.length,
+                progress: 0,
+                priority: $0.priority,
+                wanted: $0.wanted)
+        }
         let newID = (state.map(\.id).max() ?? 0) + 1
         let torrent = Torrent(
             id: newID,
             name: name,
             hash: String(format: "%040x", newID),
-            size: 1_073_741_824,
+            size: files.isEmpty ? 1_073_741_824 : files.reduce(0) { $0 + $1.size },
             status: startWhenAdded ? .downloading : .paused,
             progress: 0,
             downloadSpeed: startWhenAdded ? 2_097_152 : 0,
@@ -369,7 +386,8 @@ public actor MockTorrentService: TorrentService {
             priority: priority,
             pieces: 2048,
             pieceSize: 512 * 1024,
-            havePieces: 0
+            havePieces: 0,
+            files: files
         )
         state.append(torrent)
         broadcast()

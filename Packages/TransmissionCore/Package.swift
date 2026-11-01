@@ -21,7 +21,8 @@ let package = Package(
         .library(name: "TransmissionTestSupport", targets: ["TransmissionTestSupport"]),
     ],
     dependencies: [
-        .package(path: "../TransmissionRPC")
+        .package(path: "../TransmissionRPC"),
+        .package(path: "../TorrentMetainfo"),
     ],
     targets: [
         // libz, to gunzip DB-IP's compressed GeoIP dump. A system library, not a
@@ -29,7 +30,7 @@ let package = Package(
         .systemLibrary(name: "CZlib", path: "Sources/CZlib"),
         .target(
             name: "TransmissionCore",
-            dependencies: ["TransmissionRPC", "CZlib"],
+            dependencies: ["TransmissionRPC", "TorrentMetainfo", "CZlib"],
             swiftSettings: swiftSettings
         ),
         .target(

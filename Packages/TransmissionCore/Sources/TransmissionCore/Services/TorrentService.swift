@@ -159,14 +159,17 @@ public protocol TorrentMutating: Sendable {
     func applySessionSettings(_ patch: SessionSettingsPatch) async throws
 
     /// Add a new torrent. Exactly one of `fileURL` / `magnetURL` should be
-    /// non-nil. Maps to `torrent-add`.
+    /// non-nil. Maps to `torrent-add`. `files` carries the add-time per-file
+    /// selection in `info.files` order; empty means every file is wanted at
+    /// normal priority.
     func add(
         fileURL: URL?,
         magnetURL: String?,
         destination: String,
         labels: [String],
         priority: TorrentPriority,
-        startWhenAdded: Bool
+        startWhenAdded: Bool,
+        files: [TorrentAddFile]
     ) async throws
 }
 

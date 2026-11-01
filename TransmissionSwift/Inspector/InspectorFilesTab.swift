@@ -225,8 +225,12 @@ private struct FileRow: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer(minLength: 8)
-                priorityControl
-                    .padding(.top, 1)
+                FilePriorityPicker(
+                    choice: $priority,
+                    isEnabled: actionsEnabled,
+                    label: "Priority for \(file.displayName)"
+                )
+                .padding(.top, 1)
             }
 
             HStack(spacing: 8) {
@@ -241,54 +245,6 @@ private struct FileRow: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var priorityControl: some View {
-        // A native `Menu` label only ever shows one image and strips extra
-        // chrome, so stacking a coloured glyph *and* a separate badge inside
-        // it is unreliable. Bake the whole interior (glyph + circular `⇅`
-        // badge) into a single `ImageRenderer`-produced `NSImage` — layout is
-        // fully under our control, so nothing can overlap — and hand that one
-        // image to a native `Menu`. The native `.button` style supplies the
-        // rounded-rect chrome, the click, and hover/pressed states.
-        // The glyph is drawn into a fixed-size slot so the baked image (and
-        // therefore the button) stays the same width no matter which priority
-        // glyph is shown — otherwise the chip would wobble on every change.
-        let renderer = ImageRenderer(
-            content:
-                HStack(spacing: 4) {
-                    Image(systemName: priority.systemImage)
-                        .font(.callout)
-                        .foregroundStyle(priority.displayColor)
-                    ZStack {
-                        Circle().fill(Color(nsColor: .tertiarySystemFill))
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(width: 14, height: 14)
-                }
-        )
-        renderer.scale = 2
-        let chip = renderer.nsImage ?? NSImage()
-
-        return Menu {
-            ForEach(FilePriorityChoice.allCases, id: \.self) { choice in
-                Button {
-                    priority = choice
-                } label: {
-                    Label(choice.displayLabel, systemImage: choice.systemImage)
-                }
-            }
-        } label: {
-            Image(nsImage: chip)
-        }
-        .menuStyle(.button)
-        .menuIndicator(.hidden)
-        .allowsHitTesting(actionsEnabled)
-        .accessibilityLabel("Priority for \(file.displayName)")
-        .frame(width: 32, height: 18)
-        .padding(.trailing, 5)
     }
 }
 
@@ -312,70 +268,6 @@ private enum FileSortKey: CaseIterable, Identifiable {
         switch self {
         case .name, .priority: return true
         case .size, .progress: return false
-        }
-    }
-}
-
-/// The Priority popup folds "don't download" into the priority choice, like
-/// Transmission's own UI: High / Normal / Low / Skip.
-private enum FilePriorityChoice: CaseIterable, Hashable {
-    case high, normal, low, skip
-
-    init(file: TorrentFile) {
-        guard file.wanted else {
-            self = .skip
-            return
-        }
-        switch file.priority {
-        case .high: self = .high
-        case .normal: self = .normal
-        case .low: self = .low
-        }
-    }
-
-    var priority: TorrentPriority? {
-        switch self {
-        case .high: return .high
-        case .normal: return .normal
-        case .low: return .low
-        case .skip: return nil
-        }
-    }
-
-    var displayLabel: String {
-        switch self {
-        case .high: return "High"
-        case .normal: return "Normal"
-        case .low: return "Low"
-        case .skip: return "Skip"
-        }
-    }
-
-    /// Mirrors the torrent table's priority glyphs (TorrentPriority.systemImage);
-    /// Skip (don't download) gets its own slash glyph.
-    var systemImage: String {
-        switch self {
-        case .high, .normal, .low: return priority!.systemImage
-        case .skip: return "slash.circle"
-        }
-    }
-
-    var displayColor: Color {
-        switch self {
-        case .high: return .orange
-        case .normal: return .gray
-        case .low: return .blue
-        case .skip: return .red
-        }
-    }
-
-    /// High > Normal > Low > Skip, for sorting.
-    var sortRank: Int {
-        switch self {
-        case .high: return 0
-        case .normal: return 1
-        case .low: return 2
-        case .skip: return 3
         }
     }
 }

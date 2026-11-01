@@ -414,7 +414,8 @@ public actor RPCTorrentService: TorrentService {
         destination: String,
         labels: [String],
         priority: TorrentPriority,
-        startWhenAdded: Bool
+        startWhenAdded: Bool,
+        files: [TorrentAddFile]
     ) async throws {
         let filename: String?
         let metainfo: String?
@@ -457,13 +458,19 @@ public actor RPCTorrentService: TorrentService {
             wireLabels = nil
         }
 
+        let fileSelection = TorrentAddFileSelection(files: files)
         let args = TorrentAddArguments(
             filename: filename,
             metainfo: metainfo,
             downloadDir: destination.isEmpty ? nil : destination,
             paused: !startWhenAdded,
             bandwidthPriority: bandwidthPriority,
-            labels: wireLabels
+            labels: wireLabels,
+            filesWanted: fileSelection.filesWanted,
+            filesUnwanted: fileSelection.filesUnwanted,
+            priorityHigh: fileSelection.priorityHigh,
+            priorityNormal: fileSelection.priorityNormal,
+            priorityLow: fileSelection.priorityLow
         )
         let response = try await client.torrentAdd(args)
         if let dup = response.torrentDuplicate {

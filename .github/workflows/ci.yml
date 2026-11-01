@@ -36,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [TransmissionRPC, TransmissionCore]
+        package: [TransmissionRPC, TorrentMetainfo, TransmissionCore]
     steps:
       - uses: actions/checkout@v7
 

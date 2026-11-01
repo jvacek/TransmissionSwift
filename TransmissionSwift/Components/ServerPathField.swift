@@ -151,6 +151,10 @@ struct ServerPathField: View {
     let folders: [String]
     var serverName: String? = nil
     var placeholder: String = "ISOs or /media/torrents"
+    /// Torrent name appended to the "Full path" line so it reads as the complete
+    /// path the torrent will be created at. Nil omits it (e.g. bulk Set
+    /// Location).
+    var torrentName: String? = nil
     var isDisabled: Bool = false
 
     /// Whether the static path explainer is expanded. Persisted so experienced
@@ -175,11 +179,13 @@ struct ServerPathField: View {
         resolveServerPath(path, relativeTo: defaultDirectory)
     }
 
-    /// The resolved path as a directory (always a trailing slash), so it's clear
-    /// the location is the folder the torrent's files land in.
+    /// The resolved path as a directory (always a trailing slash), with the
+    /// torrent name appended when known, so it reads as the complete path the
+    /// torrent lands at.
     private var resolvedPathDisplay: String {
         var display = resolvedPath
         if !display.hasSuffix("/") { display += "/" }
+        if let torrentName, !torrentName.isEmpty { display += torrentName }
         return display
     }
 

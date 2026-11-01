@@ -10,6 +10,11 @@ Please visit the [release page](https://github.com/jvacek/TransmissionSwift/rele
 
 ---
 
+## Unreleased
+
+- Choose which files a `.torrent` downloads when adding it, with per-file priority
+  - Filter the file list and select all or none
+
 ## 0.7.2
 
 3rd Nov 2026

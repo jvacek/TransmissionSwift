@@ -124,7 +124,8 @@ private func addTorrent(
             destination: destination ?? "",
             labels: labels ?? [],
             priority: (priority ?? .normal).domain,
-            startWhenAdded: startWhenAdded)
+            startWhenAdded: startWhenAdded,
+            files: [])
     } catch {
         throw IntentError(message: error.localizedDescription)
     }

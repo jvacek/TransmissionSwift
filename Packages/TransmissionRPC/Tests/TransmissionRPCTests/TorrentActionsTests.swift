@@ -223,6 +223,38 @@ struct TorrentAddArgumentsEncodeTests {
         #expect(json["labels"] == nil)
         #expect(json["paused"] == nil)
     }
+
+    @Test("file selection uses kebab-case keys")
+    func fileSelectionKeys() throws {
+        let args = TorrentAddArguments(
+            filename: "magnet:?xt=test",
+            filesWanted: [0, 2],
+            filesUnwanted: [1],
+            priorityHigh: [0],
+            priorityNormal: [2],
+            priorityLow: []
+        )
+        let json = try encoded(args)
+
+        #expect(json["files-wanted"] as? [Int] == [0, 2])
+        #expect(json["files-unwanted"] as? [Int] == [1])
+        #expect(json["priority-high"] as? [Int] == [0])
+        #expect(json["priority-normal"] as? [Int] == [2])
+        #expect(json["priority-low"] as? [Int] == [])
+        #expect(json["filesWanted"] == nil)
+    }
+
+    @Test("file selection is omitted when every field is nil")
+    func fileSelectionAbsent() throws {
+        let args = TorrentAddArguments(filename: "magnet:?xt=test")
+        let json = try encoded(args)
+
+        #expect(json["files-wanted"] == nil)
+        #expect(json["files-unwanted"] == nil)
+        #expect(json["priority-high"] == nil)
+        #expect(json["priority-normal"] == nil)
+        #expect(json["priority-low"] == nil)
+    }
 }
 
 // MARK: - TorrentRenamePathArguments encode / TorrentRenamePathResponse decode

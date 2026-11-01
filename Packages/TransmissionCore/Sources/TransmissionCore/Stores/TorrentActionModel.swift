@@ -223,6 +223,7 @@ public final class TorrentActionModel {
         labels: [String],
         priority: TorrentPriority,
         startWhenAdded: Bool,
+        files: [TorrentAddFile] = [],
         deleteFileAfterAdding: Bool = false
     ) async -> Bool {
         guard let mutations else { return false }
@@ -233,7 +234,8 @@ public final class TorrentActionModel {
                 destination: destination,
                 labels: labels,
                 priority: priority,
-                startWhenAdded: startWhenAdded
+                startWhenAdded: startWhenAdded,
+                files: files
             )
             if deleteFileAfterAdding, let fileURL {
                 deleteLocalTorrentFile(fileURL)

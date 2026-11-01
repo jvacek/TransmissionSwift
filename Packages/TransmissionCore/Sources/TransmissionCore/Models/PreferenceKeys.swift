@@ -8,6 +8,9 @@ public enum PreferenceKeys {
     // Downloads
     public static let showAddDialogBeforeAdding = "showAddDialogBeforeAdding"
     public static let deleteTorrentFileAfterAdding = "deleteTorrentFileAfterAdding"
+    /// Whether the Add Torrent sheet's file list is expanded. Persisted so the
+    /// choice survives across sheets and launches.
+    public static let addTorrentFilesExpanded = "addTorrentFilesExpanded"
 
     // General
     public static let startMinimized = "startMinimized"

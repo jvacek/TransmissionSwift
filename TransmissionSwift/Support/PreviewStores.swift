@@ -12,9 +12,9 @@ import TransmissionTestSupport
 /// Previews run on the main actor, so building the `@MainActor` store at file
 /// scope is safe.
 let previewTorrentStore: TorrentStore = {
-    let store = TorrentStore(service: MockTorrentService())
+    let store = TorrentStore(service: MockTorrentService(downloadDirectory: "/downloads"))
+    store.simulateConnection(.connected)
     store.list.setTorrents(MockFixtures.torrents())
     store.list.setDownloadDirectory("/downloads")
-    store.simulateConnection(.connected)
     return store
 }()

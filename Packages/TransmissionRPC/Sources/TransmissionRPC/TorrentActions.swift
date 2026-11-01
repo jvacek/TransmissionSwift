@@ -138,6 +138,13 @@ public struct TorrentAddArguments: Encodable, Sendable {
     public var bandwidthPriority: Int?
     /// Requires RPC ≥ 17 (Transmission 4.0). Omit on older daemons.
     public var labels: [String]?
+    /// File indices to download, and to skip. File selection is supported by
+    /// `torrent-add` since rpc-version 5.
+    public var filesWanted: [Int]?
+    public var filesUnwanted: [Int]?
+    public var priorityHigh: [Int]?
+    public var priorityNormal: [Int]?
+    public var priorityLow: [Int]?
 
     enum CodingKeys: String, CodingKey {
         case filename
@@ -146,6 +153,11 @@ public struct TorrentAddArguments: Encodable, Sendable {
         case paused
         case bandwidthPriority
         case labels
+        case filesWanted = "files-wanted"
+        case filesUnwanted = "files-unwanted"
+        case priorityHigh = "priority-high"
+        case priorityNormal = "priority-normal"
+        case priorityLow = "priority-low"
     }
 
     public init(
@@ -154,7 +166,12 @@ public struct TorrentAddArguments: Encodable, Sendable {
         downloadDir: String? = nil,
         paused: Bool? = nil,
         bandwidthPriority: Int? = nil,
-        labels: [String]? = nil
+        labels: [String]? = nil,
+        filesWanted: [Int]? = nil,
+        filesUnwanted: [Int]? = nil,
+        priorityHigh: [Int]? = nil,
+        priorityNormal: [Int]? = nil,
+        priorityLow: [Int]? = nil
     ) {
         self.filename = filename
         self.metainfo = metainfo
@@ -162,6 +179,11 @@ public struct TorrentAddArguments: Encodable, Sendable {
         self.paused = paused
         self.bandwidthPriority = bandwidthPriority
         self.labels = labels
+        self.filesWanted = filesWanted
+        self.filesUnwanted = filesUnwanted
+        self.priorityHigh = priorityHigh
+        self.priorityNormal = priorityNormal
+        self.priorityLow = priorityLow
     }
 }
 
