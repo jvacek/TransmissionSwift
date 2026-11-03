@@ -3,14 +3,17 @@ import TransmissionCore
 import TransmissionTestSupport
 
 /// Tracker announce endpoints grouped by failover tier, one `GroupBox` card
-/// per tracker. Adding and removing rewrites the whole announce list
-/// (`torrent-set` `trackerList`), so every edit reads the trackers from the
+/// per tracker. Adding, removing and re-tiering all rewrite the whole announce
+/// list (`torrent-set` `trackerList`), so every edit reads the trackers from the
 /// last poll and sends the new list back.
 struct InspectorTrackersTab: View {
     let torrent: Torrent
     @Environment(TorrentStore.self) private var store
     @Environment(FaviconStore.self) private var favicons
     @State private var isAddingTracker = false
+    /// A private torrent's last tracker, awaiting confirmation: removing it
+    /// leaves the torrent with no way to find peers.
+    @State private var pendingPrivateRemoval: Tracker?
 
     private var tiers: [(tier: Int, trackers: [Tracker])] {
         Dictionary(grouping: torrent.trackers, by: \.tier)
@@ -21,6 +24,15 @@ struct InspectorTrackersTab: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
+                if torrent.isPrivate {
+                    Label(
+                        "Private torrent: only these trackers can be used. DHT, PEX and local peer discovery are off.",
+                        systemImage: "lock.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
                 if torrent.trackers.isEmpty {
                     Text("No trackers")
                         .font(.callout)
@@ -34,14 +46,7 @@ struct InspectorTrackersTab: View {
                                 .foregroundStyle(.secondary)
                         }
                         ForEach(group.trackers) { tracker in
-                            TrackerCard(
-                                tracker: tracker,
-                                // Legacy snapshots carry stats without an
-                                // announce URL; there is nothing to remove.
-                                canRemove: store.actionsEnabled && !tracker.announce.isEmpty
-                            ) {
-                                Task { await store.actions.removeTracker(torrent.id, tracker) }
-                            }
+                            trackerCard(tracker)
                         }
                     }
                 }
@@ -60,12 +65,91 @@ struct InspectorTrackersTab: View {
         .sheet(isPresented: $isAddingTracker) {
             AddTrackerSheet(torrent: torrent)
         }
+        .confirmationDialog(
+            "Remove the last tracker?",
+            isPresented: Binding(
+                get: { pendingPrivateRemoval != nil },
+                set: { if !$0 { pendingPrivateRemoval = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingPrivateRemoval
+        ) { tracker in
+            Button("Remove Tracker", role: .destructive) {
+                Task { await store.actions.removeTracker(torrent.id, tracker) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text(
+                "This is a private torrent, so DHT, PEX and local peer discovery are off. Without its only tracker it can't find peers."
+            )
+        }
         // Make sure icons exist for this torrent's trackers — no-op for hosts
         // the sidebar already fetched.
         .task(id: torrent.id) {
             let hosts = Set(torrent.trackers.map(\.host))
             guard !hosts.isEmpty else { return }
             await favicons.refresh(hosts: Array(hosts))
+        }
+    }
+
+    @ViewBuilder
+    private func trackerCard(_ tracker: Tracker) -> some View {
+        let card = TrackerCard(
+            tracker: tracker,
+            // Legacy snapshots carry stats without an announce URL; there is
+            // nothing to remove or move.
+            canRemove: store.actionsEnabled && !tracker.announce.isEmpty
+        ) {
+            requestRemoval(of: tracker)
+        }
+        if store.actionsEnabled {
+            card.contextMenu {
+                trackerMenu(for: tracker)
+            }
+        } else {
+            card
+        }
+    }
+
+    /// Removing a private torrent's only tracker strands it: private torrents
+    /// can't fall back on DHT, PEX or local discovery, so ask first.
+    private func requestRemoval(of tracker: Tracker) {
+        if trackerRemovalWouldStrand(torrent) {
+            pendingPrivateRemoval = tracker
+        } else {
+            Task { await store.actions.removeTracker(torrent.id, tracker) }
+        }
+    }
+
+    /// Tier moves, which are a reorder of the announce list: joining a tier
+    /// makes the tracker race with its new peers, a tier past the last one is a
+    /// new backup.
+    @ViewBuilder
+    private func trackerMenu(for tracker: Tracker) -> some View {
+        Button("Remove Tracker", role: .destructive) {
+            requestRemoval(of: tracker)
+        }
+        if let last = tiers.last {
+            let otherTiers = tiers.map(\.tier).filter { $0 != tracker.tier }
+            // A tracker alone in the last tier is already at the end of the
+            // list; a new tier would serialize to the same string.
+            let canStartNewTier = last.tier != tracker.tier || last.trackers.count > 1
+            if !otherTiers.isEmpty || canStartNewTier {
+                Divider()
+                ForEach(otherTiers, id: \.self) { tier in
+                    Button("Move to Tier \(tier + 1)") {
+                        Task { await store.actions.moveTracker(torrent.id, tracker, toTier: tier) }
+                    }
+                }
+                if canStartNewTier {
+                    Button("Move to New Tier") {
+                        Task {
+                            await store.actions.moveTracker(
+                                torrent.id, tracker, toTier: last.tier + 1)
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -202,6 +286,12 @@ private struct AddTrackerSheet: View {
     }
 }
 
+/// True when removing one tracker would leave the torrent unable to find
+/// peers: a private torrent can't fall back on DHT, PEX or local discovery.
+nonisolated func trackerRemovalWouldStrand(_ torrent: Torrent) -> Bool {
+    torrent.isPrivate && torrent.trackers.count == 1
+}
+
 /// The typed announce URL without surrounding whitespace.
 nonisolated func normalizedTrackerAnnounce(_ input: String) -> String {
     input.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -231,6 +321,13 @@ nonisolated func trackerAnnounceValidation(_ input: String, existing: [Tracker])
 
 #Preview("Multi-tier Trackers") {
     InspectorTrackersTab(torrent: Torrent.samples[4])
+        .environment(previewTorrentStore)
+        .environment(FaviconStore())
+        .frame(width: 322, height: 500)
+}
+
+#Preview("Private Trackers") {
+    InspectorTrackersTab(torrent: Torrent.samples[1])
         .environment(previewTorrentStore)
         .environment(FaviconStore())
         .frame(width: 322, height: 500)

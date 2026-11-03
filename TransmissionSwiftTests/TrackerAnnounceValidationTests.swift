@@ -90,4 +90,12 @@ struct TrackerAnnounceValidationTests {
         ]
         #expect(trackerAnnounceValidation("https://legacy.example/announce", existing: existing) == nil)
     }
+
+    /// Private trackers put the passkey in the URL. The sheet must hand it to
+    /// the daemon exactly as typed.
+    @Test func passkey_urls_are_accepted_unchanged() {
+        let announce = "https://tracker.private.example/announce?passkey=abc123&torrent=42"
+        #expect(trackerAnnounceValidation(announce, existing: []) == nil)
+        #expect(normalizedTrackerAnnounce(" \(announce) ") == announce)
+    }
 }
