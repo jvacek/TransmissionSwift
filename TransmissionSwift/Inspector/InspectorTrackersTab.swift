@@ -3,14 +3,16 @@ import TransmissionCore
 import TransmissionTestSupport
 
 /// Tracker announce endpoints grouped by failover tier, one `GroupBox` card
-/// per tracker. Adding, removing and re-tiering all rewrite the whole announce
-/// list (`torrent-set` `trackerList`), so every edit reads the trackers from the
-/// last poll and sends the new list back.
+/// per tracker. Every edit (add, change URL, remove, re-tier) rewrites the
+/// whole announce list (`torrent-set` `trackerList`), so it reads the trackers
+/// from the last poll and sends the new list back.
 struct InspectorTrackersTab: View {
     let torrent: Torrent
     @Environment(TorrentStore.self) private var store
     @Environment(FaviconStore.self) private var favicons
     @State private var isAddingTracker = false
+    /// The tracker whose announce URL is being changed.
+    @State private var editingTracker: Tracker?
     /// A private torrent's last tracker, awaiting confirmation: removing it
     /// leaves the torrent with no way to find peers.
     @State private var pendingPrivateRemoval: Tracker?
@@ -65,6 +67,9 @@ struct InspectorTrackersTab: View {
         .sheet(isPresented: $isAddingTracker) {
             AddTrackerSheet(torrent: torrent)
         }
+        .sheet(item: $editingTracker) { tracker in
+            AddTrackerSheet(torrent: torrent, editing: tracker)
+        }
         .confirmationDialog(
             "Remove the last tracker?",
             isPresented: Binding(
@@ -94,15 +99,13 @@ struct InspectorTrackersTab: View {
 
     @ViewBuilder
     private func trackerCard(_ tracker: Tracker) -> some View {
-        let card = TrackerCard(
-            tracker: tracker,
-            // Legacy snapshots carry stats without an announce URL; there is
-            // nothing to remove or move.
-            canRemove: store.actionsEnabled && !tracker.announce.isEmpty
-        ) {
+        // Legacy snapshots carry stats without an announce URL; there is
+        // nothing to edit.
+        let editable = store.actionsEnabled && !tracker.announce.isEmpty
+        let card = TrackerCard(tracker: tracker, canRemove: editable) {
             requestRemoval(of: tracker)
         }
-        if store.actionsEnabled {
+        if editable {
             card.contextMenu {
                 trackerMenu(for: tracker)
             }
@@ -121,11 +124,15 @@ struct InspectorTrackersTab: View {
         }
     }
 
-    /// Tier moves, which are a reorder of the announce list: joining a tier
-    /// makes the tracker race with its new peers, a tier past the last one is a
-    /// new backup.
+    /// Everything that rewrites the announce list: swapping one URL, removing
+    /// an entry, and re-tiering, which is a reorder of the same list. Joining a
+    /// tier makes the tracker race with its members; a tier past the last one
+    /// becomes a new backup.
     @ViewBuilder
     private func trackerMenu(for tracker: Tracker) -> some View {
+        Button("Change Announce URL…") {
+            editingTracker = tracker
+        }
         Button("Remove Tracker", role: .destructive) {
             requestRemoval(of: tracker)
         }
@@ -205,12 +212,15 @@ private struct TrackerCard: View {
     }
 }
 
-/// Adds one announce URL to a torrent. The daemon gets the rebuilt list through
-/// `TrackerList`; this sheet only validates the URL.
+/// Adds one announce URL to a torrent, or changes an existing tracker's URL.
+/// The daemon gets the rebuilt list through `TrackerList`; this sheet only
+/// validates the URL.
 private struct AddTrackerSheet: View {
     @Environment(TorrentStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     let torrent: Torrent
+    /// Set when changing an existing tracker's announce URL.
+    var editing: Tracker? = nil
 
     @State private var announce = ""
     @State private var isSaving = false
@@ -218,20 +228,31 @@ private struct AddTrackerSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Add Tracker")
+            Text(editing == nil ? "Add Tracker" : "Change Tracker URL")
                 .font(.headline)
-            Text("The announce URL, e.g. https://tracker.example.org/announce")
+            Text(hint)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if torrent.isPrivate {
+                Label(
+                    "Private torrent: only an announce URL from the tracker that issued it will find peers. A public tracker gets the infohash but doesn't count toward your ratio.",
+                    systemImage: "lock.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
 
             TextField("Announce URL", text: $announce)
                 .textFieldStyle(.roundedBorder)
                 .font(.callout.monospaced())
                 .disabled(isSaving)
-                .onSubmit { Task { await add() } }
+                .onSubmit { Task { await submit() } }
                 .accessibilityIdentifier("inspector.trackers.announce")
 
-            // Nothing to complain about until there's input: the Add button is
+            // Nothing to complain about until there's input: the button is
             // already disabled for an empty field.
             if !announce.isEmpty, let validationError {
                 Text(validationError)
@@ -251,37 +272,59 @@ private struct AddTrackerSheet: View {
                 Spacer()
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button(isSaving ? "Adding…" : "Add") {
-                    Task { await add() }
+                Button(submitLabel) {
+                    Task { await submit() }
                 }
                 .buttonStyle(.glassProminent)
-                .disabled(!canAdd)
+                .disabled(!canSubmit)
                 .keyboardShortcut(.defaultAction)
             }
         }
         .padding(20)
         .frame(width: 420)
+        .onAppear {
+            announce = editing?.announce ?? ""
+        }
+    }
+
+    private var hint: String {
+        if editing == nil {
+            return "The announce URL, e.g. https://tracker.example.org/announce"
+        }
+        return "The new announce URL for this tracker. It keeps its tier."
+    }
+
+    private var submitLabel: String {
+        if isSaving { return editing == nil ? "Adding…" : "Changing…" }
+        return editing == nil ? "Add" : "Change"
     }
 
     private var validationError: String? {
-        trackerAnnounceValidation(announce, existing: torrent.trackers)
+        trackerAnnounceValidation(announce, existing: torrent.trackers, replacing: editing)
     }
 
-    private var canAdd: Bool {
+    private var canSubmit: Bool {
         !isSaving && validationError == nil && store.actionsEnabled
     }
 
-    private func add() async {
-        guard canAdd else { return }
+    private func submit() async {
+        guard canSubmit else { return }
         isSaving = true
         defer { isSaving = false }
         saveError = nil
-        let succeeded = await store.actions.addTracker(
-            torrent.id, announce: normalizedTrackerAnnounce(announce))
+        let url = normalizedTrackerAnnounce(announce)
+        let succeeded: Bool
+        if let editing {
+            succeeded = await store.actions.replaceTracker(torrent.id, editing, announce: url)
+        } else {
+            succeeded = await store.actions.addTracker(torrent.id, announce: url)
+        }
         if succeeded {
             dismiss()
         } else {
-            saveError = store.lastActionError?.localizedDescription ?? "Failed to add the tracker."
+            saveError =
+                store.lastActionError?.localizedDescription
+                ?? (editing == nil ? "Failed to add the tracker." : "Failed to change the tracker URL.")
         }
     }
 }
@@ -297,10 +340,13 @@ nonisolated func normalizedTrackerAnnounce(_ input: String) -> String {
     input.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
-/// Why `input` can't be added to `existing`, or nil when it's a tracker the
+/// Why `input` can't be used as an announce URL, or nil when it's a tracker the
 /// daemon will accept. Mirrors Transmission's own checks: a parseable URL on a
-/// protocol it announces over, not already in the list.
-nonisolated func trackerAnnounceValidation(_ input: String, existing: [Tracker]) -> String? {
+/// protocol it announces over, not already in the list. `replacing` is the
+/// tracker whose URL is being changed, which may keep its own value.
+nonisolated func trackerAnnounceValidation(
+    _ input: String, existing: [Tracker], replacing: Tracker? = nil
+) -> String? {
     let announce = normalizedTrackerAnnounce(input)
     if announce.isEmpty { return "Enter an announce URL." }
     guard let url = URL(string: announce),
@@ -311,8 +357,12 @@ nonisolated func trackerAnnounceValidation(_ input: String, existing: [Tracker])
     else {
         return "Enter a full announce URL, like https://tracker.example.org/announce."
     }
+    if let replacing, replacing.announce.caseInsensitiveCompare(announce) == .orderedSame {
+        return "Enter a different announce URL."
+    }
     if existing.contains(where: {
-        $0.announce.caseInsensitiveCompare(announce) == .orderedSame
+        $0.announce != replacing?.announce
+            && $0.announce.caseInsensitiveCompare(announce) == .orderedSame
     }) {
         return "This tracker is already in the list."
     }
@@ -335,6 +385,18 @@ nonisolated func trackerAnnounceValidation(_ input: String, existing: [Tracker])
 
 #Preview("Add Tracker") {
     AddTrackerSheet(torrent: Torrent.samples[4])
+        .environment(previewTorrentStore)
+        .frame(width: 420)
+}
+
+#Preview("Change Tracker URL") {
+    AddTrackerSheet(torrent: Torrent.samples[4], editing: Torrent.samples[4].trackers[0])
+        .environment(previewTorrentStore)
+        .frame(width: 420)
+}
+
+#Preview("Add Tracker (Private)") {
+    AddTrackerSheet(torrent: Torrent.samples[1])
         .environment(previewTorrentStore)
         .frame(width: 420)
 }

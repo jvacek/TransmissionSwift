@@ -98,4 +98,31 @@ struct TrackerAnnounceValidationTests {
         #expect(trackerAnnounceValidation(announce, existing: []) == nil)
         #expect(normalizedTrackerAnnounce(" \(announce) ") == announce)
     }
+
+    // MARK: - Changing an existing URL
+
+    @Test func replacing_rejects_the_url_it_already_has() {
+        let existing = [tracker("https://tracker.example.org/announce")]
+        #expect(
+            trackerAnnounceValidation(
+                "https://tracker.example.org/announce", existing: existing, replacing: existing[0])
+                == "Enter a different announce URL.")
+    }
+
+    @Test func replacing_rejects_another_trackers_url() {
+        let first = tracker("https://a.example/announce")
+        let second = tracker("https://b.example/announce")
+        #expect(
+            trackerAnnounceValidation(
+                "https://b.example/announce", existing: [first, second], replacing: first)
+                == "This tracker is already in the list.")
+    }
+
+    @Test func replacing_accepts_a_new_url_for_the_same_tracker() {
+        let existing = [tracker("https://old.private.example/announce?passkey=abc123")]
+        #expect(
+            trackerAnnounceValidation(
+                "https://new.private.example/announce?passkey=abc123", existing: existing,
+                replacing: existing[0]) == nil)
+    }
 }
