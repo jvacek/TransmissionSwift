@@ -80,6 +80,7 @@ extension Torrent {
                 return Tracker(
                     tier: stat.tier,
                     host: host,
+                    announce: stat.announce,
                     state: {
                         if stat.hasAnnounced && !stat.lastAnnounceSucceeded { return TrackerState.error }
                         if stat.lastAnnounceSucceeded || stat.announceState == 3 { return TrackerState.working }
@@ -111,6 +112,7 @@ extension Torrent {
                 return Tracker(
                     tier: stat.tier,
                     host: host,
+                    announce: stat.announce,
                     state: {
                         if stat.hasAnnounced && !stat.lastAnnounceSucceeded { return TrackerState.error }
                         if stat.lastAnnounceSucceeded || stat.announceState == 3 { return TrackerState.working }
@@ -142,6 +144,7 @@ extension Torrent {
                 return Tracker(
                     tier: stub.tier,
                     host: host,
+                    announce: stub.announce,
                     state: .idle,
                     statusMessage: "",
                     seedCount: 0,
@@ -341,6 +344,7 @@ extension Tracker {
         self.init(
             tier: stat.tier,
             host: hostname,
+            announce: stat.announce,
             state: state,
             statusMessage: statusMessage,
             seedCount: stat.seederCount,

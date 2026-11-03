@@ -105,6 +105,7 @@
       "totalSize" : 6335076761,
       "trackerStats" : [
         {
+          "announce" : "https:\/\/releases.ubuntu.com\/announce",
           "announceState" : 3,
           "downloadCount" : 412,
           "hasAnnounced" : true,
@@ -206,6 +207,7 @@
       "totalSize" : 2469606195,
       "trackerStats" : [
         {
+          "announce" : "https:\/\/tracker.blender.org\/announce",
           "announceState" : 3,
           "downloadCount" : 412,
           "hasAnnounced" : true,
@@ -298,6 +300,7 @@
       "totalSize" : 1181116006,
       "trackerStats" : [
         {
+          "announce" : "https:\/\/archlinux.org\/announce",
           "announceState" : 3,
           "downloadCount" : 412,
           "hasAnnounced" : true,
@@ -375,6 +378,7 @@
       "totalSize" : 1027604480,
       "trackerStats" : [
         {
+          "announce" : "https:\/\/documentfoundation.org\/announce",
           "announceState" : 3,
           "downloadCount" : 412,
           "hasAnnounced" : true,
@@ -559,6 +563,7 @@
       "totalSize" : 15247133900,
       "trackerStats" : [
         {
+          "announce" : "https:\/\/bittorrent.debian.org\/announce",
           "announceState" : 3,
           "downloadCount" : 4180,
           "hasAnnounced" : true,
@@ -573,6 +578,7 @@
           "tier" : 0
         },
         {
+          "announce" : "https:\/\/tracker.debian.org\/announce",
           "announceState" : 3,
           "downloadCount" : 3902,
           "hasAnnounced" : true,
@@ -587,6 +593,7 @@
           "tier" : 1
         },
         {
+          "announce" : "https:\/\/open.tracker.cl\/announce",
           "announceState" : 1,
           "downloadCount" : 311,
           "hasAnnounced" : false,
@@ -601,6 +608,7 @@
           "tier" : 2
         },
         {
+          "announce" : "https:\/\/tracker.opentrackr.org\/announce",
           "announceState" : 1,
           "downloadCount" : 0,
           "hasAnnounced" : true,
@@ -716,6 +724,7 @@
       "totalSize" : 44667659878,
       "trackerStats" : [
         {
+          "announce" : "https:\/\/bt.archive.org\/announce",
           "announceState" : 3,
           "downloadCount" : 412,
           "hasAnnounced" : true,
@@ -793,6 +802,7 @@
       "totalSize" : 4617089843,
       "trackerStats" : [
         {
+          "announce" : "https:\/\/tracker.freebsd.org\/announce",
           "announceState" : 3,
           "downloadCount" : 412,
           "hasAnnounced" : true,
@@ -870,6 +880,7 @@
       "totalSize" : 109521666048,
       "trackerStats" : [
         {
+          "announce" : "https:\/\/tracker.kiwix.org\/announce",
           "announceState" : 1,
           "downloadCount" : 0,
           "hasAnnounced" : true,
@@ -962,6 +973,7 @@
       "totalSize" : 754974720,
       "trackerStats" : [
         {
+          "announce" : "https:\/\/tracker.blender.org\/announce",
           "announceState" : 3,
           "downloadCount" : 412,
           "hasAnnounced" : true,
@@ -1039,6 +1051,7 @@
       "totalSize" : 4080218931,
       "trackerStats" : [
         {
+          "announce" : "https:\/\/bt.archive.org\/announce",
           "announceState" : 3,
           "downloadCount" : 412,
           "hasAnnounced" : true,

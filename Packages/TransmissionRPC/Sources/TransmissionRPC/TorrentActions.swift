@@ -68,6 +68,10 @@ public struct TorrentSetArguments: Encodable, Sendable {
     /// Whole-set replace of the torrent's labels. Requires RPC ≥ 17
     /// (Transmission 4.0). Omit on older daemons.
     public var labels: [String]?
+    /// Whole-set replace of the torrent's trackers: announce URLs, one per line,
+    /// a blank line between tiers (BEP 12). Requires RPC ≥ 17. Omit on older
+    /// daemons.
+    public var trackerList: String?
 
     enum CodingKeys: String, CodingKey {
         case ids
@@ -89,6 +93,7 @@ public struct TorrentSetArguments: Encodable, Sendable {
         case queuePosition
         case bandwidthPriority
         case labels
+        case trackerList
     }
 
     public init(ids: [Int]) {

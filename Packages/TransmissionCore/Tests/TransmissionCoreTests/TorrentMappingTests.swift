@@ -204,7 +204,7 @@ struct TrackerFailureStatusTests {
         result: String = "Connection timed out"
     ) -> WireTrackerStat {
         WireTrackerStat(
-            id: 1, tier: 0, host: host,
+            id: 1, tier: 0, host: host, announce: "https://\(host)/announce",
             lastAnnounceResult: result, lastAnnounceTime: 0,
             lastAnnounceSucceeded: succeeded, hasAnnounced: true,
             announceState: 1, seederCount: 0, leecherCount: 0,
@@ -257,6 +257,7 @@ struct TrackerFailureStatusTests {
             stat(host: "a.example.com"),
             WireTrackerStat(
                 id: 2, tier: 0, host: "b.example.com",
+                announce: "https://b.example.com/announce",
                 lastAnnounceResult: "", lastAnnounceTime: 0,
                 lastAnnounceSucceeded: false, hasAnnounced: false,
                 announceState: 1, seederCount: 0, leecherCount: 0,
@@ -433,6 +434,7 @@ struct SwarmTotalsTests {
     private func makeStat(seederCount: Int, leecherCount: Int) -> WireTrackerStat {
         WireTrackerStat(
             id: 1, tier: 0, host: "tracker.example.com:443",
+            announce: "https://tracker.example.com:443/announce",
             lastAnnounceResult: "", lastAnnounceTime: 0,
             lastAnnounceSucceeded: true, hasAnnounced: true,
             announceState: 3, seederCount: seederCount, leecherCount: leecherCount,
@@ -583,6 +585,7 @@ struct TrackerMappingTests {
     ) -> WireTrackerStat {
         WireTrackerStat(
             id: 1, tier: 0, host: "tracker.example.com",
+            announce: "https://tracker.example.com/announce",
             lastAnnounceResult: lastAnnounceResult,
             lastAnnounceTime: lastAnnounceTime,
             lastAnnounceSucceeded: lastAnnounceSucceeded,
@@ -688,6 +691,7 @@ struct TorrentInspectorMappingTests {
         wire.trackerStats = [
             WireTrackerStat(
                 id: 1, tier: 0, host: "rich.example.com",
+                announce: "https://rich.example.com/announce",
                 lastAnnounceResult: "", lastAnnounceTime: 0,
                 lastAnnounceSucceeded: true, hasAnnounced: true,
                 announceState: 1, seederCount: 5, leecherCount: 2,
@@ -696,6 +700,10 @@ struct TorrentInspectorMappingTests {
         let t = Torrent(wire: wire)
         // stat.host is an FQDN, so it's used directly
         #expect(t.trackers.first?.host == "rich.example.com")
+        #expect(t.trackers.first?.announce == "https://rich.example.com/announce")
+        // The announce URL, not the host, identifies a tracker: two entries can
+        // share a host on different schemes.
+        #expect(t.trackers.first?.id == "https://rich.example.com/announce")
         #expect(t.trackers.first?.seedCount == 5)
     }
 
@@ -707,6 +715,7 @@ struct TorrentInspectorMappingTests {
         wire.trackerStats = [
             WireTrackerStat(
                 id: 1, tier: 0, host: "tracker.opentrackr.org:1337",
+                announce: "udp://tracker.opentrackr.org:1337/announce",
                 lastAnnounceResult: "", lastAnnounceTime: 0,
                 lastAnnounceSucceeded: true, hasAnnounced: true,
                 announceState: 1, seederCount: 5, leecherCount: 2,

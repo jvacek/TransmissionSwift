@@ -38,7 +38,7 @@ struct SnapshotRedactorTests {
 
         #expect(tracker["announce"] as? String == "https://tracker-1.invalid/announce")
         #expect(summary.passkeysStripped == 1)
-        #expect(summary.trackerURLs == 6)  // 3 announce + 3 host fields
+        #expect(summary.trackerURLs == 9)  // 3 announce stubs + 3 trackerStats announce + 3 hosts
     }
 
     @Test("same original host always maps to the same fake, across fields and torrents")

@@ -30,6 +30,8 @@ public struct WireTrackerStat: Codable, Sendable {
     public var id: Int
     public var tier: Int
     public var host: String
+    /// The tracker's full announce URL — what `trackerList` writes back.
+    public var announce: String
     public var lastAnnounceResult: String
     public var lastAnnounceTime: Int64
     public var lastAnnounceSucceeded: Bool

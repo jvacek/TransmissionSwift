@@ -87,6 +87,7 @@ enum SnapshotFixtures {
             trackerStats: [
                 WireTrackerStat(
                     id: 1, tier: 0, host: "private-tracker.example",
+                    announce: "https://private-tracker.example/announce",
                     lastAnnounceResult:
                         "Could not connect to https://private-tracker.example/announce.php?passkey=deadbeef",
                     lastAnnounceTime: 1_751_000_000, lastAnnounceSucceeded: false,
@@ -95,6 +96,7 @@ enum SnapshotFixtures {
                 ),
                 WireTrackerStat(
                     id: 2, tier: 0, host: "tracker.example.org:8080",
+                    announce: "https://tracker.example.org:8080/announce",
                     lastAnnounceResult: "Success",
                     lastAnnounceTime: 1_751_000_100, lastAnnounceSucceeded: true,
                     hasAnnounced: true, announceState: 3,
@@ -151,6 +153,7 @@ enum SnapshotFixtures {
             trackerStats: [
                 WireTrackerStat(
                     id: 3, tier: 0, host: "10.0.0.5:9090",
+                    announce: "http://10.0.0.5:9090/announce",
                     lastAnnounceResult: "Success",
                     lastAnnounceTime: 1_751_000_200, lastAnnounceSucceeded: true,
                     hasAnnounced: true, announceState: 2,

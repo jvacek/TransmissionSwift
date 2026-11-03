@@ -194,7 +194,7 @@ struct SnapshotPipelineTests {
         )
 
         #expect(result.torrentCount == 2)
-        #expect(result.summary.trackerURLs == 6)
+        #expect(result.summary.trackerURLs == 9)
         #expect(result.summary.passkeysStripped == 1)
         #expect(result.summary.peerIPs == 3)
         #expect(result.summary.names == 3)  // fuzzed tracker sitenames only — real names are kept

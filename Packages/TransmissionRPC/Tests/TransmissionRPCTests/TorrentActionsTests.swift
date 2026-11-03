@@ -135,6 +135,19 @@ struct TorrentSetArgumentsEncodeTests {
         #expect(emptyJSON["labels"] == nil)
     }
 
+    @Test("trackerList encodes the announce list as one string; absent when nil")
+    func trackerListEncoding() throws {
+        var args = TorrentSetArguments(ids: [3])
+        args.trackerList = "https://a.example/announce\nhttps://b.example/announce\n\nudp://c.example:1337/announce"
+        let json = try encoded(args)
+        #expect(
+            json["trackerList"] as? String
+                == "https://a.example/announce\nhttps://b.example/announce\n\nudp://c.example:1337/announce")
+
+        let absent = TorrentSetArguments(ids: [3])
+        #expect(try encoded(absent)["trackerList"] == nil)
+    }
+
     @Test("bandwidthPriority encodes as -1/0/1 and is absent when nil")
     func bandwidthPriorityEncoding() throws {
         var low = TorrentSetArguments(ids: [3])

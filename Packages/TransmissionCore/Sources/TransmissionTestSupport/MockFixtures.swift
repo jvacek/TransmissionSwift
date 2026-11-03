@@ -274,7 +274,8 @@ public enum MockFixtures {
                 peers: [],
                 trackers: [
                     Tracker(
-                        tier: 0, host: "tracker.kiwix.org", state: .error,
+                        tier: 0, host: "tracker.kiwix.org",
+                        announce: "https://tracker.kiwix.org/announce", state: .error,
                         statusMessage: "Error — connection timed out",
                         seedCount: 0, leechCount: 0, downloadCount: 0
                     )
@@ -359,10 +360,12 @@ public enum MockFixtures {
                 peers: [],
                 trackers: [
                     Tracker(
-                        tier: 0, host: "tracker.fedoraproject.org", state: .error,
+                        tier: 0, host: "tracker.fedoraproject.org",
+                        announce: "https://tracker.fedoraproject.org/announce", state: .error,
                         statusMessage: "Connection timed out", seedCount: 0, leechCount: 0, downloadCount: 0),
                     Tracker(
-                        tier: 1, host: "tracker.fedoraproject.net", state: .error,
+                        tier: 1, host: "tracker.fedoraproject.net",
+                        announce: "https://tracker.fedoraproject.net/announce", state: .error,
                         statusMessage: "Connection timed out", seedCount: 0, leechCount: 0, downloadCount: 0),
                 ]
             ),
@@ -406,7 +409,7 @@ public enum MockFixtures {
     private static func stubTrackers(primary: String) -> [Tracker] {
         [
             Tracker(
-                tier: 0, host: primary, state: .working,
+                tier: 0, host: primary, announce: "https://\(primary)/announce", state: .working,
                 statusMessage: "Working — announced 2m ago",
                 seedCount: 24, leechCount: 8, downloadCount: 412)
         ]
@@ -466,19 +469,23 @@ public enum MockFixtures {
     private static func debianTrackers() -> [Tracker] {
         [
             Tracker(
-                tier: 0, host: "bittorrent.debian.org", state: .working,
+                tier: 0, host: "bittorrent.debian.org",
+                announce: "http://bittorrent.debian.org/announce", state: .working,
                 statusMessage: "Working — announced 2m ago",
                 seedCount: 71, leechCount: 22, downloadCount: 4180),
             Tracker(
-                tier: 1, host: "tracker.debian.org", state: .working,
+                tier: 1, host: "tracker.debian.org",
+                announce: "http://tracker.debian.org/announce", state: .working,
                 statusMessage: "Working — announced 2m ago",
                 seedCount: 54, leechCount: 18, downloadCount: 3902),
             Tracker(
-                tier: 2, host: "open.tracker.cl", state: .idle,
+                tier: 2, host: "open.tracker.cl",
+                announce: "udp://open.tracker.cl:1337/announce", state: .idle,
                 statusMessage: "Idle — next announce in 27m",
                 seedCount: 12, leechCount: 4, downloadCount: 311),
             Tracker(
-                tier: 2, host: "tracker.opentrackr.org", state: .error,
+                tier: 2, host: "tracker.opentrackr.org",
+                announce: "udp://tracker.opentrackr.org:1337/announce", state: .error,
                 statusMessage: "Error — connection timed out",
                 seedCount: 0, leechCount: 0, downloadCount: 0),
         ]
