@@ -94,4 +94,66 @@ struct TrackerListTests {
             TrackerList.removing("https://other.example/announce", from: trackers)
                 == "https://a.example/announce")
     }
+
+    @Test func moving_joins_the_target_tier() {
+        let trackers = [
+            tracker("https://a.example/announce", tier: 0),
+            tracker("https://b.example/announce", tier: 1),
+        ]
+        #expect(
+            TrackerList.moving("https://a.example/announce", toTier: 1, in: trackers)
+                == "https://b.example/announce\nhttps://a.example/announce"
+        )
+    }
+
+    @Test func moving_past_the_last_tier_appends_a_new_tier() {
+        let trackers = [
+            tracker("https://a.example/announce", tier: 0),
+            tracker("https://b.example/announce", tier: 1),
+        ]
+        #expect(
+            TrackerList.moving("https://a.example/announce", toTier: 2, in: trackers)
+                == "https://b.example/announce\n\nhttps://a.example/announce"
+        )
+    }
+
+    @Test func moving_out_of_a_middle_tier_collapses_it() {
+        let trackers = [
+            tracker("https://a.example/announce", tier: 0),
+            tracker("https://b.example/announce", tier: 1),
+            tracker("https://c.example/announce", tier: 2),
+        ]
+        // Tiers are positional, so c takes b's place in the new list.
+        #expect(
+            TrackerList.moving("https://b.example/announce", toTier: 2, in: trackers)
+                == "https://a.example/announce\n\nhttps://c.example/announce\nhttps://b.example/announce"
+        )
+    }
+
+    @Test func moving_an_unknown_url_leaves_the_list_unchanged() {
+        let trackers = [tracker("https://a.example/announce", tier: 0)]
+        #expect(
+            TrackerList.moving("https://other.example/announce", toTier: 3, in: trackers)
+                == "https://a.example/announce")
+    }
+
+    // MARK: - Private torrents
+
+    /// A private tracker's announce URL carries the passkey. Nothing may
+    /// normalize, escape or drop it while the list is rebuilt.
+    @Test func private_announce_url_survives_adding_and_removing() {
+        let passkey = "https://tracker.private.example/announce?passkey=abc123&torrent=42"
+        let privateTracker = tracker(passkey, tier: 0)
+        let publicTracker = tracker("https://open.example/announce", tier: 1)
+
+        #expect(
+            TrackerList.adding("https://extra.example/announce", to: [privateTracker, publicTracker])
+                == "\(passkey)\n\nhttps://open.example/announce\nhttps://extra.example/announce")
+        #expect(
+            TrackerList.removing("https://open.example/announce", from: [privateTracker, publicTracker])
+                == passkey)
+        #expect(
+            TrackerList.moving(passkey, toTier: 1, in: [privateTracker, publicTracker])
+                == "https://open.example/announce\n\(passkey)")
+    }
 }

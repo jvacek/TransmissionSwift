@@ -152,6 +152,13 @@ public final class TorrentActionModel {
         await editTrackers(id) { TrackerList.removing(tracker.announce, from: $0) }
     }
 
+    /// Move one tracker into another tier. An existing tier joins it (the two
+    /// then race); a tier past the last one becomes a new backup tier.
+    @discardableResult
+    public func moveTracker(_ id: Torrent.ID, _ tracker: Tracker, toTier tier: Int) async -> Bool {
+        await editTrackers(id) { TrackerList.moving(tracker.announce, toTier: tier, in: $0) }
+    }
+
     /// The announce list is a whole-set write, so every edit reads the trackers
     /// from the last poll, rebuilds the string and sends it back.
     private func editTrackers(_ id: Torrent.ID, _ edit: ([Tracker]) -> String) async -> Bool {

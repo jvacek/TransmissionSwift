@@ -627,6 +627,35 @@ struct TorrentStoreTests {
         #expect(after.map(\.announce) == before.dropFirst().map(\.announce))
     }
 
+    @Test("moveTracker joins the target tier")
+    @MainActor
+    func moveTrackerAction() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.list.torrents.isEmpty }
+
+        let before = store.list.torrents.first { $0.id == 5 }!.trackers
+        let moved = before.first { $0.tier == 0 }!
+        let target = before.first { $0.tier > 0 }!
+        let succeeded = await store.actions.moveTracker(5, moved, toTier: target.tier)
+        #expect(succeeded)
+
+        // The tracker count is unchanged, so wait for the placement itself.
+        await waitFor {
+            let after = store.list.torrents.first { $0.id == 5 }?.trackers ?? []
+            let movedTier = after.first { $0.announce == moved.announce }?.tier
+            let targetTier = after.first { $0.announce == target.announce }?.tier
+            return movedTier != nil && movedTier == targetTier
+        }
+        let after = store.list.torrents.first { $0.id == 5 }!.trackers
+        // Same tier as the tracker it joined; tiers renumber, so compare the
+        // relative placement rather than the absolute numbers.
+        let movedAfter = after.first { $0.announce == moved.announce }
+        let targetAfter = after.first { $0.announce == target.announce }
+        #expect(movedAfter?.tier == targetAfter?.tier)
+        #expect(after.filter { $0.tier == movedAfter?.tier }.count == 2)
+    }
+
     @Test("renameTorrent renames through the service and reports success")
     @MainActor
     func renameTorrentAction() async {

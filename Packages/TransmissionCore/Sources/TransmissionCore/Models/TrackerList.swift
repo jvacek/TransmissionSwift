@@ -26,6 +26,20 @@ public enum TrackerList {
         return wireString(tiers)
     }
 
+    /// `trackers` with `announce` moved into `tier`. Setting the tier of an
+    /// existing tier joins it (same-tier trackers race); a tier past the last
+    /// one becomes a new backup tier.
+    public static func moving(_ announce: String, toTier tier: Int, in trackers: [Tracker]) -> String {
+        guard let moving = trackers.first(where: { $0.announce == announce }) else {
+            return wireString(trackers)
+        }
+        var updated = trackers.filter { $0.announce != announce }
+        var moved = moving
+        moved.tier = tier
+        updated.append(moved)
+        return wireString(updated)
+    }
+
     /// `trackers` without the entry whose announce URL matches. Removing the
     /// last tracker yields an empty string, which clears the list.
     public static func removing(_ announce: String, from trackers: [Tracker]) -> String {
