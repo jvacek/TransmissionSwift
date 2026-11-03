@@ -159,6 +159,15 @@ public final class TorrentActionModel {
         await editTrackers(id) { TrackerList.moving(tracker.announce, toTier: tier, in: $0) }
     }
 
+    /// Point one tracker at a different announce URL, keeping its tier. This is
+    /// what a private torrent needs when its tracker moves domains.
+    @discardableResult
+    public func replaceTracker(_ id: Torrent.ID, _ tracker: Tracker, announce: String) async -> Bool {
+        await editTrackers(id) {
+            TrackerList.replacing(tracker.announce, with: announce, in: $0)
+        }
+    }
+
     /// The announce list is a whole-set write, so every edit reads the trackers
     /// from the last poll, rebuilds the string and sends it back.
     private func editTrackers(_ id: Torrent.ID, _ edit: ([Tracker]) -> String) async -> Bool {

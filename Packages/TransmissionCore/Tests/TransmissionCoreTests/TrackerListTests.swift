@@ -137,6 +137,28 @@ struct TrackerListTests {
                 == "https://a.example/announce")
     }
 
+    // MARK: - Replacing
+
+    @Test func replacing_swaps_the_url_and_keeps_the_tier() {
+        let trackers = [
+            tracker("https://old.example/announce", tier: 0),
+            tracker("https://b.example/announce", tier: 1),
+        ]
+        #expect(
+            TrackerList.replacing(
+                "https://old.example/announce", with: "https://new.example/announce", in: trackers)
+                == "https://new.example/announce\n\nhttps://b.example/announce"
+        )
+    }
+
+    @Test func replacing_an_unknown_url_leaves_the_list_unchanged() {
+        let trackers = [tracker("https://a.example/announce", tier: 0)]
+        #expect(
+            TrackerList.replacing(
+                "https://other.example/announce", with: "https://new.example/announce", in: trackers)
+                == "https://a.example/announce")
+    }
+
     // MARK: - Private torrents
 
     /// A private tracker's announce URL carries the passkey. Nothing may
@@ -155,5 +177,17 @@ struct TrackerListTests {
         #expect(
             TrackerList.moving(passkey, toTier: 1, in: [privateTracker, publicTracker])
                 == "https://open.example/announce\n\(passkey)")
+    }
+
+    @Test func changing_a_private_trackers_domain_keeps_its_passkey() {
+        let before = "https://old.private.example/announce?passkey=abc123"
+        let after = "https://new.private.example/announce?passkey=abc123"
+        let trackers = [
+            tracker(before, tier: 0),
+            tracker("https://open.example/announce", tier: 1),
+        ]
+        #expect(
+            TrackerList.replacing(before, with: after, in: trackers)
+                == "\(after)\n\nhttps://open.example/announce")
     }
 }

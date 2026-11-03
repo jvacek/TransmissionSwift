@@ -40,6 +40,22 @@ public enum TrackerList {
         return wireString(updated)
     }
 
+    /// `trackers` with `announce` swapped for `replacement`, keeping its tier.
+    /// This is the move a private torrent needs when its tracker moves domains:
+    /// the URL carries the passkey, so it must be carried over exactly.
+    public static func replacing(_ announce: String, with replacement: String, in trackers: [Tracker])
+        -> String
+    {
+        guard let existing = trackers.first(where: { $0.announce == announce }) else {
+            return wireString(trackers)
+        }
+        var updated = trackers.filter { $0.announce != announce }
+        var replaced = existing
+        replaced.announce = replacement
+        updated.append(replaced)
+        return wireString(updated)
+    }
+
     /// `trackers` without the entry whose announce URL matches. Removing the
     /// last tracker yields an empty string, which clears the list.
     public static func removing(_ announce: String, from trackers: [Tracker]) -> String {

@@ -656,6 +656,30 @@ struct TorrentStoreTests {
         #expect(after.filter { $0.tier == movedAfter?.tier }.count == 2)
     }
 
+    @Test("replaceTracker swaps the URL and keeps the tier")
+    @MainActor
+    func replaceTrackerAction() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.list.torrents.isEmpty }
+
+        let before = store.list.torrents.first { $0.id == 5 }!.trackers
+        let target = before.first { $0.tier == 1 }!
+        let replacement = "https://new.example.org/announce"
+        let succeeded = await store.actions.replaceTracker(5, target, announce: replacement)
+        #expect(succeeded)
+
+        await waitFor {
+            store.list.torrents.first { $0.id == 5 }?.trackers.contains {
+                $0.announce == replacement
+            } == true
+        }
+        let after = store.list.torrents.first { $0.id == 5 }!.trackers
+        #expect(after.count == before.count)
+        #expect(!after.contains { $0.announce == target.announce })
+        #expect(after.first { $0.announce == replacement }?.tier == target.tier)
+    }
+
     @Test("renameTorrent renames through the service and reports success")
     @MainActor
     func renameTorrentAction() async {
