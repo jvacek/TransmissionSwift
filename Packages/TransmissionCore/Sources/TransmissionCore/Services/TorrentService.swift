@@ -132,6 +132,12 @@ public protocol TorrentMutating: Sendable {
     /// set, it never appends.
     func setLabels(_ ids: [Torrent.ID], labels: [String]) async throws
 
+    /// Replace a torrent's tracker announce list. `list` uses the wire format
+    /// (announce URLs one per line, a blank line between tiers) — build it with
+    /// `TrackerList`. Maps to `torrent-set` `trackerList`, which requires RPC ≥
+    /// 17 (Transmission 4.0); older daemons throw.
+    func setTrackerList(_ id: Torrent.ID, to list: String) async throws
+
     /// Change the download location of one or more torrents on the daemon host.
     /// `move == true` relocates the existing data to `location`; `move == false`
     /// only repoints the torrent (for data moved out-of-band). Maps to RPC

@@ -318,6 +318,23 @@ public actor RPCTorrentService: TorrentService {
         await refreshAfterMutation()
     }
 
+    public func setTrackerList(_ id: Torrent.ID, to list: String) async throws {
+        // Like labels, trackerList is rpc-version 17 (Transmission 4.0). An older
+        // daemon would silently ignore the key, so fail loudly instead.
+        guard let session = await sessionWarmingCache() else {
+            throw TransmissionError.serverError(
+                "Cannot verify whether the daemon supports editing trackers (session-get failed)")
+        }
+        guard session.rpcVersion >= 17 else {
+            throw TransmissionError.serverError(
+                "This daemon (rpc-version \(session.rpcVersion)) does not support editing trackers")
+        }
+        var args = TorrentSetArguments(ids: [id])
+        args.trackerList = list
+        try await client.torrentSet(args)
+        await refreshAfterMutation()
+    }
+
     public func setLocation(_ ids: [Torrent.ID], location: String, move: Bool) async throws {
         let args = TorrentSetLocationArguments(ids: ids, location: location, move: move)
         try await client.torrentSetLocation(args)

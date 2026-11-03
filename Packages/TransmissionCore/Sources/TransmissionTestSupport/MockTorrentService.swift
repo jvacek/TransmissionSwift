@@ -205,6 +205,45 @@ public actor MockTorrentService: TorrentService {
         broadcast()
     }
 
+    public func setTrackerList(_ id: Torrent.ID, to list: String) async throws {
+        guard let index = state.firstIndex(where: { $0.id == id }) else { return }
+        let existing = state[index].trackers
+        var tier = 0
+        var tierHasEntries = false
+        var updated: [Tracker] = []
+        for rawLine in list.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            if line.isEmpty {
+                // A blank line closes a tier; a leading or doubled one doesn't
+                // start an empty one (same rule as the daemon's parser).
+                if tierHasEntries {
+                    tier += 1
+                    tierHasEntries = false
+                }
+                continue
+            }
+            if var kept = existing.first(where: { $0.announce == line }) {
+                kept.tier = tier
+                updated.append(kept)
+            } else {
+                updated.append(
+                    Tracker(
+                        tier: tier,
+                        host: URL(string: line)?.host ?? line,
+                        announce: line,
+                        state: .idle,
+                        statusMessage: "Not yet announced",
+                        seedCount: 0,
+                        leechCount: 0,
+                        downloadCount: 0
+                    ))
+            }
+            tierHasEntries = true
+        }
+        state[index].trackers = updated
+        broadcast()
+    }
+
     public func setLocation(_ ids: [Torrent.ID], location: String, move: Bool) async throws {
         let set = Set(ids)
         for index in state.indices where set.contains(state[index].id) {

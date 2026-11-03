@@ -591,6 +591,42 @@ struct TorrentStoreTests {
         #expect(store.list.torrents.first { $0.id == 5 }?.labels == ["Archive"])
     }
 
+    @Test("addTracker appends the announce URL to the last tier")
+    @MainActor
+    func addTrackerAction() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.list.torrents.isEmpty }
+
+        let before = store.list.torrents.first { $0.id == 5 }!.trackers
+        let succeeded = await store.actions.addTracker(
+            5, announce: "https://new.example.org/announce")
+        #expect(succeeded)
+
+        await waitFor { store.list.torrents.first { $0.id == 5 }?.trackers.count == before.count + 1 }
+        let after = store.list.torrents.first { $0.id == 5 }!.trackers
+        #expect(after.last?.announce == "https://new.example.org/announce")
+        // Same tier as the trackers it will race with.
+        #expect(after.last?.tier == before.map(\.tier).max())
+    }
+
+    @Test("removeTracker drops only that tracker")
+    @MainActor
+    func removeTrackerAction() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { !store.list.torrents.isEmpty }
+
+        let before = store.list.torrents.first { $0.id == 5 }!.trackers
+        let target = before[0]
+        let succeeded = await store.actions.removeTracker(5, target)
+        #expect(succeeded)
+
+        await waitFor { store.list.torrents.first { $0.id == 5 }?.trackers.count == before.count - 1 }
+        let after = store.list.torrents.first { $0.id == 5 }!.trackers
+        #expect(after.map(\.announce) == before.dropFirst().map(\.announce))
+    }
+
     @Test("renameTorrent renames through the service and reports success")
     @MainActor
     func renameTorrentAction() async {

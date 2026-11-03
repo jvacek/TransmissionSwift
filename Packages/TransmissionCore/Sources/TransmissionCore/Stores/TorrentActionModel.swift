@@ -136,6 +136,37 @@ public final class TorrentActionModel {
         }
     }
 
+    // MARK: - Trackers
+
+    /// Add one announce URL to a torrent's tracker list (into its last tier).
+    /// Returns true on success; the daemon's rejection surfaces via
+    /// `lastActionError`.
+    @discardableResult
+    public func addTracker(_ id: Torrent.ID, announce: String) async -> Bool {
+        await editTrackers(id) { TrackerList.adding(announce, to: $0) }
+    }
+
+    /// Remove one tracker by its announce URL. Returns true on success.
+    @discardableResult
+    public func removeTracker(_ id: Torrent.ID, _ tracker: Tracker) async -> Bool {
+        await editTrackers(id) { TrackerList.removing(tracker.announce, from: $0) }
+    }
+
+    /// The announce list is a whole-set write, so every edit reads the trackers
+    /// from the last poll, rebuilds the string and sends it back.
+    private func editTrackers(_ id: Torrent.ID, _ edit: ([Tracker]) -> String) async -> Bool {
+        guard let mutations, let torrent = list.torrents.first(where: { $0.id == id }) else {
+            return false
+        }
+        do {
+            try await mutations.setTrackerList(id, to: edit(torrent.trackers))
+            return true
+        } catch {
+            report(error)
+            return false
+        }
+    }
+
     // MARK: - Location / rename / add
 
     @discardableResult
