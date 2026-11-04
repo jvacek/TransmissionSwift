@@ -27,13 +27,10 @@ struct InspectorTrackersTab: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 if torrent.isPrivate {
-                    Label(
-                        "Private torrent: only these trackers can be used. DHT, PEX and local peer discovery are off.",
-                        systemImage: "lock.fill"
+                    PrivateTorrentNote(
+                        message:
+                            "Only the trackers below are used. DHT, PEX and local peer discovery are off."
                     )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
                 }
                 if torrent.trackers.isEmpty {
                     Text("No trackers")
@@ -143,21 +140,70 @@ struct InspectorTrackersTab: View {
             let canStartNewTier = last.tier != tracker.tier || last.trackers.count > 1
             if !otherTiers.isEmpty || canStartNewTier {
                 Divider()
-                ForEach(otherTiers, id: \.self) { tier in
-                    Button("Move to Tier \(tier + 1)") {
-                        Task { await store.actions.moveTracker(torrent.id, tracker, toTier: tier) }
-                    }
-                }
-                if canStartNewTier {
+                // Tiers get a submenu of their own: a public torrent can list
+                // dozens of them, and they would swamp the card's own actions.
+                if otherTiers.isEmpty {
                     Button("Move to New Tier") {
-                        Task {
-                            await store.actions.moveTracker(
-                                torrent.id, tracker, toTier: last.tier + 1)
+                        move(tracker, toTier: last.tier + 1)
+                    }
+                } else {
+                    Menu("Move to Tier") {
+                        ForEach(otherTiers, id: \.self) { tier in
+                            Button("Tier \(tier + 1)") {
+                                move(tracker, toTier: tier)
+                            }
+                        }
+                        if canStartNewTier {
+                            Divider()
+                            Button("New Tier") {
+                                move(tracker, toTier: last.tier + 1)
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    private func move(_ tracker: Tracker, toTier tier: Int) {
+        Task { await store.actions.moveTracker(torrent.id, tracker, toTier: tier) }
+    }
+}
+
+/// The private-torrent caveat, as an amber-tinted card. The body stays in the
+/// ordinary text colours: a saturated amber caption fails contrast on the light
+/// themes, so the tint and the icon carry the warning instead.
+private struct PrivateTorrentNote: View {
+    let message: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "lock.fill")
+                .font(.caption)
+                .foregroundStyle(.orange)
+                .padding(.top, 1)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Private torrent")
+                    .font(.caption.weight(.semibold))
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            .orange.opacity(0.12),
+            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(.orange.opacity(0.25))
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -236,13 +282,10 @@ private struct AddTrackerSheet: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             if torrent.isPrivate {
-                Label(
-                    "Private torrent: only an announce URL from the tracker that issued it will find peers. A public tracker gets the infohash but doesn't count toward your ratio.",
-                    systemImage: "lock.fill"
+                PrivateTorrentNote(
+                    message:
+                        "Use the announce URL from the tracker you got this torrent from. Another tracker won't have this torrent, and a public one won't count toward your ratio."
                 )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
             }
 
             TextField("Announce URL", text: $announce)
