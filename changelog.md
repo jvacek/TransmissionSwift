@@ -10,6 +10,12 @@ Please visit the [release page](https://github.com/jvacek/TransmissionSwift/rele
 
 ---
 
+## 0.7.2
+
+3rd Nov 2026
+
+- Modify trackers from torrent inspector (add, remove, move, change)
+
 ## 0.7.1
 
 25th Oct 2026
