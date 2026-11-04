@@ -14,7 +14,7 @@ Please visit the [release page](https://github.com/jvacek/TransmissionSwift/rele
 
 3rd Nov 2026
 
-- Add and remove trackers from a torrent
+- Modify trackers from torrent inspector (add, remove, move, change)
 
 ## 0.7.1
 
