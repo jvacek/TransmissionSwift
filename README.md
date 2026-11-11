@@ -47,7 +47,7 @@ on the project site.
 - App self-updating via Sparkle
 - Automatable via Shortcuts.app, Spotlight and Siri
   - Get servers and torrents, and open a torrent from Spotlight
-  - Add torrents or magnet links (start paused, choose destination, labels, priority)
+  - Add torrents from files, magnet links or URLs (start paused, choose destination, labels, priority)
   - Pause/resume torrents, remove (with or without data), verify, re-announce
   - Get server and torrent stats, and free space
   - Toggle slow (turtle) mode; set server and per-torrent speed limits

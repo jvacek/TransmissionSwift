@@ -18,7 +18,7 @@ If you are here to **change or debug an intent**, read
 | **Get Servers** (`GetServersIntent`) | shipped | — | `[ServerEntity]` |
 | **Get Torrents** (`GetTorrentsIntent`) | shipped | Server, Status (default All), Label, Tracker, Search (all optional, AND) | `[TorrentEntity]` |
 | **Add Torrent File** (`AddTorrentFileIntent`) | shipped | Torrent File (required), Server, Add Paused, Destination Folder, Labels, Priority (default Normal) | dialog |
-| **Add Magnet Link** (`AddMagnetLinkIntent`) | shipped | Magnet Link (required), Server, Add Paused, Destination Folder, Labels, Priority (default Normal) | dialog |
+| **Add Torrent Link** (`AddMagnetLinkIntent`) | shipped | Magnet Link or URL (required), Server, Add Paused, Destination Folder, Labels, Priority (default Normal) | dialog |
 | **Open Torrent** (`OpenTorrentIntent`) | shipped | Torrent (required) | deep-links the app to the torrent |
 | **Pause Torrents** (`PauseTorrentsIntent`) | shipped | Server, Torrents (empty = all) | dialog |
 | **Resume Torrents** (`ResumeTorrentsIntent`) | shipped | Server, Torrents (empty = all) | dialog |
@@ -488,7 +488,7 @@ security find-identity -v -p codesigning                       # is there a usab
 
 ## Status / what's left
 
-Shipped: Get Servers/Torrents, Add Torrent File / Add Magnet Link, Open Torrent,
+Shipped: Get Servers/Torrents, Add Torrent File / Add Torrent Link, Open Torrent,
 Pause/Resume, Remove, Verify, Re-announce, Get Server Info, Get Torrent Stats,
 Set Turtle Mode, Set Server/Torrent Speed Limits, torrent deep links — plus the
 `AppEnvironment` spine, `ServerEntity`/`TorrentEntity`/`TorrentStatsEntity`,
