@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import TransmissionCore
 
@@ -60,6 +61,7 @@ struct PreferencesView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 760, minHeight: 480)
+        .background(WindowMenuExcluder())
         .onAppear {
             if let tab = PrefsTab(rawValue: pendingTab) {
                 selection = tab
@@ -162,6 +164,21 @@ enum PrefsTab: String, Hashable, CaseIterable, Identifiable {
         case .developer: return "wrench.and.screwdriver"
         case .tags: return "tag"
         case .mappings: return "arrow.up.forward.square"
+        }
+    }
+}
+
+/// The preferences scene has an empty title (the pane draws its own header), so
+/// its Window-menu entry would be an unreadable blank line. Settings windows are
+/// excluded from the Window menu on macOS anyway.
+struct WindowMenuExcluder: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { ExcludedWindowView() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    final class ExcludedWindowView: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            window?.isExcludedFromWindowsMenu = true
         }
     }
 }
