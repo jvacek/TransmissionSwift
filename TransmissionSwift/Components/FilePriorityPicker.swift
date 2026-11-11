@@ -75,9 +75,8 @@ enum FilePriorityChoice: CaseIterable, Hashable {
 }
 
 /// Compact priority chip with a menu, shared by the inspector's file rows and
-/// the Add Torrent sheet. The glyph and chevron are baked into one image so the
-/// native Menu chrome can't strip or misalign them, and the chip keeps a fixed
-/// width whichever priority is shown.
+/// the Add Torrent sheet. The whole chip is baked into one image so the
+/// borderless menu adds no visible padding around the glyph and caret.
 struct FilePriorityPicker: View {
     @Binding var choice: FilePriorityChoice
     var isEnabled: Bool = true
@@ -98,31 +97,34 @@ struct FilePriorityPicker: View {
         } label: {
             Image(nsImage: chip)
         }
-        .menuStyle(.button)
+        .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .allowsHitTesting(isEnabled)
         .opacity(isEnabled ? 1 : 0.4)
         .accessibilityLabel(label)
         .accessibilityValue(isMixed ? "Mixed" : choice.displayLabel)
-        .frame(width: 32, height: 18)
-        .padding(.trailing, 5)
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var chip: NSImage {
         let renderer = ImageRenderer(
             content:
-                HStack(spacing: 4) {
+                HStack(spacing: 3) {
                     Image(systemName: isMixed ? "ellipsis" : choice.systemImage)
                         .font(.callout)
                         .foregroundStyle(isMixed ? Color.secondary : choice.displayColor)
-                    ZStack {
-                        Circle().fill(Color(nsColor: .tertiarySystemFill))
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(width: 14, height: 14)
+                        .frame(width: 12)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 8)
                 }
+                .padding(.horizontal, 4)
+                .frame(height: 18)
+                .background(
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(Color(nsColor: .quaternarySystemFill))
+                )
         )
         renderer.scale = 2
         return renderer.nsImage ?? NSImage()
@@ -157,4 +159,32 @@ struct FilePriorityPicker: View {
         }
     }
     .padding(20)
+}
+
+#Preview("Priority chip in row") {
+    VStack(spacing: 0) {
+        HStack(spacing: 6) {
+            Spacer()
+            Text("21.8 GB")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+            FilePriorityPicker(choice: .constant(.normal))
+        }
+        .padding(.horizontal, 6)
+        .frame(height: 22)
+        .background(Color.secondary.opacity(0.06))
+
+        HStack(spacing: 6) {
+            Spacer()
+            Text("658.8 MB")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+            FilePriorityPicker(choice: .constant(.high))
+        }
+        .padding(.horizontal, 6)
+        .frame(height: 22)
+    }
+    .frame(width: 340)
+    .padding()
+    .background(Color(nsColor: .windowBackgroundColor))
 }
