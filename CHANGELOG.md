@@ -7,9 +7,12 @@
 11th November 2026
 
 - Choose which files a `.torrent` downloads when adding it, with per-file priority
-  - Filter the file list and select all or none
+  - Filter the file list
+  - Bulk prio/download changes
 - Add URL support to Magnet's add tab.
-- Add keyboard shortcuts for resume, pause, start/stop selected and all, remove, remove with data, copy magnet link, copy name, edit labels, set location, rename, find, inspector and sidebar toggles
+- Add some menu actions and keyboard shortcuts
+  - resume, pause, start/stop selected and all, remove, remove with data, copy magnet link, copy name, edit labels, set location, rename, find, inspector and sidebar toggles
+- Improve GeoIP DB handling, cutting down RAM usage by ~90MBs
 
 ## 0.7.2
 
