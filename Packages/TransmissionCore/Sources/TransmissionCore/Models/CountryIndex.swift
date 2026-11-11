@@ -38,7 +38,8 @@ public struct CountryIndex: Sendable {
                 gzgets(file, bytes.baseAddress, Int32(bytes.count))
             }
             guard read != nil else { break }
-            appendRow(String(cString: buffer))
+            let text = buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
+            appendRow(String(decoding: text, as: UTF8.self))
         }
         assertOrdering()
     }
