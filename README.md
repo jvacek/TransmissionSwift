@@ -42,7 +42,8 @@ on the project site.
   - Seeding config
 - Combining filters in the sidebar
 - Managing torrent labels and assigning colour coding to them
-- Path mapping via custom URI patterns, open your files with whatever app you want
+- Path mapping via custom URI patterns
+  - Open your files with whatever app you want
   - A few ready presets to open in Cyberduck, reveal in Finder (mounted or not), Open in default app, View in Swizzin web
 - App self-updating via Sparkle
 - Automatable via Shortcuts.app, Spotlight and Siri
@@ -84,7 +85,8 @@ Alternatively, you can open the project in Xcode and build it from there.
 
 ## What's being planned
 
-1. iCloud Sync for settings
+1. iCloud Sync for settings (Not until I get a Dev license)
+1. Desktop Widgets (Not until I get a dev license)
 1. iPhone Version
 
 ## Contributing
