@@ -1,14 +1,6 @@
 # Changelog
 
-All notable changes to TransmissionSwift.
-
----
-
-**Versions on or below 0.6.1 need to be manually updated to 0.6.2 or above**. There was a bug in the updater, and you will need to work around it yourself. My sincere apoologies for the inconvenience.
-
-Please visit the [release page](https://github.com/jvacek/TransmissionSwift/releases), download TransmissionSwift and replace the current install.
-
----
+**Versions under 0.6.2 need to be manually manually**, please check the [release page](https://github.com/jvacek/TransmissionSwift/releases).
 
 ## 0.7.3
 
