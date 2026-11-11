@@ -74,8 +74,10 @@ public struct CountryIndex: Sendable {
                 octet = 0
                 digits = 0
                 dots += 1
-            } else if let digit = character.wholeNumberValue, (0...9).contains(digit) {
+            } else if character.isASCII, let digit = character.wholeNumberValue {
+                guard digits < 3 else { return nil }
                 octet = octet * 10 + UInt32(digit)
+                guard octet <= 255 else { return nil }
                 digits += 1
             } else {
                 return nil

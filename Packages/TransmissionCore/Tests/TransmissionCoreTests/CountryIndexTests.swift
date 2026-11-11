@@ -37,4 +37,10 @@ struct CountryIndexTests {
         #expect(CountryIndex.ipv4("2001:db8::1") == nil)
         #expect(CountryIndex.ipv4("") == nil)
     }
+
+    @Test func ipv4ParsingRejectsOverlongOctetsWithoutOverflowing() {
+        #expect(CountryIndex.ipv4("1.2.3.4294967296") == nil)
+        #expect(CountryIndex.ipv4("1.2.3.99999999999999999999") == nil)
+        #expect(CountryIndex.ipv4("1.2.3.0000") == nil)
+    }
 }
