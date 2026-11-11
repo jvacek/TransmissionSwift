@@ -94,11 +94,11 @@ private func addTorrent(
     var stagedDirectory: URL?
     defer { if let stagedDirectory { try? FileManager.default.removeItem(at: stagedDirectory) } }
 
-    let magnetURL: String?
+    let linkURL: String?
     let fileURL: URL?
     let what: String
     if let magnet {
-        magnetURL = magnet
+        linkURL = magnet
         fileURL = nil
         what = "magnet link"
     } else if let file {
@@ -109,7 +109,7 @@ private func addTorrent(
         let name = (file.filename as NSString).lastPathComponent
         let url = directory.appendingPathComponent(name.isEmpty ? "upload.torrent" : name)
         try file.data.write(to: url, options: .atomic)
-        magnetURL = nil
+        linkURL = nil
         fileURL = url
         what = name.isEmpty ? "torrent file" : name
     } else {
@@ -120,7 +120,7 @@ private func addTorrent(
     do {
         try await mutations.add(
             fileURL: fileURL,
-            magnetURL: magnetURL,
+            linkURL: linkURL,
             destination: destination ?? "",
             labels: labels ?? [],
             priority: (priority ?? .normal).domain,

@@ -218,7 +218,7 @@ public final class TorrentActionModel {
     @discardableResult
     public func add(
         fileURL: URL?,
-        magnetURL: String?,
+        linkURL: String?,
         destination: String,
         labels: [String],
         priority: TorrentPriority,
@@ -230,7 +230,7 @@ public final class TorrentActionModel {
         do {
             try await mutations.add(
                 fileURL: fileURL,
-                magnetURL: magnetURL,
+                linkURL: linkURL,
                 destination: destination,
                 labels: labels,
                 priority: priority,

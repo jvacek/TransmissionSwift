@@ -242,8 +242,8 @@ private struct FileCommands: Commands {
             }
             .keyboardShortcut("o", modifiers: .command)
 
-            Button("Add Magnet Link…") {
-                torrentStore.openAddSheet(magnetMode: true)
+            Button("Add Link…") {
+                torrentStore.openAddSheet(mode: .link)
             }
             .keyboardShortcut("o", modifiers: [.command, .shift])
         }

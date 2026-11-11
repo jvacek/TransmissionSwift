@@ -533,6 +533,24 @@ struct TorrentStoreTests {
         #expect(store.list.torrents.count == 1)
     }
 
+    @Test("addFromExternalURL treats http(s) links as link adds")
+    @MainActor
+    func addFromExternalURLWebURL() async {
+        let service = MockTorrentService(initial: [])
+        let store = TorrentStore(service: service)
+        let url = URL(string: "https://example.com/file.torrent")!
+
+        store.addFromExternalURL(url, showDialog: true)
+        #expect(store.ui.showAddTorrent)
+        #expect(store.ui.addTorrentStartMode == .link)
+
+        store.ui.showAddTorrent = false
+        store.addFromExternalURL(url, showDialog: false)
+        #expect(!store.ui.showAddTorrent)
+        await waitFor { !store.list.torrents.isEmpty }
+        #expect(store.list.torrents.count == 1)
+    }
+
     @Test("add deletes the .torrent file after a successful add when asked")
     @MainActor
     func addDeletesSourceFile() async throws {
@@ -544,7 +562,7 @@ struct TorrentStoreTests {
         try #require(FileManager.default.fileExists(atPath: file.path))
 
         let added = await store.actions.add(
-            fileURL: file, magnetURL: nil, destination: "",
+            fileURL: file, linkURL: nil, destination: "",
             labels: [], priority: .normal, startWhenAdded: true,
             deleteFileAfterAdding: true)
 
@@ -565,13 +583,13 @@ struct TorrentStoreTests {
         try Data("notes".utf8).write(to: other)
 
         await store.actions.add(
-            fileURL: torrent, magnetURL: nil, destination: "",
+            fileURL: torrent, linkURL: nil, destination: "",
             labels: [], priority: .normal, startWhenAdded: true,
             deleteFileAfterAdding: false)
         // The extension guard is the last line of defence against a caller
         // asking us to delete something that isn't a torrent file.
         await store.actions.add(
-            fileURL: other, magnetURL: nil, destination: "",
+            fileURL: other, linkURL: nil, destination: "",
             labels: [], priority: .normal, startWhenAdded: true,
             deleteFileAfterAdding: true)
 

@@ -24,12 +24,12 @@ struct MainToolbar: ToolbarContent {
             .accessibilityIdentifier("toolbar.add")
         }
         ToolbarItem(placement: .primaryAction) {
-            Button("Add Magnet", systemImage: "link") {
-                store.openAddSheet(magnetMode: true)
+            Button("Add Link", systemImage: "link") {
+                store.openAddSheet(mode: .link)
             }
             .disabled(!store.actionsEnabled)
-            .help("Add magnet link")
-            .accessibilityIdentifier("toolbar.addMagnet")
+            .help("Add magnet link or URL")
+            .accessibilityIdentifier("toolbar.addLink")
         }
 
         ToolbarSpacer(.fixed)

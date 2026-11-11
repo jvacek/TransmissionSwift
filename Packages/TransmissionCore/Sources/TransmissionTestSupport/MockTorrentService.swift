@@ -337,7 +337,7 @@ public actor MockTorrentService: TorrentService {
 
     public func add(
         fileURL: URL?,
-        magnetURL: String?,
+        linkURL: String?,
         destination: String,
         labels: [String],
         priority: TorrentPriority,
@@ -347,7 +347,7 @@ public actor MockTorrentService: TorrentService {
         let name: String
         if let url = fileURL {
             name = url.deletingPathExtension().lastPathComponent
-        } else if let magnet = magnetURL {
+        } else if let magnet = linkURL {
             let params = magnet.dropFirst("magnet:?".count).components(separatedBy: "&")
             let raw = params.first(where: { $0.hasPrefix("dn=") })
                 .flatMap { $0.dropFirst(3).removingPercentEncoding }

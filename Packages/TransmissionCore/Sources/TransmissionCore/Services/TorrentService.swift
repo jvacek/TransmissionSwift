@@ -158,13 +158,14 @@ public protocol TorrentMutating: Sendable {
     /// Applies a partial `session-set` write.
     func applySessionSettings(_ patch: SessionSettingsPatch) async throws
 
-    /// Add a new torrent. Exactly one of `fileURL` / `magnetURL` should be
-    /// non-nil. Maps to `torrent-add`. `files` carries the add-time per-file
+    /// Add a new torrent. Exactly one of `fileURL` / `linkURL` should be
+    /// non-nil. `linkURL` is a magnet link or an http(s) URL the daemon fetches
+    /// itself. Maps to `torrent-add`. `files` carries the add-time per-file
     /// selection in `info.files` order; empty means every file is wanted at
     /// normal priority.
     func add(
         fileURL: URL?,
-        magnetURL: String?,
+        linkURL: String?,
         destination: String,
         labels: [String],
         priority: TorrentPriority,

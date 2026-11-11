@@ -86,7 +86,7 @@ struct RPCSessionCacheWarmTests {
         let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
 
         try await service.add(
-            fileURL: nil, magnetURL: "magnet:?xt=urn:btih:abc",
+            fileURL: nil, linkURL: "magnet:?xt=urn:btih:abc",
             destination: "", labels: ["Linux"], priority: .normal, startWhenAdded: true, files: [])
 
         #expect(await stub.sessionGetCount == 1)
@@ -99,7 +99,7 @@ struct RPCSessionCacheWarmTests {
         let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
 
         try await service.add(
-            fileURL: nil, magnetURL: "magnet:?xt=urn:btih:abc",
+            fileURL: nil, linkURL: "magnet:?xt=urn:btih:abc",
             destination: "", labels: ["Linux"], priority: .normal, startWhenAdded: true, files: [])
 
         #expect(await stub.lastAddLabels == nil)
@@ -113,7 +113,7 @@ struct RPCSessionCacheWarmTests {
 
         await #expect(throws: TransmissionError.self) {
             try await service.add(
-                fileURL: nil, magnetURL: "magnet:?xt=urn:btih:abc",
+                fileURL: nil, linkURL: "magnet:?xt=urn:btih:abc",
                 destination: "", labels: ["Linux"], priority: .normal, startWhenAdded: true, files: [])
         }
         #expect(await stub.lastAddLabels == nil)
@@ -258,7 +258,7 @@ struct RPCAddFileSelectionTests {
         let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
 
         try await service.add(
-            fileURL: url, magnetURL: nil, destination: "Downloads", labels: [], priority: .normal,
+            fileURL: url, linkURL: nil, destination: "Downloads", labels: [], priority: .normal,
             startWhenAdded: true,
             files: [
                 TorrentAddFile(index: 0, path: ["a.mkv"], length: 1, priority: .high),
@@ -283,7 +283,7 @@ struct RPCAddFileSelectionTests {
         let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
 
         try await service.add(
-            fileURL: url, magnetURL: nil, destination: "Downloads", labels: [], priority: .normal,
+            fileURL: url, linkURL: nil, destination: "Downloads", labels: [], priority: .normal,
             startWhenAdded: true,
             files: [
                 TorrentAddFile(index: 0, path: ["a.mkv"], length: 1),

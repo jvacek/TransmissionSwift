@@ -192,43 +192,42 @@ public final class TorrentStore {
 
     // MARK: - Sheet entry points
 
-    public func openAddSheet(magnetMode: Bool = false, prefilledURL: URL? = nil) {
-        ui.addTorrentStartInMagnetMode = magnetMode
+    public func openAddSheet(mode: AddTorrentInputMode = .file, prefilledURL: URL? = nil) {
+        ui.addTorrentStartMode = mode
         ui.addTorrentPrefilledURL = prefilledURL
         ui.showAddTorrent = true
     }
 
     /// Entry point for adds that already carry a payload (dropped file, magnet
-    /// link, "Open With"). Honours the "Show dialog before adding" app pref:
-    /// with the dialog on (the default) the sheet opens prefilled; with it off
-    /// the torrent is added immediately with the sheet's defaults (daemon's
-    /// default folder, no labels, normal priority, start on). `showDialog`
-    /// defaults to the app pref so tests can inject it directly.
+    /// link, torrent URL, "Open With"). Honours the "Show dialog before adding"
+    /// app pref: with the dialog on (the default) the sheet opens prefilled;
+    /// with it off the torrent is added immediately with the sheet's defaults
+    /// (daemon's default folder, no labels, normal priority, start on).
+    /// `showDialog` defaults to the app pref so tests can inject it directly.
     public func addFromExternalURL(
         _ url: URL, showDialog: Bool = UserDefaults.standard.bool(forKey: PreferenceKeys.showAddDialogBeforeAdding)
     ) {
         guard actionsEnabled else { return }
-        let isMagnet = url.scheme == "magnet"
-        guard isMagnet || url.isFileURL else { return }
+        let mode: AddTorrentInputMode
+        switch url.scheme?.lowercased() {
+        case "magnet", "http", "https": mode = .link
+        default:
+            guard url.isFileURL else { return }
+            mode = .file
+        }
         guard showDialog else {
             let deleteAfterAdding = UserDefaults.standard.bool(
                 forKey: PreferenceKeys.deleteTorrentFileAfterAdding)
             Task {
-                if isMagnet {
-                    await actions.add(
-                        fileURL: nil, magnetURL: url.absoluteString, destination: "",
-                        labels: [], priority: .normal, startWhenAdded: true,
-                        deleteFileAfterAdding: deleteAfterAdding)
-                } else {
-                    await actions.add(
-                        fileURL: url, magnetURL: nil, destination: "",
-                        labels: [], priority: .normal, startWhenAdded: true,
-                        deleteFileAfterAdding: deleteAfterAdding)
-                }
+                await actions.add(
+                    fileURL: mode == .file ? url : nil,
+                    linkURL: mode == .file ? nil : url.absoluteString,
+                    destination: "", labels: [], priority: .normal,
+                    startWhenAdded: true, deleteFileAfterAdding: deleteAfterAdding)
             }
             return
         }
-        openAddSheet(magnetMode: isMagnet, prefilledURL: url)
+        openAddSheet(mode: mode, prefilledURL: url)
     }
 
     public func openEditLabels(for ids: [Torrent.ID]) {

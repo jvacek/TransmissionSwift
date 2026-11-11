@@ -85,7 +85,7 @@ struct MainWindow: View {
         .sheet(isPresented: $ui.showAddTorrent) {
             AddTorrentSheet(
                 isPresented: $ui.showAddTorrent,
-                initialMagnetMode: ui.addTorrentStartInMagnetMode,
+                initialMode: ui.addTorrentStartMode,
                 prefilledURL: ui.addTorrentPrefilledURL,
                 serverName: profileStore.activeProfile?.label
             )
@@ -110,7 +110,10 @@ struct MainWindow: View {
         }
         .dropDestination(for: URL.self) { urls, _ in
             guard let url = urls.first else { return false }
-            let accepted = url.pathExtension == "torrent" || url.scheme == "magnet"
+            let scheme = url.scheme?.lowercased()
+            let accepted =
+                url.pathExtension == "torrent" || scheme == "magnet" || scheme == "http"
+                || scheme == "https"
             if accepted {
                 store.addFromExternalURL(url)
             }
@@ -341,11 +344,11 @@ struct MainWindow: View {
         ContentUnavailableView {
             Label("No Torrents Yet", systemImage: "arrow.down.circle")
         } description: {
-            Text("Add a torrent file or magnet link to get started.")
+            Text("Add a torrent file, magnet link, or URL to get started.")
         } actions: {
             Button("Add Torrent…") { store.openAddSheet() }
                 .buttonStyle(.glassProminent)
-            Button("Add Magnet Link…") { store.openAddSheet(magnetMode: true) }
+            Button("Add Link…") { store.openAddSheet(mode: .link) }
         }
     }
 

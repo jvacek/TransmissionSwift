@@ -410,7 +410,7 @@ public actor RPCTorrentService: TorrentService {
 
     public func add(
         fileURL: URL?,
-        magnetURL: String?,
+        linkURL: String?,
         destination: String,
         labels: [String],
         priority: TorrentPriority,
@@ -420,8 +420,10 @@ public actor RPCTorrentService: TorrentService {
         let filename: String?
         let metainfo: String?
 
-        if let magnetURL {
-            filename = magnetURL
+        if let linkURL {
+            // Magnet links and http(s) URLs both go in `filename`; the daemon
+            // fetches the latter itself, so the app never downloads the file.
+            filename = linkURL
             metainfo = nil
         } else if let fileURL {
             // URLs from SwiftUI's `.fileImporter` are security-scoped; reading

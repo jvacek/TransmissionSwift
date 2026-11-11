@@ -3,23 +3,18 @@ import SwiftUI
 import TransmissionCore
 import UniformTypeIdentifiers
 
-/// File vs. magnet source. `nonisolated` + file-scope so its `Hashable`
-/// conformance isn't main-actor-isolated — `glassEffectID` needs a `Sendable`
-/// hashable.
-nonisolated enum AddTorrentInputMode: Hashable, Sendable { case file, magnet }
-
-/// Sheet presented from the main window — the mutually-exclusive file vs.
-/// magnet source is a segmented picker; the shared options (destination, tags,
+/// Sheet presented from the main window — the mutually-exclusive file and link
+/// source is a segmented picker; the shared options (destination, tags,
 /// priority, start) sit below. Everything scrolls together.
 struct AddTorrentSheet: View {
     @Environment(TorrentStore.self) private var store
     @Binding var isPresented: Bool
 
-    var initialMagnetMode: Bool = false
+    var initialMode: AddTorrentInputMode = .file
     var prefilledURL: URL? = nil
     var serverName: String? = nil
 
-    private enum Field: Hashable { case magnet, destination, fileList }
+    private enum Field: Hashable { case link, destination, fileList }
 
     @FocusState private var focusedField: Field?
     @State private var mode: AddTorrentInputMode = .file
@@ -30,7 +25,7 @@ struct AddTorrentSheet: View {
     @State private var fileFilter = ""
     /// Row selection for bulk actions, separate from each file's `wanted` flag.
     @State private var fileSelection = FileListSelection()
-    @State private var magnetString: String = ""
+    @State private var linkString: String = ""
     @State private var destination: String = ""
     @State private var tags: [String] = []
     @State private var priority: TorrentPriority = .normal
@@ -66,27 +61,28 @@ struct AddTorrentSheet: View {
                 // Destination stays empty by default — empty resolves to the
                 // default download dir via resolveServerPath, same as Set
                 // Location. The Full-path preview shows the real target.
-                mode = initialMagnetMode ? .magnet : .file
+                mode = initialMode
                 // Seed the per-add option from the Settings default; the
                 // toggle below never writes back.
                 deleteSourceFile = deleteTorrentFileByDefault
                 if let url = prefilledURL {
-                    if url.scheme == "magnet" {
-                        mode = .magnet
-                        magnetString = url.absoluteString
-                    } else {
+                    switch url.scheme?.lowercased() {
+                    case "magnet", "http", "https":
+                        mode = .link
+                        linkString = url.absoluteString
+                    default:
                         mode = .file
                         fileURL = url
                         loadFile(at: url)
                     }
                 }
                 // Explicit focus so macOS doesn't auto-focus (and select-all) the
-                // Destination field. In magnet mode, focus the input so a paste lands
+                // Destination field. In link mode, focus the input so a paste lands
                 // immediately; in file mode, leave focus unset.
-                focusedField = mode == .magnet ? .magnet : nil
+                focusedField = inputField(for: mode)
             }
             .onChange(of: mode) { _, newMode in
-                focusedField = newMode == .magnet ? .magnet : nil
+                focusedField = inputField(for: newMode)
             }
     }
 
@@ -105,21 +101,21 @@ struct AddTorrentSheet: View {
 
     // MARK: - Sections
 
-    /// File vs. magnet — the only mutually-exclusive choice — as a Liquid
-    /// Glass segmented control in the system style: one glass capsule holding
-    /// all segments, with the selected one as a raised accent pill that slides
+    /// File vs. link — the only mutually-exclusive choice — as a Liquid Glass
+    /// segmented control in the system style: one glass capsule holding all
+    /// segments, with the selected one as a raised accent pill that slides
     /// between segments (droplet-style, via `matchedGeometryEffect`). The pill
     /// is a plain fill, not nested glass — glass can't sample glass. The stock
     /// `.segmented` picker keeps its pre-Tahoe chrome in content areas, hence
     /// hand-rolled.
     private var modePicker: some View {
         HStack(spacing: 0) {
-            ForEach([AddTorrentInputMode.file, .magnet], id: \.self) { segment in
+            ForEach(AddTorrentInputMode.allCases, id: \.self) { segment in
                 let isSelected = mode == segment
                 Button {
                     withAnimation(.smooth(duration: 0.35)) { mode = segment }
                 } label: {
-                    Text(segment == .file ? "File" : "Magnet Link")
+                    Text(segment.label)
                         .font(.callout.weight(isSelected ? .semibold : .regular))
                         .foregroundStyle(isSelected ? Color.white : Color.secondary)
                         .padding(.horizontal, 18)
@@ -134,7 +130,7 @@ struct AddTorrentSheet: View {
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(segment == .file ? "File" : "Magnet Link")
+                .accessibilityLabel(segment.label)
                 .accessibilityAddTraits(isSelected ? [.isSelected] : [])
 
             }
@@ -149,7 +145,7 @@ struct AddTorrentSheet: View {
             .foregroundStyle(.secondary)
     }
 
-    /// Shared bordered container so the file picker and the magnet input look
+    /// Shared bordered container so the file picker and the link input look
     /// alike. The content row gets a fixed height so switching modes doesn't
     /// shift the content below by a few pixels.
     private func sourceBox(_ content: some View) -> some View {
@@ -171,7 +167,7 @@ struct AddTorrentSheet: View {
     private var sourceSection: some View {
         switch mode {
         case .file: fileSection
-        case .magnet: magnetSection
+        case .link: linkSection
         }
     }
 
@@ -197,19 +193,19 @@ struct AddTorrentSheet: View {
         }
     }
 
-    private var magnetSection: some View {
+    private var linkSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            sourceLabel("Magnet Link", systemImage: "link")
+            sourceLabel("Magnet Link or URL", systemImage: "link")
             sourceBox(
-                TextField("magnet:?xt=urn:btih:…", text: $magnetString)
+                TextField("magnet:… or https://…", text: $linkString)
                     .textFieldStyle(.plain)
                     .monospaced()
-                    .focused($focusedField, equals: .magnet)
+                    .focused($focusedField, equals: .link)
             )
         }
     }
 
-    /// Add-time file selection. Hidden for magnets and single-file torrents,
+    /// Add-time file selection. Hidden for links and single-file torrents,
     /// which have nothing to choose. The expanded state persists.
     @ViewBuilder
     private var filesSection: some View {
@@ -407,6 +403,13 @@ struct AddTorrentSheet: View {
         )
     }
 
+    private func inputField(for mode: AddTorrentInputMode) -> Field? {
+        switch mode {
+        case .file: nil
+        case .link: .link
+        }
+    }
+
     /// Shared options that apply to either source, in a grouped-form-style
     /// card: fixed-width label column, vertical separator, control leading.
     private var optionsSection: some View {
@@ -434,7 +437,7 @@ struct AddTorrentSheet: View {
             formRow("") {
                 Toggle("Start when added", isOn: $startWhenAdded)
             }
-            // Magnets have no local file, so the cleanup option only makes
+            // Links have no local file, so the cleanup option only makes
             // sense — and only shows — for file adds.
             if mode == .file {
                 Divider()
@@ -471,13 +474,13 @@ struct AddTorrentSheet: View {
 
     /// Best-effort torrent name for the "Full path" preview: the chosen
     /// `.torrent`'s `info.name`, falling back to its file stem when the file
-    /// can't be decoded, or the magnet's `dn` display name.
+    /// can't be decoded, or a magnet link's `dn` display name.
     private var expectedTorrentName: String? {
         if mode == .file, let fileURL {
             return fileTorrentName ?? fileURL.deletingPathExtension().lastPathComponent
         }
-        if mode == .magnet,
-            let dn = URLComponents(string: magnetString)?
+        if mode == .link,
+            let dn = URLComponents(string: linkString)?
                 .queryItems?.first(where: { $0.name == "dn" })?.value,
             !dn.isEmpty
         {
@@ -663,10 +666,25 @@ struct AddTorrentSheet: View {
         let sourceValid: Bool =
             switch mode {
             case .file: fileURL != nil
-            case .magnet: magnetString.hasPrefix("magnet:?xt=urn:btih:")
+            case .link: Self.isTorrentLink(linkString)
             }
         return sourceValid
             && isSubmittableServerPath(destination, relativeTo: store.list.downloadDirectory)
+    }
+
+    /// A magnet (infohash may sit anywhere after `magnet:?`) or an http(s) URL
+    /// with a host — the daemon does the fetching, so endpoints don't have to
+    /// end in `.torrent`.
+    private static func isTorrentLink(_ string: String) -> Bool {
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("magnet:") {
+            return trimmed.contains("xt=urn:btih:")
+        }
+        guard
+            let components = URLComponents(string: trimmed),
+            let scheme = components.scheme?.lowercased()
+        else { return false }
+        return (scheme == "http" || scheme == "https") && components.host?.isEmpty == false
     }
 
     private func submit() async {
@@ -675,7 +693,7 @@ struct AddTorrentSheet: View {
         saveError = nil
         let succeeded = await store.actions.add(
             fileURL: mode == .file ? fileURL : nil,
-            magnetURL: mode == .magnet ? magnetString : nil,
+            linkURL: mode == .file ? nil : linkString.trimmingCharacters(in: .whitespacesAndNewlines),
             destination: resolveServerPath(destination, relativeTo: store.list.downloadDirectory),
             labels: tags,
             priority: priority,
@@ -837,14 +855,23 @@ private struct AddTorrentFileRow: View {
     .background(Color(nsColor: .windowBackgroundColor))
 }
 
+extension AddTorrentInputMode {
+    fileprivate var label: String {
+        switch self {
+        case .file: "File"
+        case .link: "Magnet / URL"
+        }
+    }
+}
+
 #Preview("Add Torrent") {
     AddTorrentSheet(isPresented: .constant(true))
         .environment(previewTorrentStore)
         .environment(TagColorStore())
 }
 
-#Preview("Magnet") {
-    AddTorrentSheet(isPresented: .constant(true), initialMagnetMode: true)
+#Preview("Magnet / URL") {
+    AddTorrentSheet(isPresented: .constant(true), initialMode: .link)
         .environment(previewTorrentStore)
         .environment(TagColorStore())
 }
