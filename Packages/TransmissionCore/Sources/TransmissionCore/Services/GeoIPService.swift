@@ -57,6 +57,8 @@ public actor GeoIPService {
     private var frequency: GeoIPRefreshFrequency
     private var index: CountryIndex?
     private var loadTask: Task<CountryIndex?, Never>?
+    private var hasCheckedThisLaunch = false
+    private var lastCheck: Date?
 
     public init(
         cacheDirectory: URL,
@@ -83,7 +85,15 @@ public actor GeoIPService {
     }
 
     private func ensureIndex() async -> CountryIndex? {
-        if let index { return index }
+        if let index {
+            guard isRefreshDue else { return index }
+            // Reload only when the refresh replaced the file; a 304 keeps the
+            // parsed index.
+            if await refreshCacheIfNeeded() {
+                self.index = nil
+            }
+            if let loaded = self.index { return loaded }
+        }
         if let loadTask { return await loadTask.value }
         let task = Task { await load() }
         loadTask = task
@@ -91,6 +101,14 @@ public actor GeoIPService {
         loadTask = nil
         index = result
         return result
+    }
+
+    /// `.onStartup` is a once-per-process check; every other cadence re-checks
+    /// after the retry floor so a long-running app still picks up new releases.
+    private var isRefreshDue: Bool {
+        if frequency == .onStartup { return !hasCheckedThisLaunch }
+        guard let lastCheck else { return true }
+        return Date().timeIntervalSince(lastCheck) >= configuration.minimumRetryInterval
     }
 
     private func load() async -> CountryIndex? {
@@ -108,8 +126,15 @@ public actor GeoIPService {
         return CountryIndex(csv: csv)
     }
 
-    private func refreshCacheIfNeeded() async {
+    /// Returns true when a new database file was written, so the parsed index
+    /// must be rebuilt.
+    @discardableResult
+    private func refreshCacheIfNeeded() async -> Bool {
         let now = Date()
+        // Mark the check before the first await so a concurrent lookup returns
+        // the current index instead of starting a second download.
+        hasCheckedThisLaunch = true
+        lastCheck = now
         let meta = readMeta()
         let currentMonth = Self.month(offset: 0)
         let hasFile = FileManager.default.fileExists(atPath: compressedDatabaseURL.path)
@@ -124,7 +149,7 @@ public actor GeoIPService {
                 now: now,
                 minimumRetryInterval: configuration.minimumRetryInterval
             )
-        else { return }
+        else { return false }
 
         // The current month's file 404s until DB-IP publishes it early in the
         // month, so fall back to the previous one.
@@ -147,7 +172,7 @@ public actor GeoIPService {
                     lastModified: meta?.lastModified
                 ))
             logger.warning("GeoIP database download failed (current and previous month)")
-            return
+            return false
         }
 
         switch hit.result {
@@ -162,6 +187,7 @@ public actor GeoIPService {
                     lastModified: lastModified
                 ))
             logger.info("GeoIP database updated for \(hit.month, privacy: .public)")
+            return true
         case .notModified:
             writeMeta(
                 CacheMeta(
@@ -172,6 +198,7 @@ public actor GeoIPService {
                     lastModified: meta?.lastModified
                 ))
             logger.info("GeoIP database unchanged for \(hit.month, privacy: .public)")
+            return false
         }
     }
 
