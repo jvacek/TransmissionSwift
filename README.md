@@ -35,7 +35,7 @@ on the project site.
   - Change download location
 - Add new torrents
   - via .torrent files (drag+drop, or register handler for .torrent files)
-  - magnets links via UI
+  - magnet links or torrent URLs via UI
 - Change server settings
   - Enable slow mode
   - Networking config
