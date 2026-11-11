@@ -37,6 +37,7 @@ public enum PreferenceKeys {
     // Window / navigation
     public static let inspectorWidth = "inspectorWidth"
     public static let inspectorVisible = "inspectorVisible"
+    public static let sidebarVisible = "sidebarVisible"
     public static let prefsPendingNavTab = "prefsPendingNavTab"
 
     // Sidebar section expansion

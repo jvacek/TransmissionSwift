@@ -21,10 +21,12 @@ struct MainWindow: View {
     @Environment(\.openWindow) private var openWindow
     @AppStorage(PreferenceKeys.prefsPendingNavTab) private var pendingNavTab: String = ""
     @AppStorage(PreferenceKeys.inspectorWidth) private var storedInspectorWidth: Double = Double(Layout.inspectorIdeal)
+    @AppStorage(PreferenceKeys.sidebarVisible) private var sidebarVisible = true
     @AppStorage(PreferenceKeys.startMinimized) private var startMinimized = false
     @State private var windowWidth: CGFloat = Layout.windowMin
     @State private var didApplyStartMinimized = false
     @State private var openBus = OpenRequestBus.shared
+    @FocusState private var searchFocused: Bool
 
     /// No profile configured — the window shows the "No Servers" onboarding
     /// empty state instead of torrent content.
@@ -59,6 +61,7 @@ struct MainWindow: View {
             }
         }
         .frame(minWidth: Layout.windowMin, minHeight: 600)
+        .focusedSceneValue(\.focusSearch) { searchFocused = true }
         .onGeometryChange(for: CGFloat.self) {
             $0.size.width
         } action: {
@@ -148,10 +151,18 @@ struct MainWindow: View {
 
     // MARK: - Split view
 
+    /// The sidebar toggle in the View menu writes the same preference, so the
+    /// built-in toolbar toggle and our command stay in step.
+    private var sidebarVisibility: Binding<NavigationSplitViewVisibility> {
+        Binding(
+            get: { sidebarVisible ? .all : .detailOnly },
+            set: { sidebarVisible = $0 != .detailOnly })
+    }
+
     private var splitView: some View {
         @Bindable var store = store
         @Bindable var list = store.list
-        return NavigationSplitView {
+        return NavigationSplitView(columnVisibility: sidebarVisibility) {
             SidebarView()
                 .navigationSplitViewColumnWidth(
                     min: Layout.sidebarMin, ideal: Layout.sidebarIdeal, max: Layout.sidebarMax)
@@ -171,6 +182,7 @@ struct MainWindow: View {
                     placement: .toolbar,
                     prompt: "Search torrents"
                 )
+                .searchFocused($searchFocused)
                 .toolbar {
                     ToolbarItem(placement: .navigation) {
                         serverSwitcherMenu

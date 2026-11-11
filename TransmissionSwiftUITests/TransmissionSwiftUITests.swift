@@ -174,6 +174,89 @@ final class TransmissionSwiftUITests: XCTestCase {
         XCTAssertFalse(link.contains("\n"), "One selected row must copy exactly one link")
     }
 
+    /// Daemon-free coverage for list-level commands: ⌘C copies the selected
+    /// torrent name through the table's responder-chain copy:, ⌘F focuses the
+    /// search field, and ⌘I / ⌃⌘S toggle the inspector and sidebar.
+    @MainActor
+    func testSnapshotCopyAndViewCommands() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let pasteboard = NSPasteboard.general
+        let savedItems = pasteboard.pasteboardItems
+        defer {
+            pasteboard.clearContents()
+            if let savedItems { pasteboard.writeObjects(savedItems) }
+        }
+
+        let app = XCUIApplication()
+        app.launchArguments = ["--snapshot", fixture.path]
+        app.launch()
+
+        let table = app.tables["torrents.table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 15))
+        let ubuntu = table.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Ubuntu 24.04.2 Desktop")
+        ).firstMatch
+        XCTAssertTrue(ubuntu.waitForExistence(timeout: 10))
+        ubuntu.click()
+
+        // Copy is enabled by the table and delivers the torrent name.
+        let editMenu = app.menuBars.firstMatch.menuBarItems["Edit"]
+        editMenu.click()
+        let copy = app.menuItems["Copy"]
+        XCTAssertTrue(copy.waitForExistence(timeout: 3))
+        XCTAssertTrue(waitUntil { copy.isEnabled }, "Expected Copy to enable with a row selected")
+        app.typeKey(.escape, modifierFlags: [])
+
+        pasteboard.clearContents()
+        app.typeKey("c", modifierFlags: .command)
+        XCTAssertTrue(waitUntil { pasteboard.string(forType: .string) != nil })
+        XCTAssertEqual(pasteboard.string(forType: .string), "Ubuntu 24.04.2 Desktop (amd64).iso")
+
+        // ⌘F lands in the search field.
+        app.typeKey("f", modifierFlags: .command)
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        app.typeText("ubuntu")
+        XCTAssertTrue(
+            waitUntil { (search.value as? String) == "ubuntu" },
+            "Expected ⌘F to focus the search field")
+        app.typeKey("a", modifierFlags: .command)
+        app.typeKey(.delete, modifierFlags: [])
+        XCTAssertTrue(waitUntil { (search.value as? String ?? "").isEmpty })
+
+        // The View menu exposes both toggles.
+        app.menuBars.firstMatch.menuBarItems["View"].click()
+        XCTAssertTrue(app.menuItems["Enter Full Screen"].waitForExistence(timeout: 3))
+        let inspectorItem =
+            app.menuItems["Show Inspector"].exists
+            ? app.menuItems["Show Inspector"] : app.menuItems["Hide Inspector"]
+        XCTAssertTrue(inspectorItem.exists, "Expected a Show/Hide Inspector item")
+        let sidebarItem =
+            app.menuItems["Show Sidebar"].exists
+            ? app.menuItems["Show Sidebar"] : app.menuItems["Hide Sidebar"]
+        XCTAssertTrue(sidebarItem.exists, "Expected a Show/Hide Sidebar item")
+        app.typeKey(.escape, modifierFlags: [])
+
+        let inspector = app.descendants(matching: .any)
+            .matching(identifier: "inspector.tabs").firstMatch
+        let inspectorWasVisible = inspector.exists
+        app.typeKey("i", modifierFlags: .command)
+        XCTAssertTrue(waitUntil { inspector.exists != inspectorWasVisible })
+        app.typeKey("i", modifierFlags: .command)
+        XCTAssertTrue(waitUntil { inspector.exists == inspectorWasVisible })
+
+        let sidebar = app.descendants(matching: .any)
+            .matching(identifier: "sidebar.status.all").firstMatch
+        let sidebarWasVisible = sidebar.exists
+        app.typeKey("s", modifierFlags: [.command, .control])
+        XCTAssertTrue(waitUntil { sidebar.exists != sidebarWasVisible })
+        app.typeKey("s", modifierFlags: [.command, .control])
+        XCTAssertTrue(waitUntil { sidebar.exists == sidebarWasVisible })
+    }
+
     /// Polls the given condition, keeping menu state assertions honest while
     /// SwiftUI commits the selection change.
     private func waitUntil(timeout: TimeInterval = 3, _ condition: () -> Bool) -> Bool {

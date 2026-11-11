@@ -13,6 +13,19 @@ import os
 
 private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category: "App")
 
+/// Lets the Edit menu's Find item focus the main window's search field, which
+/// lives in the window's view hierarchy rather than in the commands.
+struct FocusSearchAction: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+extension FocusedValues {
+    var focusSearch: (() -> Void)? {
+        get { self[FocusSearchAction.self] }
+        set { self[FocusSearchAction.self] = newValue }
+    }
+}
+
 @main
 struct TransmissionSwiftApp: App {
     @State private var profileStore: ServerProfileStore
@@ -195,7 +208,9 @@ struct TransmissionSwiftApp: App {
         }
         .commands {
             FileCommands(torrentStore: torrentStore)
+            EditCommands(torrentStore: torrentStore)
             TorrentCommands(torrentStore: torrentStore)
+            ViewCommands(torrentStore: torrentStore)
             AboutCommands(updateService: updateService)
             PreferencesCommands()
             ServerCommands(profileStore: profileStore)
@@ -251,6 +266,55 @@ private struct FileCommands: Commands {
     }
 }
 
+// MARK: - Edit commands
+
+/// Find focuses the main window's search field; Copy Magnet Link is an explicit
+/// pasteboard command because ⌘C itself stays with the focused responder (the
+/// table copies names, text fields copy text).
+private struct EditCommands: Commands {
+    let torrentStore: TorrentStore
+    @FocusedValue(\.focusSearch) private var focusSearch
+
+    var body: some Commands {
+        CommandGroup(after: .pasteboard) {
+            Button("Find…") {
+                focusSearch?()
+            }
+            .keyboardShortcut("f", modifiers: .command)
+            .disabled(focusSearch == nil)
+
+            Divider()
+
+            Button("Copy Magnet Link") {
+                torrentStore.copyMagnetLinks()
+            }
+            .keyboardShortcut("c", modifiers: [.command, .shift])
+            .disabled(torrentStore.list.selectedTorrentIDs.isEmpty)
+        }
+    }
+}
+
+// MARK: - View commands
+
+private struct ViewCommands: Commands {
+    let torrentStore: TorrentStore
+    @AppStorage(PreferenceKeys.sidebarVisible) private var sidebarVisible = true
+
+    var body: some Commands {
+        CommandGroup(after: .sidebar) {
+            Button(sidebarVisible ? "Hide Sidebar" : "Show Sidebar") {
+                sidebarVisible.toggle()
+            }
+            .keyboardShortcut("s", modifiers: [.command, .control])
+
+            Button(torrentStore.inspector.isVisible ? "Hide Inspector" : "Show Inspector") {
+                torrentStore.inspector.isVisible.toggle()
+            }
+            .keyboardShortcut("i", modifiers: .command)
+        }
+    }
+}
+
 // MARK: - Torrent commands
 
 /// Selection-based torrent actions and their keyboard shortcuts. Everything
@@ -264,13 +328,6 @@ private struct TorrentCommands: Commands {
     private var canRename: Bool { canAct && ids.count == 1 }
 
     var body: some Commands {
-        CommandGroup(after: .pasteboard) {
-            Button("Copy Magnet Link") {
-                torrentStore.copyMagnetLinks()
-            }
-            .keyboardShortcut("c", modifiers: [.command, .shift])
-            .disabled(ids.isEmpty)
-        }
         CommandMenu("Torrent") {
             Button("Resume") {
                 torrentStore.perform(.resume, ids: ids)
