@@ -38,4 +38,16 @@ struct TorrentCommandsTests {
         #expect(targets.start.isEmpty)
         #expect(targets.stop.isEmpty)
     }
+
+    @Test func magnetCopyFollowsTheDisplayedRows() {
+        let first = makeTableTorrent(id: 2, name: "Second")
+        let second = makeTableTorrent(id: 1, name: "First")
+
+        // The table's order, not the daemon's, and only rows it still shows.
+        #expect(
+            selectedMagnetLinksText(from: [first, second], ids: [1, 2])
+                == first.magnetURI + "\n" + second.magnetURI)
+        #expect(selectedMagnetLinksText(from: [second], ids: [1, 2]) == second.magnetURI)
+        #expect(selectedMagnetLinksText(from: [], ids: []) == nil)
+    }
 }

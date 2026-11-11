@@ -418,15 +418,26 @@ nonisolated func torrentToggleTargets(
 }
 
 extension TorrentStore {
-    /// Copies the selected torrents' magnet links, one per line, in table order.
+    /// Copies the selected torrents' magnet links, one per line, in the same
+    /// filtered and sorted order the table shows.
     func copyMagnetLinks() {
-        let selected = list.selectedTorrentIDs
-        let links = list.torrents.filter { selected.contains($0.id) }.map(\.magnetURI)
-        guard !links.isEmpty else { return }
+        guard
+            let text = selectedMagnetLinksText(
+                from: list.visibleTorrents, ids: list.selectedTorrentIDs)
+        else { return }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(links.joined(separator: "\n"), forType: .string)
+        pasteboard.setString(text, forType: .string)
     }
+}
+
+/// Clipboard text for ⇧⌘C. Split out so the displayed-row source and ordering
+/// are testable without a window or the pasteboard.
+nonisolated func selectedMagnetLinksText(
+    from torrents: [Torrent], ids: Set<Torrent.ID>
+) -> String? {
+    let links = torrents.filter { ids.contains($0.id) }.map(\.magnetURI)
+    return links.isEmpty ? nil : links.joined(separator: "\n")
 }
 
 // MARK: - About commands
