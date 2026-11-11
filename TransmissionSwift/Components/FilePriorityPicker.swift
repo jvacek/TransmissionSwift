@@ -99,11 +99,15 @@ struct FilePriorityPicker: View {
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
+        .frame(width: 31, height: 18)
+        .background(
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(Color.secondary.opacity(0.16))
+        )
         .allowsHitTesting(isEnabled)
         .opacity(isEnabled ? 1 : 0.4)
         .accessibilityLabel(label)
         .accessibilityValue(isMixed ? "Mixed" : choice.displayLabel)
-        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var chip: NSImage {
@@ -119,15 +123,11 @@ struct FilePriorityPicker: View {
                         .foregroundStyle(.secondary)
                         .frame(width: 8)
                 }
-                .padding(.horizontal, 4)
-                .frame(height: 18)
-                .background(
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(Color(nsColor: .quaternarySystemFill))
-                )
         )
         renderer.scale = 2
-        return renderer.nsImage ?? NSImage()
+        let image = renderer.nsImage ?? NSImage()
+        image.isTemplate = false
+        return image
     }
 }
 
@@ -163,25 +163,25 @@ struct FilePriorityPicker: View {
 
 #Preview("Priority chip in row") {
     VStack(spacing: 0) {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Spacer()
             Text("21.8 GB")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
             FilePriorityPicker(choice: .constant(.normal))
         }
-        .padding(.horizontal, 6)
+        .padding(.horizontal, 0)
         .frame(height: 22)
         .background(Color.secondary.opacity(0.06))
 
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Spacer()
             Text("658.8 MB")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
             FilePriorityPicker(choice: .constant(.high))
         }
-        .padding(.horizontal, 6)
+        .padding(.horizontal, 0)
         .frame(height: 22)
     }
     .frame(width: 340)

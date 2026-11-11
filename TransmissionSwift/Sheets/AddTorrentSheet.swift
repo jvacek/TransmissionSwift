@@ -298,7 +298,7 @@ struct AddTorrentSheet: View {
             ForEach(visibleRows) { row in
                 fileNodeRow(row.node, depth: row.depth)
                     .tag(row.node.id)
-                    .listRowInsets(EdgeInsets(top: 2, leading: 6, bottom: 2, trailing: 6))
+                    .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
                     .contextMenu { fileContextMenu(for: row.node) }
             }
         }
@@ -897,7 +897,7 @@ private struct AddTorrentFileRow: View {
     let isSelected: Bool
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Color.clear
                 .frame(width: 12, height: 18)
 
@@ -940,7 +940,7 @@ private struct AddTorrentFileRow: View {
                 label: "Priority for \(file.pathString)"
             )
         }
-        .padding(.horizontal, 6)
+        .padding(.horizontal, 0)
         .frame(height: addFileContentHeight)
         .contentShape(Rectangle())
         .accessibilityAddTraits(isSelected ? .isSelected : [])
@@ -965,7 +965,7 @@ private struct AddTorrentFolderRow: View {
     let onPriority: (FilePriorityChoice) -> Void
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Button(action: onToggleExpansion) {
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
@@ -1012,7 +1012,7 @@ private struct AddTorrentFolderRow: View {
                 isMixed: choice == nil,
                 label: "Priority for folder \(name)")
         }
-        .padding(.horizontal, 6)
+        .padding(.horizontal, 0)
         .frame(height: addFileContentHeight)
         .contentShape(Rectangle())
         .accessibilityAddTraits(isSelected ? .isSelected : [])
