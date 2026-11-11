@@ -7,6 +7,9 @@ import TorrentMetainfo
 /// Kept in Core so the app target doesn't have to link `TorrentMetainfo`
 /// directly — the format package stays an implementation detail of Core.
 public enum TorrentMetainfoReader {
+    /// Largest `.torrent` file the reader and the add path accept.
+    public static let maximumSize = TorrentMetainfo.maximumSize
+
     /// The torrent's display name (`info.name`), or `nil` when the file can't be
     /// read or decoded.
     public static func displayName(at url: URL) -> String? {

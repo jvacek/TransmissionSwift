@@ -179,3 +179,15 @@ public protocol TorrentMutating: Sendable {
 /// conform; `SnapshotTorrentService` is read-only and conforms only to
 /// `TorrentReading`.
 public protocol TorrentService: TorrentReading, TorrentMutating {}
+
+/// A client-side `torrent-add` failure that did not come from the daemon.
+public enum TorrentAddError: LocalizedError, Equatable, Sendable {
+    /// The chosen `.torrent` file is larger than `TorrentMetainfoReader.maximumSize`.
+    case fileTooLarge
+
+    public var errorDescription: String? {
+        switch self {
+        case .fileTooLarge: return "That torrent file is too large to add."
+        }
+    }
+}

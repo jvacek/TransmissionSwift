@@ -23,11 +23,20 @@ public struct TorrentMetainfo: Equatable, Sendable {
         files.reduce(0) { $0 + $1.length }
     }
 
+    /// Largest `.torrent` this reader accepts. Real files are a few KB per
+    /// thousand entries; the cap keeps a hostile or accidentally huge file from
+    /// being copied into memory several times before it is rejected.
+    public static let maximumSize = 16 * 1024 * 1024
+
     /// Decodes `.torrent` metainfo.
     ///
     /// - Throws: `TorrentMetainfoError` when `data` isn't a bencoded dictionary
-    ///   with an `info` dictionary carrying a name.
+    ///   with an `info` dictionary carrying a name, or is larger than
+    ///   `maximumSize`.
     public init(decoding data: Data) throws {
+        guard data.count <= Self.maximumSize else {
+            throw TorrentMetainfoError.fileTooLarge
+        }
         let root: Bencode
         do {
             root = try BencodeDecoder.decode(data)
@@ -67,6 +76,12 @@ public struct TorrentMetainfo: Equatable, Sendable {
     /// Propagates file-system errors from `Data(contentsOf:)`; throws
     /// `TorrentMetainfoError` when the contents aren't valid metainfo.
     public init(contentsOf url: URL) throws {
+        // Check the on-disk size first so an oversized file is never loaded.
+        if let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+            size > Self.maximumSize
+        {
+            throw TorrentMetainfoError.fileTooLarge
+        }
         try self.init(decoding: Data(contentsOf: url))
     }
 }
@@ -153,8 +168,11 @@ extension TorrentMetainfo {
 
 /// Why a byte sequence isn't usable `.torrent` metainfo.
 public enum TorrentMetainfoError: Error, Equatable, Sendable {
-    /// Not valid bencode (truncated, bad token, or trailing bytes).
+    /// Not valid bencode (truncated, bad token, duplicate key, or trailing
+    /// bytes).
     case malformedBencode
+    /// Larger than `TorrentMetainfo.maximumSize`.
+    case fileTooLarge
     /// The top-level dictionary has no `info` dictionary.
     case missingInfoDictionary
     /// `info` has no usable file list: neither `files` nor `length`, or an empty

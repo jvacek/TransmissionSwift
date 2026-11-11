@@ -298,4 +298,21 @@ struct RPCAddFileSelectionTests {
         #expect(args.priorityNormal == nil)
         #expect(args.priorityLow == nil)
     }
+
+    @Test("an oversized torrent file is rejected before the client is called")
+    func oversizedFile() async throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("add-oversized-\(UUID().uuidString).torrent")
+        try Data(repeating: 0, count: TorrentMetainfoReader.maximumSize + 1).write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let stub = CacheStubClient(rpcVersion: 17, altSpeedEnabled: false)
+        let service = RPCTorrentService(client: stub, pollingInterval: { 60 })
+
+        await #expect(throws: TorrentAddError.fileTooLarge) {
+            try await service.add(
+                fileURL: url, linkURL: nil, destination: "", labels: [], priority: .normal,
+                startWhenAdded: true, files: [])
+        }
+        #expect(await stub.lastAddArguments == nil)
+    }
 }

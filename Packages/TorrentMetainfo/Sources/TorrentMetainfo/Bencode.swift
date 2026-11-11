@@ -47,6 +47,7 @@ enum BencodeDecodingError: Error, Equatable, Sendable {
     case invalidInteger(offset: Int)
     case invalidStringLength(offset: Int)
     case invalidDictionaryKey(offset: Int)
+    case duplicateDictionaryKey(offset: Int)
     case trailingBytes(count: Int)
     case tooDeep(offset: Int)
 }
@@ -169,6 +170,13 @@ enum BencodeDecoder {
                     let key = String(bytes: keyBytes, encoding: .utf8)
                 else {
                     throw BencodeDecodingError.invalidDictionaryKey(offset: keyStart)
+                }
+                // Duplicate keys are invalid bencode, and last-wins would let a
+                // file's two `info` (or `files`) entries disagree with the
+                // daemon's copy, so the indices we send could target files the
+                // user never saw.
+                guard entries[key] == nil else {
+                    throw BencodeDecodingError.duplicateDictionaryKey(offset: keyStart)
                 }
                 entries[key] = try parseValue(depth: depth + 1)
             }

@@ -434,7 +434,17 @@ public actor RPCTorrentService: TorrentService {
             // ("you don't have permission to view it"), even outside the sandbox.
             let scoped = fileURL.startAccessingSecurityScopedResource()
             defer { if scoped { fileURL.stopAccessingSecurityScopedResource() } }
+            // Check before reading so an oversized file is never loaded or
+            // base64-expanded into the request body.
+            if let size = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+                size > TorrentMetainfoReader.maximumSize
+            {
+                throw TorrentAddError.fileTooLarge
+            }
             let data = try Data(contentsOf: fileURL)
+            guard data.count <= TorrentMetainfoReader.maximumSize else {
+                throw TorrentAddError.fileTooLarge
+            }
             metainfo = data.base64EncodedString()
             filename = nil
         } else {

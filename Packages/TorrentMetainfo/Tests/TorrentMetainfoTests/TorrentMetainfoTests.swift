@@ -199,6 +199,34 @@ struct TorrentMetainfoMalformedTests {
         }
     }
 
+    @Test("duplicate dictionary keys")
+    func duplicateKeys() {
+        // The `info` dictionary names the key `a` twice.
+        #expect(throws: TorrentMetainfoError.malformedBencode) {
+            try TorrentMetainfo(decoding: Data("d4:infod1:ai1e1:ai2eee".utf8))
+        }
+    }
+
+    @Test("a torrent larger than the cap is rejected")
+    func oversizedInput() {
+        let data = Data(repeating: 0, count: TorrentMetainfo.maximumSize + 1)
+        #expect(throws: TorrentMetainfoError.fileTooLarge) {
+            try TorrentMetainfo(decoding: data)
+        }
+    }
+
+    @Test("an oversized file is rejected before it is read")
+    func oversizedFile() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("oversized-\(UUID().uuidString).torrent")
+        try Data(repeating: 0, count: TorrentMetainfo.maximumSize + 1).write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        #expect(throws: TorrentMetainfoError.fileTooLarge) {
+            try TorrentMetainfo(contentsOf: url)
+        }
+    }
+
     @Test("unterminated list")
     func unterminatedList() {
         #expect(throws: TorrentMetainfoError.malformedBencode) {
