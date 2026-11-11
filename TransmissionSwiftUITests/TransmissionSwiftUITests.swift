@@ -73,9 +73,7 @@ final class TransmissionSwiftUITests: XCTestCase {
             throw XCTSkip("Missing committed snapshot fixture")
         }
 
-        let app = XCUIApplication()
-        app.launchArguments = ["--snapshot", fixture.path]
-        app.launch()
+        let app = snapshotApp(fixture)
 
         let table = app.tables["torrents.table"]
         XCTAssertTrue(
@@ -118,9 +116,7 @@ final class TransmissionSwiftUITests: XCTestCase {
             if let savedItems { pasteboard.writeObjects(savedItems) }
         }
 
-        let app = XCUIApplication()
-        app.launchArguments = ["--snapshot", fixture.path]
-        app.launch()
+        let app = snapshotApp(fixture)
 
         let table = app.tables["torrents.table"]
         XCTAssertTrue(table.waitForExistence(timeout: 15))
@@ -193,9 +189,7 @@ final class TransmissionSwiftUITests: XCTestCase {
             if let savedItems { pasteboard.writeObjects(savedItems) }
         }
 
-        let app = XCUIApplication()
-        app.launchArguments = ["--snapshot", fixture.path]
-        app.launch()
+        let app = snapshotApp(fixture)
 
         let table = app.tables["torrents.table"]
         XCTAssertTrue(table.waitForExistence(timeout: 15))
@@ -258,6 +252,18 @@ final class TransmissionSwiftUITests: XCTestCase {
         XCTAssertTrue(waitUntil { sidebar.exists != sidebarWasVisible })
         app.typeKey("s", modifierFlags: [.command, .control])
         XCTAssertTrue(waitUntil { sidebar.exists == sidebarWasVisible })
+    }
+
+    /// Launches the app on the committed snapshot fixture. State restoration is
+    /// switched off: a Preferences window left open by an earlier test would
+    /// cover the table and make rows unhittable.
+    private func snapshotApp(_ fixture: URL) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--snapshot", fixture.path, "-ApplePersistenceIgnoreState", "YES",
+        ]
+        app.launch()
+        return app
     }
 
     /// Polls the given condition, keeping menu state assertions honest while
