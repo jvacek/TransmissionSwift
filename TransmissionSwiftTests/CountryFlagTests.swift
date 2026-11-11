@@ -15,4 +15,11 @@ struct CountryFlagTests {
         #expect(countryFlagEmoji(for: "12") == nil)
         #expect(countryFlagEmoji(for: "") == nil)
     }
+
+    @Test func nilWhenLettersAreMixedWithOtherCharacters() {
+        #expect(countryFlagEmoji(for: "N1L") == nil)
+        #expect(countryFlagEmoji(for: "U.S") == nil)
+        // Uppercasing "ß" expands it to "SS", which is a real code.
+        #expect(countryFlagEmoji(for: "ß") == nil)
+    }
 }

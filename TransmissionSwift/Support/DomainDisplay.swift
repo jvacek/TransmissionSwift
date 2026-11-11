@@ -158,9 +158,11 @@ extension TorrentStatusFilter {
 /// "🇳🇱". Returns nil unless the code is exactly two A–Z letters; macOS
 /// renders the pair as the flag glyph.
 nonisolated func countryFlagEmoji(for code: String) -> String? {
-    let letters = code.uppercased().unicodeScalars.filter { (65...90).contains($0.value) }
-    guard letters.count == 2 else { return nil }
-    let scalars = letters.compactMap { Unicode.Scalar(0x1F1E6 + $0.value - 0x41) }
+    let upper = Array(code.uppercased().unicodeScalars)
+    guard code.unicodeScalars.count == 2, upper.count == 2,
+        upper.allSatisfy({ (65...90).contains($0.value) })
+    else { return nil }
+    let scalars = upper.compactMap { Unicode.Scalar(0x1F1E6 + $0.value - 0x41) }
     return String(scalars.map(Character.init))
 }
 
