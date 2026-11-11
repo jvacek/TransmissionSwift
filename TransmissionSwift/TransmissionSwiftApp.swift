@@ -13,19 +13,6 @@ import os
 
 private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category: "App")
 
-/// Lets the Edit menu's Find item focus the main window's search field, which
-/// lives in the window's view hierarchy rather than in the commands.
-struct FocusSearchAction: FocusedValueKey {
-    typealias Value = () -> Void
-}
-
-extension FocusedValues {
-    var focusSearch: (() -> Void)? {
-        get { self[FocusSearchAction.self] }
-        set { self[FocusSearchAction.self] = newValue }
-    }
-}
-
 @main
 struct TransmissionSwiftApp: App {
     @State private var profileStore: ServerProfileStore
@@ -268,20 +255,19 @@ private struct FileCommands: Commands {
 
 // MARK: - Edit commands
 
-/// Find focuses the main window's search field; Copy Magnet Link is an explicit
-/// pasteboard command because ⌘C itself stays with the focused responder (the
-/// table copies names, text fields copy text).
+/// Find focuses the main window's search field through the store's UI state;
+/// Copy Magnet Link is an explicit pasteboard command because ⌘C itself stays
+/// with the focused responder (the table copies names, text fields copy text).
+/// Neither reads a per-poll value, so refreshes do not rebuild the Edit menu.
 private struct EditCommands: Commands {
     let torrentStore: TorrentStore
-    @FocusedValue(\.focusSearch) private var focusSearch
 
     var body: some Commands {
         CommandGroup(after: .pasteboard) {
             Button("Find…") {
-                focusSearch?()
+                torrentStore.ui.focusSearch()
             }
             .keyboardShortcut("f", modifiers: .command)
-            .disabled(focusSearch == nil)
 
             Divider()
 

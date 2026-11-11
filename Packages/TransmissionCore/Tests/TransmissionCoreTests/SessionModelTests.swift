@@ -1,4 +1,6 @@
 import Foundation
+import Observation
+import Synchronization
 import Testing
 import TransmissionTestSupport
 
@@ -69,5 +71,31 @@ struct SessionModelTests {
         #expect(model.freeSpace == nil)
         #expect(model.daemonVersion == nil)
         #expect(!model.isAlternativeSpeedEnabled)
+    }
+
+    @Test("polling unchanged values does not invalidate observers")
+    func pollSkipsUnchangedValues() async {
+        let (model, service) = await connected()
+
+        let notified = Mutex(false)
+        withObservationTracking {
+            _ = model.supportsLabels
+        } onChange: {
+            notified.withLock { $0 = true }
+        }
+
+        await model.poll(from: service)
+
+        #expect(!notified.withLock { $0 })
+    }
+
+    @Test("polling still applies changed session values")
+    func pollAppliesChanges() async {
+        let (model, service) = await connected()
+        try? await service.setAlternativeSpeedEnabled(true)
+
+        await model.poll(from: service)
+
+        #expect(model.settings?.altSpeedEnabled == true)
     }
 }

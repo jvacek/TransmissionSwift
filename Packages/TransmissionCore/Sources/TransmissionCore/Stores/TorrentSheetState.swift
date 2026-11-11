@@ -33,5 +33,13 @@ public final class TorrentSheetState {
     public var showRenameTorrent = false
     public var renameTorrentTargetID: Torrent.ID?
 
+    /// Bumped by the Edit menu's Find command. The main window watches it to
+    /// focus the search field; a counter keeps repeated presses distinct.
+    public private(set) var searchFocusRequest = 0
+
+    public func focusSearch() {
+        searchFocusRequest += 1
+    }
+
     public init() {}
 }

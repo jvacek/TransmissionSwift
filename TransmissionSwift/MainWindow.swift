@@ -61,7 +61,7 @@ struct MainWindow: View {
             }
         }
         .frame(minWidth: Layout.windowMin, minHeight: 600)
-        .focusedSceneValue(\.focusSearch) { searchFocused = true }
+        .onChange(of: store.ui.searchFocusRequest) { searchFocused = true }
         .onGeometryChange(for: CGFloat.self) {
             $0.size.width
         } action: {

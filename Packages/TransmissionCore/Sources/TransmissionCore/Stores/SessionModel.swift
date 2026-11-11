@@ -71,17 +71,26 @@ public final class SessionModel {
 
     /// Periodic refresh (the free-space poll). Does not re-read alt-speed — a
     /// user toggle owns that until the next connect.
+    ///
+    /// Assign only changed values: `@Observable` notifies on every assignment,
+    /// and unchanged poll data would otherwise re-evaluate anything reading the
+    /// session (notably the menu commands) once per poll.
     func poll(from reading: any TorrentReading) async {
-        freeSpace = await reading.freeSpace()
-        daemonVersion = await reading.daemonVersion()
-        supportsLabels = await reading.supportsLabels()
-        settings = await reading.sessionSettings()
+        let newFreeSpace = await reading.freeSpace()
+        if newFreeSpace != freeSpace { freeSpace = newFreeSpace }
+        let newVersion = await reading.daemonVersion()
+        if newVersion != daemonVersion { daemonVersion = newVersion }
+        let newSupportsLabels = await reading.supportsLabels()
+        if newSupportsLabels != supportsLabels { supportsLabels = newSupportsLabels }
+        let newSettings = await reading.sessionSettings()
+        if newSettings != settings { settings = newSettings }
     }
 
     /// Refresh free space only (called after a post-mutation refresh elsewhere).
     public func refreshFreeSpace() async {
         guard let reading else { return }
-        freeSpace = await reading.freeSpace()
+        let newFreeSpace = await reading.freeSpace()
+        if newFreeSpace != freeSpace { freeSpace = newFreeSpace }
     }
 
     /// Fetch current + lifetime transfer stats for the status-bar popover.
