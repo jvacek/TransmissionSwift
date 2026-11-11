@@ -1,4 +1,3 @@
-import CZlib
 import Foundation
 import os
 
@@ -118,12 +117,12 @@ public actor GeoIPService {
             logger.warning("GeoIP database unavailable; peer flags disabled")
             return nil
         }
-        guard let csv = Self.readGzip(at: url) else {
+        guard let index = CountryIndex(gzipAt: url) else {
             logger.error("Failed to decompress GeoIP database at \(url.path, privacy: .public)")
             return nil
         }
-        logger.info("Parsing GeoIP database (\(csv.utf8.count) bytes)")
-        return CountryIndex(csv: csv)
+        logger.info("Parsed GeoIP database from \(url.lastPathComponent, privacy: .public)")
+        return index
     }
 
     /// Returns true when a new database file was written, so the parsed index
@@ -277,20 +276,5 @@ public actor GeoIPService {
         let date = calendar.date(byAdding: .month, value: offset, to: Date()) ?? Date()
         let parts = calendar.dateComponents([.year, .month], from: date)
         return String(format: "%04d-%02d", parts.year ?? 0, parts.month ?? 0)
-    }
-
-    /// Streams the gzip file through zlib into one string. ~30 MB decompressed
-    /// for the full database, parsed off the main actor.
-    private static func readGzip(at url: URL) -> String? {
-        guard let file = gzopen(url.path, "rb") else { return nil }
-        defer { _ = gzclose(file) }
-        var data = Data()
-        var buffer = [UInt8](repeating: 0, count: 1 << 16)
-        while true {
-            let read = gzread(file, &buffer, UInt32(buffer.count))
-            guard read > 0 else { break }
-            data.append(contentsOf: buffer[0..<Int(read)])
-        }
-        return String(decoding: data, as: UTF8.self)
     }
 }

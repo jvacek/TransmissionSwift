@@ -237,7 +237,7 @@ extension TorrentGetResponse {
         "doneDate", "startDate", "secondsDownloading", "secondsSeeding",
         "leftUntilDone", "sizeWhenDone",
         "downloadedEver", "uploadedEver", "activityDate",
-        "comment", "creator", "dateCreated", "isPrivate",
+        "isPrivate",
         "downloadLimit", "downloadLimited", "uploadLimit", "uploadLimited",
         "honorsSessionLimits",
         "seedRatioLimit", "seedRatioMode", "seedIdleLimit", "seedIdleMode",
@@ -245,11 +245,12 @@ extension TorrentGetResponse {
     ]
 
     /// Extra fields fetched for the inspector — only requested for the selected
-    /// torrent, not the full list.
+    /// torrent, not the full list. `trackerStats` is absent because it already
+    /// rides the list fields.
     public static let inspectorFields: [String] = [
         "files", "fileStats",
         "peers",
-        "trackerStats",
         "magnetLink",
+        "comment", "creator", "dateCreated",
     ]
 }

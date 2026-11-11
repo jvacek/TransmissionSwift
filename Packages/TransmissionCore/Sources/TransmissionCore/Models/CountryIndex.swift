@@ -1,3 +1,4 @@
+import CZlib
 import Foundation
 
 /// Sorted IPv4 → ISO-3166 country lookup, built from a DB-IP "IP to Country
@@ -17,17 +18,45 @@ public struct CountryIndex: Sendable {
 
     public init(csv: String) {
         for line in csv.split(whereSeparator: \.isNewline) {
-            let fields = line.split(separator: ",", maxSplits: 2)
-            guard fields.count == 3,
-                let start = Self.ipv4(fields[0]),
-                let end = Self.ipv4(fields[1])
-            else { continue }
-            let code = fields[2].trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !code.isEmpty, code != "ZZ" else { continue }
-            starts.append(start)
-            ends.append(end)
-            rowCode.append(intern(code))
+            appendRow(line)
         }
+        assertOrdering()
+    }
+
+    /// Builds the index by streaming a DB-IP gzip dump line by line. The dump is
+    /// ~31 MB uncompressed (732k rows); reading it into one `Data` + `String`
+    /// first leaves the allocator holding ~90 MB of high-water footprint for the
+    /// life of the process, so parse straight out of zlib instead.
+    public init?(gzipAt url: URL) {
+        guard let file = gzopen(url.path, "rb") else { return nil }
+        defer { _ = gzclose(file) }
+        // DB-IP's longest row is under 100 bytes. gzgets only truncates a
+        // longer line, which then fails to parse — no worse than skipping it.
+        var buffer = [CChar](repeating: 0, count: 256)
+        while true {
+            let read = buffer.withUnsafeMutableBufferPointer { bytes in
+                gzgets(file, bytes.baseAddress, Int32(bytes.count))
+            }
+            guard read != nil else { break }
+            appendRow(String(cString: buffer))
+        }
+        assertOrdering()
+    }
+
+    private mutating func appendRow(_ line: some StringProtocol) {
+        let fields = line.split(separator: ",", maxSplits: 2)
+        guard fields.count == 3,
+            let start = Self.ipv4(fields[0]),
+            let end = Self.ipv4(fields[1])
+        else { return }
+        let code = fields[2].trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !code.isEmpty, code != "ZZ" else { return }
+        starts.append(start)
+        ends.append(end)
+        rowCode.append(intern(code))
+    }
+
+    private func assertOrdering() {
         assert(
             zip(starts, starts.dropFirst()).allSatisfy { pair in pair.0 <= pair.1 },
             "GeoIP CSV was not in ascending start-IP order")

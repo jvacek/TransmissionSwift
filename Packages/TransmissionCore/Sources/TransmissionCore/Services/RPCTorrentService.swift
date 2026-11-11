@@ -54,7 +54,10 @@ public actor RPCTorrentService: TorrentService {
         // A new stream means a new connection; the snapshot belongs to the old
         // one, so start with a full poll.
         snapshot.reset()
-        let (stream, cont) = AsyncThrowingStream<[Torrent], Error>.makeStream()
+        let (stream, cont) = AsyncThrowingStream<[Torrent], Error>.makeStream(
+            // Only the latest snapshot matters: an unbounded buffer would queue
+            // whole torrent lists while the main actor is busy.
+            bufferingPolicy: .bufferingNewest(1))
         self.continuation = cont
         // The loop owns the stream it was started for. A cancelled predecessor
         // finishing must not finish the stream that replaced it.
