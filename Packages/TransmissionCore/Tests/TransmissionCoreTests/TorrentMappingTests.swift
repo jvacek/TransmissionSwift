@@ -166,6 +166,31 @@ struct StatusMappingTests {
         #expect(!Torrent(wire: makeWire(status: 6, isFinished: true)).isStopped)
     }
 
+    @Test("a non-wire torrent derives stopped from its status")
+    func isStoppedDerivedFromStatus() {
+        func make(status: TorrentStatus, isStopped: Bool? = nil) -> Torrent {
+            Torrent(
+                id: 1,
+                name: "Torrent",
+                hash: "hash",
+                size: 1,
+                status: status,
+                isStopped: isStopped,
+                progress: 0,
+                primaryTracker: "",
+                downloadFolder: "/downloads",
+                addedAt: Date(timeIntervalSince1970: 0),
+                pieces: 1,
+                pieceSize: 1,
+                havePieces: 0)
+        }
+
+        #expect(make(status: .paused).isStopped)
+        #expect(!make(status: .seeding).isStopped)
+        // An explicit value from a non-wire source still wins.
+        #expect(!make(status: .paused, isStopped: false).isStopped)
+    }
+
     @Test("status 1, 3, 5 map to .queued")
     func queuedStatuses() {
         for s in [1, 3, 5] {

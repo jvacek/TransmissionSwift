@@ -10,7 +10,8 @@ public struct Torrent: Identifiable, Hashable, Sendable {
     public var status: TorrentStatus
     /// The daemon's wire status was 0. Not derivable from `status`, which
     /// reports every finished torrent as `.completed` whether it is stopped or
-    /// still seeding.
+    /// still seeding. The wire mapping passes the daemon's value explicitly;
+    /// other callers can omit it and get the best guess from `status`.
     public var isStopped: Bool
     public var progress: Double
     public var downloadSpeed: Int64
@@ -73,7 +74,9 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         hash: String,
         size: Int64,
         status: TorrentStatus,
-        isStopped: Bool = false,
+        // `nil` derives a best guess from `status`; the wire mapping passes the
+        // daemon's value because `.completed` can be either stopped or seeding.
+        isStopped: Bool? = nil,
         progress: Double,
         downloadSpeed: Int64 = 0,
         uploadSpeed: Int64 = 0,
@@ -119,7 +122,7 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         self.hash = hash
         self.size = size
         self.status = status
-        self.isStopped = isStopped
+        self.isStopped = isStopped ?? (status == .paused)
         self.progress = progress
         self.downloadSpeed = downloadSpeed
         self.uploadSpeed = uploadSpeed
