@@ -34,23 +34,25 @@ struct AddTorrentFileIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let dialog = try await addTorrent(
-            server: server, magnet: nil, file: file, paused: paused,
+            server: server, link: nil, file: file, paused: paused,
             destination: destination, labels: labels, priority: priority)
         return .result(dialog: "\(dialog)")
     }
 }
 
-/// Adds a magnet link to a server. Separate from `AddTorrentFileIntent` because
-/// a magnet and a file are mutually exclusive, and App Intents can't express
-/// "exactly one of these two".
+/// Adds a magnet link or torrent URL to a server. Separate from
+/// `AddTorrentFileIntent` because a link and a file are mutually exclusive, and
+/// App Intents can't express "exactly one of these two".
 struct AddMagnetLinkIntent: AppIntent {
-    static let title: LocalizedStringResource = "Add Magnet Link"
+    static let title: LocalizedStringResource = "Add Torrent Link"
     static var description: IntentDescription? {
-        IntentDescription("Adds a magnet link to a Transmission server.")
+        IntentDescription("Adds a magnet link or torrent URL to a Transmission server.")
     }
     static let openAppWhenRun = false
 
-    @Parameter(title: "Magnet Link")
+    /// Kept named `magnet` so parameter identifiers in existing Shortcuts stay
+    /// valid; the title also accepts an http(s) URL.
+    @Parameter(title: "Magnet Link or URL")
     var magnet: URL
 
     @Parameter(title: "Server")
@@ -70,7 +72,7 @@ struct AddMagnetLinkIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let dialog = try await addTorrent(
-            server: server, magnet: magnet.absoluteString, file: nil, paused: paused,
+            server: server, link: magnet.absoluteString, file: nil, paused: paused,
             destination: destination, labels: labels, priority: priority)
         return .result(dialog: "\(dialog)")
     }
@@ -80,7 +82,7 @@ struct AddMagnetLinkIntent: AppIntent {
 /// crafted `filename` can't escape it, and removed when the call returns.
 private func addTorrent(
     server: ServerEntity?,
-    magnet: String?,
+    link: String?,
     file: IntentFile?,
     paused: Bool?,
     destination: String?,
@@ -97,10 +99,10 @@ private func addTorrent(
     let linkURL: String?
     let fileURL: URL?
     let what: String
-    if let magnet {
-        linkURL = magnet
+    if let link {
+        linkURL = link
         fileURL = nil
-        what = "magnet link"
+        what = link.hasPrefix("magnet:") ? "magnet link" : "torrent URL"
     } else if let file {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("TransmissionSwift-Intent-\(UUID().uuidString)", isDirectory: true)
@@ -113,7 +115,7 @@ private func addTorrent(
         fileURL = url
         what = name.isEmpty ? "torrent file" : name
     } else {
-        throw IntentError(message: "Provide a magnet link or a torrent file.")
+        throw IntentError(message: "Provide a magnet link, torrent URL or torrent file.")
     }
 
     let startWhenAdded = !(paused ?? false)

@@ -434,6 +434,19 @@ struct AppIntentTests {
         #expect(after.contains { $0.name == "My Torrent" })
     }
 
+    @Test func addTorrentURLAddsTorrent() async throws {
+        let harness = try makeHarness()
+        defer { cleanup(harness) }
+
+        let before = try await harness.service.torrents().count
+        let intent = AddMagnetLinkIntent()
+        intent.magnet = URL(string: "https://example.com/file.torrent")!
+        _ = try await intent.perform()
+
+        let after = try await harness.service.torrents()
+        #expect(after.count == before + 1)
+    }
+
     @Test func setServerSpeedLimitsRejectsLimitWithoutValue() async throws {
         let harness = try makeHarness()
         defer { cleanup(harness) }
