@@ -39,7 +39,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let tableView = NSTableView()
+        let tableView = TorrentTableView()
         tableView.rowHeight = 28
         tableView.usesAutomaticRowHeights = false
         tableView.allowsMultipleSelection = true
@@ -71,6 +71,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         // at its default on each launch.
         let coordinator = context.coordinator
         coordinator.tableView = tableView
+        tableView.onCopy = { [weak coordinator] in coordinator?.copySelectedNames() ?? false }
         for spec in TorrentTableColumns.all {
             let column = coordinator.makeColumn(from: spec)
             column.isHidden = spec.hiddenByDefault
@@ -270,6 +271,19 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                 rows: rows,
                 displayedRows: displayedRows,
                 selection: selectionBinding.wrappedValue)
+        }
+
+        /// ⌘C while the table has focus copies the selected torrent names, one
+        /// per line, in table order. Returns false when nothing is selected so
+        /// the subclass can leave the pasteboard alone.
+        func copySelectedNames() -> Bool {
+            let selection = selectionBinding.wrappedValue
+            let names = displayedRows.filter { selection.contains($0.id) }.map(\.torrent.name)
+            guard !names.isEmpty else { return false }
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(names.joined(separator: "\n"), forType: .string)
+            return true
         }
 
         @objc func doubleClicked(_ sender: Any?) {
@@ -813,5 +827,24 @@ private final class DestructiveMenuItem: NSMenuItem {
         attributedTitle = NSAttributedString(
             string: title,
             attributes: [.foregroundColor: color])
+    }
+}
+
+/// The table's ⌘C. The Edit menu's Copy action travels the responder chain, so
+/// this only wins while the table has focus; text fields keep their own copy.
+/// The selector is spelled `copy:` explicitly rather than as `copy(_:)` to
+/// avoid colliding with `NSObject.copy()`.
+private final class TorrentTableView: NSTableView {
+    var onCopy: (() -> Bool)?
+
+    @objc(copy:) func copySelectedTorrents(_ sender: Any?) {
+        _ = onCopy?()
+    }
+
+    override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        if item.action == #selector(copySelectedTorrents(_:)) {
+            return !selectedRowIndexes.isEmpty
+        }
+        return super.validateUserInterfaceItem(item)
     }
 }
