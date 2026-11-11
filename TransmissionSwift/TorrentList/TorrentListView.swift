@@ -25,24 +25,7 @@ struct TorrentListView: View {
             labelsSupported: store.session.supportsLabels,
             tagColors: tagColors.colors,
             onRowAction: { action, ids in
-                Task {
-                    switch action {
-                    case .resume: await store.actions.start(ids)
-                    case .pause: await store.actions.stop(ids)
-                    case .setPriority(let priority): await store.actions.setPriority(ids, priority: priority)
-                    case .verify: await store.actions.verify(ids)
-                    case .reannounce: await store.actions.reannounce(ids)
-                    case .remove: store.actions.requestRemove(ids)
-                    case .removeAndDeleteData:
-                        store.actions.requestRemove(ids, deleteLocalData: true)
-                    case .editLabels:
-                        store.openEditLabels(for: ids)
-                    case .setLocation:
-                        store.openSetLocation(for: ids)
-                    case .rename:
-                        if let id = ids.first { store.openRenameTorrent(for: id) }
-                    }
-                }
+                store.perform(action, ids: ids)
             },
             onInspectorRequest: {
                 store.inspector.isVisible = true
@@ -71,6 +54,25 @@ struct TorrentListView: View {
             await MappingOpener.open(
                 mapping, torrent: torrent, file: nil, profile: profile, store: store,
                 mappingStore: mappingStore)
+        }
+    }
+}
+
+extension TorrentStore {
+    /// Runs a torrent action for `ids`. The row context menu, the Torrent menu
+    /// and its keyboard shortcuts all funnel through here so they cannot drift.
+    func perform(_ action: TorrentRowAction, ids: [Torrent.ID]) {
+        switch action {
+        case .resume: Task { await actions.start(ids) }
+        case .pause: Task { await actions.stop(ids) }
+        case .setPriority(let priority): Task { await actions.setPriority(ids, priority: priority) }
+        case .verify: Task { await actions.verify(ids) }
+        case .reannounce: Task { await actions.reannounce(ids) }
+        case .remove: actions.requestRemove(ids)
+        case .removeAndDeleteData: actions.requestRemove(ids, deleteLocalData: true)
+        case .editLabels: openEditLabels(for: ids)
+        case .setLocation: openSetLocation(for: ids)
+        case .rename: if let id = ids.first { openRenameTorrent(for: id) }
         }
     }
 }

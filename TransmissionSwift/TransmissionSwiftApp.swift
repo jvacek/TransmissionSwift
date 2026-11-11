@@ -195,6 +195,7 @@ struct TransmissionSwiftApp: App {
         }
         .commands {
             FileCommands(torrentStore: torrentStore)
+            TorrentCommands(torrentStore: torrentStore)
             AboutCommands(updateService: updateService)
             PreferencesCommands()
             ServerCommands(profileStore: profileStore)
@@ -247,6 +248,136 @@ private struct FileCommands: Commands {
             }
             .keyboardShortcut("o", modifiers: [.command, .shift])
         }
+    }
+}
+
+// MARK: - Torrent commands
+
+/// Selection-based torrent actions and their keyboard shortcuts. Everything
+/// reads the store's selection rather than the focused view, matching the
+/// toolbar: a shortcut works wherever focus sits in the window.
+private struct TorrentCommands: Commands {
+    let torrentStore: TorrentStore
+
+    private var ids: [Torrent.ID] { Array(torrentStore.list.selectedTorrentIDs) }
+    private var canAct: Bool { torrentStore.actionsEnabled && !ids.isEmpty }
+    private var canRename: Bool { canAct && ids.count == 1 }
+
+    var body: some Commands {
+        CommandGroup(after: .pasteboard) {
+            Button("Copy Magnet Link") {
+                torrentStore.copyMagnetLinks()
+            }
+            .keyboardShortcut("c", modifiers: [.command, .shift])
+            .disabled(ids.isEmpty)
+        }
+        CommandMenu("Torrent") {
+            Button("Resume") {
+                torrentStore.perform(.resume, ids: ids)
+            }
+            .keyboardShortcut("r", modifiers: .command)
+            .disabled(!canAct)
+
+            Button("Pause") {
+                torrentStore.perform(.pause, ids: ids)
+            }
+            .keyboardShortcut("p", modifiers: .command)
+            .disabled(!canAct)
+
+            Button("Start or Stop Selected") {
+                toggle(ids)
+            }
+            .keyboardShortcut("s", modifiers: .command)
+            .disabled(!canAct)
+
+            Button("Start or Stop All") {
+                toggle(torrentStore.list.torrents.map(\.id))
+            }
+            .keyboardShortcut("s", modifiers: [.command, .shift])
+            .disabled(!torrentStore.actionsEnabled)
+
+            Divider()
+
+            Button("Verify Local Data") {
+                torrentStore.perform(.verify, ids: ids)
+            }
+            .disabled(!canAct)
+
+            Button("Update Tracker") {
+                torrentStore.perform(.reannounce, ids: ids)
+            }
+            .disabled(!canAct)
+
+            Divider()
+
+            Button("Edit Labels…") {
+                torrentStore.perform(.editLabels, ids: ids)
+            }
+            .disabled(!canAct || !torrentStore.session.supportsLabels)
+
+            Button("Set Location…") {
+                torrentStore.perform(.setLocation, ids: ids)
+            }
+            .disabled(!canAct)
+
+            Button("Rename…") {
+                torrentStore.perform(.rename, ids: ids)
+            }
+            .disabled(!canRename)
+
+            Divider()
+
+            Button("Remove…") {
+                torrentStore.perform(.remove, ids: ids)
+            }
+            .keyboardShortcut(.delete, modifiers: .command)
+            .disabled(!canAct)
+
+            Button("Remove and Delete Data…") {
+                torrentStore.perform(.removeAndDeleteData, ids: ids)
+            }
+            .keyboardShortcut(.delete, modifiers: [.command, .option])
+            .disabled(!canAct)
+        }
+    }
+
+    private func toggle(_ ids: [Torrent.ID]) {
+        let targets = torrentToggleTargets(ids: ids, torrents: torrentStore.list.torrents)
+        Task {
+            if !targets.stop.isEmpty { await torrentStore.actions.stop(targets.stop) }
+            if !targets.start.isEmpty { await torrentStore.actions.start(targets.start) }
+        }
+    }
+}
+
+/// Per-torrent start/stop split, matching transgui's toggle: a stopped torrent
+/// starts, anything else stops. `torrents` order is kept and unknown ids are
+/// ignored.
+nonisolated func torrentToggleTargets(
+    ids: [Torrent.ID], torrents: [Torrent]
+) -> (start: [Torrent.ID], stop: [Torrent.ID]) {
+    let selected = Set(ids)
+    var start: [Torrent.ID] = []
+    var stop: [Torrent.ID] = []
+    for torrent in torrents where selected.contains(torrent.id) {
+        if torrent.isStopped {
+            start.append(torrent.id)
+        } else {
+            stop.append(torrent.id)
+        }
+    }
+    return (start, stop)
+}
+
+extension TorrentStore {
+    /// Copies the selected torrents' magnet links, one per line, in table order.
+    func copyMagnetLinks() {
+        let selected = list.selectedTorrentIDs
+        let links = list.torrents.filter { selected.contains($0.id) }.map(\.magnetURI)
+        guard !links.isEmpty else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(links.joined(separator: "\n"), forType: .string)
     }
 }
 

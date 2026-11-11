@@ -5,6 +5,7 @@
 //  Created by Jonas Vacek on 10/06/2026.
 //
 
+import AppKit
 import XCTest
 
 final class TransmissionSwiftUITests: XCTestCase {
@@ -98,6 +99,90 @@ final class TransmissionSwiftUITests: XCTestCase {
         XCTAssertTrue(
             firstRow.waitForExistence(timeout: 5),
             "Expected a known fixture torrent name to render")
+    }
+
+    /// Daemon-free coverage for the Torrent menu: menu presence, selection
+    /// driving enablement (the part that proves `Commands` observe the store),
+    /// and the ⌘⇧C copy shortcut. Snapshot replay is read-only, so every
+    /// mutation must stay disabled and Copy is the one action that works.
+    @MainActor
+    func testSnapshotTorrentMenuAndCopyShortcut() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let pasteboard = NSPasteboard.general
+        let savedItems = pasteboard.pasteboardItems
+        defer {
+            pasteboard.clearContents()
+            if let savedItems { pasteboard.writeObjects(savedItems) }
+        }
+
+        let app = XCUIApplication()
+        app.launchArguments = ["--snapshot", fixture.path]
+        app.launch()
+
+        let table = app.tables["torrents.table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 15))
+        let cell = table.cells.firstMatch
+        XCTAssertTrue(
+            cell.waitForExistence(timeout: 10),
+            "Expected snapshot data to populate at least one table row")
+
+        let menuBar = app.menuBars.firstMatch
+        let torrentMenu = menuBar.menuBarItems["Torrent"]
+        XCTAssertTrue(torrentMenu.waitForExistence(timeout: 5), "Expected a Torrent menu")
+
+        // Read-only replay: mutating commands are present but disabled.
+        torrentMenu.click()
+        let resume = app.menuItems["Resume"]
+        XCTAssertTrue(resume.waitForExistence(timeout: 3))
+        XCTAssertFalse(resume.isEnabled)
+        XCTAssertFalse(app.menuItems["Start or Stop All"].isEnabled)
+        app.typeKey(.escape, modifierFlags: [])
+
+        // No selection: Copy Magnet Link is off as well.
+        let editMenu = menuBar.menuBarItems["Edit"]
+        editMenu.click()
+        let copyMagnet = app.menuItems["Copy Magnet Link"]
+        XCTAssertTrue(copyMagnet.waitForExistence(timeout: 3))
+        XCTAssertFalse(copyMagnet.isEnabled)
+        app.typeKey(.escape, modifierFlags: [])
+
+        // Selecting a row flips it on, proving the commands track the selection.
+        cell.click()
+        editMenu.click()
+        XCTAssertTrue(copyMagnet.waitForExistence(timeout: 3))
+        XCTAssertTrue(waitUntil { copyMagnet.isEnabled })
+        app.typeKey(.escape, modifierFlags: [])
+
+        // Mutations stay disabled even with a selection: replay is read-only.
+        torrentMenu.click()
+        XCTAssertTrue(waitUntil { !app.menuItems["Resume"].isEnabled })
+        app.typeKey(.escape, modifierFlags: [])
+
+        // The key equivalent itself, not just the menu item.
+        pasteboard.clearContents()
+        app.typeKey("c", modifierFlags: [.command, .shift])
+        XCTAssertTrue(
+            waitUntil { pasteboard.string(forType: .string)?.hasPrefix("magnet:?xt=urn:btih:") == true },
+            "Expected ⌘⇧C to copy a magnet link")
+
+        let link = pasteboard.string(forType: .string) ?? ""
+        XCTAssertTrue(link.contains("&dn="), "Magnet link is missing the display name: \(link)")
+        XCTAssertTrue(link.contains("&tr="), "Magnet link is missing a tracker: \(link)")
+        XCTAssertFalse(link.contains("\n"), "One selected row must copy exactly one link")
+    }
+
+    /// Polls the given condition, keeping menu state assertions honest while
+    /// SwiftUI commits the selection change.
+    private func waitUntil(timeout: TimeInterval = 3, _ condition: () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return true }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+        return condition()
     }
 
     /// `#filePath`-derived path (repo checkout layout) with a bundled-resource

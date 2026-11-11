@@ -8,6 +8,10 @@ public struct Torrent: Identifiable, Hashable, Sendable {
     public var hash: String
     public var size: Int64
     public var status: TorrentStatus
+    /// The daemon's wire status was 0. Not derivable from `status`, which
+    /// reports every finished torrent as `.completed` whether it is stopped or
+    /// still seeding.
+    public var isStopped: Bool
     public var progress: Double
     public var downloadSpeed: Int64
     public var uploadSpeed: Int64
@@ -69,6 +73,7 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         hash: String,
         size: Int64,
         status: TorrentStatus,
+        isStopped: Bool = false,
         progress: Double,
         downloadSpeed: Int64 = 0,
         uploadSpeed: Int64 = 0,
@@ -114,6 +119,7 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         self.hash = hash
         self.size = size
         self.status = status
+        self.isStopped = isStopped
         self.progress = progress
         self.downloadSpeed = downloadSpeed
         self.uploadSpeed = uploadSpeed
@@ -168,6 +174,30 @@ extension Torrent {
             || peersGettingFromUs > 0
             || webseedsSendingToUs > 0
     }
+
+    /// A magnet link assembled from the list poll's fields. `magnetLink` arrives
+    /// only with the inspector fetch, so list-level actions can't use it.
+    public var magnetURI: String {
+        var parts = ["xt=urn:btih:\(hash.lowercased())"]
+        if let name = name.addingPercentEncoding(withAllowedCharacters: Self.magnetValueAllowed),
+            !name.isEmpty
+        {
+            parts.append("dn=\(name)")
+        }
+        for tracker in trackers where !tracker.announce.isEmpty {
+            guard
+                let announce = tracker.announce.addingPercentEncoding(
+                    withAllowedCharacters: Self.magnetValueAllowed)
+            else { continue }
+            parts.append("tr=\(announce)")
+        }
+        return "magnet:?" + parts.joined(separator: "&")
+    }
+
+    /// `urlQueryAllowed` minus the characters that would split one query value
+    /// into two.
+    private static let magnetValueAllowed: CharacterSet = CharacterSet.urlQueryAllowed
+        .subtracting(CharacterSet(charactersIn: "&=+?#"))
 
     /// Overlay the inspector-fetched metadata onto the live list-poll torrent:
     /// transfer state stays fresh from the poll while static metadata and

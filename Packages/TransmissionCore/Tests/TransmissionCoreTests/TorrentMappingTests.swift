@@ -158,6 +158,14 @@ struct StatusMappingTests {
     @Test("status 0 maps to .paused")
     func status0() { #expect(Torrent(wire: makeWire(status: 0)).status == .paused) }
 
+    @Test("wire status 0 marks the torrent stopped, finished or not")
+    func isStoppedFollowsWireStatus() {
+        #expect(Torrent(wire: makeWire(status: 0)).isStopped)
+        #expect(Torrent(wire: makeWire(status: 0, isFinished: true)).isStopped)
+        #expect(!Torrent(wire: makeWire(status: 4)).isStopped)
+        #expect(!Torrent(wire: makeWire(status: 6, isFinished: true)).isStopped)
+    }
+
     @Test("status 1, 3, 5 map to .queued")
     func queuedStatuses() {
         for s in [1, 3, 5] {

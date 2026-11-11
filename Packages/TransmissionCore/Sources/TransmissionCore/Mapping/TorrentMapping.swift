@@ -220,6 +220,7 @@ extension Torrent {
             hash: wire.hashString,
             size: wire.totalSize,
             status: status,
+            isStopped: wire.status == 0,
             progress: wire.percentDone,
             downloadSpeed: wire.rateDownload,
             uploadSpeed: wire.rateUpload,
