@@ -370,16 +370,21 @@ private struct TorrentCommands: Commands {
             Button("Edit Labels…") {
                 torrentStore.perform(.editLabels, ids: ids)
             }
+            .keyboardShortcut("l", modifiers: [.command, .shift])
             .disabled(!canAct || !torrentStore.session.supportsLabels)
 
             Button("Set Location…") {
                 torrentStore.perform(.setLocation, ids: ids)
             }
+            .keyboardShortcut("g", modifiers: [.command, .shift])
             .disabled(!canAct)
 
             Button("Rename…") {
                 torrentStore.perform(.rename, ids: ids)
             }
+            // F2 is the AppKit function-key scalar (NSF2FunctionKey); SwiftUI
+            // has no named constant for function keys.
+            .keyboardShortcut("\u{F705}", modifiers: [])
             .disabled(!canRename)
 
             Divider()

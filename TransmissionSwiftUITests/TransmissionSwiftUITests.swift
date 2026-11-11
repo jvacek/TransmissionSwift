@@ -139,6 +139,9 @@ final class TransmissionSwiftUITests: XCTestCase {
         XCTAssertTrue(resume.waitForExistence(timeout: 3))
         XCTAssertFalse(resume.isEnabled)
         XCTAssertFalse(app.menuItems["Start or Stop All"].isEnabled)
+        XCTAssertTrue(app.menuItems["Edit Labels…"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.menuItems["Set Location…"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.menuItems["Rename…"].waitForExistence(timeout: 3))
         app.typeKey(.escape, modifierFlags: [])
 
         // No selection: Copy Magnet Link is off as well.
