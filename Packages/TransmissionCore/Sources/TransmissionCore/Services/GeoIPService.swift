@@ -18,6 +18,10 @@ public struct GeoIPServiceConfiguration: Sendable {
     public static let defaultDownloadTimeout: TimeInterval = 60
     /// Don't retry a failed or pending check more than once an hour.
     public static let defaultMinimumRetryInterval: TimeInterval = 60 * 60
+    /// A new month's file 404s until DB-IP publishes it, and the cached older
+    /// release would otherwise make every hourly check look due. Retry that
+    /// case at most once a day.
+    static let missingReleaseRetryInterval: TimeInterval = 24 * 60 * 60
 
     public var downloadTimeout: TimeInterval = Self.defaultDownloadTimeout
     public var minimumRetryInterval: TimeInterval = Self.defaultMinimumRetryInterval
@@ -38,11 +42,11 @@ public actor GeoIPService {
     private struct CacheMeta: Codable {
         /// The `YYYY-MM` release the cached file came from — which may be the
         /// previous month, if the current month wasn't published yet.
-        var downloadedRelease: String?
-        var lastSuccess: Date?
-        var lastAttempt: Date?
-        var etag: String?
-        var lastModified: String?
+        var downloadedRelease: String? = nil
+        var lastSuccess: Date? = nil
+        var lastAttempt: Date? = nil
+        var etag: String? = nil
+        var lastModified: String? = nil
     }
 
     private enum DownloadResult {
@@ -87,9 +91,10 @@ public actor GeoIPService {
         if let index {
             guard isRefreshDue else { return index }
             // Reload only when the refresh replaced the file; a 304 keeps the
-            // parsed index.
-            if await refreshCacheIfNeeded() {
-                self.index = nil
+            // parsed index. A replacement that fails to parse also keeps it,
+            // so one bad download can't disable flags for the whole process.
+            if await refreshCacheIfNeeded(), let loaded = await load() {
+                self.index = loaded
             }
             if let loaded = self.index { return loaded }
         }
@@ -118,11 +123,23 @@ public actor GeoIPService {
             return nil
         }
         guard let index = CountryIndex(gzipAt: url) else {
-            logger.error("Failed to decompress GeoIP database at \(url.path, privacy: .public)")
+            logger.error(
+                "GeoIP database at \(url.path, privacy: .public) is unreadable; discarding it")
+            discardCachedDatabase()
             return nil
         }
-        logger.info("Parsed GeoIP database from \(url.lastPathComponent, privacy: .public)")
+        logger.info(
+            "Parsed GeoIP database from \(url.lastPathComponent, privacy: .public) (\(index.rowCount) rows)"
+        )
         return index
+    }
+
+    /// Removes a database that parsed to nothing, keeping the retry floor so a
+    /// server that keeps answering with an error page isn't hammered. The next
+    /// due check downloads unconditionally because the cached meta is gone.
+    private func discardCachedDatabase() {
+        try? FileManager.default.removeItem(at: compressedDatabaseURL)
+        writeMeta(CacheMeta(lastAttempt: Date()))
     }
 
     /// Returns true when a new database file was written, so the parsed index
@@ -227,7 +244,8 @@ public actor GeoIPService {
     }
 
     /// Whether to hit the network now. A missing cache, or a cached file from an
-    /// older release, is always due once the one-hour retry floor has passed;
+    /// older release, is due once the retry floor has passed (one hour
+    /// normally, one day while waiting for the current month's release);
     /// otherwise the user's frequency decides. Internal for testing.
     static func needsDownload(
         hasFile: Bool,
@@ -240,7 +258,14 @@ public actor GeoIPService {
         minimumRetryInterval: TimeInterval = GeoIPServiceConfiguration.defaultMinimumRetryInterval,
         calendar: Calendar = .current
     ) -> Bool {
-        if let lastAttempt, now.timeIntervalSince(lastAttempt) < minimumRetryInterval {
+        // A cached file from an older release means the current month's file
+        // isn't published yet. Keep re-checking, but no more than once a day
+        // instead of on every hourly service check.
+        let retryFloor =
+            hasFile && downloadedRelease != nil && downloadedRelease != currentMonth
+            ? max(minimumRetryInterval, GeoIPServiceConfiguration.missingReleaseRetryInterval)
+            : minimumRetryInterval
+        if let lastAttempt, now.timeIntervalSince(lastAttempt) < retryFloor {
             return false
         }
         guard hasFile, let downloadedRelease else { return true }

@@ -105,6 +105,19 @@ struct GeoIPServiceTests {
         #expect(needs(release: "2026-09", frequency: .monthly, current: "2026-10"))
     }
 
+    @Test func pendingReleaseRetriesAtMostDaily() {
+        // Two hours after a failed check, the older cached release is not due.
+        #expect(
+            !needs(
+                release: "2026-09", attempt: "2026-10-09T06:00:00Z",
+                current: "2026-10", now: "2026-10-09T12:00:00Z"))
+        // Twenty-five hours later it is.
+        #expect(
+            needs(
+                release: "2026-09", attempt: "2026-10-08T06:00:00Z",
+                current: "2026-10", now: "2026-10-09T12:00:00Z"))
+    }
+
     @Test func frequencyGateForCurrentRelease() {
         #expect(!needs(frequency: .daily, success: "2026-10-09T08:00:00Z"))
         #expect(needs(frequency: .daily, success: "2026-10-08T08:00:00Z"))
@@ -164,6 +177,78 @@ struct GeoIPServiceTests {
         // No handler: both the current and previous month 404.
         #expect(await service.countryCode(forIPv4Address: "1.0.0.1") == "AU")
         #expect(GeoIPStubURLProtocol.requestCount() == 2)
+    }
+
+    @Test func corruptDownloadKeepsTheLoadedIndexAndRecovers() async throws {
+        GeoIPStubURLProtocol.reset()
+        let directory = freshCache()
+        let month = monthString()
+        try writeCache(directory, gzip: auGzip, release: month, success: Date(), attempt: .distantPast)
+        let service = GeoIPService(
+            cacheDirectory: directory,
+            session: GeoIPStubURLProtocol.makeSession(),
+            configuration: configuration(.daily))
+
+        #expect(await service.countryCode(forIPv4Address: "1.0.0.1") == "AU")
+
+        try writeCache(
+            directory, gzip: auGzip, release: month,
+            success: Date().addingTimeInterval(-86_400), attempt: .distantPast)
+        GeoIPStubURLProtocol.register(path: databasePath(month: month)) { request in
+            (
+                HTTPURLResponse(
+                    url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1",
+                    headerFields: [:])!,
+                Data("<html>error</html>".utf8)
+            )
+        }
+
+        // The bad file is discarded, but the parsed index stays usable.
+        #expect(await service.countryCode(forIPv4Address: "1.0.0.1") == "AU")
+        #expect(GeoIPStubURLProtocol.requestCount() == 1)
+
+        GeoIPStubURLProtocol.register(path: databasePath(month: month)) { request in
+            (
+                HTTPURLResponse(
+                    url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1",
+                    headerFields: ["ETag": "\"v2\""])!,
+                cnGzip
+            )
+        }
+
+        #expect(await service.countryCode(forIPv4Address: "1.0.0.1") == "CN")
+        #expect(GeoIPStubURLProtocol.requestCount() == 2)
+    }
+
+    @Test func refreshFloorSkipsRepeatedChecksWhileTheAppRuns() async throws {
+        GeoIPStubURLProtocol.reset()
+        let directory = freshCache()
+        let month = monthString()
+        try writeCache(directory, gzip: auGzip, release: month, success: Date(), attempt: .distantPast)
+        var configuration = configuration(.daily)
+        configuration.minimumRetryInterval = 3_600
+        let service = GeoIPService(
+            cacheDirectory: directory,
+            session: GeoIPStubURLProtocol.makeSession(),
+            configuration: configuration)
+
+        #expect(await service.countryCode(forIPv4Address: "1.0.0.1") == "AU")
+
+        // A due-looking cache and a changed server must still wait out the floor.
+        try writeCache(
+            directory, gzip: auGzip, release: month,
+            success: Date().addingTimeInterval(-86_400), attempt: .distantPast)
+        GeoIPStubURLProtocol.register(path: databasePath(month: month)) { request in
+            (
+                HTTPURLResponse(
+                    url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1",
+                    headerFields: [:])!,
+                cnGzip
+            )
+        }
+
+        #expect(await service.countryCode(forIPv4Address: "1.0.0.1") == "AU")
+        #expect(GeoIPStubURLProtocol.requestCount() == 0)
     }
 
     @Test func onStartupChecksOnlyOncePerProcess() async throws {

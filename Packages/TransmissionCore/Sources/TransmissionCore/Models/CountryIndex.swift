@@ -30,6 +30,12 @@ public struct CountryIndex: Sendable {
     public init?(gzipAt url: URL) {
         guard let file = gzopen(url.path, "rb") else { return nil }
         defer { _ = gzclose(file) }
+        // ~732k rows. Reserving keeps the three parallel arrays from repeatedly
+        // reallocating, and from holding a transient double copy, on the path
+        // that exists to keep memory use down.
+        starts.reserveCapacity(Self.typicalRowCount)
+        ends.reserveCapacity(Self.typicalRowCount)
+        rowCode.reserveCapacity(Self.typicalRowCount)
         // DB-IP's longest row is under 100 bytes. gzgets only truncates a
         // longer line, which then fails to parse — no worse than skipping it.
         var buffer = [CChar](repeating: 0, count: 256)
@@ -41,7 +47,23 @@ public struct CountryIndex: Sendable {
             let text = buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
             appendRow(String(decoding: text, as: UTF8.self))
         }
+        // gzgets returns nil at EOF and on a corrupt or truncated stream. Only
+        // the former leaves a complete database; the latter would otherwise be
+        // cached as a valid, partially populated index.
+        var errorCode: Int32 = 0
+        _ = gzerror(file, &errorCode)
+        guard errorCode == 0, gzeof(file) != 0, !starts.isEmpty else { return nil }
         assertOrdering()
+    }
+
+    private static let typicalRowCount = 750_000
+
+    /// Accepted country codes are two ASCII letters; `ZZ` (unknown) is dropped.
+    /// Anything else is a malformed row or a truncated line, not a flag.
+    private static func countryCode(_ text: String) -> String? {
+        guard text.count == 2, text.allSatisfy({ $0.isASCII && $0.isLetter }) else { return nil }
+        let code = text.uppercased()
+        return code == "ZZ" ? nil : code
     }
 
     private mutating func appendRow(_ line: some StringProtocol) {
@@ -50,8 +72,8 @@ public struct CountryIndex: Sendable {
             let start = Self.ipv4(fields[0]),
             let end = Self.ipv4(fields[1])
         else { return }
-        let code = fields[2].trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !code.isEmpty, code != "ZZ" else { return }
+        let rawCode = fields[2].trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let code = Self.countryCode(rawCode) else { return }
         starts.append(start)
         ends.append(end)
         rowCode.append(intern(code))
@@ -64,6 +86,9 @@ public struct CountryIndex: Sendable {
     }
 
     public var isEmpty: Bool { starts.isEmpty }
+
+    /// Rows with a valid IPv4 range and country code.
+    public var rowCount: Int { starts.count }
 
     public func countryCode(forIPv4 ip: UInt32) -> String? {
         guard !starts.isEmpty else { return nil }
@@ -84,6 +109,9 @@ public struct CountryIndex: Sendable {
 
     private mutating func intern(_ code: String) -> UInt16 {
         if let existing = codeIndex[code] { return existing }
+        // `appendRow` only accepts two-letter codes, so the count is bounded by
+        // 26 * 26 and the conversion can't trap.
+        assert(countryCodes.count < Int(UInt16.max))
         let index = UInt16(countryCodes.count)
         countryCodes.append(code)
         codeIndex[code] = index
