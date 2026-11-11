@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import TransmissionCore
 import UniformTypeIdentifiers
@@ -18,7 +19,7 @@ struct AddTorrentSheet: View {
     var prefilledURL: URL? = nil
     var serverName: String? = nil
 
-    private enum Field: Hashable { case magnet, destination }
+    private enum Field: Hashable { case magnet, destination, fileList }
 
     @FocusState private var focusedField: Field?
     @State private var mode: AddTorrentInputMode = .file
@@ -27,6 +28,8 @@ struct AddTorrentSheet: View {
     @State private var fileTorrentName: String?
     @State private var addFiles: [TorrentAddFile] = []
     @State private var fileFilter = ""
+    /// Row selection for bulk actions, separate from each file's `wanted` flag.
+    @State private var fileSelection = FileListSelection()
     @State private var magnetString: String = ""
     @State private var destination: String = ""
     @State private var tags: [String] = []
@@ -213,7 +216,10 @@ struct AddTorrentSheet: View {
         if mode == .file, addFiles.count > 1 {
             VStack(alignment: .leading, spacing: 8) {
                 Button {
-                    withAnimation(.snappy(duration: 0.2)) { filesExpanded.toggle() }
+                    withAnimation(.snappy(duration: 0.2)) {
+                        filesExpanded.toggle()
+                        if !filesExpanded { clearFileSelection() }
+                    }
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "chevron.right")
@@ -224,7 +230,7 @@ struct AddTorrentSheet: View {
                         Spacer()
                         Text(selectionSummary)
                             .font(.caption)
-                            .foregroundStyle(hasNoWantedFiles ? Color.red : Color.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .contentShape(Rectangle())
                 }
@@ -238,12 +244,16 @@ struct AddTorrentSheet: View {
                         HStack(spacing: 8) {
                             fileFilterField
                             HStack(spacing: 6) {
-                                Button("Select All") { setAllWanted(true) }
+                                Button("Download All") { setAllWanted(true) }
                                 Divider().frame(height: 12)
                                 Button("None") { setAllWanted(false) }
                             }
                             .buttonStyle(.borderless)
                             .controlSize(.small)
+                        }
+
+                        if !fileSelection.isEmpty {
+                            fileBulkActions
                         }
 
                         if filteredFileIndices.isEmpty {
@@ -259,12 +269,29 @@ struct AddTorrentSheet: View {
                                         offset, index in
                                         AddTorrentFileRow(
                                             file: $addFiles[index],
-                                            shaded: !offset.isMultiple(of: 2))
+                                            shaded: !offset.isMultiple(of: 2),
+                                            isSelected: fileSelection.ids.contains(index)
+                                        )
+                                        .onTapGesture { selectFile(index) }
+                                        .contextMenu { fileContextMenu(for: index) }
                                     }
                                 }
                             }
                             .frame(height: filesListHeight)
                             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .focusable()
+                            .focusEffectDisabled()
+                            .focused($focusedField, equals: .fileList)
+                            .onKeyPress(keys: ["a"]) { press in
+                                guard press.modifiers.contains(.command) else { return .ignored }
+                                selectAllVisibleFiles()
+                                return .handled
+                            }
+                            .onKeyPress(.escape) {
+                                guard !fileSelection.isEmpty else { return .ignored }
+                                clearFileSelection()
+                                return .handled
+                            }
                         }
                     }
                     .padding(8)
@@ -277,13 +304,75 @@ struct AddTorrentSheet: View {
                             .stroke(Color.secondary.opacity(0.25))
                     )
 
-                    if hasNoWantedFiles {
-                        Text("Choose at least one file to download.")
+                    if !addFiles.isEmpty, wantedFiles.isEmpty {
+                        Text("No files selected. The torrent will be added with every file skipped.")
                             .font(.caption)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
+        }
+    }
+
+    /// Bulk actions for the highlighted rows. Appears only while rows are
+    /// selected, so the checkbox and priority are the primary per-file controls.
+    private var fileBulkActions: some View {
+        HStack(spacing: 8) {
+            Text("\(fileSelection.ids.count) selected")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            Spacer()
+            HStack(spacing: 6) {
+                Button("Download") { setWanted(true, for: fileSelection.ids) }
+                Divider().frame(height: 12)
+                Button("Skip") { setWanted(false, for: fileSelection.ids) }
+                Menu("Priority") {
+                    priorityMenuItems(ids: fileSelection.ids)
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            Button {
+                clearFileSelection()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Clear selection")
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.accentColor.opacity(0.12))
+        )
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    @ViewBuilder
+    private func priorityMenuItems(ids: Set<Int>) -> some View {
+        ForEach(FilePriorityChoice.allCases, id: \.self) { choice in
+            Button {
+                applyPriority(choice, to: ids)
+            } label: {
+                Label(choice.displayLabel, systemImage: choice.systemImage)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func fileContextMenu(for index: Int) -> some View {
+        // Right-clicking a selected row acts on the whole selection; right-clicking
+        // an unselected row acts on that row.
+        let ids = fileSelection.ids.contains(index) ? fileSelection.ids : [index]
+        Button("Download") { setWanted(true, for: ids) }
+        Button("Skip") { setWanted(false, for: ids) }
+        Divider()
+        Menu("Priority") {
+            priorityMenuItems(ids: ids)
         }
     }
 
@@ -401,6 +490,7 @@ struct AddTorrentSheet: View {
         fileTorrentName = TorrentMetainfoReader.displayName(at: url)
         addFiles = TorrentMetainfoReader.files(at: url) ?? []
         fileFilter = ""
+        clearFileSelection()
     }
 
     private var filteredFileIndices: [Int] {
@@ -415,22 +505,53 @@ struct AddTorrentSheet: View {
         CGFloat(min(max(filteredFileIndices.count, 1), 8)) * addFileRowHeight
     }
 
-    private var selectedFiles: [TorrentAddFile] {
+    private var wantedFiles: [TorrentAddFile] {
         addFiles.filter(\.wanted)
     }
 
-    private var hasNoWantedFiles: Bool {
-        mode == .file && !addFiles.isEmpty && selectedFiles.isEmpty
-    }
-
     private var selectionSummary: String {
-        let size = ColumnFormatters.humanizedSize(selectedFiles.reduce(0) { $0 + $1.length })
-        return "\(selectedFiles.count) of \(addFiles.count) files, \(size)"
+        let size = ColumnFormatters.humanizedSize(wantedFiles.reduce(0) { $0 + $1.length })
+        return "\(wantedFiles.count) of \(addFiles.count) files, \(size)"
     }
 
     private func setAllWanted(_ wanted: Bool) {
         for index in addFiles.indices {
             addFiles[index].wanted = wanted
+        }
+    }
+
+    private func clearFileSelection() {
+        fileSelection.clear()
+    }
+
+    private func selectFile(_ index: Int) {
+        focusedField = .fileList
+        withAnimation(.snappy(duration: 0.15)) {
+            fileSelection.click(index, visible: filteredFileIndices, modifiers: NSEvent.modifierFlags)
+        }
+    }
+
+    private func selectAllVisibleFiles() {
+        guard !filteredFileIndices.isEmpty else { return }
+        withAnimation(.snappy(duration: 0.15)) {
+            fileSelection.selectAll(visible: filteredFileIndices)
+        }
+    }
+
+    private func setWanted(_ wanted: Bool, for ids: Set<Int>) {
+        for index in ids where addFiles.indices.contains(index) {
+            addFiles[index].wanted = wanted
+        }
+    }
+
+    private func applyPriority(_ choice: FilePriorityChoice, to ids: Set<Int>) {
+        for index in ids where addFiles.indices.contains(index) {
+            if let priority = choice.priority {
+                addFiles[index].wanted = true
+                addFiles[index].priority = priority
+            } else {
+                addFiles[index].wanted = false
+            }
         }
     }
 
@@ -544,7 +665,7 @@ struct AddTorrentSheet: View {
             case .file: fileURL != nil
             case .magnet: magnetString.hasPrefix("magnet:?xt=urn:btih:")
             }
-        return sourceValid && !hasNoWantedFiles
+        return sourceValid
             && isSubmittableServerPath(destination, relativeTo: store.list.downloadDirectory)
     }
 
@@ -574,6 +695,58 @@ extension UTType {
     fileprivate static let torrentFile = UTType(filenameExtension: "torrent") ?? .data
 }
 
+/// Row selection for the Add Torrent file list. Kept pure so the modifier rules
+/// are testable: plain click replaces, Command toggles, Shift extends from the
+/// anchor, Command-Shift adds the range. Ranges use the visible order, so
+/// filtering never selects hidden files between two visible rows.
+nonisolated struct FileListSelection: Equatable {
+    private(set) var ids: Set<Int> = []
+    private(set) var anchor: Int?
+
+    var isEmpty: Bool { ids.isEmpty }
+
+    mutating func clear() {
+        ids.removeAll()
+        anchor = nil
+    }
+
+    mutating func selectAll(visible: [Int]) {
+        ids = Set(visible)
+        anchor = visible.first
+    }
+
+    mutating func click(_ index: Int, visible: [Int], modifiers: NSEvent.ModifierFlags) {
+        let shift = modifiers.contains(.shift)
+        let command = modifiers.contains(.command)
+
+        if shift,
+            let anchor,
+            let anchorPosition = visible.firstIndex(of: anchor),
+            let clickedPosition = visible.firstIndex(of: index)
+        {
+            let bounds = min(anchorPosition, clickedPosition)...max(anchorPosition, clickedPosition)
+            let range = Set(bounds.map { visible[$0] })
+            if command {
+                ids.formUnion(range)
+            } else {
+                ids = range
+            }
+            return
+        }
+
+        if command {
+            if ids.contains(index) {
+                ids.remove(index)
+            } else {
+                ids.insert(index)
+            }
+        } else {
+            ids = [index]
+        }
+        anchor = index
+    }
+}
+
 /// One row in the add sheet's flat file list. Skip and the checkbox both write
 /// `wanted`, so the two controls stay in sync.
 private let addFileRowHeight: CGFloat = 26
@@ -581,6 +754,7 @@ private let addFileRowHeight: CGFloat = 26
 private struct AddTorrentFileRow: View {
     @Binding var file: TorrentAddFile
     let shaded: Bool
+    let isSelected: Bool
 
     var body: some View {
         HStack(spacing: 8) {
@@ -593,13 +767,13 @@ private struct AddTorrentFileRow: View {
                 .font(.callout.monospaced())
                 .lineLimit(1)
                 .truncationMode(.middle)
-                .foregroundStyle(file.wanted ? Color.primary : Color.secondary)
+                .foregroundStyle(fileTextColor)
 
             Spacer(minLength: 8)
 
             Text(ColumnFormatters.humanizedSize(file.length))
                 .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isSelected ? Color.white.opacity(0.8) : Color.secondary)
 
             FilePriorityPicker(
                 choice: Binding(
@@ -617,9 +791,50 @@ private struct AddTorrentFileRow: View {
         }
         .padding(.horizontal, 6)
         .frame(height: addFileRowHeight)
-        .background(shaded ? Color.secondary.opacity(0.05) : Color.clear)
+        .background(
+            isSelected
+                ? Color(nsColor: .selectedContentBackgroundColor)
+                : (shaded ? Color.secondary.opacity(0.05) : Color.clear)
+        )
         .contentShape(Rectangle())
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
+
+    private var fileTextColor: Color {
+        if isSelected { return .white }
+        return file.wanted ? .primary : .secondary
+    }
+}
+
+#Preview("File rows") {
+    VStack(spacing: 0) {
+        AddTorrentFileRow(
+            file: .constant(
+                TorrentAddFile(
+                    index: 0, path: ["Season 01", "Episode 01.mkv"], length: 1_482_000_000)),
+            shaded: false, isSelected: false)
+        AddTorrentFileRow(
+            file: .constant(
+                TorrentAddFile(
+                    index: 1, path: ["Season 01", "Episode 02.mkv"], length: 1_510_000_000,
+                    wanted: false)),
+            shaded: true, isSelected: false)
+        AddTorrentFileRow(
+            file: .constant(
+                TorrentAddFile(
+                    index: 2, path: ["Season 01", "Episode 03.mkv"], length: 1_463_000_000,
+                    priority: .high)),
+            shaded: false, isSelected: true)
+        AddTorrentFileRow(
+            file: .constant(
+                TorrentAddFile(
+                    index: 3, path: ["Season 01", "Episode 04.mkv"], length: 1_501_000_000,
+                    wanted: false)),
+            shaded: true, isSelected: true)
+    }
+    .frame(width: 520)
+    .padding()
+    .background(Color(nsColor: .windowBackgroundColor))
 }
 
 #Preview("Add Torrent") {
