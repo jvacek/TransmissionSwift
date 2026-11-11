@@ -85,6 +85,18 @@ struct FilePriorityPicker: View {
     var isMixed: Bool = false
     var label: String = "File priority"
 
+    @Environment(\.colorScheme) private var colorScheme
+
+    private struct ChipKey: Hashable {
+        let choice: FilePriorityChoice
+        let isMixed: Bool
+        let colorScheme: ColorScheme
+    }
+
+    /// Five chips at most per appearance. The image is otherwise re-rendered on
+    /// every body pass of every visible file row.
+    @MainActor private static var chipCache: [ChipKey: NSImage] = [:]
+
     var body: some View {
         Menu {
             ForEach(FilePriorityChoice.allCases, id: \.self) { choice in
@@ -111,6 +123,8 @@ struct FilePriorityPicker: View {
     }
 
     private var chip: NSImage {
+        let key = ChipKey(choice: choice, isMixed: isMixed, colorScheme: colorScheme)
+        if let cached = Self.chipCache[key] { return cached }
         let renderer = ImageRenderer(
             content:
                 HStack(spacing: 3) {
@@ -127,6 +141,7 @@ struct FilePriorityPicker: View {
         renderer.scale = 2
         let image = renderer.nsImage ?? NSImage()
         image.isTemplate = false
+        Self.chipCache[key] = image
         return image
     }
 }

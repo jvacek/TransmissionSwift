@@ -26,6 +26,9 @@ struct AddTorrentSheet: View {
     /// Built only when the file set or filter changes, so toggling a checkbox or
     /// changing a priority doesn't rebuild the tree and collapse its folders.
     @State private var fileTree: [AddTorrentFileNode] = []
+    /// Flat lookup for selection expansion, rebuilt with the tree instead of
+    /// walking the forest on every body pass.
+    @State private var fileNodeByID: [String: AddTorrentFileNode] = [:]
     /// Every folder starts expanded; collapsing one only affects this session
     /// until the file or filter changes again.
     @State private var expandedFolderIDs: Set<String> = []
@@ -584,8 +587,24 @@ struct AddTorrentSheet: View {
     }
 
     private func rebuildTree() {
-        fileTree = AddTorrentFileNode.tree(from: filteredFileIndices.map { addFiles[$0] })
-        expandedFolderIDs = Set(fileTree.flatMap(\.folderIDs))
+        let tree = AddTorrentFileNode.tree(from: filteredFileIndices.map { addFiles[$0] })
+        fileTree = tree
+        fileNodeByID = Self.nodeMap(from: tree)
+        expandedFolderIDs = Set(tree.flatMap(\.folderIDs))
+    }
+
+    private static func nodeMap(
+        from nodes: [AddTorrentFileNode]
+    ) -> [String: AddTorrentFileNode] {
+        var result: [String: AddTorrentFileNode] = [:]
+        func visit(_ nodes: [AddTorrentFileNode]) {
+            for node in nodes {
+                result[node.id] = node
+                if let children = node.children { visit(children) }
+            }
+        }
+        visit(nodes)
+        return result
     }
 
     private var filteredFileIndices: [Int] {
@@ -596,21 +615,9 @@ struct AddTorrentSheet: View {
         }
     }
 
-    private var nodeByID: [String: AddTorrentFileNode] {
-        var result: [String: AddTorrentFileNode] = [:]
-        func visit(_ nodes: [AddTorrentFileNode]) {
-            for node in nodes {
-                result[node.id] = node
-                if let children = node.children { visit(children) }
-            }
-        }
-        visit(fileTree)
-        return result
-    }
-
     private var selectedTargetFileIndices: Set<Int> {
         selectedNodeIDs.reduce(into: Set<Int>()) { result, id in
-            if let node = nodeByID[id] {
+            if let node = fileNodeByID[id] {
                 result.formUnion(node.fileIndices)
             }
         }
@@ -868,7 +875,7 @@ nonisolated struct AddTorrentFileNode: Identifiable, Equatable {
                     parentPath: path)
                 nodes.append(
                     AddTorrentFileNode(
-                        id: "folder:" + path.joined(separator: "/"),
+                        id: "folder:" + path.map(Self.idFragment).joined(separator: "/"),
                         name: name,
                         kind: .folder,
                         children: children.isEmpty ? nil : children,
@@ -888,6 +895,14 @@ nonisolated struct AddTorrentFileNode: Identifiable, Equatable {
             if lhs.isFolder != rhs.isFolder { return lhs.isFolder }
             return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
         }
+    }
+
+    /// A path component can legally contain anything bencode allows, so keep
+    /// the readable separators in normal paths but never let a component's `/`
+    /// turn a nested folder and a flat one into the same identity.
+    private static func idFragment(_ component: String) -> String {
+        component.replacingOccurrences(of: "%", with: "%25")
+            .replacingOccurrences(of: "/", with: "%2F")
     }
 }
 

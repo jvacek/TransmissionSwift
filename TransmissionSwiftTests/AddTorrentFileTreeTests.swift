@@ -75,6 +75,24 @@ struct AddTorrentFileTreeTests {
         #expect(tree[0].fileIndices == [2])
     }
 
+    @Test("folder ids escape separators so distinct trees cannot collide")
+    func escapedFolderIDs() {
+        let flat = AddTorrentFileNode.tree(from: [
+            TorrentAddFile(index: 0, path: ["a/b", "file"], length: 1)
+        ])
+        let nested = AddTorrentFileNode.tree(from: [
+            TorrentAddFile(index: 0, path: ["a", "b", "file"], length: 1)
+        ])
+        let percent = AddTorrentFileNode.tree(from: [
+            TorrentAddFile(index: 0, path: ["a%2Fb", "file"], length: 1)
+        ])
+
+        #expect(flat.first?.id == "folder:a%2Fb")
+        #expect(nested.first?.id == "folder:a")
+        #expect(percent.first?.id == "folder:a%252Fb")
+        #expect(flat.first?.id != percent.first?.id)
+    }
+
     @Test("node count includes folders and files")
     func nodeCount() {
         let tree = AddTorrentFileNode.tree(from: [
