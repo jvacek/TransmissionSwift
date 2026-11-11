@@ -21,6 +21,12 @@ struct CountryIndexTests {
         #expect(index.countryCode(forIPv4: CountryIndex.ipv4("2.1.1.1")!) == nil)
     }
 
+    @Test func parsesCRLFLineEndings() {
+        let index = CountryIndex(csv: "1.0.0.0,1.0.0.255,AU\r\n1.0.1.0,1.0.1.255,CN\r\n")
+        #expect(index.countryCode(forIPv4: CountryIndex.ipv4("1.0.0.1")!) == "AU")
+        #expect(index.countryCode(forIPv4: CountryIndex.ipv4("1.0.1.1")!) == "CN")
+    }
+
     @Test func ipv4ParsingRejectsNonIPv4() {
         #expect(CountryIndex.ipv4("192.168.1.1") == 0xC0A8_0101)
         #expect(CountryIndex.ipv4("255.255.255.255") == 0xFFFF_FFFF)

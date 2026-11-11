@@ -16,13 +16,13 @@ public struct CountryIndex: Sendable {
     public init() {}
 
     public init(csv: String) {
-        for line in csv.split(separator: "\n", omittingEmptySubsequences: true) {
+        for line in csv.split(whereSeparator: \.isNewline) {
             let fields = line.split(separator: ",", maxSplits: 2)
             guard fields.count == 3,
                 let start = Self.ipv4(fields[0]),
                 let end = Self.ipv4(fields[1])
             else { continue }
-            let code = fields[2].trimmingCharacters(in: .whitespaces)
+            let code = fields[2].trimmingCharacters(in: .whitespacesAndNewlines)
             guard !code.isEmpty, code != "ZZ" else { continue }
             starts.append(start)
             ends.append(end)
