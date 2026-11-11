@@ -1,6 +1,16 @@
 import Foundation
 import TorrentMetainfo
 
+/// What the Add Torrent sheet shows for a user-picked `.torrent` file before it
+/// is sent to the daemon.
+public struct TorrentAddPreview: Equatable, Sendable {
+    /// The torrent's display name (`info.name`).
+    public let name: String
+    /// The torrent's files in `info.files` order, with the indices the daemon's
+    /// `files-wanted` and priority arguments expect.
+    public let files: [TorrentAddFile]
+}
+
 /// Reads a user-picked `.torrent` file's metadata for display before it's added
 /// to the daemon.
 ///
@@ -10,20 +20,14 @@ public enum TorrentMetainfoReader {
     /// Largest `.torrent` file the reader and the add path accept.
     public static let maximumSize = TorrentMetainfo.maximumSize
 
-    /// The torrent's display name (`info.name`), or `nil` when the file can't be
-    /// read or decoded.
-    public static func displayName(at url: URL) -> String? {
-        metainfo(at: url)?.name
-    }
-
-    /// The torrent's files in `info.files` order, or `nil` when the file can't
-    /// be read or decoded. The array offsets are the indices the daemon's
-    /// `files-wanted` and priority arguments expect.
-    public static func files(at url: URL) -> [TorrentAddFile]? {
+    /// The torrent's name and files, or `nil` when the file can't be read or
+    /// decoded.
+    public static func preview(at url: URL) -> TorrentAddPreview? {
         guard let metainfo = metainfo(at: url) else { return nil }
-        return metainfo.files.enumerated().map { index, file in
+        let files = metainfo.files.enumerated().map { index, file in
             TorrentAddFile(index: index, path: file.path, length: file.length)
         }
+        return TorrentAddPreview(name: metainfo.name, files: files)
     }
 
     private static func metainfo(at url: URL) -> TorrentMetainfo? {

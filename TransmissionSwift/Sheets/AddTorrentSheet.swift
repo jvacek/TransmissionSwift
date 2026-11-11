@@ -45,6 +45,7 @@ struct AddTorrentSheet: View {
     @AppStorage(PreferenceKeys.addTorrentFilesExpanded) private var filesExpanded = true
     @State private var showFileImporter: Bool = false
     @State private var isAdding: Bool = false
+    @State private var isLoadingFile: Bool = false
     @State private var saveError: String? = nil
 
     var body: some View {
@@ -190,6 +191,11 @@ struct AddTorrentSheet: View {
                     } else {
                         Label("No file selected", systemImage: "doc")
                             .foregroundStyle(.secondary)
+                    }
+                    if isLoadingFile {
+                        ProgressView()
+                            .controlSize(.small)
+                            .accessibilityLabel("Reading torrent file")
                     }
                     Spacer()
                     Button("Choose…") { showFileImporter = true }
@@ -562,11 +568,19 @@ struct AddTorrentSheet: View {
     }
 
     private func loadFile(at url: URL) {
-        fileTorrentName = TorrentMetainfoReader.displayName(at: url)
-        addFiles = TorrentMetainfoReader.files(at: url) ?? []
-        fileFilter = ""
-        clearFileSelection()
-        rebuildTree()
+        isLoadingFile = true
+        Task {
+            // Decoding a large `.torrent` is not instant; keep the sheet
+            // responsive and ignore a result if the user picked another file.
+            let preview = await Task.detached { TorrentMetainfoReader.preview(at: url) }.value
+            guard fileURL == url else { return }
+            fileTorrentName = preview?.name
+            addFiles = preview?.files ?? []
+            fileFilter = ""
+            clearFileSelection()
+            rebuildTree()
+            isLoadingFile = false
+        }
     }
 
     private func rebuildTree() {
@@ -753,7 +767,7 @@ struct AddTorrentSheet: View {
             case .file: fileURL != nil
             case .link: Self.isTorrentLink(linkString)
             }
-        return sourceValid
+        return sourceValid && !isLoadingFile
             && isSubmittableServerPath(destination, relativeTo: store.list.downloadDirectory)
     }
 

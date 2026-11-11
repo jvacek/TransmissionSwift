@@ -11,8 +11,10 @@ struct TorrentMetainfoReaderTests {
             name: "root", files: [("a.txt", 1), ("dir/b.bin", 2), ("dir/c.bin", 3)])
         defer { try? FileManager.default.removeItem(at: url) }
 
-        let files = try #require(TorrentMetainfoReader.files(at: url))
+        let preview = try #require(TorrentMetainfoReader.preview(at: url))
+        let files = preview.files
 
+        #expect(preview.name == "root")
         #expect(files.map(\.index) == [0, 1, 2])
         #expect(files.map(\.pathString) == ["a.txt", "dir/b.bin", "dir/c.bin"])
         #expect(files.map(\.path) == [["a.txt"], ["dir", "b.bin"], ["dir", "c.bin"]])
@@ -26,19 +28,13 @@ struct TorrentMetainfoReaderTests {
         let url = try writeSingleFileTorrent(name: "hello.txt", length: 6)
         defer { try? FileManager.default.removeItem(at: url) }
 
-        let files = try #require(TorrentMetainfoReader.files(at: url))
+        let preview = try #require(TorrentMetainfoReader.preview(at: url))
 
-        #expect(files.count == 1)
-        #expect(files[0].index == 0)
-        #expect(files[0].pathString == "hello.txt")
-        #expect(files[0].length == 6)
-    }
-
-    @Test("displayName still reads the info name")
-    func displayName() throws {
-        let url = try writeTorrent(name: "My Torrent", files: [("a.txt", 1)])
-        defer { try? FileManager.default.removeItem(at: url) }
-        #expect(TorrentMetainfoReader.displayName(at: url) == "My Torrent")
+        #expect(preview.name == "hello.txt")
+        #expect(preview.files.count == 1)
+        #expect(preview.files[0].index == 0)
+        #expect(preview.files[0].pathString == "hello.txt")
+        #expect(preview.files[0].length == 6)
     }
 
     @Test("undecodable data returns nil instead of throwing")
@@ -48,8 +44,7 @@ struct TorrentMetainfoReaderTests {
         try Data("not bencode".utf8).write(to: url)
         defer { try? FileManager.default.removeItem(at: url) }
 
-        #expect(TorrentMetainfoReader.files(at: url) == nil)
-        #expect(TorrentMetainfoReader.displayName(at: url) == nil)
+        #expect(TorrentMetainfoReader.preview(at: url) == nil)
     }
 }
 
