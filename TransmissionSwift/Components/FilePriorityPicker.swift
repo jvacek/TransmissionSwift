@@ -81,6 +81,9 @@ enum FilePriorityChoice: CaseIterable, Hashable {
 struct FilePriorityPicker: View {
     @Binding var choice: FilePriorityChoice
     var isEnabled: Bool = true
+    /// Folder rows show a shared priority only when every descendant agrees;
+    /// otherwise the chip shows a mixed glyph and the menu applies to all.
+    var isMixed: Bool = false
     var label: String = "File priority"
 
     var body: some View {
@@ -100,6 +103,7 @@ struct FilePriorityPicker: View {
         .allowsHitTesting(isEnabled)
         .opacity(isEnabled ? 1 : 0.4)
         .accessibilityLabel(label)
+        .accessibilityValue(isMixed ? "Mixed" : choice.displayLabel)
         .frame(width: 32, height: 18)
         .padding(.trailing, 5)
     }
@@ -108,9 +112,9 @@ struct FilePriorityPicker: View {
         let renderer = ImageRenderer(
             content:
                 HStack(spacing: 4) {
-                    Image(systemName: choice.systemImage)
+                    Image(systemName: isMixed ? "ellipsis" : choice.systemImage)
                         .font(.callout)
-                        .foregroundStyle(choice.displayColor)
+                        .foregroundStyle(isMixed ? Color.secondary : choice.displayColor)
                     ZStack {
                         Circle().fill(Color(nsColor: .tertiarySystemFill))
                         Image(systemName: "chevron.up.chevron.down")
@@ -135,6 +139,13 @@ struct FilePriorityPicker: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            }
+            VStack(spacing: 6) {
+                FilePriorityPicker(
+                    choice: .constant(.normal), isMixed: true, label: "Mixed priorities")
+                Text("Mixed")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         VStack(alignment: .leading, spacing: 4) {
