@@ -110,10 +110,12 @@ final class TransmissionSwiftUITests: XCTestCase {
         }
 
         let pasteboard = NSPasteboard.general
-        let savedItems = pasteboard.pasteboardItems
+        // Text only: saved NSPasteboardItems stay bound to the pasteboard and
+        // can't be written back after clearContents.
+        let savedText = pasteboard.string(forType: .string)
         defer {
             pasteboard.clearContents()
-            if let savedItems { pasteboard.writeObjects(savedItems) }
+            if let savedText { pasteboard.setString(savedText, forType: .string) }
         }
 
         let app = snapshotApp(fixture)
@@ -183,10 +185,12 @@ final class TransmissionSwiftUITests: XCTestCase {
         }
 
         let pasteboard = NSPasteboard.general
-        let savedItems = pasteboard.pasteboardItems
+        // Text only: saved NSPasteboardItems stay bound to the pasteboard and
+        // can't be written back after clearContents.
+        let savedText = pasteboard.string(forType: .string)
         defer {
             pasteboard.clearContents()
-            if let savedItems { pasteboard.writeObjects(savedItems) }
+            if let savedText { pasteboard.setString(savedText, forType: .string) }
         }
 
         let app = snapshotApp(fixture)
