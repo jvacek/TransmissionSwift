@@ -62,6 +62,9 @@ struct InspectorPeersTab: View {
         .task(id: torrent.peers.map(\.ipAddress)) {
             await geoip.resolve(torrent.peers)
         }
+        .onChange(of: geoip.enabled) {
+            Task { await geoip.resolve(torrent.peers) }
+        }
         .overlay {
             if torrent.peers.isEmpty {
                 ContentUnavailableView(
