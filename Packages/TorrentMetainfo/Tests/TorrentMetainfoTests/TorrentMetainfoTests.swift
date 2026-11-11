@@ -43,6 +43,28 @@ private func torrentInfo(
     return Data(root.utf8)
 }
 
+/// One `info.files` entry, with an optional `path.utf-8` list.
+private func fileEntry(
+    path: [String],
+    length: Int,
+    utf8Path: [String]? = nil
+) -> String {
+    var entry =
+        "d" + bstr("length") + bint(length) + bstr("path") + "l"
+        + path.map(bstr).joined() + "e"
+    if let utf8Path {
+        entry += bstr("path.utf-8") + "l" + utf8Path.map(bstr).joined() + "e"
+    }
+    return entry + "e"
+}
+
+/// A multi-file torrent around pre-built `info.files` entries.
+private func multiFileTorrent(name: String = "root", entries: [String]) -> Data {
+    let info =
+        "d" + bstr("files") + "l" + entries.joined() + "e" + bstr("name") + bstr(name) + "e"
+    return Data(("d" + bstr("info") + info + "e").utf8)
+}
+
 // MARK: - Fixtures
 
 @Suite("Real .torrent fixtures")
@@ -119,6 +141,44 @@ struct TorrentMetainfoDecodingTests {
 
         #expect(try TorrentMetainfo(decoding: data).name == "Café")
     }
+
+    @Test("files win when a length is also present")
+    func filesPrecedeLength() throws {
+        let data = torrentInfo(name: "root", length: 99, files: [("a.txt", 1)])
+        let metainfo = try TorrentMetainfo(decoding: data)
+
+        #expect(metainfo.isMultiFile)
+        #expect(metainfo.files.map(\.pathString) == ["a.txt"])
+        #expect(metainfo.totalSize == 1)
+    }
+
+    @Test("prefers path.utf-8 over path")
+    func utf8PathPreferred() throws {
+        let data = multiFileTorrent(entries: [
+            fileEntry(path: ["old"], length: 1, utf8Path: ["new"])
+        ])
+
+        #expect(try TorrentMetainfo(decoding: data).files.map(\.path) == [["new"]])
+    }
+
+    @Test("falls back to path when path.utf-8 is malformed")
+    func malformedUTF8PathFallsBack() throws {
+        let entry =
+            "d" + bstr("length") + bint(1) + bstr("path") + "l" + bstr("old") + "e"
+            + bstr("path.utf-8") + bint(1) + "e"
+        let data = multiFileTorrent(entries: [entry])
+
+        #expect(try TorrentMetainfo(decoding: data).files.map(\.path) == [["old"]])
+    }
+
+    @Test("falls back to Latin-1 when a path component isn't UTF-8")
+    func latin1Path() throws {
+        var data = Data("d4:infod5:filesld6:lengthi1e4:pathl4:".utf8)
+        data.append(contentsOf: [0x43, 0x61, 0x66, 0xE9])
+        data.append(contentsOf: Array("eee4:name4:rootee".utf8))
+
+        #expect(try TorrentMetainfo(decoding: data).files.map(\.path) == [["Café"]])
+    }
 }
 
 // MARK: - Malformed input
@@ -180,5 +240,120 @@ struct TorrentMetainfoMalformedTests {
         #expect(throws: TorrentMetainfoError.malformedFileEntry) {
             try TorrentMetainfo(decoding: Data(root.utf8))
         }
+    }
+
+    @Test("invalid bencode token")
+    func invalidToken() {
+        #expect(throws: TorrentMetainfoError.malformedBencode) {
+            try TorrentMetainfo(decoding: Data("x".utf8))
+        }
+    }
+
+    @Test("invalid integer")
+    func invalidInteger() {
+        #expect(throws: TorrentMetainfoError.malformedBencode) {
+            try TorrentMetainfo(decoding: Data("i1xe".utf8))
+        }
+    }
+
+    @Test("integer larger than Int")
+    func integerOverflow() {
+        #expect(throws: TorrentMetainfoError.malformedBencode) {
+            try TorrentMetainfo(decoding: Data("i999999999999999999999999e".utf8))
+        }
+    }
+
+    @Test("dictionary key is not UTF-8")
+    func invalidDictionaryKey() {
+        let data = Data([0x64, 0x31, 0x3A, 0xFF, 0x69, 0x31, 0x65, 0x65])
+        #expect(throws: TorrentMetainfoError.malformedBencode) {
+            try TorrentMetainfo(decoding: data)
+        }
+    }
+
+    @Test("info is not a dictionary")
+    func infoNotDictionary() {
+        #expect(throws: TorrentMetainfoError.missingInfoDictionary) {
+            try TorrentMetainfo(decoding: Data("d4:infoli1eee".utf8))
+        }
+    }
+
+    @Test("absurd nesting is rejected")
+    func tooDeep() {
+        let data = Data(String(repeating: "l", count: 65).utf8)
+        #expect(throws: TorrentMetainfoError.malformedBencode) {
+            try TorrentMetainfo(decoding: data)
+        }
+    }
+}
+
+// MARK: - Length and name validation
+
+@Suite("Length and name validation")
+struct TorrentMetainfoValidationTests {
+    @Test("a non-string name.utf-8 falls back to name")
+    func nameUTF8Fallback() throws {
+        let data = Data("d4:infod10:name.utf-8i1e4:name4:test6:lengthi1eee".utf8)
+        #expect(try TorrentMetainfo(decoding: data).name == "test")
+    }
+
+    @Test("an empty name.utf-8 falls back to name")
+    func emptyUTF8NameFallback() throws {
+        let data = Data("d4:infod10:name.utf-80:4:name4:test6:lengthi1eee".utf8)
+        #expect(try TorrentMetainfo(decoding: data).name == "test")
+    }
+
+    @Test("a negative single-file length is rejected")
+    func negativeSingleFileLength() {
+        #expect(throws: TorrentMetainfoError.invalidFileLength) {
+            try TorrentMetainfo(decoding: torrentInfo(name: "file", length: -1))
+        }
+    }
+
+    @Test("a negative file length is rejected")
+    func negativeFileLength() {
+        let data = multiFileTorrent(entries: [fileEntry(path: ["a"], length: -1)])
+        #expect(throws: TorrentMetainfoError.invalidFileLength) {
+            try TorrentMetainfo(decoding: data)
+        }
+    }
+
+    @Test("a total size that overflows Int64 is rejected")
+    func overflowingTotalSize() {
+        let data = multiFileTorrent(entries: [
+            fileEntry(path: ["a"], length: Int.max),
+            fileEntry(path: ["b"], length: Int.max),
+        ])
+        #expect(throws: TorrentMetainfoError.invalidFileLength) {
+            try TorrentMetainfo(decoding: data)
+        }
+    }
+
+    @Test("an empty files list is rejected")
+    func emptyFilesList() {
+        #expect(throws: TorrentMetainfoError.missingFileList) {
+            try TorrentMetainfo(decoding: multiFileTorrent(entries: []))
+        }
+    }
+
+    @Test("a file without a path is rejected")
+    func missingPath() {
+        let entry = "d" + bstr("length") + bint(1) + "e"
+        #expect(throws: TorrentMetainfoError.malformedFileEntry) {
+            try TorrentMetainfo(decoding: multiFileTorrent(entries: [entry]))
+        }
+    }
+
+    @Test("a file path with an empty component is rejected")
+    func emptyPathComponent() {
+        let data = multiFileTorrent(entries: [fileEntry(path: ["", "a"], length: 1)])
+        #expect(throws: TorrentMetainfoError.malformedFileEntry) {
+            try TorrentMetainfo(decoding: data)
+        }
+    }
+
+    @Test("zero-length files are valid")
+    func zeroLengthFile() throws {
+        #expect(try TorrentMetainfo(decoding: torrentInfo(name: "empty", length: 0)).totalSize == 0)
     }
 }

@@ -48,10 +48,12 @@ enum BencodeDecodingError: Error, Equatable, Sendable {
     case invalidStringLength(offset: Int)
     case invalidDictionaryKey(offset: Int)
     case trailingBytes(count: Int)
+    case tooDeep(offset: Int)
 }
 
-/// Recursive-descent bencode decoder. Every read is bounds-checked, so
-/// untrusted input — a user-picked `.torrent` — throws rather than trapping.
+/// Recursive-descent bencode decoder. Every read is bounds-checked and nesting
+/// is capped, so untrusted input — a user-picked `.torrent` — throws rather
+/// than trapping or overflowing the stack.
 enum BencodeDecoder {
     static func decode(_ data: Data) throws -> Bencode {
         var parser = Parser(bytes: [UInt8](data))
@@ -64,14 +66,21 @@ enum BencodeDecoder {
         let bytes: [UInt8]
         var index = 0
 
-        mutating func parseValue() throws -> Bencode {
+        /// Real metainfo nests five levels deep at most; this is generous while
+        /// still keeping a hostile file from recursing without bound.
+        private static let maxDepth = 64
+
+        mutating func parseValue(depth: Int = 0) throws -> Bencode {
+            guard depth <= Self.maxDepth else {
+                throw BencodeDecodingError.tooDeep(offset: index)
+            }
             guard index < bytes.count else {
                 throw BencodeDecodingError.unexpectedEnd(offset: index)
             }
             switch bytes[index] {
             case Self.i: return try parseInteger()
-            case Self.l: return try parseList()
-            case Self.d: return try parseDictionary()
+            case Self.l: return try parseList(depth: depth)
+            case Self.d: return try parseDictionary(depth: depth)
             case Self.zero...Self.nine: return try parseBytes()
             default: throw BencodeDecodingError.invalidToken(offset: index)
             }
@@ -129,7 +138,7 @@ enum BencodeDecoder {
             return .bytes(value)
         }
 
-        private mutating func parseList() throws -> Bencode {
+        private mutating func parseList(depth: Int) throws -> Bencode {
             index += 1  // 'l'
             var items: [Bencode] = []
             while true {
@@ -140,11 +149,11 @@ enum BencodeDecoder {
                     index += 1
                     return .list(items)
                 }
-                items.append(try parseValue())
+                items.append(try parseValue(depth: depth + 1))
             }
         }
 
-        private mutating func parseDictionary() throws -> Bencode {
+        private mutating func parseDictionary(depth: Int) throws -> Bencode {
             index += 1  // 'd'
             var entries: [String: Bencode] = [:]
             while true {
@@ -156,12 +165,12 @@ enum BencodeDecoder {
                     return .dictionary(entries)
                 }
                 let keyStart = index
-                guard case .bytes(let keyBytes) = try parseValue(),
+                guard case .bytes(let keyBytes) = try parseValue(depth: depth + 1),
                     let key = String(bytes: keyBytes, encoding: .utf8)
                 else {
                     throw BencodeDecodingError.invalidDictionaryKey(offset: keyStart)
                 }
-                entries[key] = try parseValue()
+                entries[key] = try parseValue(depth: depth + 1)
             }
         }
 

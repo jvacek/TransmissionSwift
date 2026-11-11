@@ -40,17 +40,26 @@ public struct TorrentMetainfo: Equatable, Sendable {
         guard let name = Self.name(in: info) else {
             throw TorrentMetainfoError.missingName
         }
-        self.name = name
 
+        let isMultiFile: Bool
+        let files: [File]
         if let entries = info["files"]?.list {
-            self.isMultiFile = true
-            self.files = try entries.map(Self.file(from:))
+            guard !entries.isEmpty else {
+                throw TorrentMetainfoError.missingFileList
+            }
+            isMultiFile = true
+            files = try entries.map(Self.file(from:))
         } else if let length = info["length"]?.integer {
-            self.isMultiFile = false
-            self.files = [File(path: [name], length: Int64(length))]
+            isMultiFile = false
+            files = [File(path: [name], length: Int64(length))]
         } else {
             throw TorrentMetainfoError.missingFileList
         }
+        _ = try Self.checkedTotalSize(files)
+
+        self.name = name
+        self.isMultiFile = isMultiFile
+        self.files = files
     }
 
     /// Reads and decodes a `.torrent` file.
@@ -83,17 +92,27 @@ extension TorrentMetainfo {
 
 extension TorrentMetainfo {
     private static func name(in info: [String: Bencode]) -> String? {
-        guard let bytes = (info["name.utf-8"] ?? info["name"])?.bytes,
-            let name = string(from: bytes),
-            !name.isEmpty
-        else { return nil }
-        return name
+        // A malformed name.utf-8 must not hide a usable name.
+        for key in ["name.utf-8", "name"] {
+            if let bytes = info[key]?.bytes, let name = string(from: bytes), !name.isEmpty {
+                return name
+            }
+        }
+        return nil
     }
 
     private static func file(from value: Bencode) throws -> File {
-        guard let entry = value.dictionary,
-            let rawPath = (entry["path.utf-8"] ?? entry["path"])?.list
-        else { throw TorrentMetainfoError.malformedFileEntry }
+        guard let entry = value.dictionary else {
+            throw TorrentMetainfoError.malformedFileEntry
+        }
+        let rawPath: [Bencode]
+        if let utf8Path = entry["path.utf-8"]?.list {
+            rawPath = utf8Path
+        } else if let path = entry["path"]?.list {
+            rawPath = path
+        } else {
+            throw TorrentMetainfoError.malformedFileEntry
+        }
 
         let path = try rawPath.map { component -> String in
             guard let bytes = component.bytes, let part = string(from: bytes) else {
@@ -101,10 +120,27 @@ extension TorrentMetainfo {
             }
             return part
         }
+        guard !path.isEmpty, path.allSatisfy({ !$0.isEmpty }) else {
+            throw TorrentMetainfoError.malformedFileEntry
+        }
         guard let length = entry["length"]?.integer else {
             throw TorrentMetainfoError.malformedFileEntry
         }
         return File(path: path, length: Int64(length))
+    }
+
+    /// Rejects negative lengths and sums that would overflow `Int64`. The
+    /// computed `totalSize` and the add sheet's selected-size sum are only
+    /// safe because this runs once at decode time.
+    private static func checkedTotalSize(_ files: [File]) throws -> Int64 {
+        var total: Int64 = 0
+        for file in files {
+            guard file.length >= 0 else { throw TorrentMetainfoError.invalidFileLength }
+            let (sum, overflow) = total.addingReportingOverflow(file.length)
+            guard !overflow else { throw TorrentMetainfoError.invalidFileLength }
+            total = sum
+        }
+        return total
     }
 
     /// Bencode strings are byte strings. Modern torrents are UTF-8; older ones
@@ -121,10 +157,13 @@ public enum TorrentMetainfoError: Error, Equatable, Sendable {
     case malformedBencode
     /// The top-level dictionary has no `info` dictionary.
     case missingInfoDictionary
-    /// `info` has neither a `files` list nor a `length`.
+    /// `info` has no usable file list: neither `files` nor `length`, or an empty
+    /// `files` list.
     case missingFileList
     /// `info` has no usable `name`.
     case missingName
-    /// A `files` entry is missing its `path` or `length`.
+    /// A `files` entry is missing its path or length.
     case malformedFileEntry
+    /// A file length is negative, or the total would overflow `Int64`.
+    case invalidFileLength
 }
