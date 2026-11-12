@@ -120,28 +120,34 @@ extension TorrentMetainfo {
         guard let entry = value.dictionary else {
             throw TorrentMetainfoError.malformedFileEntry
         }
-        let rawPath: [Bencode]
-        if let utf8Path = entry["path.utf-8"]?.list {
-            rawPath = utf8Path
-        } else if let path = entry["path"]?.list {
-            rawPath = path
+        // A malformed `path.utf-8` must not hide a usable `path`, matching the
+        // `name.utf-8` fallback above.
+        let path: [String]
+        if let utf8Path = entry["path.utf-8"]?.list, let parsed = Self.path(from: utf8Path) {
+            path = parsed
+        } else if let rawPath = entry["path"]?.list, let parsed = Self.path(from: rawPath) {
+            path = parsed
         } else {
-            throw TorrentMetainfoError.malformedFileEntry
-        }
-
-        let path = try rawPath.map { component -> String in
-            guard let bytes = component.bytes, let part = string(from: bytes) else {
-                throw TorrentMetainfoError.malformedFileEntry
-            }
-            return part
-        }
-        guard !path.isEmpty, path.allSatisfy({ !$0.isEmpty }) else {
             throw TorrentMetainfoError.malformedFileEntry
         }
         guard let length = entry["length"]?.integer else {
             throw TorrentMetainfoError.malformedFileEntry
         }
         return File(path: path, length: Int64(length))
+    }
+
+    /// Decodes a bencoded path list, or nil when any component is not a
+    /// non-empty string.
+    private static func path(from components: [Bencode]) -> [String]? {
+        var path: [String] = []
+        path.reserveCapacity(components.count)
+        for component in components {
+            guard let bytes = component.bytes, let part = string(from: bytes), !part.isEmpty else {
+                return nil
+            }
+            path.append(part)
+        }
+        return path.isEmpty ? nil : path
     }
 
     /// Rejects negative lengths and sums that would overflow `Int64`. The

@@ -44,7 +44,9 @@ struct SetLocationSheet: View {
                 defaultDirectory: store.list.downloadDirectory,
                 folders: suggestions,
                 serverName: serverName,
-                torrentName: store.list.torrents.first { ids.contains($0.id) }?.name,
+                torrentName: ids.count == 1
+                    ? store.list.torrents.first { ids.contains($0.id) }?.name
+                    : nil,
                 isDisabled: isSaving
             )
 

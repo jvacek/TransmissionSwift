@@ -218,9 +218,7 @@ struct AddTorrentFolderRow: View {
             FilePriorityPicker(
                 choice: Binding(
                     get: { choice ?? .normal },
-                    set: { newChoice in
-                        MainActor.assumeIsolated { onPriority(newChoice) }
-                    }),
+                    set: { onPriority($0) }),
                 isMixed: choice == nil,
                 label: "Priority for folder \(name)")
         }

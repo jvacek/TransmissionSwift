@@ -16,7 +16,7 @@ public struct CountryIndex: Sendable {
 
     public init() {}
 
-    public init(csv: String) {
+    init(csv: String) {
         for line in csv.split(whereSeparator: \.isNewline) {
             appendRow(line)
         }

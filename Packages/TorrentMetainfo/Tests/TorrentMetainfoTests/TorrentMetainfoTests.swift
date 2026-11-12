@@ -171,6 +171,16 @@ struct TorrentMetainfoDecodingTests {
         #expect(try TorrentMetainfo(decoding: data).files.map(\.path) == [["old"]])
     }
 
+    @Test("falls back to path when a path.utf-8 component is not a string")
+    func malformedUTF8PathComponentFallsBack() throws {
+        let entry =
+            "d" + bstr("length") + bint(1) + bstr("path") + "l" + bstr("old") + "e"
+            + bstr("path.utf-8") + "li1eee"
+        let data = multiFileTorrent(entries: [entry])
+
+        #expect(try TorrentMetainfo(decoding: data).files.map(\.path) == [["old"]])
+    }
+
     @Test("falls back to Latin-1 when a path component isn't UTF-8")
     func latin1Path() throws {
         var data = Data("d4:infod5:filesld6:lengthi1e4:pathl4:".utf8)

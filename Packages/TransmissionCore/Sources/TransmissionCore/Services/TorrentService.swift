@@ -184,10 +184,13 @@ public protocol TorrentService: TorrentReading, TorrentMutating {}
 public enum TorrentAddError: LocalizedError, Equatable, Sendable {
     /// The chosen `.torrent` file is larger than `TorrentMetainfoReader.maximumSize`.
     case fileTooLarge
+    /// There is no connected daemon to send the add to.
+    case notConnected
 
     public var errorDescription: String? {
         switch self {
         case .fileTooLarge: return "That torrent file is too large to add."
+        case .notConnected: return "Connect to a server before adding a torrent."
         }
     }
 }

@@ -244,6 +244,14 @@ final class TransmissionSwiftUITests: XCTestCase {
         let inspector = app.descendants(matching: .any)
             .matching(identifier: "inspector.tabs").firstMatch
         let inspectorWasVisible = inspector.exists
+        // The app owns this preference. If an assertion aborts the test, put
+        // the pane back through the same shortcut instead of leaving the
+        // developer's app toggled.
+        defer {
+            if inspector.exists != inspectorWasVisible {
+                app.typeKey("i", modifierFlags: .command)
+            }
+        }
         app.typeKey("i", modifierFlags: .command)
         XCTAssertTrue(waitUntil { inspector.exists != inspectorWasVisible })
         app.typeKey("i", modifierFlags: .command)
@@ -252,6 +260,11 @@ final class TransmissionSwiftUITests: XCTestCase {
         let sidebar = app.descendants(matching: .any)
             .matching(identifier: "sidebar.status.all").firstMatch
         let sidebarWasVisible = sidebar.exists
+        defer {
+            if sidebar.exists != sidebarWasVisible {
+                app.typeKey("s", modifierFlags: [.command, .control])
+            }
+        }
         app.typeKey("s", modifierFlags: [.command, .control])
         XCTAssertTrue(waitUntil { sidebar.exists != sidebarWasVisible })
         app.typeKey("s", modifierFlags: [.command, .control])

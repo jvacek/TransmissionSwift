@@ -116,7 +116,7 @@ struct FilePriorityPicker: View {
             RoundedRectangle(cornerRadius: 4, style: .continuous)
                 .fill(Color.secondary.opacity(0.16))
         )
-        .allowsHitTesting(isEnabled)
+        .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.4)
         .accessibilityLabel(label)
         .accessibilityValue(isMixed ? "Mixed" : choice.displayLabel)

@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import TransmissionTestSupport
+import os
 
 @testable import TransmissionCore
 
@@ -91,5 +92,22 @@ struct TorrentActionModelTests {
         #expect(ok)
         let updated = try await service.torrents().first { $0.id == id }
         #expect(updated?.name == "Renamed")
+    }
+
+    @Test("add without a connected daemon reports a not-connected error")
+    func addWithoutConnection() async {
+        let list = TorrentListModel()
+        let actions = TorrentActionModel(list: list, inspector: InspectorModel(list: list))
+        let captured = OSAllocatedUnfairLock<ActionError?>(initialState: nil)
+        actions.onError = { error in captured.withLock { $0 = error } }
+
+        let added = await actions.add(
+            fileURL: nil, linkURL: "magnet:?xt=urn:btih:abc", destination: "",
+            labels: [], priority: .normal, startWhenAdded: true)
+
+        #expect(!added)
+        #expect(
+            captured.withLock { $0?.localizedDescription }
+                == TorrentAddError.notConnected.localizedDescription)
     }
 }

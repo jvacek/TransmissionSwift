@@ -226,7 +226,10 @@ public final class TorrentActionModel {
         files: [TorrentAddFile] = [],
         deleteFileAfterAdding: Bool = false
     ) async -> Bool {
-        guard let mutations else { return false }
+        guard let mutations else {
+            report(TorrentAddError.notConnected)
+            return false
+        }
         do {
             try await mutations.add(
                 fileURL: fileURL,
