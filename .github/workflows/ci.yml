@@ -17,6 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Check MPL license headers
+        run: python3 scripts/license_headers.py
+
       - name: Install prek
         run: brew install prek
 

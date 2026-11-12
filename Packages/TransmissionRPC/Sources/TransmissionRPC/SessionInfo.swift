@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 /// The subset of `session-get` fields the app uses today.
 ///
 /// Field names per the RPC spec (`reference/rpc-spec-4.0.6.md` §4.1.1):

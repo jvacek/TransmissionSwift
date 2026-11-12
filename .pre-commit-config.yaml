@@ -30,6 +30,16 @@ repos:
       - id: mixed-line-ending
         args: ["--fix=lf"]
 
+  # MPL-2.0 is copyleft per file, so each source file carries the notice.
+  # `--fix` on that script adds it to new files.
+  - repo: local
+    hooks:
+      - id: license-headers
+        name: MPL license headers
+        entry: python3 scripts/license_headers.py
+        language: system
+        files: \.(swift|sh|py)$
+
   # Swift formatting via the toolchain-bundled swift-format.
   # Runs in-place so the commit picks up the formatted version.
   - repo: local

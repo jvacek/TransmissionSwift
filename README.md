@@ -95,4 +95,17 @@ I will prioritise reviewing any contributions that help overall stability,
 performance, and the above mentioned plans.
 
 Please familiarise yourself with the [architecture](ARCHITECTURE.md) and then
-feel free todo your thing.
+feel free to do your thing.
+
+## License
+
+TransmissionSwift is licensed under the [Mozilla Public License 2.0](LICENSE).
+
+MPL is file-level copyleft: you may fork, modify and redistribute it, including
+as a Mac App Store build, but any file that already carries the license notice
+and that you change has to be published under MPL-2.0 with its source. Files you
+add yourself are yours to license however you like.
+
+Forking is welcome. If the change is useful upstream, send it as a pull request
+here instead, so it does not have to be reconciled later and the release keeps
+it. No CLA is required; sign off your commits (`git commit -s`).
