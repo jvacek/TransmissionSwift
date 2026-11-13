@@ -48,35 +48,47 @@ public final class ServerProfileStore {
     /// - Parameter fileURL: injectable so tests can point at a temp file.
     public init(fileURL: URL) {
         self.fileURL = fileURL
-        let stored = (try? Self.read(from: fileURL)) ?? PersistedData()
-        self.profiles = stored.profiles
-        self.activeProfileID = stored.activeProfileID
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
+        do {
+            let stored = try Self.read(from: fileURL)
+            self.profiles = stored.profiles
+            self.activeProfileID = stored.activeProfileID
+        } catch {
+            // A corrupt or newer-schema file must not become an empty profile
+            // list: the next mutation would atomically overwrite it. Move it
+            // aside so the user can recover it, then start fresh.
+            Self.quarantine(fileURL)
+        }
     }
 
     public func add(_ profile: ServerProfile) throws {
-        profiles.append(profile)
-        if activeProfileID == nil { activeProfileID = profile.id }
-        try persist()
+        try persistMutation {
+            profiles.append(profile)
+            if activeProfileID == nil { activeProfileID = profile.id }
+        }
     }
 
     public func update(_ profile: ServerProfile) throws {
         guard let index = profiles.firstIndex(where: { $0.id == profile.id }) else { return }
-        profiles[index] = profile
-        try persist()
+        try persistMutation {
+            profiles[index] = profile
+        }
     }
 
     public func remove(id: UUID) throws {
-        profiles.removeAll { $0.id == id }
-        if activeProfileID == id {
-            activeProfileID = profiles.first?.id
+        try persistMutation {
+            profiles.removeAll { $0.id == id }
+            if activeProfileID == id {
+                activeProfileID = profiles.first?.id
+            }
         }
-        try persist()
     }
 
     public func setActive(_ id: UUID) throws {
         guard profiles.contains(where: { $0.id == id }) else { return }
-        activeProfileID = id
-        try persist()
+        try persistMutation {
+            activeProfileID = id
+        }
     }
 
     /// Creates a copy of the profile with a fresh ID, appends it, and persists.
@@ -92,26 +104,74 @@ public final class ServerProfileStore {
             rpcPath: original.rpcPath,
             username: original.username,
             useHTTPS: original.useHTTPS)
-        profiles.append(copy)
-        try persist()
+        try persistMutation {
+            profiles.append(copy)
+        }
         return copy
     }
 
     // MARK: - Persistence
 
     private struct PersistedData: Codable {
-        var profiles: [ServerProfile] = []
-        var activeProfileID: UUID? = nil
+        var profiles: [ServerProfile]
+        var activeProfileID: UUID?
+        var schemaVersion: Int
+
+        init(profiles: [ServerProfile], activeProfileID: UUID?) {
+            self.profiles = profiles
+            self.activeProfileID = activeProfileID
+            self.schemaVersion = 1
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case profiles, activeProfileID, schemaVersion
+        }
+
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            profiles = try container.decode([ServerProfile].self, forKey: .profiles)
+            activeProfileID = try container.decodeIfPresent(UUID.self, forKey: .activeProfileID)
+            schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        }
     }
 
     private nonisolated static func read(from fileURL: URL) throws -> PersistedData {
         let data = try Data(contentsOf: fileURL)
         // Prefer the new envelope; fall back to the legacy flat array.
         if let persisted = try? JSONDecoder().decode(PersistedData.self, from: data) {
+            // A newer build may have written fields this version would drop on
+            // the next save. Refuse it rather than silently downgrading.
+            guard persisted.schemaVersion <= 1 else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
             return persisted
         }
         let profiles = try JSONDecoder().decode([ServerProfile].self, from: data)
         return PersistedData(profiles: profiles, activeProfileID: nil)
+    }
+
+    /// Applies an in-memory mutation and writes it, restoring the previous
+    /// state when the write fails so the UI never shows a change that did not
+    /// reach disk.
+    private func persistMutation(_ body: () -> Void) throws {
+        let previousProfiles = profiles
+        let previousActiveID = activeProfileID
+        body()
+        do {
+            try persist()
+        } catch {
+            profiles = previousProfiles
+            activeProfileID = previousActiveID
+            throw error
+        }
+    }
+
+    private nonisolated static func quarantine(_ fileURL: URL) {
+        let stamp = ISO8601DateFormatter().string(from: Date())
+            .replacingOccurrences(of: ":", with: "-")
+        let backup = fileURL.deletingLastPathComponent()
+            .appendingPathComponent("\(fileURL.lastPathComponent).corrupt-\(stamp)")
+        try? FileManager.default.moveItem(at: fileURL, to: backup)
     }
 
     private func persist() throws {

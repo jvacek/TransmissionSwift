@@ -81,6 +81,46 @@ struct ServerProfileStoreTests {
         #expect(store.profiles.isEmpty)
     }
 
+    @Test("a corrupt profile file is quarantined, not overwritten")
+    @MainActor
+    func corruptFileQuarantined() throws {
+        let fileURL = tempFileURL()
+        let directory = fileURL.deletingLastPathComponent()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data("{ not json".utf8).write(to: fileURL)
+
+        let store = ServerProfileStore(fileURL: fileURL)
+        #expect(store.profiles.isEmpty)
+
+        let backups = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+            .filter { $0.hasPrefix("servers.json.corrupt-") }
+        #expect(backups.count == 1)
+
+        // The next write starts a fresh, valid file.
+        try store.add(ServerProfile(label: "New", host: "nas.local"))
+        #expect(ServerProfileStore(fileURL: fileURL).profiles.count == 1)
+    }
+
+    @Test("a failed write restores the previous profile list")
+    @MainActor
+    func failedWriteRollsBack() throws {
+        let fileURL = tempFileURL()
+        let directory = fileURL.deletingLastPathComponent()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        // A file where the parent directory should be makes createDirectory fail.
+        try Data().write(to: directory)
+
+        let store = ServerProfileStore(fileURL: fileURL)
+        do {
+            try store.add(ServerProfile(label: "New", host: "nas.local"))
+            Issue.record("add should have thrown")
+        } catch {
+            // expected
+        }
+        #expect(store.profiles.isEmpty)
+    }
+
     @Test("rpcURL is assembled from profile fields")
     func rpcURL() {
         let profile = ServerProfile(
