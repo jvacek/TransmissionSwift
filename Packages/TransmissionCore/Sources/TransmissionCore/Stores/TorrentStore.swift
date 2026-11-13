@@ -321,8 +321,10 @@ public final class TorrentStore {
         options: SnapshotRedactionOptions = SnapshotRedactionOptions(),
         tagColors: [String: TagColor] = [:]
     ) async throws -> SnapshotCaptureResult {
-        let raw = try await service.captureRawSnapshot()
         let visibleOrder = options.respectFilters ? list.visibleTorrents.map(\.id) : nil
+        let requestedIDs = SnapshotScope.requestIDs(
+            visibleOrder: visibleOrder, maxTorrents: options.maxTorrents)
+        let raw = try await service.captureRawSnapshot(ids: requestedIDs)
         let scoped = SnapshotScope.apply(
             to: raw.torrents, visibleOrder: visibleOrder, maxTorrents: options.maxTorrents
         )

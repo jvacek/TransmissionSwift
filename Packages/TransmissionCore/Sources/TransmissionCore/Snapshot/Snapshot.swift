@@ -163,6 +163,16 @@ public struct SnapshotCaptureResult: Sendable, Equatable {
 /// Capture-scope slicing: which torrents a snapshot includes. Lives at the
 /// store level because filters/sort are UI state, not wire data.
 public enum SnapshotScope {
+    /// The ids to request from the daemon for a capture: the visible order when
+    /// filters are on, capped at `maxTorrents`. Nil means "every torrent" —
+    /// used when the capture does not respect filters and has no cap, because
+    /// the caller cannot know which ids the cap would keep without fetching.
+    public static func requestIDs(visibleOrder: [Torrent.ID]?, maxTorrents: Int?) -> [Torrent.ID]? {
+        guard let visibleOrder else { return nil }
+        guard let maxTorrents, maxTorrents > 0 else { return visibleOrder }
+        return Array(visibleOrder.prefix(maxTorrents))
+    }
+
     /// Filters `wires` down to the ids in `visibleOrder`, preserving that
     /// order (i.e. the torrents the user is currently looking at, in the
     /// current sort), then caps at `maxTorrents`. `nil` visibleOrder keeps

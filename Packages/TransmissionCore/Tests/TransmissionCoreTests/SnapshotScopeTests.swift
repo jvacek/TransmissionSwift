@@ -78,4 +78,18 @@ struct SnapshotScopeTests {
         let result = SnapshotScope.apply(to: wires, visibleOrder: [99, 1], maxTorrents: nil)
         #expect(result.map(\.id) == [1])
     }
+
+    @Test("requestIDs is nil only when the capture is unscoped")
+    func requestIDsUnscoped() {
+        #expect(SnapshotScope.requestIDs(visibleOrder: nil, maxTorrents: nil) == nil)
+        #expect(SnapshotScope.requestIDs(visibleOrder: nil, maxTorrents: 10) == nil)
+    }
+
+    @Test("requestIDs keeps the visible order and applies the cap")
+    func requestIDsScoped() {
+        #expect(SnapshotScope.requestIDs(visibleOrder: [3, 1, 2], maxTorrents: nil) == [3, 1, 2])
+        #expect(SnapshotScope.requestIDs(visibleOrder: [3, 1, 2], maxTorrents: 2) == [3, 1])
+        // Zero means no cap, matching apply().
+        #expect(SnapshotScope.requestIDs(visibleOrder: [3, 1, 2], maxTorrents: 0) == [3, 1, 2])
+    }
 }

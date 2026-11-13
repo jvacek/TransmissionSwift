@@ -69,11 +69,12 @@ public protocol TorrentReading: Sendable {
     /// data into the main list (which gets wiped every poll).
     func inspectorData(for id: Torrent.ID) async throws -> Torrent
 
-    /// Fetch the full daemon state (session + every torrent with list and
-    /// inspector fields) as an unredacted wire-shaped snapshot. Only
+    /// Fetch the daemon state (session + torrents with list and inspector
+    /// fields) as an unredacted wire-shaped snapshot. `ids` scopes the fetch to
+    /// the torrents the capture will keep; `nil` means every torrent. Only
     /// `RPCTorrentService` implements this; mock / replay services rely on the
     /// default, which throws `SnapshotError.captureUnsupported`.
-    func captureRawSnapshot() async throws -> SnapshotFile
+    func captureRawSnapshot(ids: [Torrent.ID]?) async throws -> SnapshotFile
 }
 
 extension TorrentReading {
@@ -90,7 +91,7 @@ extension TorrentReading {
     /// instead of a repeated `self as? any TorrentMutating` at every action site.
     public var mutations: (any TorrentMutating)? { self as? any TorrentMutating }
 
-    public func captureRawSnapshot() async throws -> SnapshotFile {
+    public func captureRawSnapshot(ids: [Torrent.ID]?) async throws -> SnapshotFile {
         throw SnapshotError.captureUnsupported
     }
 }

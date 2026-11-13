@@ -516,11 +516,12 @@ public actor RPCTorrentService: TorrentService {
 
     // MARK: - Snapshot capture
 
-    public func captureRawSnapshot() async throws -> SnapshotFile {
+    public func captureRawSnapshot(ids: [Torrent.ID]?) async throws -> SnapshotFile {
         // The union of list + inspector fields: the snapshot is wire-shaped, so
         // replay decodes through the exact same path as a live poll.
         let fields = TorrentGetResponse.listFields + TorrentGetResponse.inspectorFields
-        let response = try await client.torrentGet(fields: fields, ids: nil)
+        let response = try await client.torrentGet(
+            fields: fields, ids: ids.map(TorrentIDs.list))
         let session = try await client.sessionGet()
         return SnapshotFile(
             version: snapshotFormatVersion,

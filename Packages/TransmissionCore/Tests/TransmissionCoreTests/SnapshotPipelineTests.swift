@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import Foundation
+import Synchronization
 import Testing
 import TransmissionTestSupport
 
@@ -31,12 +32,29 @@ private func runPipeline(
 
 /// A `TorrentService` that only supports snapshot capture — everything else is
 /// a no-op. Lets `TorrentStore.captureSnapshot` be tested in isolation.
-private struct StubSnapshotService: TorrentReading {
+private final class CaptureRecorder: Sendable {
+    let ids = Mutex<[Torrent.ID]?>(nil)
+}
+
+private final class StubSnapshotService: TorrentReading {
     let raw: SnapshotFile
+    let recorder: CaptureRecorder?
+
+    init(raw: SnapshotFile, recorder: CaptureRecorder? = nil) {
+        self.raw = raw
+        self.recorder = recorder
+    }
 
     private var domainTorrents: [Torrent] { raw.torrents.map { Torrent(wire: $0) } }
 
-    func captureRawSnapshot() async throws -> SnapshotFile { raw }
+    func captureRawSnapshot(ids: [Torrent.ID]?) async throws -> SnapshotFile {
+        recorder?.ids.withLock { $0 = ids }
+        guard let ids else { return raw }
+        var scoped = raw
+        let wanted = Set(ids)
+        scoped.torrents = raw.torrents.filter { wanted.contains($0.id) }
+        return scoped
+    }
     func torrents() async throws -> [Torrent] { domainTorrents }
     func torrentsStream() async -> AsyncThrowingStream<[Torrent], Error> {
         let torrents = domainTorrents
@@ -186,7 +204,8 @@ struct SnapshotPipelineTests {
     @Test("TorrentStore.captureSnapshot writes a loadable file via the stub service")
     @MainActor
     func storeWritesFile() async throws {
-        let stub = StubSnapshotService(raw: SnapshotFixtures.rawSnapshot())
+        let recorder = CaptureRecorder()
+        let stub = StubSnapshotService(raw: SnapshotFixtures.rawSnapshot(), recorder: recorder)
         let store = TorrentStore(service: stub)
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("snapshot-test-\(UUID().uuidString).json")
@@ -197,6 +216,7 @@ struct SnapshotPipelineTests {
             to: url, options: SnapshotRedactionOptions(respectFilters: false)
         )
 
+        #expect(recorder.ids.withLock { $0 } == nil)
         #expect(result.torrentCount == 2)
         #expect(result.summary.trackerURLs == 9)
         #expect(result.summary.passkeysStripped == 1)
@@ -213,7 +233,8 @@ struct SnapshotPipelineTests {
     @Test("capture respects current filters and the torrent limit")
     @MainActor
     func captureScopedToFilters() async throws {
-        let stub = StubSnapshotService(raw: SnapshotFixtures.rawSnapshot())
+        let recorder = CaptureRecorder()
+        let stub = StubSnapshotService(raw: SnapshotFixtures.rawSnapshot(), recorder: recorder)
         let store = TorrentStore(service: stub)
         await waitFor { store.list.visibleTorrents.count == 2 }
 
@@ -229,6 +250,7 @@ struct SnapshotPipelineTests {
             to: url,
             options: SnapshotRedactionOptions(maxTorrents: 5)
         )
+        #expect(recorder.ids.withLock { $0 } == [SnapshotFixtures.rawSnapshot().torrents[0].id])
         #expect(result.torrentCount == 1)
 
         let file = try JSONDecoder().decode(SnapshotFile.self, from: Data(contentsOf: url))
