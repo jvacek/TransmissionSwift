@@ -483,7 +483,9 @@ struct MappingEditorSheet: View {
 
             HStack(spacing: 10) {
                 Button("Test") { test() }
-                    .disabled(trimmedTemplate.isEmpty)
+                    // previewURL is password-free and already computed for the
+                    // preview text, so this does not read the Keychain.
+                    .disabled(trimmedTemplate.isEmpty || previewURL == nil)
                     .help("Opens the preview URL in the chosen app")
                 if let message = model.testMessage {
                     Text(message)
