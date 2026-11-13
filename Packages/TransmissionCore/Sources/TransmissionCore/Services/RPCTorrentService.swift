@@ -131,12 +131,20 @@ public actor RPCTorrentService: TorrentService {
                 guard !Task.isCancelled else { break }
                 if generation == snapshotGeneration {
                     let fresh = resp.torrents.map { Torrent(wire: $0) }
-                    if fullDue {
-                        snapshot.applyFull(fresh, at: Date())
-                    } else {
-                        snapshot.applyChanges(fresh, removed: resp.removed ?? [])
+                    let removed = resp.removed ?? []
+                    // An incremental response with nothing changed carries no
+                    // new state; re-yielding the whole list only churns the
+                    // main actor and the table.
+                    if Self.shouldEmit(
+                        fullPoll: fullDue, changed: fresh.count, removed: removed.count)
+                    {
+                        if fullDue {
+                            snapshot.applyFull(fresh, at: Date())
+                        } else {
+                            snapshot.applyChanges(fresh, removed: removed)
+                        }
+                        stream.yield(snapshot.torrents)
                     }
-                    stream.yield(snapshot.torrents)
                 }
                 consecutiveFailures = 0
             } catch {
@@ -178,6 +186,13 @@ public actor RPCTorrentService: TorrentService {
 
     private func wakePoll() {
         pollSleep?.cancel()
+    }
+
+    /// Whether a poll response carries anything new for the UI. A full poll
+    /// always does (it reconciles membership and order); an incremental one only
+    /// when the daemon reported a changed or removed torrent.
+    static func shouldEmit(fullPoll: Bool, changed: Int, removed: Int) -> Bool {
+        fullPoll || changed > 0 || removed > 0
     }
 
     /// Whether a failed poll ends the stream for good.

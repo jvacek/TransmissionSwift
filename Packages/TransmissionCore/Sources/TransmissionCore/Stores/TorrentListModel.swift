@@ -70,6 +70,10 @@ public final class TorrentListModel {
     /// facet-relevant field changed, drop sidebar filters whose facet vanished,
     /// then rebuild the visible rows.
     public func setTorrents(_ torrents: [Torrent]) {
+        // An idle poll delivers a byte-identical array. Reassigning it would
+        // invalidate every observer, re-sort the visible rows and rebuild the
+        // facets for nothing.
+        guard torrents != self.torrents else { return }
         self.torrents = torrents
         // Prune selections pointing at torrents the daemon no longer has
         // (removed externally). Skip the empty transition set so a

@@ -912,10 +912,13 @@ struct RPCTorrentServiceTests {
         let afterStop = try #require(try await iterator.next())
         #expect(afterStop.first?.status == .paused)
 
-        // The next tick is incremental and the stub reports no changes, so the
-        // emitted snapshot is the cache — which must carry the stop.
+        // The next tick is incremental. Give it one changed torrent so it
+        // emits; the merged cache must still carry the stop.
+        await stub.setStubTorrents(
+            full: [makeWire(status: 4)], incremental: [makeWire(id: 2, status: 4)])
         let next = try #require(try await iterator.next())
-        #expect(next.first?.status == .paused)
+        #expect(next.first { $0.id == 1 }?.status == .paused)
+        #expect(next.contains { $0.id == 2 })
     }
 
     @Test("a new stream starts from a full poll instead of the old cache")
@@ -950,6 +953,9 @@ struct RPCTorrentServiceTests {
         let stream = await service.torrentsStream()
         var iterator = stream.makeAsyncIterator()
         _ = try await iterator.next()
+        // Give the next incremental tick something to emit, otherwise the
+        // no-change skip would make this test wait for a real change.
+        await stub.setStubTorrents(full: [], incremental: [makeWire(id: 2, status: 4)])
         // Let the loop reach its sleep before posting.
         try await Task.sleep(for: .milliseconds(100))
 
@@ -984,7 +990,10 @@ struct RPCTorrentServiceTests {
         let initial = try #require(try await second.next())
         #expect(initial.map(\.id) == [2])
 
-        // The cancelled response lands late and must not resurrect id 99.
+        // The cancelled response lands late and must not resurrect id 99. Give
+        // the next incremental tick a change so it emits promptly.
+        await stub.setStubTorrents(
+            full: [makeWire(id: 2, status: 4)], incremental: [makeWire(id: 2, status: 6)])
         await stub.release()
         let next = try #require(try await second.next())
         #expect(next.map(\.id) == [2])

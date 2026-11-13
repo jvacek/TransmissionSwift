@@ -43,9 +43,24 @@ public final class InspectorModel {
     private var fetchGeneration = 0
     /// Set while a fetch is in flight so a slow daemon doesn't pile up requests.
     private var isFetching = false
-    /// List snapshot the current detail was fetched from. A tick that moved no
-    /// list field has no new files or peers to fetch.
-    private var lastPolledSnapshot: Torrent?
+    /// The list fields the detail fetch actually depends on. Speeds and peer
+    /// counts move every tick; comparing the whole `Torrent` would refetch the
+    /// selected torrent's files and peers once per second.
+    private struct DetailSignature: Equatable {
+        let id: Torrent.ID
+        let status: TorrentStatus
+        let progress: Double
+        let havePieces: Int
+
+        init(_ torrent: Torrent) {
+            id = torrent.id
+            status = torrent.status
+            progress = torrent.progress
+            havePieces = torrent.havePieces
+        }
+    }
+
+    private var lastPolledSignature: DetailSignature?
 
     public init(list: TorrentListModel, defaults: UserDefaults = .standard) {
         self.list = list
@@ -60,7 +75,7 @@ public final class InspectorModel {
         // Detail belongs to the previous server; a same-id torrent on the new
         // one would otherwise show its files until the first fetch lands.
         detail = nil
-        lastPolledSnapshot = nil
+        lastPolledSignature = nil
         // And a fetch already in flight against the old server must not land
         // here when it returns.
         fetchGeneration += 1
@@ -104,12 +119,13 @@ public final class InspectorModel {
     /// selected torrent didn't change has nothing new to fetch.
     func poll() async {
         guard isVisible, !isFetching, let torrent = list.selectedTorrents.first else { return }
-        guard torrent != lastPolledSnapshot else { return }
+        let signature = DetailSignature(torrent)
+        guard signature != lastPolledSignature else { return }
         // Record only a completed fetch: a failure must stay eligible so the
         // next tick retries rather than showing empty tabs until the torrent
         // changes.
         if await fetch(for: torrent.id) {
-            lastPolledSnapshot = torrent
+            lastPolledSignature = signature
         }
     }
 
@@ -119,7 +135,9 @@ public final class InspectorModel {
     /// so without this the Files tab shows stale values until the selection
     /// changes.
     func refreshIfShowing(_ id: Torrent.ID) async {
-        guard list.selectedTorrents.first?.id == id else { return }
-        await fetch(for: id)
+        guard let torrent = list.selectedTorrents.first, torrent.id == id else { return }
+        if await fetch(for: id) {
+            lastPolledSignature = DetailSignature(torrent)
+        }
     }
 }

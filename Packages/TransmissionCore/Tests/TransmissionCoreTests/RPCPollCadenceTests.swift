@@ -29,4 +29,12 @@ struct RPCPollCadenceTests {
         #expect(PollingIntervals.normalized(2, to: PollingIntervals.freeSpace) == 5)
         #expect(PollingIntervals.normalized(7200, to: PollingIntervals.freeSpace) == 3600)
     }
+
+    @Test("a full poll always emits; an empty incremental does not")
+    func emitPolicy() {
+        #expect(RPCTorrentService.shouldEmit(fullPoll: true, changed: 0, removed: 0))
+        #expect(!RPCTorrentService.shouldEmit(fullPoll: false, changed: 0, removed: 0))
+        #expect(RPCTorrentService.shouldEmit(fullPoll: false, changed: 1, removed: 0))
+        #expect(RPCTorrentService.shouldEmit(fullPoll: false, changed: 0, removed: 1))
+    }
 }

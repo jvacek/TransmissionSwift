@@ -88,10 +88,18 @@ struct InspectorModelTests {
         fetches = await service.inspectorFetchCount
         #expect(fetches == 1)
 
-        // A changed torrent refetches.
-        var changed = MockFixtures.torrents()
-        changed[0].name = "renamed"
-        list.setTorrents(changed)
+        // Speeds move every tick but do not change files or peers.
+        var faster = MockFixtures.torrents()
+        faster[0].downloadSpeed += 1_024
+        list.setTorrents(faster)
+        await model.poll()
+        fetches = await service.inspectorFetchCount
+        #expect(fetches == 1)
+
+        // Progress does change the detail; refetch.
+        var progressed = faster
+        progressed[0].progress += 0.1
+        list.setTorrents(progressed)
         await model.poll()
         fetches = await service.inspectorFetchCount
         #expect(fetches == 2)

@@ -57,6 +57,19 @@ struct TorrentListModelTests {
         #expect(model.visibleTorrents.isEmpty)
     }
 
+    @Test("re-applying an identical snapshot keeps the derived rows")
+    func identicalSnapshotIsNoOp() {
+        let fixtures = MockFixtures.torrents()
+        let model = loaded(fixtures)
+        model.setStatusFilter(.downloading)
+        let visible = model.visibleTorrents
+
+        model.setTorrents(fixtures)
+
+        #expect(model.visibleTorrents == visible)
+        #expect(model.facets.statusCounts[.downloading] == visible.count)
+    }
+
     @Test("a status filter narrows the visible rows")
     func statusFilter() {
         let model = loaded()
