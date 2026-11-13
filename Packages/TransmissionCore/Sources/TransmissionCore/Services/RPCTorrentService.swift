@@ -142,17 +142,20 @@ public actor RPCTorrentService: TorrentService {
             } catch {
                 logger.error("Poll error: \(error)")
                 consecutiveFailures += 1
-                if Self.failureDecision(for: error, consecutiveFailures: consecutiveFailures)
-                    == .stop
-                {
+                // Only an auth failure or a malformed URL is terminal. A daemon
+                // restart, sleep/wake, or network handover retries forever, so
+                // the stream recovers on its own instead of parking the app in
+                // "disconnected" until the user clicks Reconnect.
+                if Self.shouldStop(for: error) {
                     stream.finish(throwing: error)
                     return
                 }
                 failed = true
             }
-            // Retries keep the old full-list cadence: at the incremental
-            // interval three attempts would give a restarting daemon ~3s.
-            await sleep(failed ? max(incremental, Self.retryDelay) : incremental)
+            await sleep(
+                failed
+                    ? max(incremental, Self.retryDelay(afterFailures: consecutiveFailures))
+                    : incremental)
         }
         stream.finish()
     }
@@ -177,23 +180,17 @@ public actor RPCTorrentService: TorrentService {
         pollSleep?.cancel()
     }
 
-    /// Whether a failed poll retries or ends the stream.
-    enum PollFailure: Equatable {
-        case retry
-        case stop
+    /// Whether a failed poll ends the stream for good.
+    static func shouldStop(for error: TransmissionError) -> Bool {
+        isFatal(error)
     }
 
-    /// How long a failed poll waits before retrying.
-    private static let retryDelay: TimeInterval = 5
-
-    /// Fatal errors end the stream at once; anything else gets three attempts.
-    static func failureDecision(for error: TransmissionError, consecutiveFailures: Int)
-        -> PollFailure
-    {
-        if isFatal(error) || consecutiveFailures >= 3 {
-            return .stop
-        }
-        return .retry
+    /// How long a failed poll waits before retrying: 5s, then 10s from the
+    /// second failure onward. A LAN daemon either answers quickly or is
+    /// restarting, so a short fixed cap recovers sooner than an exponential
+    /// backoff.
+    static func retryDelay(afterFailures failures: Int) -> TimeInterval {
+        min(5 * Double(failures), 10)
     }
 
     private static func isFatal(_ error: TransmissionError) -> Bool {

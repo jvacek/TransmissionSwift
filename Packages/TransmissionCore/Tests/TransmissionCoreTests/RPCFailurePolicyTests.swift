@@ -13,25 +13,24 @@ import TransmissionRPC
 struct RPCFailurePolicyTests {
     @Test("fatal errors end the stream at once")
     func fatalStopsImmediately() {
-        #expect(
-            RPCTorrentService.failureDecision(for: .unauthorized, consecutiveFailures: 1)
-                == .stop)
-        #expect(
-            RPCTorrentService.failureDecision(
-                for: .network(URLError(.badURL)), consecutiveFailures: 1) == .stop)
-        #expect(
-            RPCTorrentService.failureDecision(
-                for: .network(URLError(.unsupportedURL)), consecutiveFailures: 1) == .stop)
+        #expect(RPCTorrentService.shouldStop(for: .unauthorized))
+        #expect(RPCTorrentService.shouldStop(for: .network(URLError(.badURL))))
+        #expect(RPCTorrentService.shouldStop(for: .network(URLError(.unsupportedURL))))
     }
 
-    @Test("recoverable errors retry twice and end the stream on the third")
-    func recoverableRetriesThenStops() {
+    @Test("recoverable errors retry forever, however many have failed")
+    func recoverableNeverStops() {
         let timeout = TransmissionError.network(URLError(.timedOut))
-        #expect(RPCTorrentService.failureDecision(for: timeout, consecutiveFailures: 1) == .retry)
-        #expect(RPCTorrentService.failureDecision(for: timeout, consecutiveFailures: 2) == .retry)
-        #expect(RPCTorrentService.failureDecision(for: timeout, consecutiveFailures: 3) == .stop)
+        #expect(!RPCTorrentService.shouldStop(for: timeout))
+        #expect(!RPCTorrentService.shouldStop(for: .serverError("boom")))
+        #expect(!RPCTorrentService.shouldStop(for: .decoding("junk")))
+    }
 
-        let server = TransmissionError.serverError("boom")
-        #expect(RPCTorrentService.failureDecision(for: server, consecutiveFailures: 1) == .retry)
+    @Test("retry delay starts at 5s and caps at 10s")
+    func retryDelayCaps() {
+        #expect(RPCTorrentService.retryDelay(afterFailures: 1) == 5)
+        #expect(RPCTorrentService.retryDelay(afterFailures: 2) == 10)
+        #expect(RPCTorrentService.retryDelay(afterFailures: 3) == 10)
+        #expect(RPCTorrentService.retryDelay(afterFailures: 1_000) == 10)
     }
 }
