@@ -233,8 +233,20 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             switch update {
             case .none: return
             case .reload: tableView.reloadData()
+            case .reordered: reloadVisibleRows(in: tableView)
             case .refreshVisible: refreshVisibleCells(in: tableView)
             }
+        }
+
+        /// A sort that moves rows every tick (speed, progress, ETA) keeps the
+        /// same row set. Repaint the visible cells in place instead of tearing
+        /// down every cell view, which resets tooltips and hitches scrolling.
+        private func reloadVisibleRows(in tableView: NSTableView) {
+            let visible = tableView.rows(in: tableView.visibleRect)
+            guard visible.length > 0 else { return }
+            let rows = IndexSet(integersIn: visible.location..<(visible.location + visible.length))
+            let columns = IndexSet(integersIn: 0..<tableView.numberOfColumns)
+            tableView.reloadData(forRowIndexes: rows, columnIndexes: columns)
         }
 
         /// Mirrors external `store.list.selectedTorrentIDs` changes into the table,

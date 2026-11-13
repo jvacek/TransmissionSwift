@@ -15,12 +15,16 @@ nonisolated struct TorrentTableRowStore {
         /// Cell content moved but the row set/order did not — repaint visible
         /// cells in place.
         case refreshVisible
-        /// The row set or id order changed — reload the whole table.
+        /// The same rows are present in a different order (a speed/ETA sort
+        /// moved them) — repaint only the visible rows instead of tearing down
+        /// every cell view.
+        case reordered
+        /// The row set changed — reload the whole table.
         case reload
     }
 
     enum ChangeKind: Equatable {
-        case none, values, structural
+        case none, values, reordered, structural
     }
 
     private(set) var displayedRows: [TorrentRowDisplay] = []
@@ -45,23 +49,28 @@ nonisolated struct TorrentTableRowStore {
         guard change != .none || baseChanged || colorsChanged else { return .none }
         displayedRows = newDisplays
         lastDownloadDirectoryBase = downloadDirectoryBase
-        return change == .structural ? .reload : .refreshVisible
+        switch change {
+        case .structural: return .reload
+        case .reordered: return .reordered
+        case .values, .none: return .refreshVisible
+        }
     }
 
-    /// One pass over both arrays, folding the old "id sequence" and "field
-    /// equality" guards into a single comparison so the poll never pays for two
-    /// full scans. `.structural` when the row set or id order changed (reload),
-    /// `.values` when only cell content changed (refresh visible cells in
-    /// place), `.none` when nothing moved.
+    /// One pass over both arrays. `.structural` when the row set changed,
+    /// `.reordered` when the same ids moved position, `.values` when only cell
+    /// content changed, `.none` when nothing moved. The set comparison only
+    /// runs on the mismatch path.
     static func classifyChange(
         from old: [TorrentRowDisplay], to new: [TorrentRowDisplay]
     ) -> ChangeKind {
         guard old.count == new.count else { return .structural }
+        var orderChanged = false
         var valuesChanged = false
         for (lhs, rhs) in zip(old, new) {
-            if lhs.id != rhs.id { return .structural }
+            if lhs.id != rhs.id { orderChanged = true }
             if lhs != rhs { valuesChanged = true }
         }
-        return valuesChanged ? .values : .none
+        guard orderChanged else { return valuesChanged ? .values : .none }
+        return Set(old.map(\.id)) == Set(new.map(\.id)) ? .reordered : .structural
     }
 }

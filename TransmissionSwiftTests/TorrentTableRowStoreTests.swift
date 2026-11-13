@@ -21,9 +21,13 @@ struct TorrentTableRowStoreTests {
         #expect(TorrentTableRowStore.classifyChange(from: old, to: new) == .values)
     }
 
-    @Test func classifyChange_structural_onIdOrCountChange() {
+    @Test func classifyChange_reordered_whenSameSetMoves() {
+        #expect(classify(from: [1, 2], to: [2, 1]) == .reordered)
+        #expect(classify(from: [1, 2, 3], to: [3, 1, 2]) == .reordered)
+    }
+
+    @Test func classifyChange_structural_onSetOrCountChange() {
         #expect(classify(from: [1], to: [1, 2]) == .structural)
-        #expect(classify(from: [1, 2], to: [2, 1]) == .structural)
         #expect(classify(from: [1, 2], to: [2, 3]) == .structural)
     }
 
@@ -53,7 +57,7 @@ struct TorrentTableRowStoreTests {
         #expect(update == .refreshVisible)
     }
 
-    @Test func rowStore_reload_whenOrderOrSetChanges() {
+    @Test func rowStore_reordered_whenOnlyOrderChanges() {
         var store = TorrentTableRowStore()
         _ = store.apply(
             rows: [makeTableTorrent(id: 1), makeTableTorrent(id: 2)], downloadDirectoryBase: nil,
@@ -61,7 +65,14 @@ struct TorrentTableRowStoreTests {
         #expect(
             store.apply(
                 rows: [makeTableTorrent(id: 2), makeTableTorrent(id: 1)], downloadDirectoryBase: nil,
-                tagColors: [:]) == .reload)
+                tagColors: [:]) == .reordered)
+    }
+
+    @Test func rowStore_reload_whenSetChanges() {
+        var store = TorrentTableRowStore()
+        _ = store.apply(
+            rows: [makeTableTorrent(id: 1), makeTableTorrent(id: 2)], downloadDirectoryBase: nil,
+            tagColors: [:])
         #expect(
             store.apply(rows: [makeTableTorrent(id: 1)], downloadDirectoryBase: nil, tagColors: [:])
                 == .reload)
