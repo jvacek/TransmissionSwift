@@ -915,4 +915,36 @@ struct TorrentStoreTests {
 
         #expect(store.list.selectedSidebarFilters.contains(.label(name: "Linux")))
     }
+
+    @Test("connecting to another server clears selection, search and staged dialogs")
+    @MainActor
+    func connectClearsPerServerState() async {
+        let store = TorrentStore(service: MockTorrentService())
+        await waitFor { !store.list.torrents.isEmpty }
+
+        store.list.selectedTorrentIDs = [1]
+        store.list.searchQuery = "Interstellar"
+        store.actions.pendingRemoval = PendingRemoval(ids: [1], deleteLocalData: true)
+        store.ui.showEditLabels = true
+        store.ui.editLabelsTargetIDs = [1]
+        store.ui.showSetLocation = true
+        store.ui.setLocationTargetIDs = [1]
+        store.ui.showRenameTorrent = true
+        store.ui.renameTorrentTargetID = 1
+        store.lastActionError = .failed(message: "boom")
+
+        store.connect(service: MockTorrentService(initial: []))
+
+        #expect(store.list.selectedTorrentIDs.isEmpty)
+        #expect(store.list.searchQuery.isEmpty)
+        #expect(store.actions.pendingRemoval == nil)
+        #expect(store.ui.editLabelsTargetIDs.isEmpty)
+        #expect(!store.ui.showEditLabels)
+        #expect(store.ui.setLocationTargetIDs.isEmpty)
+        #expect(!store.ui.showSetLocation)
+        #expect(store.ui.renameTorrentTargetID == nil)
+        #expect(!store.ui.showRenameTorrent)
+        #expect(store.lastActionError == nil)
+        #expect(store.list.torrents.isEmpty)
+    }
 }

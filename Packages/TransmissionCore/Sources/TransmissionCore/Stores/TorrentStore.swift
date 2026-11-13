@@ -136,6 +136,20 @@ public final class TorrentStore {
         actions.connect(mutations: mutations)
         inspector.connect(reading: service)
         connection = .connecting
+        // Torrent ids are only unique per daemon, so a selection, search, or
+        // staged dialog from server A must not survive into server B. Reconnect
+        // (`resumePolling`) deliberately keeps them; this is the real session
+        // boundary.
+        list.selectedTorrentIDs.removeAll()
+        list.searchQuery = ""
+        actions.pendingRemoval = nil
+        ui.editLabelsTargetIDs = []
+        ui.showEditLabels = false
+        ui.setLocationTargetIDs = []
+        ui.showSetLocation = false
+        ui.renameTorrentTargetID = nil
+        ui.showRenameTorrent = false
+        lastActionError = nil
         list.setDownloadDirectory(nil)
         list.setTorrents([])
         // Sidebar filters are per-server state — a tracker/folder/label filter
