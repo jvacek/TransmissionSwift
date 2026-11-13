@@ -95,13 +95,19 @@ struct GetTorrentsIntent: AppIntent {
         if let tracker {
             selection.trackers = [tracker]
         }
-        let torrents = try await TorrentCatalog.torrents(profile: profile, service: service)
+        let catalog = try await TorrentCatalog.torrents(profile: profile, service: service)
+        let torrents =
+            catalog
             .filtered(by: selection)
             .searched(search ?? "")
 
         let serverID = profile.id.uuidString
+        // Donate the full catalog, not the filtered result: pruning treats
+        // anything absent from the donation as removed, so a filtered shortcut
+        // would unindex every torrent it did not return.
+        let catalogEntities = catalog.map { TorrentEntity(torrent: $0, serverID: serverID) }
+        await SpotlightIndexer.indexTorrents(catalogEntities, serverID: serverID)
         let entities = torrents.map { TorrentEntity(torrent: $0, serverID: serverID) }
-        await SpotlightIndexer.indexTorrents(entities, serverID: serverID)
         let dialog =
             entities.isEmpty
             ? "No matching torrents on \(profile.label)."

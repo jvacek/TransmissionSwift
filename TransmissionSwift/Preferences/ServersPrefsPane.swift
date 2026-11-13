@@ -157,6 +157,7 @@ struct ServersPrefsPane: View {
                         // would sit in the Keychain forever.
                         try? keychain.deletePassword(for: id)
                         selection = profileStore.profiles.first.map { .existing($0.id) }
+                        Task { await SpotlightIndexer.indexServers(profileStore.profiles) }
                     } catch {
                         // The store rolled back; keep the server selected so a
                         // retry is one click away.

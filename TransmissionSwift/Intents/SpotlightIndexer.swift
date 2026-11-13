@@ -15,10 +15,20 @@ import TransmissionCore
 /// offering torrents that no longer exist.
 enum SpotlightIndexer {
     private static let donationLog = SpotlightDonationLog()
+    /// Server entities are tracked in the same log type under a separate key, so
+    /// a removed profile can be unindexed without touching torrent donations.
+    private static let serverLog = SpotlightDonationLog(key: "spotlightIndexedServerIDs")
+    private static let serverLogKey = "servers"
 
     static func indexServers(_ profiles: [ServerProfile]) async {
-        try? await CSSearchableIndex.default().indexAppEntities(
-            profiles.map(ServerEntity.init(profile:)))
+        let entities = profiles.map(ServerEntity.init(profile:))
+        let removed = serverLog.prune(
+            serverID: serverLogKey, current: Set(entities.map(\.id)))
+        if !removed.isEmpty {
+            try? await CSSearchableIndex.default().deleteAppEntities(
+                identifiedBy: removed, ofType: ServerEntity.self)
+        }
+        try? await CSSearchableIndex.default().indexAppEntities(entities)
     }
 
     static func indexTorrents(_ entities: [TorrentEntity], serverID: String) async {

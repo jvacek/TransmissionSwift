@@ -51,4 +51,18 @@ struct SpotlightDonationLogTests {
         // a/1 was forgotten explicitly, so pruning to nothing reports only a/2.
         #expect(log.prune(serverID: "a", current: []) == ["a/2"])
     }
+
+    @Test func serverAndTorrentLogsDoNotShareState() {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let torrents = SpotlightDonationLog(defaults: defaults, key: "torrents")
+        let servers = SpotlightDonationLog(defaults: defaults, key: "servers")
+
+        _ = torrents.prune(serverID: "server-1", current: ["t1"])
+        _ = servers.prune(serverID: "servers", current: ["s1"])
+
+        // Pruning servers must not report or clear the torrent donations.
+        #expect(servers.prune(serverID: "servers", current: []) == ["s1"])
+        #expect(torrents.prune(serverID: "server-1", current: ["t1"]).isEmpty)
+    }
 }
