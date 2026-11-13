@@ -16,14 +16,19 @@ struct ContentView: View {
     /// profiles) where the first-run splash must not appear.
     let disableOnboarding: Bool
 
-    @State private var connection: ConnectionCoordinator
     @State private var hasAppeared = false
     @State private var showsCrashReportingConsent = false
 
-    init(store: TorrentStore, snapshotMode: Bool, disableOnboarding: Bool) {
+    /// Owned by `TransmissionSwiftApp`, not this view: closing and reopening the
+    /// main window must not rebuild the connection flow or re-read the Keychain.
+    let connection: ConnectionCoordinator
+
+    init(
+        connection: ConnectionCoordinator, snapshotMode: Bool, disableOnboarding: Bool
+    ) {
         self.snapshotMode = snapshotMode
         self.disableOnboarding = disableOnboarding
-        _connection = State(initialValue: ConnectionCoordinator(store: store))
+        self.connection = connection
     }
 
     var body: some View {
@@ -39,7 +44,10 @@ struct ContentView: View {
                 // no-ops until a profile is added (id flips from nil to a UUID).
                 MainWindow()
                     .task(id: profileStore.activeProfile?.id) {
-                        guard let profile = profileStore.activeProfile else { return }
+                        guard let profile = profileStore.activeProfile else {
+                            connection.disconnect()
+                            return
+                        }
                         await connection.connect(to: profile)
                     }
             }

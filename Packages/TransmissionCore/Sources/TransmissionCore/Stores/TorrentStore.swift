@@ -86,6 +86,9 @@ public final class TorrentStore {
     private var service: any TorrentReading
     private var streamTask: Task<Void, Never>?
     private var freeSpaceTask: Task<Void, Never>?
+    /// Bumped whenever a stream is replaced, so a cancelled task that is still
+    /// finishing a tick cannot write into the new session's state.
+    private var streamGeneration = 0
 
     public init(service: any TorrentReading, inspectorDefaults: UserDefaults = .standard) {
         let list = TorrentListModel()
@@ -136,10 +139,40 @@ public final class TorrentStore {
         actions.connect(mutations: mutations)
         inspector.connect(reading: service)
         connection = .connecting
-        // Torrent ids are only unique per daemon, so a selection, search, or
-        // staged dialog from server A must not survive into server B. Reconnect
-        // (`resumePolling`) deliberately keeps them; this is the real session
-        // boundary.
+        resetPerServerState()
+        list.setDownloadDirectory(nil)
+        list.setTorrents([])
+        // Sidebar filters are per-server state — a tracker/folder/label filter
+        // from server A would otherwise show "0 torrents" against server B's
+        // (different) tracker set until the user re-picks one.
+        list.resetFilters()
+        startStream()
+    }
+
+    /// Stop polling and forget the current daemon. Used when no server profile
+    /// remains, so the app does not keep talking to a removed server.
+    public func disconnect(reason: String) {
+        streamTask?.cancel()
+        freeSpaceTask?.cancel()
+        streamGeneration += 1
+        service = EmptyTorrentService()
+        actionsEnabled = false
+        session.connect(reading: service, mutations: nil)
+        session.reset()
+        actions.connect(mutations: nil)
+        inspector.connect(reading: service)
+        resetPerServerState()
+        list.setDownloadDirectory(nil)
+        list.setTorrents([])
+        list.resetFilters()
+        connection = .disconnected(reason: reason)
+    }
+
+    /// UI state scoped to one daemon. Torrent ids are only unique per server,
+    /// so a selection, search, or staged dialog must not survive into another
+    /// daemon. Reconnect (`resumePolling`) deliberately keeps them; this runs
+    /// on a real session boundary only.
+    private func resetPerServerState() {
         list.selectedTorrentIDs.removeAll()
         list.searchQuery = ""
         actions.pendingRemoval = nil
@@ -150,18 +183,13 @@ public final class TorrentStore {
         ui.renameTorrentTargetID = nil
         ui.showRenameTorrent = false
         lastActionError = nil
-        list.setDownloadDirectory(nil)
-        list.setTorrents([])
-        // Sidebar filters are per-server state — a tracker/folder/label filter
-        // from server A would otherwise show "0 torrents" against server B's
-        // (different) tracker set until the user re-picks one.
-        list.resetFilters()
-        startStream()
     }
 
     private func startStream() {
         // Capture the service now so a cancelled task can't accidentally call
         // methods on whatever service connect() installs while it's running.
+        streamGeneration += 1
+        let generation = streamGeneration
         let capturedService = service
         streamTask = Task { @MainActor [weak self] in
             guard let self, !Task.isCancelled else { return }
@@ -171,11 +199,13 @@ public final class TorrentStore {
             // `session.load` runs it first, so the cache-backed reads after it
             // see warm values.
             await self.session.load(from: capturedService)
+            guard generation == self.streamGeneration, !Task.isCancelled else { return }
             self.list.setDownloadDirectory(await capturedService.downloadDirectory())
-            guard !Task.isCancelled else { return }
+            guard generation == self.streamGeneration, !Task.isCancelled else { return }
             self.startFreeSpacePoll()
             do {
                 for try await snapshot in stream {
+                    guard generation == self.streamGeneration else { return }
                     self.list.setTorrents(snapshot)
                     // The list snapshot carries no files/peers; the inspector
                     // fetches its own detail on the same cadence. Fire-and-forget
@@ -187,7 +217,7 @@ public final class TorrentStore {
                     }
                 }
             } catch {
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, generation == self.streamGeneration else { return }
                 self.connection = .disconnected(reason: error.localizedDescription)
             }
         }
@@ -195,6 +225,7 @@ public final class TorrentStore {
 
     private func startFreeSpacePoll() {
         freeSpaceTask?.cancel()
+        let generation = streamGeneration
         let capturedService = service
         freeSpaceTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -202,7 +233,7 @@ public final class TorrentStore {
                 let v = UserDefaults.standard.double(forKey: PreferenceKeys.freeSpaceIntervalSeconds)
                 let interval = v > 0 ? v : PollingIntervals.defaultFreeSpace
                 try? await Task.sleep(for: .seconds(interval))
-                guard !Task.isCancelled else { break }
+                guard !Task.isCancelled, generation == self.streamGeneration else { break }
                 await self.session.poll(from: capturedService)
             }
         }

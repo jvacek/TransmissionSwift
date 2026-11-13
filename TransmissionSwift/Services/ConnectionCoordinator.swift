@@ -91,6 +91,14 @@ final class ConnectionCoordinator {
         connectedProfileID = profile.id
     }
 
+    /// Stop polling and forget the current daemon. Used when no server profile
+    /// remains, so the app does not keep talking to a removed server.
+    func disconnect() {
+        store.disconnect(reason: "No server configured")
+        environment?.clearConnection()
+        connectedProfileID = nil
+    }
+
     /// Stop sharing the live service with App Intents once the app drops the
     /// connection; otherwise an intent keeps talking to a dead connection.
     func connectionStateChanged(_ state: ConnectionState) {

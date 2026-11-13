@@ -172,4 +172,28 @@ struct ConnectionCoordinatorTests {
 
         #expect((environment.service(for: profile) as? MockTorrentService) == nil)
     }
+
+    @Test("disconnect stops the store and clears the shared connection")
+    func disconnectStopsStore() async {
+        let store = makeStore()
+        let environment = makeEnvironment()
+        let profile = ServerProfile(label: "S", host: "host.local")
+        let mock = MockTorrentService(initial: [])
+        let coordinator = ConnectionCoordinator(
+            store: store,
+            environment: environment,
+            isAuxiliaryProcess: false,
+            readCredentials: { _ in nil },
+            makeService: { _, _ in mock })
+
+        await coordinator.connect(to: profile)
+        #expect((environment.service(for: profile) as? MockTorrentService) === mock)
+
+        coordinator.disconnect()
+
+        #expect((environment.service(for: profile) as? MockTorrentService) == nil)
+        #expect(disconnectedReason(store.connection) == "No server configured")
+        #expect(!store.actionsEnabled)
+        #expect(store.list.torrents.isEmpty)
+    }
 }

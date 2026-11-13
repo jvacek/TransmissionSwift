@@ -947,4 +947,21 @@ struct TorrentStoreTests {
         #expect(store.lastActionError == nil)
         #expect(store.list.torrents.isEmpty)
     }
+
+    @Test("disconnect stops polling and clears per-server state")
+    @MainActor
+    func disconnectClearsPerServerState() async {
+        let store = TorrentStore(service: MockTorrentService())
+        await waitFor { !store.list.torrents.isEmpty }
+
+        store.list.selectedTorrentIDs = [1]
+        store.list.searchQuery = "Interstellar"
+        store.disconnect(reason: "No server configured")
+
+        #expect(store.connection == .disconnected(reason: "No server configured"))
+        #expect(store.list.torrents.isEmpty)
+        #expect(store.list.selectedTorrentIDs.isEmpty)
+        #expect(store.list.searchQuery.isEmpty)
+        #expect(!store.actionsEnabled)
+    }
 }

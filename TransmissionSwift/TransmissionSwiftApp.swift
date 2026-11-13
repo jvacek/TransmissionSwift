@@ -22,6 +22,7 @@ struct TransmissionSwiftApp: App {
     @State private var profileStore: ServerProfileStore
     @State private var mappingStore: OpenMappingStore
     @State private var torrentStore: TorrentStore
+    @State private var connection: ConnectionCoordinator
     @State private var faviconStore = FaviconStore()
     @State private var geoipStore = GeoIPStore()
     @State private var tagColorStore: TagColorStore
@@ -133,6 +134,9 @@ struct TransmissionSwiftApp: App {
         }
         let store = TorrentStore(service: service)
         self._torrentStore = State(wrappedValue: store)
+        // Owned by the app so closing the main window does not rebuild the
+        // connect flow (and re-read the Keychain) when it reopens.
+        self._connection = State(wrappedValue: ConnectionCoordinator(store: store))
 
         // Snapshot replay seeds a synthetic profile so the title bar / server
         // switcher have a label. Prefer the name the snapshot carries (tests set a
@@ -175,7 +179,7 @@ struct TransmissionSwiftApp: App {
     var body: some Scene {
         Window("TransmissionSwift", id: "main") {
             ContentView(
-                store: torrentStore,
+                connection: connection,
                 snapshotMode: snapshotPath != nil,
                 disableOnboarding: disableOnboarding
             )
