@@ -6,8 +6,8 @@ import SwiftUI
 import TransmissionCore
 import TransmissionTestSupport
 
-/// Dedicated popup for editing a torrent's labels. Prefills with the labels
-/// common to the whole target set (empty when the selection shares none) and
+/// Dedicated popup for editing a torrent's labels. Prefills with the union of
+/// the target set's labels, so a bulk edit keeps every existing label, and
 /// applies via `store.actions.setLabels` — which replaces the full set on every
 /// targeted torrent, matching Transmission's `torrent-set labels` semantics.
 struct EditLabelsSheet: View {
@@ -47,11 +47,15 @@ struct EditLabelsSheet: View {
     }
 
     private var initialLabels: [String] {
-        let selected = store.list.torrents.filter { ids.contains($0.id) }
-        guard let first = selected.first else { return [] }
-        return selected.dropFirst().reduce(first.labels) { common, torrent in
-            common.filter(torrent.labels.contains)
-        }
+        Self.mergedLabels(store.list.torrents, ids: ids)
+    }
+
+    /// Union of the selection's labels. An intersection would silently drop
+    /// every label not shared by all targets when the edited set replaces the
+    /// full set on apply.
+    nonisolated static func mergedLabels(_ torrents: [Torrent], ids: [Torrent.ID]) -> [String] {
+        let wanted = Set(ids)
+        return Set(torrents.lazy.filter { wanted.contains($0.id) }.flatMap(\.labels)).sorted()
     }
 
     private var suggestions: [String] {
