@@ -714,6 +714,16 @@ extension TorrentTableRepresentable.Coordinator: NSTableViewDataSource {
 }
 
 extension TorrentTableRepresentable.Coordinator: NSTableViewDelegate {
+    /// Native type-ahead: typing a torrent's name jumps to it. The table is
+    /// cell-view based, so `objectValueFor` is nil and this is the only way to
+    /// give AppKit a string to match.
+    func tableView(
+        _ tableView: NSTableView, typeSelectStringFor tableColumn: NSTableColumn?, row: Int
+    ) -> String? {
+        guard displayedRows.indices.contains(row) else { return nil }
+        return displayedRows[row].torrent.name
+    }
+
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard displayedRows.indices.contains(row), let tableColumn,
             let column = TransmissionCore.TableColumn(rawValue: tableColumn.identifier.rawValue)
