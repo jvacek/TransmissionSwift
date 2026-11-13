@@ -42,6 +42,9 @@ public final class TorrentListModel {
         let primaryTracker: String
         let downloadFolder: String
         let labels: [String]
+        /// `.active` is derived from peer counters, not status, so it must be
+        /// part of the signature or the sidebar badge freezes.
+        let isActive: Bool
     }
 
     /// Where the sort preference lives. Injected so the model can be tested
@@ -183,7 +186,8 @@ public final class TorrentListModel {
                 status: torrent.status,
                 primaryTracker: torrent.primaryTracker,
                 downloadFolder: torrent.downloadFolder,
-                labels: torrent.labels)
+                labels: torrent.labels,
+                isActive: torrent.isActive)
         }
         guard signature != facetSignature else { return }
         facetSignature = signature

@@ -70,6 +70,21 @@ struct TorrentListModelTests {
         #expect(model.facets.statusCounts[.downloading] == visible.count)
     }
 
+    @Test("the Active count follows peer counters without a status change")
+    func activeCountFollowsPeers() {
+        var torrents = MockFixtures.torrents()
+        torrents[0].peersSendingToUs = 0
+        torrents[0].peersGettingFromUs = 0
+        torrents[0].webseedsSendingToUs = 0
+        let model = loaded(torrents)
+        let before = model.facets.statusCounts[.active] ?? 0
+
+        torrents[0].peersSendingToUs = 1
+        model.setTorrents(torrents)
+
+        #expect((model.facets.statusCounts[.active] ?? 0) == before + 1)
+    }
+
     @Test("a status filter narrows the visible rows")
     func statusFilter() {
         let model = loaded()
