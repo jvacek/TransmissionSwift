@@ -191,6 +191,72 @@ struct SnapshotRedactorTests {
         #expect(summary.hashes == 2)
     }
 
+    // MARK: - Magnet links / metadata
+
+    @Test("magnet links keep their shape but lose the infohash and tracker")
+    func magnetLinkRedacted() throws {
+        let (tree, summary) = try runRedactor(SnapshotFixtures.rawSnapshotWithMetadata())
+        let torrent = try torrentTree(tree, index: 0)
+        let magnet = try #require(torrent["magnetLink"] as? String)
+
+        #expect(magnet.hasPrefix("magnet:?"))
+        #expect(!magnet.contains("aaaa1111aaaa1111"))
+        #expect(!magnet.contains("private-tracker.example"))
+        #expect(!magnet.contains("passkey"))
+
+        let components = try #require(URLComponents(string: magnet))
+        let trackers = (components.queryItems ?? [])
+            .filter { $0.name == "tr" }
+            .compactMap(\.value)
+        #expect(trackers.count == 1)
+        #expect(trackers[0].hasPrefix("https://tracker-"))
+        #expect(trackers[0].hasSuffix(".invalid/announce"))
+        #expect(summary.hashes >= 1)
+        #expect(summary.passkeysStripped >= 1)
+    }
+
+    @Test("fuzzed magnet names keep the link but hide the display name")
+    func magnetNameFuzzed() throws {
+        let raw = SnapshotFixtures.rawSnapshotWithMetadata()
+        let (tree, _) = try runRedactor(
+            raw, options: SnapshotRedactionOptions(includeNames: false)
+        )
+        let torrent = try torrentTree(tree, index: 0)
+        let magnet = try #require(torrent["magnetLink"] as? String)
+        let components = try #require(URLComponents(string: magnet))
+        let displayName = try #require(
+            components.queryItems?.first { $0.name == "dn" }?.value)
+        let original = try #require(raw.torrents[0].magnetLink)
+        let originalName = try #require(
+            URLComponents(string: original)?.queryItems?
+                .first { $0.name == "dn" }?.value)
+        #expect(displayName != originalName)
+        #expect(!displayName.contains("Ubuntu"))
+    }
+
+    @Test("comment and creator are scrubbed as free text")
+    func commentAndCreatorScrubbed() throws {
+        let (tree, summary) = try runRedactor(SnapshotFixtures.rawSnapshotWithMetadata())
+        let torrent = try torrentTree(tree, index: 0)
+        let comment = try #require(torrent["comment"] as? String)
+        let creator = try #require(torrent["creator"] as? String)
+
+        #expect(!comment.contains("ubuntu.com"))
+        #expect(comment.contains("Ubuntu CD releases."))
+        #expect(creator == "mktorrent 1.1")
+        #expect(summary.freeTextFields >= 2)
+    }
+
+    @Test("dateCreated is shifted like the other timestamps")
+    func dateCreatedShifted() throws {
+        let (tree, summary) = try runRedactor(SnapshotFixtures.rawSnapshotWithMetadata())
+        let torrent = try torrentTree(tree, index: 0)
+        let shifted = try #require(torrent["dateCreated"] as? Int64)
+        #expect(shifted != 1_700_000_000)
+        #expect(shifted == 1_700_000_000 + 17_225_600)
+        #expect(summary.timestampsShifted)
+    }
+
     // MARK: - Free text
 
     @Test("free text: paths, URLs, emails scrubbed; message text preserved")

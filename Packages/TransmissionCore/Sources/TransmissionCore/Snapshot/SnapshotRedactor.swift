@@ -86,8 +86,8 @@ public struct SnapshotRedactor {
         if let string = value as? String {
             return redactString(string, key: key, summary: &summary)
         }
-        if let number = value as? NSNumber, isTimestampKey(key), !options.preserveTimestamps,
-            number.doubleValue > 0
+        if let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+            isTimestampKey(key), !options.preserveTimestamps, number.doubleValue > 0
         {
             // Preserve the numeric type the daemon used (integers stay integers
             // so the file decodes exactly like a live poll).
@@ -111,6 +111,13 @@ public struct SnapshotRedactor {
         // 4.0.6"), not identity — and they'd otherwise match the `name` rule.
         if lower == "clientname" { return string }
 
+        if lower == "magnetlink" {
+            return rewriteMagnetLink(string, summary: &summary)
+        }
+        if lower == "comment" || lower == "creator" {
+            summary.freeTextFields += 1
+            return scrubFreeText(string)
+        }
         if lower.hasSuffix("announce") || lower.hasSuffix("scrape") || lower.hasSuffix("url") {
             let (rewritten, passkeys) = rewriteTrackerURL(string)
             if options.anonymizeTrackers { summary.trackerURLs += 1 }
@@ -164,16 +171,59 @@ public struct SnapshotRedactor {
         return string
     }
 
+    // MARK: - Magnet links
+
+    /// Keeps the link usable as a magnet while replacing the infohash, the
+    /// display name (when names are fuzzed) and every tracker URL. Unknown
+    /// parameters are scrubbed as free text, so exact sources and web seeds
+    /// cannot carry an address out.
+    private func rewriteMagnetLink(
+        _ string: String, summary: inout SnapshotRedactionSummary
+    ) -> String {
+        guard var components = URLComponents(string: string),
+            components.scheme?.lowercased() == "magnet",
+            let items = components.queryItems
+        else {
+            return scrubFreeText(string)
+        }
+        components.queryItems = items.map { item in
+            let value = item.value ?? ""
+            switch item.name.lowercased() {
+            case "xt":
+                summary.hashes += 1
+                // urn:btih:<hash>, urn:btmh:<multihash>; keep the scheme prefix.
+                if let colon = value.lastIndex(of: ":") {
+                    let fuzzed = fuzzHash(String(value[value.index(after: colon)...]))
+                    return URLQueryItem(name: item.name, value: "\(value[..<colon]):\(fuzzed)")
+                }
+                return URLQueryItem(name: item.name, value: fuzzHash(value))
+            case "dn":
+                guard !options.includeNames else { return item }
+                summary.names += 1
+                return URLQueryItem(name: item.name, value: fuzzName(value))
+            case "tr":
+                let (rewritten, passkeys) = rewriteTrackerURL(value)
+                if options.anonymizeTrackers { summary.trackerURLs += 1 }
+                if passkeys > 0 { summary.passkeysStripped += passkeys }
+                return URLQueryItem(name: item.name, value: rewritten)
+            default:
+                return URLQueryItem(name: item.name, value: scrubFreeText(value))
+            }
+        }
+        return components.string ?? scrubFreeText(string)
+    }
+
     // MARK: - Trackers
 
     /// Rewrites an announce/scrape URL to `scheme://<fake-host>/announce`,
     /// dropping the query string (the classic passkey carrier) and any
-    /// passkey-shaped path. When tracker anonymization is off, the real host is
-    /// kept but the query / passkey path is still stripped. Falls back to
-    /// `fakeHost(for:)` for bare hostnames.
+    /// passkey-shaped path. Works for `http(s)` and `udp` trackers alike. When
+    /// tracker anonymization is off, the real host is kept but the query /
+    /// passkey path is still stripped. Falls back to `fakeHost(for:)` for bare
+    /// hostnames.
     private func rewriteTrackerURL(_ string: String) -> (String, Int) {
         guard let url = URL(string: string),
-            let scheme = url.scheme, scheme.lowercased().hasPrefix("http"),
+            let scheme = url.scheme,
             let host = url.host
         else {
             return (options.anonymizeTrackers ? fakeHost(for: string) : string, 0)
@@ -358,7 +408,7 @@ public struct SnapshotRedactor {
 
     private func isTimestampKey(_ key: String) -> Bool {
         let lower = key.lowercased()
-        return lower.hasSuffix("date") || lower.hasSuffix("time")
+        return lower.hasSuffix("date") || lower.hasSuffix("time") || lower == "datecreated"
     }
 
     private func encodeToTree(_ value: some Encodable) throws -> Any {

@@ -128,6 +128,31 @@ struct SnapshotLeakCheckerTests {
         expectLeak("see https://example.com/faq for details", key: "lastAnnounceResult")
     }
 
+    // MARK: - Magnet links / metadata
+
+    @Test("unredacted magnet tracker hosts and passkeys are leaks")
+    func magnetLeaks() {
+        expectLeak(
+            "magnet:?xt=urn:btih:aaaa&tr=https://tracker.example.org/announce",
+            key: "magnetLink")
+        expectLeak(
+            "magnet:?xt=urn:btih:aaaa&tr=https://tracker.example.org/announce?passkey=abc",
+            key: "magnetLink")
+        expectClean(
+            "magnet:?xt=urn:btih:aaaa&tr=https://tracker-1.invalid/announce",
+            key: "magnetLink")
+        expectClean(
+            "magnet:?xt=urn:btih:aaaa&tr=https://tracker.example.org/announce",
+            key: "magnetLink", anonymizeTrackers: false)
+    }
+
+    @Test("comments and creators are scanned as free text")
+    func commentAndCreatorLeaks() {
+        expectLeak("see https://example.com/faq", key: "comment")
+        expectLeak("admin@example.com", key: "comment")
+        expectClean("Ubuntu CD releases.", key: "creator")
+    }
+
     // MARK: - Passthrough fields
 
     @Test("version strings and client names are not scanned")

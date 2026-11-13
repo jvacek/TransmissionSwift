@@ -110,6 +110,20 @@ enum SnapshotFixtures {
         )
     }
 
+    /// Raw fixture with the privacy-sensitive metadata the inspector requests:
+    /// a magnet link (real infohash + passkey tracker), a comment with a host,
+    /// a creator, and a creation timestamp. Kept out of `rawSnapshot()` so it
+    /// does not perturb the tracker/hash index expectations of the other suites.
+    static func rawSnapshotWithMetadata() -> SnapshotFile {
+        var raw = rawSnapshot()
+        raw.torrents[0].comment = "Ubuntu CD releases. ubuntu.com"
+        raw.torrents[0].creator = "mktorrent 1.1"
+        raw.torrents[0].dateCreated = 1_700_000_000
+        raw.torrents[0].magnetLink =
+            "magnet:?xt=urn:btih:aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111&dn=Ubuntu+24.04+LTS.iso&tr=https%3A%2F%2Fprivate-tracker.example%2Fannounce.php%3Fpasskey%3Ddeadbeefcafe"
+        return raw
+    }
+
     static func errorTorrent() -> WireTorrent {
         WireTorrent(
             id: 2,

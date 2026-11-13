@@ -71,7 +71,8 @@ public enum SnapshotLeakChecker {
         case nameKept  // kept real (includeNames) — checked for IPs only
         case hostLike  // tracker URLs / hosts
         case peerAddress
-        case freeText  // errorString / lastAnnounceResult
+        case freeText  // errorString / lastAnnounceResult / comment / creator
+        case magnet
         case generic
     }
 
@@ -92,7 +93,12 @@ public enum SnapshotLeakChecker {
             return .hostLike
         }
         if lower.hasSuffix("address") { return .peerAddress }
-        if lower == "errorstring" || lower == "lastannounceresult" { return .freeText }
+        if lower == "magnetlink" { return .magnet }
+        if lower == "errorstring" || lower == "lastannounceresult" || lower == "comment"
+            || lower == "creator"
+        {
+            return .freeText
+        }
         return .generic
     }
 
@@ -132,6 +138,29 @@ public enum SnapshotLeakChecker {
                 leaks.append("\(path): passkey query remnant")
             }
             checkIPs(string, path: path, leaks: &leaks)
+            checkFQDNs(string, path: path, leaks: &leaks)
+        case .magnet:
+            checkMagnet(
+                string, path: path, anonymizeTrackers: anonymizeTrackers, leaks: &leaks)
+        }
+    }
+
+    /// A magnet link is allowed to contain `?` and `://`; its trackers are
+    /// checked individually, and the redactor is responsible for replacing the
+    /// infohash and display name.
+    private static func checkMagnet(
+        _ string: String, path: String, anonymizeTrackers: Bool, leaks: inout [String]
+    ) {
+        checkIPs(string, path: path, leaks: &leaks)
+        guard let components = URLComponents(string: string) else { return }
+        for item in components.queryItems ?? [] where item.name.lowercased() == "tr" {
+            let tracker = item.value ?? ""
+            if tracker.contains("?") {
+                leaks.append("\(path): query string on tracker URL (possible passkey)")
+            }
+            guard anonymizeTrackers else { continue }
+            checkIPs(tracker, path: path, leaks: &leaks)
+            checkFQDNs(tracker, path: path, leaks: &leaks)
         }
     }
 
