@@ -33,4 +33,14 @@ struct RPCFailurePolicyTests {
         #expect(RPCTorrentService.retryDelay(afterFailures: 3) == 10)
         #expect(RPCTorrentService.retryDelay(afterFailures: 1_000) == 10)
     }
+
+    @Test("4xx HTTP statuses are fatal; timeouts, throttling and 5xx retry")
+    func httpStatusPolicy() {
+        #expect(RPCTorrentService.shouldStop(for: .http(status: 404, body: "")))
+        #expect(RPCTorrentService.shouldStop(for: .http(status: 409, body: "")))
+        #expect(!RPCTorrentService.shouldStop(for: .http(status: 408, body: "")))
+        #expect(!RPCTorrentService.shouldStop(for: .http(status: 429, body: "")))
+        #expect(!RPCTorrentService.shouldStop(for: .http(status: 500, body: "")))
+        #expect(!RPCTorrentService.shouldStop(for: .http(status: 302, body: "")))
+    }
 }

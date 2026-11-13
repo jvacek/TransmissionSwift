@@ -32,6 +32,9 @@ public struct Credentials: Sendable, Equatable {
 /// whenever ours is missing or stale, and we must retry exactly once.
 public actor URLSessionTransmissionClient: TransmissionClient {
     private static let sessionIdHeader = "X-Transmission-Session-Id"
+    /// A wedged daemon or a half-open VPN must not hold the single poll loop
+    /// for URLSession's 60-second default.
+    private static let requestTimeout: TimeInterval = 10
 
     private let rpcURL: URL
     private let credentials: Credentials?
@@ -109,6 +112,8 @@ public actor URLSessionTransmissionClient: TransmissionClient {
         let arguments: Arguments?
     }
 
+    /// Used only on the error path to tell a daemon-reported failure from a
+    /// response shape we could not decode.
     private struct RPCResultOnly: Decodable {
         let result: String
     }
@@ -162,28 +167,41 @@ public actor URLSessionTransmissionClient: TransmissionClient {
         case 401:
             throw .unauthorized
         case 409:
-            throw .serverError("Session ID handshake failed: still 409 after refresh")
+            throw .http(
+                status: 409, body: "Session ID handshake failed: still 409 after refresh")
         default:
-            // Include what the server actually sent — proxies and login pages
-            // answer with HTML that explains a lot more than the status code.
-            throw .serverError("HTTP \(response.statusCode): \(Self.snippet(data, limit: 300))")
+            let body = Self.snippet(data, limit: 300)
+            logger.error(
+                "✗ HTTP \(response.statusCode) from \(self.rpcURL.absoluteString, privacy: .public): \(body, privacy: .public)"
+            )
+            throw .http(status: response.statusCode, body: body)
         }
 
-        // Check the daemon's verdict before decoding the typed arguments, so a
-        // daemon-reported error surfaces as serverError, not a decoding failure.
+        // One decode on the happy path: the envelope carries both the daemon's
+        // verdict and the typed arguments. A typed decode failure falls back to
+        // the result-only shape so a daemon-reported error still wins over a
+        // shape mismatch.
         do {
-            let verdict = try JSONDecoder().decode(RPCResultOnly.self, from: data)
-            guard verdict.result == "success" else {
-                throw TransmissionError.serverError(verdict.result)
-            }
             let envelope = try JSONDecoder().decode(RPCResponse<Reply>.self, from: data)
+            guard envelope.result == "success" else {
+                throw TransmissionError.serverError(envelope.result)
+            }
             guard let reply = envelope.arguments else {
-                throw TransmissionError.decoding("Response for \(method) is missing the arguments object")
+                // The spec makes `arguments` optional; mutation replies have
+                // none. Only a typed reply that expected fields is an error.
+                if let empty = VoidReply() as? Reply { return empty }
+                throw TransmissionError.decoding(
+                    "Response for \(method) is missing the arguments object")
             }
             return reply
         } catch let error as TransmissionError {
             throw error
         } catch {
+            if let verdict = try? JSONDecoder().decode(RPCResultOnly.self, from: data),
+                verdict.result != "success"
+            {
+                throw .serverError(verdict.result)
+            }
             throw .decoding("\(error) — body was: \(Self.snippet(data, limit: 300))")
         }
     }
@@ -192,6 +210,7 @@ public actor URLSessionTransmissionClient: TransmissionClient {
         var request = URLRequest(url: rpcURL)
         request.httpMethod = "POST"
         request.httpBody = body
+        request.timeoutInterval = Self.requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let sessionId {
             request.setValue(sessionId, forHTTPHeaderField: Self.sessionIdHeader)

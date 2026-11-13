@@ -12,9 +12,12 @@ public enum TransmissionError: Error, Sendable, Equatable {
     /// The response body could not be decoded as the expected JSON shape.
     case decoding(String)
     /// The daemon answered but reported failure — a non-`success` `result`
-    /// string, an unexpected HTTP status, or a 409 that persisted after
-    /// refreshing the session ID.
+    /// string, or a persistent 409 after refreshing the session ID.
     case serverError(String)
+    /// A non-success HTTP status. `body` is for logs and diagnostics; the
+    /// localized message never includes it (proxies and login pages answer
+    /// with HTML that is useless in a banner).
+    case http(status: Int, body: String)
     /// `torrent-add` returned a `torrent-duplicate` result — the torrent is
     /// already present on the daemon. The associated value is the torrent name.
     case torrentDuplicate(name: String)
@@ -31,6 +34,8 @@ extension TransmissionError: LocalizedError {
             return "Could not read the server's response: \(detail)"
         case .serverError(let message):
             return "The server reported an error: \(message)"
+        case .http(let status, _):
+            return "The server returned HTTP \(status)."
         case .torrentDuplicate(let name):
             return "\u{201C}\(name)\u{201D} is already in your list."
         }

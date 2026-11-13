@@ -248,6 +248,79 @@ struct URLSessionTransmissionClientTests {
         #expect(authorization == expected)
     }
 
+    @Test("requests carry the short poll timeout")
+    func requestTimeout() async throws {
+        let host = "request-timeout.test"
+        let recorded = Mutex<TimeInterval>(0)
+        StubURLProtocol.register(host: host) { request in
+            recorded.withLock { $0 = request.timeoutInterval }
+            return (
+                makeHTTPResponse(url: request.url!, statusCode: 200),
+                Data(#"{"result":"success","arguments":{}}"#.utf8)
+            )
+        }
+
+        try await makeClient(host: host).torrentAction("torrent-start", ids: [1])
+
+        #expect(recorded.withLock { $0 } == 10)
+    }
+
+    @Test("a 404 surfaces as .http and keeps the body out of the message")
+    func notFound() async throws {
+        let host = "not-found.test"
+        let body = Data("<html>Wrong RPC path</html>".utf8)
+        StubURLProtocol.register(host: host) { request in
+            (makeHTTPResponse(url: request.url!, statusCode: 404), body)
+        }
+
+        do {
+            _ = try await makeClient(host: host).sessionGet()
+            Issue.record("Expected an http error")
+        } catch {
+            guard case .http(let status, let detail) = error else {
+                Issue.record("Expected .http, got \(error)")
+                return
+            }
+            #expect(status == 404)
+            #expect(detail.contains("Wrong RPC path"))
+            #expect(error.localizedDescription.contains("404"))
+            #expect(!error.localizedDescription.contains("Wrong RPC path"))
+        }
+    }
+
+    @Test("a 500 surfaces as .http")
+    func serverFault() async throws {
+        let host = "server-fault.test"
+        StubURLProtocol.register(host: host) { request in
+            (makeHTTPResponse(url: request.url!, statusCode: 500), Data("upstream failed".utf8))
+        }
+
+        do {
+            _ = try await makeClient(host: host).sessionGet()
+            Issue.record("Expected an http error")
+        } catch {
+            guard case .http(let status, let detail) = error else {
+                Issue.record("Expected .http, got \(error)")
+                return
+            }
+            #expect(status == 500)
+            #expect(detail == "upstream failed")
+        }
+    }
+
+    @Test("a mutation reply without arguments is still a success")
+    func mutationWithoutArguments() async throws {
+        let host = "mutation-no-arguments.test"
+        StubURLProtocol.register(host: host) { request in
+            (
+                makeHTTPResponse(url: request.url!, statusCode: 200),
+                Data(#"{"result":"success"}"#.utf8)
+            )
+        }
+
+        try await makeClient(host: host).torrentAction("torrent-start", ids: [1])
+    }
+
     @Test("sessionGet throws decoding error on malformed JSON")
     func malformedJSON() async throws {
         let host = "malformed.test"
@@ -294,12 +367,13 @@ struct URLSessionTransmissionClientTests {
 
         do {
             _ = try await makeClient(host: host).sessionGet()
-            Issue.record("Expected a serverError")
+            Issue.record("Expected an http error")
         } catch {
-            guard case .serverError = error else {
-                Issue.record("Expected .serverError, got \(error)")
+            guard case .http(let status, _) = error else {
+                Issue.record("Expected .http, got \(error)")
                 return
             }
+            #expect(status == 409)
         }
         #expect(recorded.withLock { $0 } == 2)
     }
