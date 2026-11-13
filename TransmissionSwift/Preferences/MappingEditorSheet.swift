@@ -31,6 +31,26 @@ struct MappingEditorSheet: View {
     @State private var showPlaceholderHelp = false
     /// Whether the save-time "allow file access?" alert is visible.
     @State private var showAccessAlert = false
+    /// Candidate apps for the current scheme, and the scheme's default handler.
+    /// Both come from LaunchServices, so they are resolved once per scheme (or
+    /// chosen app) instead of on every body pass.
+    @State private var handlerAppsCache: [HandlerApp] = []
+    @State private var defaultHandlerBundleIDCache: String?
+
+    private struct HandlerApp: Identifiable, Equatable {
+        let bundleID: String
+        let name: String
+        var id: String { bundleID }
+    }
+
+    private struct HandlerRefreshKey: Hashable {
+        let scheme: String?
+        let selectedBundleID: String?
+    }
+
+    private var handlerRefreshKey: HandlerRefreshKey {
+        HandlerRefreshKey(scheme: templateScheme, selectedBundleID: model.applicationBundleID)
+    }
 
     /// The torrent the preview + Test act on. Prefers the real torrent passed
     /// in (inspector selection, else first in the list); when there are none,
@@ -105,11 +125,14 @@ struct MappingEditorSheet: View {
     /// selected app (so the picker always reflects the saved value even when
     /// the scheme changed). Sorted by display name. Falls back to a
     /// scheme-only probe so an incomplete template (empty host, etc.) still
-    /// lists candidates.
-    private var handlerApps: [(bundleID: String, name: String)] {
-        var apps: [(bundleID: String, name: String)] = []
+    /// lists candidates. Called from a `.task`, never from `body`.
+    private func resolveHandlerApps() -> [HandlerApp] {
+        var apps: [HandlerApp] = []
         if let bundleID = model.applicationBundleID {
-            apps.append((bundleID, MappingLauncher.displayName(for: bundleID) ?? bundleID))
+            apps.append(
+                HandlerApp(
+                    bundleID: bundleID,
+                    name: MappingLauncher.displayName(for: bundleID) ?? bundleID))
         }
         let probe = previewURL ?? templateScheme.flatMap { URL(string: "\($0)://probe") }
         if let url = probe {
@@ -121,12 +144,18 @@ struct MappingEditorSheet: View {
                     (bundle.localizedInfoDictionary?["CFBundleDisplayName"] as? String)
                     ?? bundle.infoDictionary?["CFBundleName"] as? String
                     ?? appURL.deletingPathExtension().lastPathComponent
-                apps.append((bundleID, name))
+                apps.append(HandlerApp(bundleID: bundleID, name: name))
             }
         }
         return apps.sorted {
             $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
         }
+    }
+
+    /// Resolves the LaunchServices lookups once per scheme, off the body path.
+    private func refreshHandlerCache() {
+        handlerAppsCache = resolveHandlerApps()
+        defaultHandlerBundleIDCache = resolveDefaultHandlerBundleID()
     }
 
     /// The URL scheme of the current template, used to probe for candidate apps
@@ -141,8 +170,9 @@ struct MappingEditorSheet: View {
 
     /// The scheme's default handler, resolved via LaunchServices, so the editor
     /// can reason about which app would actually receive the URL.
-    private var defaultHandlerBundleID: String? {
-        guard let url = previewURL ?? templateScheme.flatMap({ URL(string: "\($0)://probe") }),
+    private func resolveDefaultHandlerBundleID() -> String? {
+        guard
+            let url = templateScheme.flatMap({ URL(string: "\($0)://probe") }),
             let appURL = NSWorkspace.shared.urlForApplication(toOpen: url)
         else { return nil }
         return Bundle(url: appURL)?.bundleIdentifier
@@ -157,7 +187,7 @@ struct MappingEditorSheet: View {
             model.template.contains("{password}")
                 || model.template.contains("{password-encoded}")
         else { return nil }
-        let effectiveBundleID = model.applicationBundleID ?? defaultHandlerBundleID
+        let effectiveBundleID = model.applicationBundleID ?? defaultHandlerBundleIDCache
         guard effectiveBundleID == "com.apple.Safari" else { return nil }
         return
             "Safari doesn't handle basic-auth URLs correctly and will re-prompt for credentials. Pick a different app (e.g. Chrome)."
@@ -402,9 +432,9 @@ struct MappingEditorSheet: View {
                     Spacer()
                     Picker("Open with", selection: $model.applicationBundleID) {
                         Text("Let the system handle it").tag(String?.none)
-                        if !handlerApps.isEmpty {
+                        if !handlerAppsCache.isEmpty {
                             Divider()
-                            ForEach(handlerApps, id: \.bundleID) { app in
+                            ForEach(handlerAppsCache) { app in
                                 Text(app.name).tag(Optional(app.bundleID))
                             }
                         }
@@ -453,7 +483,7 @@ struct MappingEditorSheet: View {
 
             HStack(spacing: 10) {
                 Button("Test") { test() }
-                    .disabled(testURL == nil || trimmedTemplate.isEmpty)
+                    .disabled(trimmedTemplate.isEmpty)
                     .help("Opens the preview URL in the chosen app")
                 if let message = model.testMessage {
                     Text(message)
@@ -472,6 +502,9 @@ struct MappingEditorSheet: View {
         }
         .padding(20)
         .frame(width: 460)
+        .task(id: handlerRefreshKey) {
+            refreshHandlerCache()
+        }
         .alert("Allow access to local files?", isPresented: $showAccessAlert) {
             Button("Pre-approve directory…") {
                 chooseAccessFolder {
