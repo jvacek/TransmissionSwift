@@ -151,8 +151,16 @@ struct ServersPrefsPane: View {
 
             Button {
                 if case .existing(let id) = selection {
-                    try? profileStore.remove(id: id)
-                    selection = profileStore.profiles.first.map { .existing($0.id) }
+                    do {
+                        try profileStore.remove(id: id)
+                        // The profile id is never reused, so an orphaned secret
+                        // would sit in the Keychain forever.
+                        try? keychain.deletePassword(for: id)
+                        selection = profileStore.profiles.first.map { .existing($0.id) }
+                    } catch {
+                        // The store rolled back; keep the server selected so a
+                        // retry is one click away.
+                    }
                 }
             } label: {
                 Label("Remove Server", systemImage: "minus")

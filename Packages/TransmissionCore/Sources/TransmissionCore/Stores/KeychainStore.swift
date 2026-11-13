@@ -54,16 +54,30 @@ public struct KeychainStore: Sendable {
 
     public func setPassword(_ password: String, for profileID: UUID) throws(KeychainError) {
         let passwordData = Data(password.utf8)
-        let updateStatus = SecItemUpdate(
+        let attributes: [String: Any] = [
+            kSecValueData as String: passwordData,
+            // App Intents read credentials in the background; the default
+            // WhenUnlocked class fails there whenever the screen is locked.
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+        ]
+        var updateStatus = SecItemUpdate(
             baseQuery(for: profileID) as CFDictionary,
-            [kSecValueData as String: passwordData] as CFDictionary
+            attributes as CFDictionary
         )
+        // Older items may refuse an accessibility change; saving the secret is
+        // more important than migrating the class, so fall back to the value.
+        if updateStatus == errSecParam {
+            updateStatus = SecItemUpdate(
+                baseQuery(for: profileID) as CFDictionary,
+                [kSecValueData as String: passwordData] as CFDictionary
+            )
+        }
         switch updateStatus {
         case errSecSuccess:
             return
         case errSecItemNotFound:
             var addQuery = baseQuery(for: profileID)
-            addQuery[kSecValueData as String] = passwordData
+            for (key, value) in attributes { addQuery[key] = value }
             let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
             guard addStatus == errSecSuccess else {
                 throw KeychainError(status: addStatus)
