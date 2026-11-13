@@ -1,14 +1,18 @@
 # Changelog
 
-All notable changes to TransmissionSwift.
+**Versions under 0.6.2 need to be updated manually.** Please check the [release page](https://github.com/jvacek/TransmissionSwift/releases).
 
----
+## 0.7.3
 
-**Versions on or below 0.6.1 need to be manually updated to 0.6.2 or above**. There was a bug in the updater, and you will need to work around it yourself. My sincere apoologies for the inconvenience.
+11th November 2026
 
-Please visit the [release page](https://github.com/jvacek/TransmissionSwift/releases), download TransmissionSwift and replace the current install.
-
----
+- Choose which files a `.torrent` downloads when adding it, with per-file priority
+  - Filter the file list
+  - Bulk prio/download changes
+- Add URL support to Magnet's add tab.
+- Add some menu actions and keyboard shortcuts
+  - resume, pause, start/stop selected and all, remove, remove with data, copy magnet link, copy name, edit labels, set location, rename, find, inspector and sidebar toggles
+- Improve GeoIP DB handling, cutting down RAM usage by ~90 MB
 
 ## 0.7.2
 
