@@ -12,9 +12,11 @@ import TransmissionCore
 ///
 /// Used by SwiftUI previews and as the empty no-server placeholder. Tests
 /// instantiate it directly and choose whether to `startTicking()`.
-public actor MockTorrentService: TorrentService {
+public actor MockTorrentService: TorrentService, PollHealthReporting {
     private var state: [Torrent]
     private var continuation: AsyncThrowingStream<[Torrent], Error>.Continuation?
+    private var healthContinuation: AsyncStream<PollHealth>.Continuation?
+    private var lastHealth: PollHealth = .ok
     private var altSpeed = false
     private var sessionSettingsValue = SessionSettings.sample
     private let downloadDirectoryValue: String?
@@ -109,6 +111,21 @@ public actor MockTorrentService: TorrentService {
         self.continuation = cont
         cont.yield(state)
         return stream
+    }
+
+    public func pollHealth() async -> AsyncStream<PollHealth> {
+        healthContinuation?.finish()
+        let (stream, continuation) = AsyncStream.makeStream(
+            of: PollHealth.self, bufferingPolicy: .bufferingNewest(1))
+        healthContinuation = continuation
+        continuation.yield(lastHealth)
+        return stream
+    }
+
+    /// Test hook: drives the reconnecting indicator without a network.
+    public func reportHealth(_ health: PollHealth) {
+        lastHealth = health
+        healthContinuation?.yield(health)
     }
 
     public func start(_ ids: [Torrent.ID]) async throws {

@@ -117,6 +117,13 @@ struct StatusBarView: View {
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
                 .accessibilityIdentifier("statusBar.count")
+            if store.isReconnecting {
+                Label("Reconnecting…", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .help("The server isn't answering. Retrying automatically.")
+                    .accessibilityIdentifier("statusBar.reconnecting")
+            }
         }
     }
 

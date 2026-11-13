@@ -82,10 +82,15 @@ public final class TorrentStore {
 
     /// True when the backing service supports mutation actions.
     public private(set) var actionsEnabled: Bool = true
+    /// True while the poll loop is retrying a transient failure. The connection
+    /// stays `.connected` so stale data and session settings remain usable; this
+    /// flag drives the "reconnecting" indicator.
+    public private(set) var isReconnecting = false
 
     private var service: any TorrentReading
     private var streamTask: Task<Void, Never>?
     private var freeSpaceTask: Task<Void, Never>?
+    private var healthTask: Task<Void, Never>?
     /// Bumped whenever a stream is replaced, so a cancelled task that is still
     /// finishing a tick cannot write into the new session's state.
     private var streamGeneration = 0
@@ -112,6 +117,9 @@ public final class TorrentStore {
     public func pausePolling() {
         streamTask?.cancel()
         freeSpaceTask?.cancel()
+        healthTask?.cancel()
+        healthTask = nil
+        isReconnecting = false
     }
 
     /// Resume polling after returning to the foreground. Restarts the stream
@@ -131,6 +139,9 @@ public final class TorrentStore {
     public func connect(service: any TorrentReading) {
         streamTask?.cancel()
         freeSpaceTask?.cancel()
+        healthTask?.cancel()
+        healthTask = nil
+        isReconnecting = false
         self.service = service
         let mutations = service.mutations
         actionsEnabled = mutations != nil
@@ -154,6 +165,9 @@ public final class TorrentStore {
     public func disconnect(reason: String) {
         streamTask?.cancel()
         freeSpaceTask?.cancel()
+        healthTask?.cancel()
+        healthTask = nil
+        isReconnecting = false
         streamGeneration += 1
         service = EmptyTorrentService()
         actionsEnabled = false
@@ -189,10 +203,24 @@ public final class TorrentStore {
         // Capture the service now so a cancelled task can't accidentally call
         // methods on whatever service connect() installs while it's running.
         streamGeneration += 1
+        healthTask?.cancel()
+        healthTask = nil
         let generation = streamGeneration
         let capturedService = service
         streamTask = Task { @MainActor [weak self] in
             guard let self, !Task.isCancelled else { return }
+            // Subscribe before the poll loop starts so the first failure is not
+            // lost. Services without the capability simply have no indicator.
+            if let reporter = capturedService as? any PollHealthReporting {
+                let health = await reporter.pollHealth()
+                guard !Task.isCancelled else { return }
+                self.healthTask = Task { @MainActor [weak self] in
+                    for await state in health {
+                        guard let self, generation == self.streamGeneration else { return }
+                        self.isReconnecting = state == .failing
+                    }
+                }
+            }
             let stream = await capturedService.torrentsStream()
             guard !Task.isCancelled else { return }
             // freeSpace() also warms the session cache in RPCTorrentService;
@@ -218,6 +246,7 @@ public final class TorrentStore {
                 }
             } catch {
                 guard !Task.isCancelled, generation == self.streamGeneration else { return }
+                self.isReconnecting = false
                 self.connection = .disconnected(reason: error.localizedDescription)
             }
         }
@@ -358,6 +387,9 @@ public final class TorrentStore {
     public func beginKeychainWait() {
         streamTask?.cancel()
         freeSpaceTask?.cancel()
+        healthTask?.cancel()
+        healthTask = nil
+        isReconnecting = false
         connection = .awaitingKeychain
         list.setTorrents([])
         session.reset()
