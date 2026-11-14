@@ -16,6 +16,7 @@ struct ServersPrefsPane: View {
 
     @State private var selection: PaneSelection?
     @State private var pendingNew = false
+    @State private var pendingRemovalID: UUID?
     @State private var actionError: String?
 
     private let keychain = KeychainStore()
@@ -50,6 +51,19 @@ struct ServersPrefsPane: View {
             Button("OK") { actionError = nil }
         } message: {
             Text(actionError ?? "")
+        }
+        .confirmationDialog(
+            "Remove Server?",
+            isPresented: Binding(
+                get: { pendingRemovalID != nil },
+                set: { if !$0 { pendingRemovalID = nil } }
+            ),
+            presenting: pendingRemovalID
+        ) { id in
+            Button("Remove", role: .destructive) { removeServer(id) }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("The saved password will be deleted. Torrents on the daemon are not affected.")
         }
     }
 
@@ -86,6 +100,20 @@ struct ServersPrefsPane: View {
             pendingNew = false
         }
         selection = newSelection
+    }
+
+    private func removeServer(_ id: UUID) {
+        do {
+            try profileStore.remove(id: id)
+            // The profile id is never reused, so an orphaned secret would sit
+            // in the Keychain forever.
+            try? keychain.deletePassword(for: id)
+            selection = profileStore.profiles.first.map { .existing($0.id) }
+            Task { await SpotlightIndexer.indexServers(profileStore.profiles) }
+        } catch {
+            // The store rolled back; keep the server selected for a retry.
+            actionError = error.localizedDescription
+        }
     }
 
     private func serverRow(_ profile: ServerProfile) -> some View {
@@ -169,18 +197,7 @@ struct ServersPrefsPane: View {
 
             Button {
                 if case .existing(let id) = selection {
-                    do {
-                        try profileStore.remove(id: id)
-                        // The profile id is never reused, so an orphaned secret
-                        // would sit in the Keychain forever.
-                        try? keychain.deletePassword(for: id)
-                        selection = profileStore.profiles.first.map { .existing($0.id) }
-                        Task { await SpotlightIndexer.indexServers(profileStore.profiles) }
-                    } catch {
-                        // The store rolled back; keep the server selected so a
-                        // retry is one click away.
-                        actionError = error.localizedDescription
-                    }
+                    pendingRemovalID = id
                 }
             } label: {
                 Label("Remove Server", systemImage: "minus")
