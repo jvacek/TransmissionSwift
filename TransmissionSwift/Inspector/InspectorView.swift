@@ -69,7 +69,6 @@ struct InspectorView: View {
         case .files: InspectorFilesTab(torrent: detail)
         case .peers: InspectorPeersTab(torrent: detail)
         case .trackers: InspectorTrackersTab(torrent: torrent)
-        case .options: InspectorOptionsTab(torrent: torrent)
         }
     }
 }

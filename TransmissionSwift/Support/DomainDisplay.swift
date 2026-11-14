@@ -116,7 +116,6 @@ extension InspectorTab {
         case .files: return "Files"
         case .peers: return "Peers"
         case .trackers: return "Trackers"
-        case .options: return "Options"
         }
     }
     var systemImage: String {
@@ -125,7 +124,6 @@ extension InspectorTab {
         case .files: return "folder"
         case .peers: return "person.2"
         case .trackers: return "antenna.radiowaves.left.and.right"
-        case .options: return "slider.horizontal.3"
         }
     }
 }
