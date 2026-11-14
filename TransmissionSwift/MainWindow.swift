@@ -270,6 +270,9 @@ struct MainWindow: View {
             }
         }
         .help(profileStore.activeProfile?.label ?? "Server")
+        // With one server the label is icon-only; VoiceOver should still name
+        // the server, not the symbol.
+        .accessibilityLabel(profileStore.activeProfile?.label ?? "No Server")
         .accessibilityIdentifier("toolbar.serverSwitcher")
     }
 

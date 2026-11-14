@@ -429,6 +429,37 @@ final class TransmissionSwiftUITests: XCTestCase {
             "Expected the table to stop above the status bar, not run under it")
     }
 
+    /// Toolbar buttons speak like the View menu ("Show/Hide Inspector"), and
+    /// the icon-only server switcher reads as the server's name.
+    @MainActor
+    func testSnapshotToolbarLabels() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let app = snapshotApp(fixture)
+        let inspectorButton = app.buttons["toolbar.inspector"]
+        XCTAssertTrue(inspectorButton.waitForExistence(timeout: 15))
+        let before = inspectorButton.label
+        XCTAssertTrue(["Show Inspector", "Hide Inspector"].contains(before), "Got \(before)")
+        let expected = before == "Show Inspector" ? "Hide Inspector" : "Show Inspector"
+
+        // Toggling persists, so flip it back either way.
+        inspectorButton.click()
+        defer { inspectorButton.click() }
+        XCTAssertTrue(
+            waitUntil { inspectorButton.label == expected },
+            "Expected the inspector button's label to follow the inspector")
+
+        let switcher = app.descendants(matching: .any)
+            .matching(identifier: "toolbar.serverSwitcher").firstMatch
+        XCTAssertTrue(switcher.waitForExistence(timeout: 5))
+        // A menu button exposes its accessibility label as the title.
+        XCTAssertEqual(
+            switcher.title, "My remote server",
+            "Expected the server switcher to read as the server name, not the symbol")
+    }
+
     /// Launches the app on the committed snapshot fixture. State restoration is
     /// switched off: a Preferences window left open by an earlier test would
     /// cover the table and make rows unhittable.

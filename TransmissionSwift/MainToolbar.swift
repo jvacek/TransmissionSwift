@@ -76,12 +76,12 @@ struct MainToolbar: ToolbarContent {
 
         // Group 3 — view toggles
         ToolbarItem(placement: .primaryAction) {
-            Button {
+            // Same wording as the View menu item.
+            let title = store.inspector.isVisible ? "Hide Inspector" : "Show Inspector"
+            Button(title, systemImage: "sidebar.right") {
                 store.inspector.isVisible.toggle()
-            } label: {
-                Label("Toggle Inspector", systemImage: "sidebar.right")
             }
-            .help("Toggle inspector")
+            .help(title)
             .accessibilityIdentifier("toolbar.inspector")
         }
     }

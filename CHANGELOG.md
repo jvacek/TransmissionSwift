@@ -25,6 +25,7 @@
   - Drop the status bar's frosted background and divider so it sits flush with the window
   - Draw tags as flat colour pills, like Finder
   - Use the system row height in the torrent list, so it's as compact as Finder's
+  - Label the inspector toolbar button Show or Hide Inspector, and have VoiceOver read the server switcher as the server's name
 - Performance
   - Lower memory use, smoother sorting and less work while idle on large lists
 
