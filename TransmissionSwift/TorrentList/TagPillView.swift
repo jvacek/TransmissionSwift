@@ -122,19 +122,22 @@ final class TagPillView: NSView {
         // Neutral pills use the same light recipe as the SwiftUI TagPill
         // (label colour at ~6%) so table and inspector chips match exactly.
         // `quaternaryLabelColor.withAlphaComponent(0.4)` is NOT a light grey —
-        // it's black/white at 40%, far too dark.
-        let effectiveBackground =
-            fillColor
-            ?? NSColor.labelColor.withAlphaComponent(0.06)
-        fillLayer.backgroundColor = effectiveBackground.cgColor
-        sheenLayer.colors = [
-            NSColor.white.withAlphaComponent(0.14).cgColor,
-            NSColor.white.withAlphaComponent(0.0).cgColor,
-        ]
+        // it's black/white at 40%, far too dark. Resolve cgColors while this
+        // view's appearance is current, like the cell dot and progress bar.
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            let effectiveBackground =
+                fillColor
+                ?? NSColor.labelColor.withAlphaComponent(0.06)
+            fillLayer.backgroundColor = effectiveBackground.cgColor
+            sheenLayer.colors = [
+                NSColor.white.withAlphaComponent(0.14).cgColor,
+                NSColor.white.withAlphaComponent(0.0).cgColor,
+            ]
+            borderLayer.strokeColor = NSColor.labelColor.withAlphaComponent(0.16).cgColor
+        }
         sheenLayer.locations = [0, 0.55]
         sheenLayer.startPoint = CGPoint(x: 0.5, y: 0)
         sheenLayer.endPoint = CGPoint(x: 0.5, y: 1)
-        borderLayer.strokeColor = NSColor.labelColor.withAlphaComponent(0.16).cgColor
         borderLayer.lineWidth = 1
         borderLayer.fillColor = nil
         CATransaction.commit()
