@@ -335,6 +335,27 @@ private struct TorrentCommands: Commands {
             .keyboardShortcut("p", modifiers: .command)
             .disabled(!canAct)
 
+            // Same submenu the row context menu shows. No checkmarks: reading a
+            // torrent's live priority here would rebuild the menu bar on every
+            // poll. Shortcuts follow the canonical high → normal → low order.
+            Menu("Priority") {
+                Button("High") {
+                    torrentStore.perform(.setPriority(.high), ids: ids)
+                }
+                .keyboardShortcut("1", modifiers: [.command, .option])
+
+                Button("Normal") {
+                    torrentStore.perform(.setPriority(.normal), ids: ids)
+                }
+                .keyboardShortcut("2", modifiers: [.command, .option])
+
+                Button("Low") {
+                    torrentStore.perform(.setPriority(.low), ids: ids)
+                }
+                .keyboardShortcut("3", modifiers: [.command, .option])
+            }
+            .disabled(!canAct)
+
             Button("Start or Stop Selected") {
                 toggle(ids)
             }

@@ -141,6 +141,17 @@ final class TransmissionSwiftUITests: XCTestCase {
         XCTAssertTrue(resume.waitForExistence(timeout: 3))
         XCTAssertFalse(resume.isEnabled)
         XCTAssertFalse(app.menuItems["Start or Stop All"].isEnabled)
+        // SwiftUI does not propagate `.disabled` to a command submenu's parent
+        // item, so assert the actions themselves rather than "Priority".
+        XCTAssertTrue(app.menuItems["Priority"].waitForExistence(timeout: 3))
+        app.menuItems["Priority"].click()
+        for name in ["High", "Normal", "Low"] {
+            let item = app.menuItems[name]
+            XCTAssertTrue(item.waitForExistence(timeout: 3), "Expected the \(name) priority item")
+            XCTAssertFalse(item.isEnabled)
+        }
+        app.typeKey(.escape, modifierFlags: [])
+        torrentMenu.click()
         XCTAssertTrue(app.menuItems["Edit Labels…"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.menuItems["Set Location…"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.menuItems["Rename…"].waitForExistence(timeout: 3))
