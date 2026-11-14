@@ -275,6 +275,83 @@ final class TransmissionSwiftUITests: XCTestCase {
         XCTAssertTrue(waitUntil { sidebar.exists == sidebarWasVisible })
     }
 
+    /// Type-select is an AppKit delegate path: clicking a row then typing a
+    /// prefix must move the selection. The unit test covers the delegate return
+    /// value; this proves NSTableView actually consults it.
+    @MainActor
+    func testSnapshotTypeSelectJumpsToTorrent() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let app = snapshotApp(fixture)
+        let table = app.tables["torrents.table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 15))
+        XCTAssertTrue(table.cells.firstMatch.waitForExistence(timeout: 10))
+
+        // Select a row first: the inspector shows its tab picker only when a
+        // torrent is selected.
+        table.cells.firstMatch.click()
+        let tabs = app.descendants(matching: .any)
+            .matching(identifier: "inspector.tabs").firstMatch
+        if !tabs.waitForExistence(timeout: 2) {
+            app.typeKey("i", modifierFlags: .command)
+        }
+        XCTAssertTrue(tabs.waitForExistence(timeout: 5), "Expected the inspector")
+
+        // Focus the table again, then type a prefix of a torrent that is not first.
+        table.cells.firstMatch.click()
+        app.typeText("debian")
+
+        let selected = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Debian 12.6")
+        ).firstMatch
+        XCTAssertTrue(
+            selected.waitForExistence(timeout: 5),
+            "Expected type-select to move the selection to Debian 12.6")
+    }
+
+    /// The Files tab uses a real Table. The fixture's Debian torrent has
+    /// seven files, so this proves the inspector detail fetch and the new list
+    /// both render every row.
+    @MainActor
+    func testSnapshotFilesTabListsEveryFile() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let app = snapshotApp(fixture)
+        let table = app.tables["torrents.table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 15))
+
+        let debian = table.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Debian 12.6")
+        ).firstMatch
+        XCTAssertTrue(debian.waitForExistence(timeout: 10))
+        debian.click()
+
+        let tabs = app.descendants(matching: .any)
+            .matching(identifier: "inspector.tabs").firstMatch
+        if !tabs.waitForExistence(timeout: 2) {
+            app.typeKey("i", modifierFlags: .command)
+        }
+        XCTAssertTrue(tabs.waitForExistence(timeout: 5), "Expected the inspector")
+
+        let filesTab = tabs.radioButtons["Files"]
+        XCTAssertTrue(filesTab.waitForExistence(timeout: 3), "Expected the Files tab")
+        filesTab.click()
+
+        let list = app.descendants(matching: .any)
+            .matching(identifier: "inspector.files.list").firstMatch
+        XCTAssertTrue(list.waitForExistence(timeout: 5), "Expected the files list")
+
+        let firstFile = list.staticTexts["debian-12.6.0-amd64-netinst.iso"]
+        XCTAssertTrue(
+            firstFile.waitForExistence(timeout: 15),
+            "Expected the Debian torrent's file rows")
+        XCTAssertEqual(list.checkBoxes.count, 7)
+    }
+
     /// Clicking a file row must hand keyboard focus to the files list. SwiftUI
     /// keeps the torrent table as the window's key view otherwise, so arrows
     /// moved the torrent selection while the files list drew a grey highlight.

@@ -57,7 +57,7 @@ test: test-packages test-app
 
 # Run only the daemon-free snapshot UI tests (no credentials, no daemon).
 test-snapshot:
-    set -o pipefail; xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'platform=macOS' test -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotMainWindow -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotTorrentMenuAndCopyShortcut -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotCopyAndViewCommands | (command -v xcbeautify >/dev/null && xcbeautify || cat)
+    set -o pipefail; xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'platform=macOS' test -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotMainWindow -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotTorrentMenuAndCopyShortcut -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotCopyAndViewCommands -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotTypeSelectJumpsToTorrent -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotFilesTabListsEveryFile -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotFilesTabTakesKeyboardFocus | (command -v xcbeautify >/dev/null && xcbeautify || cat)
 
 # Start the local dev daemon (needs `brew install transmission-cli`).
 daemon:
