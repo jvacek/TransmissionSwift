@@ -21,6 +21,7 @@
   - Keep the torrent list when the main window is closed and reopened
   - Clear the Dock badge when the window closes, and remove deleted servers from Spotlight
   - Fix tag colours after switching between light and dark mode
+  - Blend the torrent list's column header into the toolbar, like Finder
 - Performance
   - Lower memory use, smoother sorting and less work while idle on large lists
 

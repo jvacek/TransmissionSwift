@@ -43,6 +43,10 @@ struct TorrentListView: View {
                 openMapping(mapping, ids: ids)
             }
         )
+        // Like Finder: run the scroll view under the toolbar so AppKit insets
+        // the content itself and the header sits in the scroll edge effect
+        // instead of drawing its own opaque bar below it.
+        .ignoresSafeArea(.container, edges: .top)
         .onAppear {
             restoreSortOrder()
         }
