@@ -26,6 +26,7 @@
   - Draw tags as flat colour pills, like Finder
   - Use the system row height in the torrent list, so it's as compact as Finder's
   - Label the inspector toolbar button Show or Hide Inspector, and have VoiceOver read the server switcher as the server's name
+  - Fit the Peers tab to the inspector: client and flags sit under the address, and download and upload speeds share a column
 - Performance
   - Lower memory use, smoother sorting and less work while idle on large lists
 

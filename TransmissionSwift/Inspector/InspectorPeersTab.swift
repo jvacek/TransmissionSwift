@@ -16,54 +16,54 @@ struct InspectorPeersTab: View {
     @Environment(GeoIPStore.self) private var geoip
 
     var body: some View {
+        // Sized for the inspector's default width: client and flags ride under
+        // the address and both speeds share a column, so the numbers never
+        // scroll off to the right.
         Table(torrent.peers) {
-            TableColumn("Address") { peer in
+            TableColumn("Peer") { peer in
                 HStack(spacing: 6) {
                     if let code = countryCode(for: peer), let flag = countryFlagEmoji(for: code) {
                         Text(flag)
                             .font(.title3)
                             .accessibilityLabel(code)
                     }
-                    Text(peer.ipAddress)
-                        .font(.callout.monospaced())
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(peer.ipAddress)
+                            .font(.callout.monospaced())
+                        Text(Self.detail(for: peer))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .lineLimit(1)
                 }
+                .help(Self.detail(for: peer))
             }
-            .width(min: 130)
-
-            TableColumn("Client") { peer in
-                Text(peer.client)
-                    .foregroundStyle(.secondary)
-            }
-            .width(min: 90)
-
-            TableColumn("Flags") { peer in
-                Text(peer.flags)
-                    .font(.callout.monospaced())
-                    .foregroundStyle(.secondary)
-            }
-            .width(52)
+            .width(min: 120)
 
             TableColumn("%") { peer in
-                Text("\(Int(peer.progress * 100))")
+                Text(peer.progress, format: .percent.precision(.fractionLength(0)))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .width(36)
+            .width(40)
 
-            TableColumn("Down") { peer in
-                Text(ColumnFormatters.humanizedSpeed(peer.downloadSpeed))
-                    .monospacedDigit()
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+            TableColumn("Speed") { peer in
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text("↓ \(ColumnFormatters.humanizedSpeed(peer.downloadSpeed))")
+                    Text("↑ \(ColumnFormatters.humanizedSpeed(peer.uploadSpeed))")
+                        .foregroundStyle(.secondary)
+                }
+                .font(.callout)
+                .monospacedDigit()
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(
+                    "Down \(ColumnFormatters.humanizedSpeed(peer.downloadSpeed)), "
+                        + "up \(ColumnFormatters.humanizedSpeed(peer.uploadSpeed))")
             }
-            .width(72)
-
-            TableColumn("Up") { peer in
-                Text(ColumnFormatters.humanizedSpeed(peer.uploadSpeed))
-                    .monospacedDigit()
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(64)
+            .width(84)
         }
         .accessibilityIdentifier("inspector.peers.table")
         .task(id: torrent.peers.map(\.ipAddress)) {
@@ -81,6 +81,11 @@ struct InspectorPeersTab: View {
                 )
             }
         }
+    }
+
+    /// "Client · flags", or whichever of the two the peer reported.
+    nonisolated static func detail(for peer: Peer) -> String {
+        [peer.client, peer.flags].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     /// The GeoIP result wins when resolved; mock/snapshot fixtures may carry a
