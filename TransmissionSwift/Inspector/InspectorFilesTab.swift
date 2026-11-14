@@ -64,46 +64,49 @@ struct InspectorFilesTab: View {
         .onChange(of: sortAscending) { _, _ in rebuildFileCache() }
     }
 
-    /// Header row with one sort chip per key. The active chip shows the current
-    /// direction; clicking it again flips ascending/descending.
+    /// One "Sort By" menu, like Finder's for a list too narrow for column
+    /// headers: pick a key, then a direction. Picking a key resets the
+    /// direction to that key's natural one (largest and most complete first).
     private var headerRow: some View {
-        HStack(spacing: 2) {
-            ForEach(FileSortKey.allCases) { key in
-                sortButton(for: key)
-            }
+        HStack {
+            Text(torrent.files.count == 1 ? "1 file" : "\(torrent.files.count) files")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
             Spacer()
+            Menu {
+                Picker("Sort By", selection: sortKeyBinding) {
+                    ForEach(FileSortKey.allCases) { key in
+                        Text(key.displayLabel).tag(key)
+                    }
+                }
+                .pickerStyle(.inline)
+                Picker("Order", selection: $sortAscending) {
+                    Text("Ascending").tag(true)
+                    Text("Descending").tag(false)
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Text("Sort by \(sortKey.displayLabel)")
+            }
+            .menuStyle(.button)
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            .fixedSize()
+            .help("Sort files")
+            .accessibilityIdentifier("inspector.files.sort")
         }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 3)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
     }
 
-    private func sortButton(for key: FileSortKey) -> some View {
-        let isActive = key == sortKey
-        return Button {
-            if isActive {
-                sortAscending.toggle()
-            } else {
+    private var sortKeyBinding: Binding<FileSortKey> {
+        Binding(
+            get: { sortKey },
+            set: { key in
                 sortKey = key
                 sortAscending = key.defaultAscending
-            }
-        } label: {
-            HStack(spacing: 3) {
-                Text(key.displayLabel)
-                if isActive {
-                    Image(systemName: sortAscending ? "arrow.up" : "arrow.down")
-                        .font(.caption2)
-                }
-            }
-            .font(.caption)
-            .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(isActive ? Color.accentColor.opacity(0.12) : Color.clear, in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .help(
-            isActive
-                ? "\(key.displayLabel) \(sortAscending ? "ascending" : "descending")" : "Sort by \(key.displayLabel)")
+            })
     }
 
     private func rebuildFileCache() {
@@ -309,8 +312,8 @@ private enum FileSortKey: CaseIterable, Identifiable {
         switch self {
         case .name: return "Name"
         case .size: return "Size"
-        case .priority: return "Prio"
-        case .progress: return "%"
+        case .priority: return "Priority"
+        case .progress: return "Progress"
         }
     }
 

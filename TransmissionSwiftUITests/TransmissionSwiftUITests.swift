@@ -495,6 +495,53 @@ final class TransmissionSwiftUITests: XCTestCase {
             "Expected the last Peers column to fit inside the inspector")
     }
 
+    /// The Files tab sorts from a Finder-style "Sort By" menu. Picking a key
+    /// resorts the rows and starts at that key's natural direction (most
+    /// complete first for Progress).
+    @MainActor
+    func testSnapshotFilesTabSortMenu() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let app = snapshotApp(fixture)
+        let table = app.tables["torrents.table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 15))
+        let debian = table.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Debian 12.6")
+        ).firstMatch
+        XCTAssertTrue(debian.waitForExistence(timeout: 10))
+        debian.click()
+
+        let tabs = app.descendants(matching: .any)
+            .matching(identifier: "inspector.tabs").firstMatch
+        if !tabs.waitForExistence(timeout: 2) {
+            app.typeKey("i", modifierFlags: .command)
+        }
+        XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+        tabs.radioButtons["Files"].click()
+
+        let list = app.descendants(matching: .any)
+            .matching(identifier: "inspector.files.list").firstMatch
+        let firstRow = list.cells.element(boundBy: 0)
+        XCTAssertTrue(firstRow.waitForExistence(timeout: 15))
+        // Name order puts the 4% DVD image first.
+        XCTAssertTrue(firstRow.staticTexts["4%"].exists)
+
+        let sort = app.descendants(matching: .any)
+            .matching(identifier: "inspector.files.sort").firstMatch
+        XCTAssertTrue(sort.waitForExistence(timeout: 5))
+        sort.click()
+        app.menuItems["Progress"].click()
+
+        XCTAssertTrue(
+            waitUntil { list.cells.element(boundBy: 0).staticTexts["100%"].exists },
+            "Expected Progress to sort the most complete file first")
+        XCTAssertTrue(
+            waitUntil { sort.title == "Sort by Progress" },
+            "Expected the menu to name the active sort, got \(sort.title)")
+    }
+
     /// Launches the app on the committed snapshot fixture. State restoration is
     /// switched off: a Preferences window left open by an earlier test would
     /// cover the table and make rows unhittable.
