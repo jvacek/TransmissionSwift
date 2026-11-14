@@ -59,6 +59,7 @@ struct RenameTorrentSheet: View {
                 Spacer()
                 Button("Cancel") { isPresented = false }
                     .keyboardShortcut(.cancelAction)
+                    .disabled(isSaving)
                 Button(isSaving ? "Renaming…" : "Rename") {
                     Task { await apply() }
                 }
@@ -69,6 +70,7 @@ struct RenameTorrentSheet: View {
         }
         .padding(20)
         .frame(width: 400)
+        .interactiveDismissDisabled(isSaving)
         .onAppear {
             newName = currentName ?? ""
         }
@@ -103,6 +105,7 @@ struct RenameTorrentSheet: View {
             isPresented = false
         } else {
             saveError = store.lastActionError?.localizedDescription ?? "Failed to rename torrent."
+            store.lastActionError = nil
         }
     }
 }

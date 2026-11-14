@@ -322,6 +322,7 @@ private struct AddTrackerSheet: View {
                 Spacer()
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
+                    .disabled(isSaving)
                 Button(submitLabel) {
                     Task { await submit() }
                 }
@@ -332,6 +333,7 @@ private struct AddTrackerSheet: View {
         }
         .padding(20)
         .frame(width: 420)
+        .interactiveDismissDisabled(isSaving)
         .onAppear {
             announce = editing?.announce ?? ""
         }
@@ -375,6 +377,7 @@ private struct AddTrackerSheet: View {
             saveError =
                 store.lastActionError?.localizedDescription
                 ?? (editing == nil ? "Failed to add the tracker." : "Failed to change the tracker URL.")
+            store.lastActionError = nil
         }
     }
 }

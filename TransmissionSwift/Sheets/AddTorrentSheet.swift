@@ -63,6 +63,7 @@ struct AddTorrentSheet: View {
         sheetContent
             .overlay(alignment: .top) { headerBar }
             .frame(width: 560)
+            .interactiveDismissDisabled(isAdding)
             .fileImporter(
                 isPresented: $showFileImporter,
                 allowedContentTypes: [.torrentFile]
@@ -750,6 +751,7 @@ struct AddTorrentSheet: View {
                     .buttonStyle(.plain)
                     .frame(height: 44)
                     .controlSize(.large)
+                    .disabled(isAdding)
                     .keyboardShortcut(.cancelAction)
                     .accessibilityLabel("Cancel")
 
@@ -815,6 +817,7 @@ struct AddTorrentSheet: View {
             isPresented = false
         } else {
             saveError = store.lastActionError?.localizedDescription ?? "Failed to add torrent."
+            store.lastActionError = nil
         }
     }
 }

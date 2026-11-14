@@ -36,6 +36,7 @@ struct EditLabelsSheet: View {
                 Spacer()
                 Button("Cancel") { isPresented = false }
                     .keyboardShortcut(.cancelAction)
+                    .disabled(isSaving)
                 Button(isSaving ? "Applying…" : "Apply") {
                     Task { await apply() }
                 }
@@ -46,6 +47,7 @@ struct EditLabelsSheet: View {
         }
         .padding(20)
         .frame(width: 400)
+        .interactiveDismissDisabled(isSaving)
         .onAppear { tags = initialLabels }
     }
 

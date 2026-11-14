@@ -82,6 +82,7 @@ struct SetLocationSheet: View {
                 Spacer()
                 Button("Cancel") { isPresented = false }
                     .keyboardShortcut(.cancelAction)
+                    .disabled(isSaving)
                 Button(isSaving ? "Applying…" : "Apply") {
                     Task { await apply() }
                 }
@@ -92,6 +93,7 @@ struct SetLocationSheet: View {
         }
         .padding(20)
         .frame(width: 460)
+        .interactiveDismissDisabled(isSaving)
         .onAppear {
             let folders = store.list.torrents.filter { ids.contains($0.id) }.map(\.downloadFolder)
             currentFolders = folders
@@ -151,6 +153,7 @@ struct SetLocationSheet: View {
             isPresented = false
         } else {
             saveError = store.lastActionError?.localizedDescription ?? "Failed to set location."
+            store.lastActionError = nil
         }
     }
 }
