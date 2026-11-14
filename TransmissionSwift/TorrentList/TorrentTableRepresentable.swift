@@ -706,6 +706,17 @@ extension TorrentTableRepresentable.Coordinator: NSTableViewDataSource {
         displayedRows.count
     }
 
+    /// Dragging a row out yields its magnet link, so torrents can be dropped
+    /// into another client, a browser or a note.
+    func tableView(
+        _ tableView: NSTableView, pasteboardWriterForRow row: Int
+    ) -> NSPasteboardWriting? {
+        guard displayedRows.indices.contains(row) else { return nil }
+        let item = NSPasteboardItem()
+        item.setString(displayedRows[row].torrent.magnetURI, forType: .string)
+        return item
+    }
+
     func tableView(
         _ tableView: NSTableView, objectValueFor tableColumn: NSTableColumn?, row: Int
     ) -> Any? {
