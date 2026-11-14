@@ -2,6 +2,28 @@
 
 **Versions under 0.6.2 need to be updated manually.** Please check the [release page](https://github.com/jvacek/TransmissionSwift/releases).
 
+## 0.7.4
+
+14th November 2026
+
+- New
+  - Drag torrents out of the table as magnet links
+  - Type to jump to a torrent in the list
+  - Use the inspector's file list with the keyboard and VoiceOver
+  - Ask before removing a server, and delete its saved password too
+- Fixes
+  - Show a Reconnecting label, and recover on your own after a daemon restart, sleep or network change
+  - Show clearer errors, and give up on stalled requests sooner
+  - Fix Edit Labels erasing labels that only some of the selected torrents had
+  - Fix Cancel still applying a change
+  - Fix actions and open sheets targeting the wrong server after switching
+  - Fix server settings being lost when the settings file is damaged
+  - Keep the torrent list when the main window is closed and reopened
+  - Clear the Dock badge when the window closes, and remove deleted servers from Spotlight
+  - Fix tag colours after switching between light and dark mode
+- Performance
+  - Lower memory use, smoother sorting and less work while idle on large lists
+
 ## 0.7.3
 
 11th November 2026
