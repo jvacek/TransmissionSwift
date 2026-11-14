@@ -7,8 +7,9 @@ import SwiftUI
 import TransmissionCore
 
 /// Bottom 28pt status bar, attached to the main window via `.safeAreaInset`.
-/// Wears `.regularMaterial` — never `.glassEffect`, since the status bar lives
-/// in the content layer, not the navigation layer. (LG: glass is for chrome.)
+/// No background or divider of its own: it sits on the window background, and
+/// the table's edge is the boundary. A soft scroll edge effect under it would
+/// need AppKit's split view accessory, which `NavigationSplitView` doesn't expose.
 struct StatusBarView: View {
     @Environment(TorrentStore.self) private var store
     @Environment(ServerProfileStore.self) private var profileStore
@@ -50,8 +51,6 @@ struct StatusBarView: View {
         .font(.callout)
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28)
-        .background(.regularMaterial)
-        .overlay(alignment: .top) { Divider() }
         .onAppear { updateDockBadge() }
         .onDisappear { NSApp.dockTile.badgeLabel = "" }
         .onChange(of: activeCount) { _, _ in updateDockBadge() }

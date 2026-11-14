@@ -402,6 +402,33 @@ final class TransmissionSwiftUITests: XCTestCase {
             "Expected Down to move the file selection, not the torrent selection")
     }
 
+    /// The table runs under the toolbar (so its header blends in) but must
+    /// still inset its rows below it, and it must stop above the status bar.
+    @MainActor
+    func testSnapshotTableClearsToolbarAndStatusBar() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let app = snapshotApp(fixture)
+        let table = app.tables["torrents.table"]
+        let firstRow = table.cells.firstMatch
+        XCTAssertTrue(firstRow.waitForExistence(timeout: 15))
+        let statusBar = app.staticTexts["statusBar.count"]
+        XCTAssertTrue(statusBar.waitForExistence(timeout: 5))
+        let toolbar = app.toolbars.firstMatch
+        XCTAssertTrue(toolbar.waitForExistence(timeout: 5))
+
+        XCTAssertGreaterThanOrEqual(
+            firstRow.frame.minY, toolbar.frame.maxY,
+            "Expected the first row to start below the toolbar, not under it")
+        // The table's own frame, not the last row: the fixture is too short
+        // for rows to reach the bottom, but the table fills its clip view.
+        XCTAssertLessThanOrEqual(
+            table.frame.maxY, statusBar.frame.minY + 1,
+            "Expected the table to stop above the status bar, not run under it")
+    }
+
     /// Launches the app on the committed snapshot fixture. State restoration is
     /// switched off: a Preferences window left open by an earlier test would
     /// cover the table and make rows unhittable.
