@@ -53,6 +53,7 @@ struct StatusBarView: View {
         .background(.regularMaterial)
         .overlay(alignment: .top) { Divider() }
         .onAppear { updateDockBadge() }
+        .onDisappear { NSApp.dockTile.badgeLabel = "" }
         .onChange(of: activeCount) { _, _ in updateDockBadge() }
         .onChange(of: badgeAppIcon) { _, _ in updateDockBadge() }
     }
