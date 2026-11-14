@@ -24,13 +24,14 @@ struct InspectorFilesTab: View {
     @State private var sortAscending: Bool = true
     @State private var sortedFiles: [TorrentFile] = []
     @State private var sizeColumnWidth: CGFloat = 60
+    @FocusState private var listFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             headerRow
             Divider()
-            List(selection: $selectedFiles) {
-                ForEach(sortedFiles) { file in
+            Table(sortedFiles, selection: $selectedFiles) {
+                TableColumn("") { file in
                     FileRow(
                         file: file,
                         sizeColumnWidth: sizeColumnWidth,
@@ -39,12 +40,23 @@ struct InspectorFilesTab: View {
                         actionsEnabled: store.actionsEnabled,
                         isSelected: selectedFiles.contains(file.id)
                     )
-                    .tag(file.id)
                     .contextMenu { fileMenu(for: file) }
                 }
             }
-            .listStyle(.inset)
-            .alternatingRowBackgrounds()
+            .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnHeaders(.hidden)
+            // The torrents table is a raw NSTableView: it stays the window's key
+            // view, so without SwiftUI focus this table's selection draws grey
+            // and arrows move the torrent selection. Focus on click only, never
+            // on appear, so selecting a torrent does not pull focus here.
+            .focused($listFocused)
+            .simultaneousGesture(TapGesture().onEnded { listFocused = true })
+            .onKeyPress(.space) {
+                guard !selectedFiles.isEmpty else { return .ignored }
+                let wanted = torrent.files.first { selectedFiles.contains($0.id) }?.wanted ?? true
+                setWanted(!wanted, for: Array(selectedFiles))
+                return .handled
+            }
             .accessibilityIdentifier("inspector.files.list")
         }
         .onChange(of: torrent.files, initial: true) { _, _ in rebuildFileCache() }
@@ -249,6 +261,7 @@ private struct FileRow: View {
                     .labelsHidden()
                     .accessibilityLabel("Download \(file.displayName)")
                     .disabled(!actionsEnabled)
+                    .focusable(false)
                     .padding(.top, 2)
                 Text(file.displayName)
                     .font(.callout.monospaced())
@@ -262,6 +275,7 @@ private struct FileRow: View {
                     isEnabled: actionsEnabled,
                     label: "Priority for \(file.displayName)"
                 )
+                .focusable(false)
                 .padding(.top, 1)
             }
 

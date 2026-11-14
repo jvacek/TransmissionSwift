@@ -275,6 +275,45 @@ final class TransmissionSwiftUITests: XCTestCase {
         XCTAssertTrue(waitUntil { sidebar.exists == sidebarWasVisible })
     }
 
+    /// Clicking a file row must hand keyboard focus to the files list. SwiftUI
+    /// keeps the torrent table as the window's key view otherwise, so arrows
+    /// moved the torrent selection while the files list drew a grey highlight.
+    @MainActor
+    func testSnapshotFilesTabTakesKeyboardFocus() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let app = snapshotApp(fixture)
+        let table = app.tables["torrents.table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 15))
+        let debian = table.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Debian 12.6")
+        ).firstMatch
+        XCTAssertTrue(debian.waitForExistence(timeout: 10))
+        debian.click()
+
+        let tabs = app.descendants(matching: .any)
+            .matching(identifier: "inspector.tabs").firstMatch
+        if !tabs.waitForExistence(timeout: 2) {
+            app.typeKey("i", modifierFlags: .command)
+        }
+        XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+        tabs.radioButtons["Files"].click()
+
+        let list = app.descendants(matching: .any)
+            .matching(identifier: "inspector.files.list").firstMatch
+        XCTAssertTrue(list.waitForExistence(timeout: 5))
+        let firstFile = list.cells.element(boundBy: 0)
+        XCTAssertTrue(firstFile.waitForExistence(timeout: 15))
+        firstFile.click()
+
+        app.typeKey(.downArrow, modifierFlags: [])
+        XCTAssertTrue(
+            waitUntil { list.cells.element(boundBy: 1).isSelected },
+            "Expected Down to move the file selection, not the torrent selection")
+    }
+
     /// Launches the app on the committed snapshot fixture. State restoration is
     /// switched off: a Preferences window left open by an earlier test would
     /// cover the table and make rows unhittable.
