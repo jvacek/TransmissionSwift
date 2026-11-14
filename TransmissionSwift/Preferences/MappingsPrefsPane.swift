@@ -15,6 +15,7 @@ struct MappingsPrefsPane: View {
 
     /// Created fresh on every Add/Edit click; a non-nil model shows the sheet.
     @State private var editingModel: MappingEditorModel?
+    @State private var saveError: String?
 
     private let keychain = KeychainStore()
 
@@ -41,6 +42,17 @@ struct MappingsPrefsPane: View {
             }
         }
         .formStyle(.grouped)
+        .alert(
+            "Couldn't Update Mappings",
+            isPresented: Binding(
+                get: { saveError != nil },
+                set: { if !$0 { saveError = nil } }
+            )
+        ) {
+            Button("OK") { saveError = nil }
+        } message: {
+            Text(saveError ?? "")
+        }
         .sheet(item: $editingModel) { model in
             MappingEditorSheet(
                 model: model,
@@ -51,12 +63,16 @@ struct MappingsPrefsPane: View {
                 sampleDownloadDir: torrentStore.list.downloadDirectory,
                 resolveSamplePassword: { effectiveSamplePassword() },
                 onSave: { mapping in
-                    if mappingStore.mappings.contains(where: { $0.id == mapping.id }) {
-                        try? mappingStore.update(mapping)
-                    } else {
-                        try? mappingStore.add(mapping)
+                    do {
+                        if mappingStore.mappings.contains(where: { $0.id == mapping.id }) {
+                            try mappingStore.update(mapping)
+                        } else {
+                            try mappingStore.add(mapping)
+                        }
+                        return nil
+                    } catch {
+                        return error.localizedDescription
                     }
-                    editingModel = nil
                 })
         }
     }
@@ -85,7 +101,11 @@ struct MappingsPrefsPane: View {
             .buttonStyle(.borderless)
             .help("Edit mapping")
             Button {
-                try? mappingStore.remove(id: mapping.id)
+                do {
+                    try mappingStore.remove(id: mapping.id)
+                } catch {
+                    saveError = error.localizedDescription
+                }
             } label: {
                 Image(systemName: "minus.circle")
             }

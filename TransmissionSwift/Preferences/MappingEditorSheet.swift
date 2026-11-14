@@ -21,7 +21,9 @@ struct MappingEditorSheet: View {
     /// stored Keychain secret. Resolved on demand so the Keychain isn't read
     /// during view rendering.
     let resolveSamplePassword: () -> String
-    let onSave: (OpenMapping) -> Void
+    /// Returns an error message when persistence fails; the sheet stays open so
+    /// the edit is not lost.
+    let onSave: (OpenMapping) -> String?
 
     /// The servers the "Selected Servers" checklist offers.
     @Environment(ServerProfileStore.self) private var profileStore
@@ -31,6 +33,7 @@ struct MappingEditorSheet: View {
     @State private var showPlaceholderHelp = false
     /// Whether the save-time "allow file access?" alert is visible.
     @State private var showAccessAlert = false
+    @State private var saveError: String?
     /// Candidate apps for the current scheme, and the scheme's default handler.
     /// Both come from LaunchServices, so they are resolved once per scheme (or
     /// chosen app) instead of on every body pass.
@@ -493,6 +496,11 @@ struct MappingEditorSheet: View {
                         .foregroundStyle(
                             model.testFailed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                 }
+                if let saveError {
+                    Text(saveError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
                 Spacer()
                 Button("Cancel") { onCancel() }
                     .keyboardShortcut(.cancelAction)
@@ -657,15 +665,19 @@ struct MappingEditorSheet: View {
     }
 
     private func commitSave() {
-        onSave(
-            OpenMapping(
-                id: model.existing?.id ?? UUID(),
-                name: trimmedName,
-                template: trimmedTemplate,
-                action: model.action,
-                applicationBundleID: model.applicationBundleID,
-                scope: model.scope,
-                accessBookmarks: model.accessBookmarks))
+        saveError = nil
+        let mapping = OpenMapping(
+            id: model.existing?.id ?? UUID(),
+            name: trimmedName,
+            template: trimmedTemplate,
+            action: model.action,
+            applicationBundleID: model.applicationBundleID,
+            scope: model.scope,
+            accessBookmarks: model.accessBookmarks)
+        if let message = onSave(mapping) {
+            saveError = message
+            return
+        }
         onCancel()
     }
 }

@@ -16,6 +16,7 @@ struct ServersPrefsPane: View {
 
     @State private var selection: PaneSelection?
     @State private var pendingNew = false
+    @State private var actionError: String?
 
     private let keychain = KeychainStore()
 
@@ -38,6 +39,17 @@ struct ServersPrefsPane: View {
             if selection == nil, let first = sortedProfiles.first {
                 selection = .existing(first.id)
             }
+        }
+        .alert(
+            "Couldn't Update Servers",
+            isPresented: Binding(
+                get: { actionError != nil },
+                set: { if !$0 { actionError = nil } }
+            )
+        ) {
+            Button("OK") { actionError = nil }
+        } message: {
+            Text(actionError ?? "")
         }
     }
 
@@ -110,7 +122,13 @@ struct ServersPrefsPane: View {
         .buttonStyle(.plain)
         .contextMenu {
             if !isActive {
-                Button("Make Active") { try? profileStore.setActive(profile.id) }
+                Button("Make Active") {
+                    do {
+                        try profileStore.setActive(profile.id)
+                    } catch {
+                        actionError = error.localizedDescription
+                    }
+                }
             }
         }
     }
@@ -161,6 +179,7 @@ struct ServersPrefsPane: View {
                     } catch {
                         // The store rolled back; keep the server selected so a
                         // retry is one click away.
+                        actionError = error.localizedDescription
                     }
                 }
             } label: {
