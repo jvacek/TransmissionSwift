@@ -4,7 +4,10 @@
 
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 /// Per-torrent transfer options as a System-Settings-style grouped form.
 /// Edits a local draft and pushes the whole struct through
@@ -95,8 +98,10 @@ struct InspectorOptionsTab: View {
     }
 }
 
+#if DEBUG
 #Preview {
     InspectorOptionsTab(torrent: Torrent.samples[4])
         .environment(TorrentStore(service: MockTorrentService()))
         .frame(width: 322, height: 600)
 }
+#endif

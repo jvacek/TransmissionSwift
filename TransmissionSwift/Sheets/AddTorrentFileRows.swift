@@ -285,6 +285,7 @@ private struct NativeCheckbox: NSViewRepresentable {
     }
 }
 
+#if DEBUG
 #Preview("File rows") {
     VStack(spacing: 0) {
         AddTorrentFolderRow(
@@ -331,3 +332,4 @@ private struct NativeCheckbox: NSViewRepresentable {
     .padding()
     .background(Color(nsColor: .windowBackgroundColor))
 }
+#endif

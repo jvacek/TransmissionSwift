@@ -832,30 +832,38 @@ extension AddTorrentInputMode {
     }
 }
 
+#if DEBUG
 #Preview("Add Torrent") {
     AddTorrentSheet(isPresented: .constant(true))
         .environment(previewTorrentStore)
         .environment(TagColorStore())
 }
+#endif
 
+#if DEBUG
 #Preview("Magnet / URL") {
     AddTorrentSheet(isPresented: .constant(true), initialMode: .link)
         .environment(previewTorrentStore)
         .environment(TagColorStore())
 }
+#endif
 
+#if DEBUG
 #Preview("File selection") {
     AddTorrentSheet(isPresented: .constant(true), prefilledURL: previewMultiFileTorrentURL())
         .environment(previewTorrentStore)
         .environment(TagColorStore())
 }
+#endif
 
+#if DEBUG
 #Preview("File selection collapsed") {
     AddTorrentSheet(isPresented: .constant(true), prefilledURL: previewMultiFileTorrentURL())
         .defaultAppStorage(previewCollapsedFilesDefaults)
         .environment(previewTorrentStore)
         .environment(TagColorStore())
 }
+#endif
 
 /// A separate defaults store so the collapsed preview doesn't flip the real
 /// preview (or the app) into the collapsed state.

@@ -4,7 +4,10 @@
 
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 /// Dedicated popup for editing a torrent's labels. Prefills with the union of
 /// the target set's labels, so a bulk edit keeps every existing label, and
@@ -74,6 +77,7 @@ struct EditLabelsSheet: View {
     }
 }
 
+#if DEBUG
 #Preview("Edit Labels") {
     let store = TorrentStore(service: MockTorrentService())
     return EditLabelsSheet(isPresented: .constant(true), ids: [2])
@@ -81,3 +85,4 @@ struct EditLabelsSheet: View {
         .environment(TagColorStore())
         .frame(width: 400)
 }
+#endif

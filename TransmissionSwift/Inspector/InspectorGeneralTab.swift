@@ -4,7 +4,10 @@
 
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 /// Key-value overview of the selected torrent: transfer state up top, then
 /// immutable torrent metadata, then location/labels/priority.
@@ -307,9 +310,11 @@ struct InspectorGeneralTab: View {
     }
 }
 
+#if DEBUG
 #Preview {
     InspectorGeneralTab(torrent: Torrent.samples[4])
         .environment(TorrentStore(service: MockTorrentService()))
         .environment(TagColorStore())
         .frame(width: 322, height: 640)
 }
+#endif

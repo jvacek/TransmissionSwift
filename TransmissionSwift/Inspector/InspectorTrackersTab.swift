@@ -4,7 +4,10 @@
 
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 /// Tracker announce endpoints grouped by failover tier, one `GroupBox` card
 /// per tracker. Every edit (add, change URL, remove, re-tier) rewrites the
@@ -416,34 +419,44 @@ nonisolated func trackerAnnounceValidation(
     return nil
 }
 
+#if DEBUG
 #Preview("Multi-tier Trackers") {
     InspectorTrackersTab(torrent: Torrent.samples[4])
         .environment(previewTorrentStore)
         .environment(FaviconStore())
         .frame(width: 322, height: 500)
 }
+#endif
 
+#if DEBUG
 #Preview("Private Trackers") {
     InspectorTrackersTab(torrent: Torrent.samples[1])
         .environment(previewTorrentStore)
         .environment(FaviconStore())
         .frame(width: 322, height: 500)
 }
+#endif
 
+#if DEBUG
 #Preview("Add Tracker") {
     AddTrackerSheet(torrent: Torrent.samples[4])
         .environment(previewTorrentStore)
         .frame(width: 420)
 }
+#endif
 
+#if DEBUG
 #Preview("Change Tracker URL") {
     AddTrackerSheet(torrent: Torrent.samples[4], editing: Torrent.samples[4].trackers[0])
         .environment(previewTorrentStore)
         .frame(width: 420)
 }
+#endif
 
+#if DEBUG
 #Preview("Add Tracker (Private)") {
     AddTrackerSheet(torrent: Torrent.samples[1])
         .environment(previewTorrentStore)
         .frame(width: 420)
 }
+#endif

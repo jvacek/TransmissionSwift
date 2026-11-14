@@ -4,7 +4,10 @@
 
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 // MARK: - Session-not-connected gate
 
@@ -134,6 +137,7 @@ extension SessionModel {
     }
 }
 
+#if DEBUG
 // MARK: - Preview support
 
 /// Shared stores for the per-pane `#Preview`s (each pane's preview is defined in
@@ -173,3 +177,4 @@ let prefsPreviewMappingStore: OpenMappingStore = {
             .appendingPathComponent("mappings-preview-\(UUID().uuidString).json"))
     return store
 }()
+#endif

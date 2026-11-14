@@ -447,9 +447,11 @@ struct ServerProfileForm: View {
     }
 }
 
+#if DEBUG
 #Preview("Servers") {
     ServersPrefsPane()
         .environment(prefsPreviewProfileStore)
         .environment(prefsPreviewStore)
         .frame(width: 700, height: 480)
 }
+#endif

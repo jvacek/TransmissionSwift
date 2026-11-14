@@ -4,7 +4,10 @@
 
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 /// Finder-style tag colour management. Lists every tag in use on the daemon
 /// plus any tag that already has a colour assigned (so colours can be cleared
@@ -93,6 +96,7 @@ private struct TagColorRadioPicker: View {
     }
 }
 
+#if DEBUG
 #Preview {
     let store = TorrentStore(service: MockTorrentService())
     TagsPrefsPane()
@@ -100,3 +104,4 @@ private struct TagColorRadioPicker: View {
         .environment(store)
         .frame(width: 480, height: 420)
 }
+#endif

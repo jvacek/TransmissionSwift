@@ -155,9 +155,11 @@ struct SetLocationSheet: View {
     }
 }
 
+#if DEBUG
 #Preview("Set Location") {
     SetLocationSheet(isPresented: .constant(true), ids: [2], serverName: "Home NAS")
         .environment(previewTorrentStore)
         .environment(TagColorStore())
         .frame(width: 460)
 }
+#endif

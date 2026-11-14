@@ -19,6 +19,7 @@ struct StatusDot: View {
     }
 }
 
+#if DEBUG
 #Preview {
     HStack(spacing: 12) {
         ForEach(TorrentStatus.allCases, id: \.self) { status in
@@ -30,3 +31,4 @@ struct StatusDot: View {
     }
     .padding()
 }
+#endif

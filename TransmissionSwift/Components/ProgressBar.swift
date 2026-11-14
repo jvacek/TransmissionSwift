@@ -32,6 +32,7 @@ struct ProgressBar: View {
     }
 }
 
+#if DEBUG
 #Preview {
     VStack(alignment: .leading) {
         ProgressBar(value: 0.62, status: .downloading)
@@ -43,3 +44,4 @@ struct ProgressBar: View {
     .frame(width: 240)
     .padding()
 }
+#endif

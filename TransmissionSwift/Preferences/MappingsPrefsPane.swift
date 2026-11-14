@@ -124,6 +124,7 @@ struct MappingsPrefsPane: View {
     }
 }
 
+#if DEBUG
 #Preview("Mappings") {
     MappingsPrefsPane()
         .environment(prefsPreviewProfileStore)
@@ -131,3 +132,4 @@ struct MappingsPrefsPane: View {
         .environment(prefsPreviewStore)
         .frame(width: 700, height: 480)
 }
+#endif

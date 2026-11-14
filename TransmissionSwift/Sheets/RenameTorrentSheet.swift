@@ -4,7 +4,10 @@
 
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 /// Sheet for renaming a torrent's root (its display name).
 ///
@@ -104,6 +107,7 @@ struct RenameTorrentSheet: View {
     }
 }
 
+#if DEBUG
 #Preview("Rename Torrent") {
     let store = TorrentStore(service: MockTorrentService())
     store.list.selectedTorrentIDs = [5]
@@ -111,3 +115,4 @@ struct RenameTorrentSheet: View {
         .environment(store)
         .frame(width: 400)
 }
+#endif

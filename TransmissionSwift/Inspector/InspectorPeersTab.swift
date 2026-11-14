@@ -4,7 +4,10 @@
 
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 /// Read-only table of connected peers.
 struct InspectorPeersTab: View {
@@ -87,8 +90,10 @@ struct InspectorPeersTab: View {
     }
 }
 
+#if DEBUG
 #Preview {
     InspectorPeersTab(torrent: Torrent.samples[4])
         .environment(GeoIPStore())
         .frame(width: 322, height: 400)
 }
+#endif

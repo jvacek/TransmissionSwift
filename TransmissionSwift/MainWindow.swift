@@ -5,7 +5,10 @@
 import AppKit
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 private enum Layout {
     static let sidebarMin: CGFloat = 180
@@ -422,6 +425,7 @@ private struct InspectorResizeHandle: View {
     }
 }
 
+#if DEBUG
 #Preview("No Servers") {
     let store = TorrentStore(service: MockTorrentService(initial: []))
     let emptyProfiles = ServerProfileStore(
@@ -439,3 +443,4 @@ private struct InspectorResizeHandle: View {
         .environment(ConnectionCoordinator(store: store))
         .frame(width: 1100, height: 640)
 }
+#endif

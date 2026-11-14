@@ -5,7 +5,10 @@
 import AppKit
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 /// Per-file selection and bandwidth priority. Mutations dispatch through the
 /// store; the service broadcasts a fresh snapshot, which flows back in via
@@ -276,6 +279,7 @@ private enum FileSortKey: CaseIterable, Identifiable {
     }
 }
 
+#if DEBUG
 #Preview {
     InspectorFilesTab(torrent: Torrent.samples[4])
         .environment(TorrentStore(service: MockTorrentService()))
@@ -288,3 +292,4 @@ private enum FileSortKey: CaseIterable, Identifiable {
         )
         .frame(width: 322, height: 400)
 }
+#endif

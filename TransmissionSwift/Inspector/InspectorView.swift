@@ -4,7 +4,10 @@
 
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 /// Right-pane inspector — header, icon-segmented tab bar, and one of five
 /// tab bodies. Renders the first selected torrent; selection changes flow in
@@ -117,6 +120,7 @@ private struct InspectorHeader: View {
     }
 }
 
+#if DEBUG
 #Preview("Selected") {
     let service = MockTorrentService()
     let store = TorrentStore(service: service)
@@ -127,7 +131,9 @@ private struct InspectorHeader: View {
         .frame(width: 322, height: 600)
         .task { store.list.selectedTorrentIDs = [5] }
 }
+#endif
 
+#if DEBUG
 #Preview("Empty") {
     InspectorView()
         .environment(TorrentStore(service: MockTorrentService(initial: [])))
@@ -135,3 +141,4 @@ private struct InspectorHeader: View {
         .environment(GeoIPStore())
         .frame(width: 322, height: 600)
 }
+#endif
