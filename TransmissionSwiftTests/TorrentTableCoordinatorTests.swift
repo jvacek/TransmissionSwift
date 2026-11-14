@@ -96,4 +96,33 @@ struct TorrentTableCoordinatorTests {
         #expect(hideItem.title == "Hide This Column")
         #expect(!hideItem.isEnabled)
     }
+
+    @Test func typeSelect_returnsTheRowName() {
+        let coordinator = TorrentTableRepresentable.Coordinator(
+            selection: .constant(Set<Torrent.ID>()))
+        let tableView = NSTableView()
+        coordinator.tableView = tableView
+        coordinator.apply(rows: [makeTableTorrent(id: 1, name: "Debian 12.6")])
+
+        #expect(
+            coordinator.tableView(tableView, typeSelectStringFor: nil, row: 0)
+                == "Debian 12.6")
+        #expect(coordinator.tableView(tableView, typeSelectStringFor: nil, row: 9) == nil)
+    }
+
+    @Test func dragOut_writesTheMagnetURI() throws {
+        let coordinator = TorrentTableRepresentable.Coordinator(
+            selection: .constant(Set<Torrent.ID>()))
+        let tableView = NSTableView()
+        coordinator.tableView = tableView
+        let torrent = makeTableTorrent(id: 7, name: "Ubuntu")
+        coordinator.apply(rows: [torrent])
+
+        let writer = coordinator.tableView(tableView, pasteboardWriterForRow: 0)
+        let item = try #require(writer as? NSPasteboardItem)
+        let text = try #require(item.string(forType: .string))
+        #expect(text == torrent.magnetURI)
+        #expect(text.hasPrefix("magnet:?xt=urn:btih:hash-7"))
+        #expect(coordinator.tableView(tableView, pasteboardWriterForRow: 9) == nil)
+    }
 }

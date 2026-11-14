@@ -99,10 +99,6 @@ struct InspectorFilesTab: View {
         sizeColumnWidth = Self.sizeColumnWidth(for: torrent.files)
     }
 
-    private func targetFileIDs(for file: TorrentFile) -> [TorrentFile.ID] {
-        selectedFiles.contains(file.id) ? Array(selectedFiles) : [file.id]
-    }
-
     private func setWanted(_ wanted: Bool, for ids: [TorrentFile.ID]) {
         Task {
             await store.actions.setFilesWanted(torrent.id, fileIDs: ids, wanted: wanted)
@@ -122,7 +118,7 @@ struct InspectorFilesTab: View {
 
     @ViewBuilder
     private func fileMenu(for file: TorrentFile) -> some View {
-        let ids = targetFileIDs(for: file)
+        let ids = fileTargetIDs(selected: selectedFiles, clicked: file.id)
         Button("Download Selected") { setWanted(true, for: ids) }
             .disabled(!store.actionsEnabled)
         Button("Don't Download Selected") { setWanted(false, for: ids) }
@@ -224,6 +220,15 @@ struct InspectorFilesTab: View {
             }
         )
     }
+}
+
+/// Which files a context-menu action targets: the whole selection when the
+/// clicked row is part of it, otherwise just that row. Pure so the bulk-target
+/// rule is testable without a window.
+nonisolated func fileTargetIDs(
+    selected: Set<TorrentFile.ID>, clicked: TorrentFile.ID
+) -> [TorrentFile.ID] {
+    selected.contains(clicked) ? Array(selected) : [clicked]
 }
 
 /// One file: checkbox + name + priority capsule on the first line, size +
