@@ -141,11 +141,15 @@ jobs:
             $SIGNING_ARGS \
             test | xcbeautify --renderer github-actions
 
+      - name: Check App Intents toolchain
+        # AppIntentsTesting is a host framework; a mismatched Xcode/macOS pair
+        # fails at bundle load. Fail here with a readable message instead.
+        if: matrix.os == 'xcode-27'
+        run: xcrun swift scripts/check_appintents_toolchain.swift
+
       - name: App Intents tests
-        # Deduped with the Test step: test-without-building reuses that build
-        # instead of a separate job rebuilding the app. The runner has no
-        # TRANSMISSION_APPINTENTS env in the Test step, so the suite skips these
-        # there; this step sets it and runs just the AppIntentsTests.
+        # Separate, compile-gated build: the main Test step above must not link
+        # AppIntentsTesting, or one bad host framework takes down every UI test.
         # Enforced on every main push; on PRs the whole xcode-27 leg stays
         # non-blocking because that image is a public preview (see the job-level
         # continue-on-error above).
@@ -162,5 +166,6 @@ jobs:
             -destination 'platform=macOS' \
             -allowProvisioningUpdates \
             DEVELOPMENT_TEAM=JK45236K44 \
-            test-without-building -only-testing:TransmissionSwiftUITests/AppIntentsUITests \
+            -Xswiftc -DAPP_INTENTS_UI_TESTS \
+            test -only-testing:TransmissionSwiftUITests/AppIntentsUITests \
             | xcbeautify --renderer github-actions

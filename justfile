@@ -72,7 +72,8 @@ test-e2e:
 # creates a development certificate on first run if you're signed into Xcode.
 # Defaults to the project's team — override with `just test-appintents <TEAM_ID>`.
 test-appintents team="JK45236K44":
-    set -o pipefail; TEST_RUNNER_TRANSMISSION_APPINTENTS=1 xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'platform=macOS' -allowProvisioningUpdates DEVELOPMENT_TEAM={{ team }} test -only-testing:TransmissionSwiftUITests/AppIntentsUITests | (command -v xcbeautify >/dev/null && xcbeautify || cat)
+    xcrun swift scripts/check_appintents_toolchain.swift
+    set -o pipefail; TEST_RUNNER_TRANSMISSION_APPINTENTS=1 xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'platform=macOS' -allowProvisioningUpdates DEVELOPMENT_TEAM={{ team }} -Xswiftc -DAPP_INTENTS_UI_TESTS test -only-testing:TransmissionSwiftUITests/AppIntentsUITests | (command -v xcbeautify >/dev/null && xcbeautify || cat)
 
 # Launch a Debug build showing the committed snapshot fixture (read-only, no daemon).
 run-snapshot snapshot="{{ snapshot_fixture }}":
