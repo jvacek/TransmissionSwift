@@ -146,10 +146,13 @@ struct SnapshotLeakCheckerTests {
             key: "magnetLink", anonymizeTrackers: false)
     }
 
-    @Test("comments and creators are scanned as free text")
+    @Test("comments and creators keep structural tripwires")
     func commentAndCreatorLeaks() {
         expectLeak("see https://example.com/faq", key: "comment")
-        expectLeak("admin@example.com", key: "comment")
+        expectLeak("contact us at xyz.onion", key: "creator")
+        // Hostname-shaped strings are not checked here: the scrubber fully
+        // rewrites free text, so its fuzzed output can look like an FQDN.
+        expectClean("admin@example.com", key: "comment")
         expectClean("Ubuntu CD releases.", key: "creator")
     }
 
@@ -182,6 +185,22 @@ struct SnapshotLeakCheckerTests {
 
         #expect(throws: SnapshotError.self) {
             try SnapshotLeakChecker.check(leaking)
+        }
+    }
+
+    @Test("redacted free text that looks like a hostname is not flagged")
+    func fuzzedFreeTextLookalikePasses() throws {
+        // Every free-text field is rewritten by the scrubber. Its output can
+        // legitimately look like a hostname: faking a nested host leaves a
+        // dotted prefix attached ("foo.tracker-1.invalid"), and path fuzzing
+        // keeps extensions ("f.LB"). Neither is real server data.
+        for creator in ["created by foo.a.LB", "built from /tmp/build/a.LB."] {
+            var raw = SnapshotFixtures.rawSnapshot()
+            raw.torrents[0].creator = creator
+            let (tree, _) = try SnapshotRedactor().redact(raw)
+            #expect(throws: Never.self) {
+                try SnapshotLeakChecker.check(tree, namesKept: true, anonymizeTrackers: true)
+            }
         }
     }
 
