@@ -4,18 +4,17 @@
 
 import AppKit
 
-/// A tag "chip" rendered as a fully-rounded capsule that hugs its text. The
-/// capsule is drawn with layers (fill + top sheen + hairline border) and keeps
-/// an intrinsic size of label-width plus padding, so it never stretches to fill
-/// a cell. Coloured tags get a solid fill with contrast text; uncoloured tags
-/// get a translucent neutral fill.
+/// A tag "chip" rendered as a fully-rounded capsule that hugs its text. It
+/// keeps an intrinsic size of label-width plus padding, so it never stretches
+/// to fill a cell. Coloured tags get a flat solid fill with contrast text, like
+/// Finder; uncoloured tags get a translucent neutral fill and a hairline border
+/// so they don't dissolve into the row.
 final class TagPillView: NSView {
     static let horizontalPadding: CGFloat = 8
     static let minHeight: CGFloat = 18
 
     private let textLabel = NSTextField(labelWithString: "")
     private let fillLayer = CALayer()
-    private let sheenLayer = CAGradientLayer()
     private let borderLayer = CAShapeLayer()
     private var fillColor: NSColor?
     private var foregroundColor: NSColor?
@@ -26,10 +25,8 @@ final class TagPillView: NSView {
         layer?.masksToBounds = true
 
         fillLayer.zPosition = 0
-        sheenLayer.zPosition = 1
-        borderLayer.zPosition = 2
+        borderLayer.zPosition = 1
         layer?.addSublayer(fillLayer)
-        layer?.addSublayer(sheenLayer)
         layer?.addSublayer(borderLayer)
 
         textLabel.font = .systemFont(ofSize: 12)
@@ -89,8 +86,6 @@ final class TagPillView: NSView {
         layer?.cornerRadius = radius
         fillLayer.frame = bounds
         fillLayer.cornerRadius = radius
-        sheenLayer.frame = bounds
-        sheenLayer.cornerRadius = radius
         // Hairline border inset so the 1px stroke sits fully inside the capsule.
         borderLayer.frame = bounds
         borderLayer.path = CGPath(
@@ -129,15 +124,9 @@ final class TagPillView: NSView {
                 fillColor
                 ?? NSColor.labelColor.withAlphaComponent(0.06)
             fillLayer.backgroundColor = effectiveBackground.cgColor
-            sheenLayer.colors = [
-                NSColor.white.withAlphaComponent(0.14).cgColor,
-                NSColor.white.withAlphaComponent(0.0).cgColor,
-            ]
-            borderLayer.strokeColor = NSColor.labelColor.withAlphaComponent(0.16).cgColor
+            borderLayer.strokeColor =
+                fillColor == nil ? NSColor.labelColor.withAlphaComponent(0.16).cgColor : nil
         }
-        sheenLayer.locations = [0, 0.55]
-        sheenLayer.startPoint = CGPoint(x: 0.5, y: 0)
-        sheenLayer.endPoint = CGPoint(x: 0.5, y: 1)
         borderLayer.lineWidth = 1
         borderLayer.fillColor = nil
         CATransaction.commit()

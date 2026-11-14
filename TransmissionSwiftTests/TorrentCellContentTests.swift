@@ -97,3 +97,27 @@ struct TorrentCellContentTests {
         #expect(content.accessibilityLabel == torrent.downloadFolder)
     }
 }
+
+/// Tags are flat like Finder's: no gloss on any pill, and only the neutral
+/// (uncoloured) pill keeps a hairline so it stays visible on the row.
+@Suite("TagPillView styling")
+@MainActor
+struct TagPillViewStylingTests {
+    private func border(of pill: TagPillView) -> CAShapeLayer? {
+        pill.layer?.sublayers?.compactMap { $0 as? CAShapeLayer }.first
+    }
+
+    @Test func colouredPillIsFlat() {
+        let pill = TagPillView()
+        pill.configure(text: "movies", background: TagColor.red.nsColor, foreground: .white)
+        #expect(pill.layer?.sublayers?.contains { $0 is CAGradientLayer } == false)
+        #expect(border(of: pill)?.strokeColor == nil)
+    }
+
+    @Test func neutralPillKeepsHairline() {
+        let pill = TagPillView()
+        pill.configure(text: "movies", background: nil, foreground: nil)
+        #expect(pill.layer?.sublayers?.contains { $0 is CAGradientLayer } == false)
+        #expect(border(of: pill)?.strokeColor != nil)
+    }
+}

@@ -127,9 +127,9 @@ struct TagColorDot: View {
 }
 
 /// A tag chip with the same visual language as the table's native pills: a
-/// fully-rounded capsule with a solid tag-colour fill (or a translucent neutral
-/// fill), a hairline border and a subtle top sheen. Used by the inspector's
-/// label chips and the tag input field, so a tag looks identical everywhere.
+/// fully-rounded capsule with a flat tag-colour fill (or a translucent neutral
+/// fill with a hairline border). Used by the inspector's label chips and the
+/// tag input field, so a tag looks identical everywhere.
 struct TagPill: View {
     let label: String
     var color: TagColor? = nil
@@ -146,10 +146,10 @@ struct TagPill: View {
     }
 }
 
-/// Shared capsule treatment for tags: tag-colour fill (or a light translucent
-/// neutral), a subtle top sheen and a hairline border. Keeps every tag surface
-/// — table pill, inspector chip, input chip, suggestion row — looking
-/// identical. The neutral fill is the label colour at ~6% (NOT
+/// Shared capsule treatment for tags: a flat tag-colour fill, or a light
+/// translucent neutral with a hairline border. Keeps every tag surface (table
+/// pill, inspector chip, input chip, suggestion row) looking identical. The
+/// neutral fill is the label colour at ~6% (NOT
 /// `quaternaryLabelColor.withAlphaComponent(0.4)`, which is black/white at 40%
 /// and far too dark against label-coloured text).
 struct TagCapsuleBackground: ViewModifier {
@@ -157,23 +157,13 @@ struct TagCapsuleBackground: ViewModifier {
 
     func body(content: Content) -> some View {
         content.background {
-            Capsule()
-                .fill(color?.color ?? Color.primary.opacity(0.06))
-                .overlay(
-                    Capsule().fill(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.14), Color.clear],
-                            startPoint: .top,
-                            endPoint: .center
-                        )
-                    )
-                )
-                .overlay(
-                    Capsule().strokeBorder(
-                        Color.primary.opacity(0.16),
-                        lineWidth: 1
-                    )
-                )
+            if let color {
+                Capsule().fill(color.color)
+            } else {
+                Capsule()
+                    .fill(Color.primary.opacity(0.06))
+                    .strokeBorder(Color.primary.opacity(0.16), lineWidth: 1)
+            }
         }
     }
 }
