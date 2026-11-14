@@ -24,6 +24,7 @@
   - Blend the torrent list's column header into the toolbar, like Finder
   - Drop the status bar's frosted background and divider so it sits flush with the window
   - Draw tags as flat colour pills, like Finder
+  - Use the system row height in the torrent list, so it's as compact as Finder's
 - Performance
   - Lower memory use, smoother sorting and less work while idle on large lists
 

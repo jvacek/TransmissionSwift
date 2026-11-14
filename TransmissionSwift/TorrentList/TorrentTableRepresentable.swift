@@ -44,7 +44,8 @@ struct TorrentTableRepresentable: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let tableView = TorrentTableView()
-        tableView.rowHeight = 28
+        // System row height (Finder's list view), not a hardcoded one.
+        tableView.rowSizeStyle = .default
         tableView.usesAutomaticRowHeights = false
         tableView.allowsMultipleSelection = true
         tableView.allowsEmptySelection = true
