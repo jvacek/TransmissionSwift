@@ -95,8 +95,12 @@ public final class TorrentStore {
     /// finishing a tick cannot write into the new session's state.
     private var streamGeneration = 0
 
-    public init(service: any TorrentReading, inspectorDefaults: UserDefaults = .standard) {
-        let list = TorrentListModel()
+    public init(
+        service: any TorrentReading,
+        inspectorDefaults: UserDefaults = .standard,
+        tablePreferences: any TablePreferencesStoring = UserDefaultsTablePreferencesStore()
+    ) {
+        let list = TorrentListModel(preferences: tablePreferences)
         self.list = list
         let inspector = InspectorModel(list: list, defaults: inspectorDefaults)
         self.inspector = inspector

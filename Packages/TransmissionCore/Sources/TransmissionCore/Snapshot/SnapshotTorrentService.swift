@@ -11,16 +11,21 @@ import TransmissionRPC
 ///
 /// Decodes the wire-shaped envelope through the same types (`SessionInfo`,
 /// `WireTorrent`) and the same `Torrent(wire:)` mapping as a live poll, then
-/// serves the state with no network. The stream yields the list once and
-/// closes — there is nothing to tick. Mutations are unavailable: this type
-/// conforms only to `TorrentReading`, so a mutation can't even be requested.
+/// serves the state with no network. Frozen by default: the stream yields the
+/// list once and closes. With a poll interval in `options` it keeps ticking
+/// like a live daemon (see `SnapshotLiveSimulation`). Mutations are
+/// unavailable: this type conforms only to `TorrentReading`, so a mutation
+/// can't even be requested.
 public actor SnapshotTorrentService: TorrentReading {
     private let session: SessionInfo
     private let domainTorrents: [Torrent]
     private let colors: [String: TagColor]
     private let serverName: String?
+    private let options: SnapshotReplayOptions
+    private var liveTorrents: [Torrent]
+    private var tickCount = 0
 
-    public init(fileURL: URL) throws {
+    public init(fileURL: URL, options: SnapshotReplayOptions = .frozen) throws {
         let data = try Data(contentsOf: fileURL)
         let file = try JSONDecoder().decode(SnapshotFile.self, from: data)
         guard file.version == snapshotFormatVersion else {
@@ -28,6 +33,8 @@ public actor SnapshotTorrentService: TorrentReading {
         }
         self.session = file.session
         self.domainTorrents = file.torrents.map { Torrent(wire: $0) }
+        self.liveTorrents = domainTorrents
+        self.options = options
         self.colors = file.tagColors ?? [:]
         self.serverName = file.source.serverName
     }
@@ -45,17 +52,32 @@ public actor SnapshotTorrentService: TorrentReading {
 
     public func downloadDirectory() async -> String? { session.downloadDir }
 
-    public func torrents() async throws -> [Torrent] { domainTorrents }
+    public func torrents() async throws -> [Torrent] {
+        try await simulateLatency()
+        return liveTorrents
+    }
 
     public func torrentsStream() -> AsyncThrowingStream<[Torrent], Error> {
         let (stream, continuation) = AsyncThrowingStream<[Torrent], Error>.makeStream()
-        continuation.yield(domainTorrents)
-        continuation.finish()
+        continuation.yield(liveTorrents)
+        guard let interval = options.pollInterval else {
+            continuation.finish()
+            return stream
+        }
+        let task = Task {
+            while !Task.isCancelled {
+                try await Task.sleep(for: interval)
+                try await simulateLatency()
+                continuation.yield(advance(by: interval))
+            }
+        }
+        continuation.onTermination = { _ in task.cancel() }
         return stream
     }
 
     public func inspectorData(for id: Torrent.ID) async throws -> Torrent {
-        guard let torrent = domainTorrents.first(where: { $0.id == id }) else {
+        try await simulateLatency()
+        guard let torrent = liveTorrents.first(where: { $0.id == id }) else {
             throw SnapshotError.torrentNotFound(id)
         }
         return torrent
@@ -70,4 +92,18 @@ public actor SnapshotTorrentService: TorrentReading {
     public func sessionSettings() async -> SessionSettings? { SessionSettings(wire: session) }
 
     public func isPortOpen() async -> Bool? { nil }
+
+    // MARK: - Live simulation
+
+    private func advance(by interval: Duration) -> [Torrent] {
+        tickCount += 1
+        liveTorrents = SnapshotLiveSimulation.tick(
+            liveTorrents, captured: domainTorrents, number: tickCount, interval: interval)
+        return liveTorrents
+    }
+
+    private func simulateLatency() async throws {
+        guard options.latency > .zero else { return }
+        try await Task.sleep(for: options.latency)
+    }
 }

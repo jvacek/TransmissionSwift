@@ -767,10 +767,8 @@ extension TorrentTableRepresentable.Coordinator: NSTableViewDelegate {
     }
 
     func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
-        // Snapshot replay is read-only: still render the persisted sort
-        // indicator, but don't forward a user sort attempt to the store, where
-        // it would persist `tablePreferences` to the real UserDefaults.
-        guard actionsEnabled, !isNormalizingSortDescriptors else { return }
+        // Snapshot replay sorts too: its store keeps the preference in memory.
+        guard !isNormalizingSortDescriptors else { return }
         // AppKit promotes the clicked column to PRIMARY, keeping older entries
         // as secondaries. This is a single-sort table: collapse to the primary
         // before resolving it (the `.last` of that list was the original bug —

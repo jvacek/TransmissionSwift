@@ -79,6 +79,10 @@ test-appintents team="JK45236K44":
 run-snapshot snapshot="{{ snapshot_fixture }}":
     open Build/Products/Debug/TransmissionSwift.app --args --snapshot {{ snapshot }}
 
+# Like run-snapshot, but the replay ticks like a live daemon every `poll` seconds, each response delayed by `latency` seconds.
+run-snapshot-live poll="1" latency="0.3" snapshot="{{ snapshot_fixture }}":
+    open Build/Products/Debug/TransmissionSwift.app --args --snapshot {{ snapshot }} --snapshot-poll {{ poll }} --snapshot-latency {{ latency }}
+
 # Preview the Pages site locally: render into build/site, then serve it.
 serve:
     uv run --no-project scripts/build_site.py

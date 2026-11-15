@@ -198,6 +198,25 @@ alongside `--ephemeral-profiles`:
   from the stored session
 - `supportsActions == false` — read-only replay. Mutating a point-in-time record
   makes no sense; the UI already knows how to disable actions.
+- Sorting still works: replay hands `TorrentStore` an
+  `InMemoryTablePreferencesStore` seeded from the saved sort, so header clicks
+  take the same path as live without overwriting the real preference.
+
+### Live replay: `--snapshot-poll` / `--snapshot-latency`
+
+Some bugs only show against a server because the list keeps moving: a poll
+lands mid-click, a speed sort reorders rows every tick. Two optional flags make
+replay behave like a live, slow daemon (`just run-snapshot-live`):
+
+- `--snapshot-poll <seconds>` re-emits the list on that interval.
+  `SnapshotLiveSimulation` wobbles each active torrent's speeds around the
+  captured value (0.5x to 1.5x), advances downloads by what that speed would
+  fetch, and recomputes the ETA. Idle torrents stay idle. Deterministic per
+  (torrent, tick), so a failing run replays identically.
+- `--snapshot-latency <seconds>` delays every simulated response (each poll,
+  `torrents()`, `inspectorData`), like a remote daemon.
+
+Both default to off, which keeps the frozen replay the UI tests rely on.
 
 ## What this unlocks
 

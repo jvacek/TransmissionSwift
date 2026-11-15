@@ -73,6 +73,39 @@ struct SnapshotTorrentServiceTests {
         #expect(emissions[0].count == 2)
     }
 
+    @Test("with a poll interval the stream keeps ticking, and the list moves")
+    func streamTicksWhenPolling() async throws {
+        let url = try writeFixture()
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let service = try SnapshotTorrentService(
+            fileURL: url, options: SnapshotReplayOptions(pollInterval: .milliseconds(10)))
+        var emissions: [[Torrent]] = []
+        for try await snapshot in await service.torrentsStream() {
+            emissions.append(snapshot)
+            if emissions.count == 3 { break }
+        }
+        #expect(emissions.count == 3)
+        // The downloading torrent's speed wobbles and its progress advances.
+        #expect(emissions[0][0].downloadSpeed != emissions[1][0].downloadSpeed)
+        #expect(emissions[2][0].progress > emissions[0][0].progress)
+        // The inspector reads the same live state as the list.
+        let inspected = try await service.inspectorData(for: emissions[2][0].id)
+        #expect(inspected.progress == emissions[2][0].progress)
+    }
+
+    @Test("latency delays every response")
+    func latencyDelaysResponses() async throws {
+        let url = try writeFixture()
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let service = try SnapshotTorrentService(
+            fileURL: url, options: SnapshotReplayOptions(latency: .milliseconds(150)))
+        let start = ContinuousClock.now
+        _ = try await service.torrents()
+        #expect(ContinuousClock.now - start >= .milliseconds(150))
+    }
+
     @Test("is read-only: conforms to TorrentReading only, not TorrentMutating")
     func isReadOnly() async throws {
         let url = try writeFixture()
@@ -158,5 +191,74 @@ struct SnapshotTorrentServiceTests {
 
         let service = try SnapshotTorrentService(fileURL: url)
         #expect(service.tagColors.isEmpty)
+    }
+}
+
+/// The per-tick changes the live replay applies. Pure, so the moving parts are
+/// checked without timers.
+@Suite("SnapshotLiveSimulation")
+struct SnapshotLiveSimulationTests {
+    private func torrent(
+        id: Int, down: Int64, up: Int64 = 0, progress: Double, size: Int64 = 1_000_000
+    ) -> Torrent {
+        var torrent = Torrent(wire: SnapshotFixtures.rawSnapshot().torrents[0])
+        torrent.id = id
+        torrent.downloadSpeed = down
+        torrent.uploadSpeed = up
+        torrent.progress = progress
+        torrent.size = size
+        torrent.sizeWhenDone = size
+        torrent.leftUntilDone = Int64(Double(size) * (1 - progress))
+        return torrent
+    }
+
+    @Test func isDeterministic() {
+        let captured = [torrent(id: 1, down: 1000, up: 500, progress: 0.5)]
+        let a = SnapshotLiveSimulation.tick(captured, captured: captured, number: 3, interval: .seconds(1))
+        let b = SnapshotLiveSimulation.tick(captured, captured: captured, number: 3, interval: .seconds(1))
+        #expect(a == b)
+    }
+
+    @Test func speedsWobbleAroundTheCapturedValue() {
+        let captured = [torrent(id: 1, down: 1000, up: 1000, progress: 0.1, size: 1_000_000_000)]
+        var current = captured
+        var speeds: Set<Int64> = []
+        for tick in 1...20 {
+            current = SnapshotLiveSimulation.tick(
+                current, captured: captured, number: tick, interval: .seconds(1))
+            #expect((500..<1500).contains(current[0].downloadSpeed))
+            speeds.insert(current[0].downloadSpeed)
+        }
+        #expect(speeds.count > 1)
+    }
+
+    @Test func idleTorrentsStayIdle() {
+        let captured = [torrent(id: 1, down: 0, up: 0, progress: 0.5)]
+        let next = SnapshotLiveSimulation.tick(
+            captured, captured: captured, number: 1, interval: .seconds(1))
+        #expect(next == captured)
+    }
+
+    @Test func downloadsProgressAndNeverOvershoot() {
+        let captured = [torrent(id: 1, down: 400_000, progress: 0.5)]
+        let one = SnapshotLiveSimulation.tick(
+            captured, captured: captured, number: 1, interval: .seconds(1))
+        #expect(one[0].progress > 0.5)
+        #expect(one[0].eta != nil)
+        var current = one
+        for tick in 2...10 {
+            current = SnapshotLiveSimulation.tick(
+                current, captured: captured, number: tick, interval: .seconds(1))
+        }
+        #expect(current[0].progress == 1)
+        #expect(current[0].leftUntilDone == 0)
+    }
+
+    @Test func derivesWhatIsLeftForCapturesWithoutIt() {
+        var bare = torrent(id: 1, down: 100_000, progress: 0.5)
+        bare.leftUntilDone = 0
+        bare.sizeWhenDone = 0
+        let next = SnapshotLiveSimulation.tick([bare], captured: [bare], number: 1, interval: .seconds(1))
+        #expect(next[0].progress > 0.5)
     }
 }

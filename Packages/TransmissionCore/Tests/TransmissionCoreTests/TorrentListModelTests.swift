@@ -8,16 +8,6 @@ import TransmissionTestSupport
 
 @testable import TransmissionCore
 
-/// An in-memory `TablePreferencesStoring` so the sort tests never touch the
-/// shared `UserDefaults` (isolated, repeatable).
-private final class InMemoryTablePreferencesStore: TablePreferencesStoring, @unchecked Sendable {
-    var tablePreferences: TablePreferences
-
-    init(_ initial: TablePreferences = TablePreferences()) {
-        self.tablePreferences = initial
-    }
-}
-
 /// Direct tests for `TorrentListModel` — no service, no coordinator, no global
 /// state. Exercises the list state machine in isolation: the `setTorrents`
 /// cascade, selection pruning, filtering, search, sort and facet/filter
