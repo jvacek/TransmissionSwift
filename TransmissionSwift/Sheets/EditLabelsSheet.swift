@@ -32,18 +32,14 @@ struct EditLabelsSheet: View {
             TagsInputField(tags: $tags, suggestions: suggestions)
                 .disabled(!store.actionsEnabled)
 
-            HStack {
-                Spacer()
-                Button("Cancel") { isPresented = false }
-                    .keyboardShortcut(.cancelAction)
-                    .disabled(isSaving)
-                Button(isSaving ? "Applying…" : "Apply") {
-                    Task { await apply() }
-                }
-                .buttonStyle(.glassProminent)
-                .disabled(isSaving || !store.actionsEnabled)
-                .keyboardShortcut(.defaultAction)
-            }
+            SheetButtonRow(
+                "Apply",
+                busyTitle: "Applying…",
+                isBusy: isSaving,
+                canConfirm: store.actionsEnabled,
+                onCancel: { isPresented = false },
+                onConfirm: { Task { await apply() } }
+            )
         }
         .padding(20)
         .frame(width: 400)

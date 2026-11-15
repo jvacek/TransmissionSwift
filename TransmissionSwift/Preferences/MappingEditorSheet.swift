@@ -484,7 +484,12 @@ struct MappingEditorSheet: View {
                     .foregroundStyle(.orange)
             }
 
-            HStack(spacing: 10) {
+            SheetButtonRow(
+                model.existing == nil ? "Add" : "Save",
+                canConfirm: canSave,
+                onCancel: onCancel,
+                onConfirm: save
+            ) {
                 Button("Test") { test() }
                     // previewURL is password-free and already computed for the
                     // preview text, so this does not read the Keychain.
@@ -493,21 +498,16 @@ struct MappingEditorSheet: View {
                 if let message = model.testMessage {
                     Text(message)
                         .font(.caption)
+                        .lineLimit(2)
                         .foregroundStyle(
                             model.testFailed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                 }
                 if let saveError {
                     Text(saveError)
                         .font(.caption)
+                        .lineLimit(2)
                         .foregroundStyle(.red)
                 }
-                Spacer()
-                Button("Cancel") { onCancel() }
-                    .keyboardShortcut(.cancelAction)
-                Button(model.existing == nil ? "Add" : "Save") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canSave)
             }
         }
         .padding(20)
@@ -633,7 +633,7 @@ struct MappingEditorSheet: View {
         case .finder:
             guard url.scheme == "file", FileManager.default.fileExists(atPath: url.path) else {
                 model.testMessage =
-                    "Nothing to reveal at \(url.path) — Reveal in Finder only works for files that exist on this Mac (a local daemon or mounted volume)."
+                    "Nothing to reveal at \(url.path). Reveal in Finder only works for files that exist on this Mac (a local daemon or mounted volume)."
                 model.testFailed = true
                 return
             }
@@ -649,7 +649,7 @@ struct MappingEditorSheet: View {
                     model.testMessage = hasApp ? "Opened." : "Opened in the default app."
                     model.testFailed = false
                 case .failed(let message):
-                    model.testMessage = "Could not open — \(message)"
+                    model.testMessage = "Could not open: \(message)"
                     model.testFailed = true
                 }
             }

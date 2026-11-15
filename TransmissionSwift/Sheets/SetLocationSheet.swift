@@ -36,7 +36,7 @@ struct SetLocationSheet: View {
                 .foregroundStyle(.secondary)
 
             if isMixed {
-                Text("They are in different folders — applying sets all to the same location.")
+                Text("They are in different folders. Applying sets all to the same location.")
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .lineLimit(nil)
@@ -78,18 +78,14 @@ struct SetLocationSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            HStack {
-                Spacer()
-                Button("Cancel") { isPresented = false }
-                    .keyboardShortcut(.cancelAction)
-                    .disabled(isSaving)
-                Button(isSaving ? "Applying…" : "Apply") {
-                    Task { await apply() }
-                }
-                .buttonStyle(.glassProminent)
-                .disabled(!canApply)
-                .keyboardShortcut(.defaultAction)
-            }
+            SheetButtonRow(
+                "Apply",
+                busyTitle: "Applying…",
+                isBusy: isSaving,
+                canConfirm: canApply,
+                onCancel: { isPresented = false },
+                onConfirm: { Task { await apply() } }
+            )
         }
         .padding(20)
         .frame(width: 460)
@@ -118,7 +114,7 @@ struct SetLocationSheet: View {
             return "Transmission moves the existing files for you."
         }
         return
-            "Only use this if you already moved the files yourself (e.g. via SSH) — otherwise the torrents will error."
+            "Only use this if you already moved the files yourself (e.g. via SSH). Otherwise the torrents will error."
     }
 
     private var resolvedLocation: String {

@@ -61,7 +61,6 @@ struct AddTorrentSheet: View {
         // its content, letting the known-folders list expand the sheet
         // dynamically; only that list itself scrolls when it overflows.
         sheetContent
-            .overlay(alignment: .top) { headerBar }
             .frame(width: 560)
             .interactiveDismissDisabled(isAdding)
             .fileImporter(
@@ -102,17 +101,26 @@ struct AddTorrentSheet: View {
             }
     }
 
-    /// The sheet's form. Kept out of a scroll view — it always fits — with top
-    /// padding clearing the floating glass header.
+    /// The sheet's form. Kept out of a scroll view: it always fits, letting the
+    /// known-folders list expand the sheet dynamically.
     private var sheetContent: some View {
         VStack(alignment: .leading) {
+            Text("Add Torrent")
+                .font(.headline)
             modePicker
             sourceSection
             filesSection
             optionsSection
+            SheetButtonRow(
+                "Add",
+                busyTitle: "Adding…",
+                isBusy: isAdding,
+                canConfirm: isValid,
+                onCancel: { isPresented = false },
+                onConfirm: { Task { await submit() } }
+            )
         }
-        .padding(.top, 45)
-        .padding([.horizontal, .bottom], 20)
+        .padding(20)
     }
 
     // MARK: - Sections
@@ -720,56 +728,6 @@ struct AddTorrentSheet: View {
             }
         }
         .glassEffect(.regular.interactive(), in: .capsule)
-    }
-
-    /// Header in the style of a modern modal: glass close button left, big
-    /// title centered, prominent glass add button right. Both buttons sit
-    /// close to the sheet's corners so their curvature nests concentrically
-    /// with the window's rounded corners.
-    private var headerBar: some View {
-        GlassEffectContainer {
-            Text("Add Torrent")
-                .font(.title2.weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .overlay(alignment: .leading) {
-                    Button {
-                        isPresented = false
-                    } label: {
-                        // Explicit glassEffect on fixed bounds — the `.glass`
-                        // button style's circle doesn't reliably track the
-                        // frame, which made it render smaller than the Add
-                        // capsule.
-                        Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .semibold))
-                            .frame(width: 32, height: 32)
-                            .glassEffect(.regular, in: .circle)
-                            // Make the whole glass circle the hit target —
-                            // `.plain` buttons otherwise only hit-test the
-                            // glyph itself.
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .frame(height: 44)
-                    .controlSize(.large)
-                    .disabled(isAdding)
-                    .keyboardShortcut(.cancelAction)
-                    .accessibilityLabel("Cancel")
-
-                }
-                .overlay(alignment: .trailing) {
-                    Button(isAdding ? "Adding…" : "Add") {
-                        Task { await submit() }
-                    }
-                    .buttonStyle(.glassProminent)
-                    .buttonBorderShape(.capsule)
-                    .controlSize(.large)
-                    //                    .frame(height: 50)
-                    .disabled(!isValid || isAdding)
-                    .keyboardShortcut(.defaultAction)
-                }
-        }
-        .padding(.horizontal, 10)
-        .padding(.top, 14)
     }
 
     // MARK: - Logic
