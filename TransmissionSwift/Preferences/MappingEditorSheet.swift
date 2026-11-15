@@ -24,6 +24,9 @@ struct MappingEditorSheet: View {
     /// Returns an error message when persistence fails; the sheet stays open so
     /// the edit is not lost.
     let onSave: (OpenMapping) -> String?
+    /// Only set when editing a saved mapping.
+    var onDuplicate: (() -> Void)? = nil
+    var onRemove: (() -> Void)? = nil
 
     /// The servers the "Selected Servers" checklist offers.
     @Environment(ServerProfileStore.self) private var profileStore
@@ -34,6 +37,7 @@ struct MappingEditorSheet: View {
     /// Whether the save-time "allow file access?" alert is visible.
     @State private var showAccessAlert = false
     @State private var saveError: String?
+    @State private var confirmingRemoval = false
     /// Candidate apps for the current scheme, and the scheme's default handler.
     /// Both come from LaunchServices, so they are resolved once per scheme (or
     /// chosen app) instead of on every body pass.
@@ -205,7 +209,22 @@ struct MappingEditorSheet: View {
     }
 
     private var canSave: Bool {
-        !trimmedName.isEmpty && !trimmedTemplate.isEmpty && previewURL != nil && scopeIsValid
+        !trimmedName.isEmpty && !trimmedTemplate.isEmpty && previewURL != nil && scopeIsValid && isDirty
+    }
+
+    private var editedMapping: OpenMapping {
+        OpenMapping(
+            id: model.existing?.id ?? UUID(),
+            name: trimmedName,
+            template: trimmedTemplate,
+            action: model.action,
+            applicationBundleID: model.applicationBundleID,
+            scope: model.scope,
+            accessBookmarks: model.accessBookmarks)
+    }
+
+    private var isDirty: Bool {
+        model.existing.map { $0 != editedMapping } ?? true
     }
 
     /// A "Selected Servers" mapping must target at least one server; "All
@@ -392,9 +411,18 @@ struct MappingEditorSheet: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Preview")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack {
+                    Text("Preview")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Test") { test() }
+                        // previewURL is password-free and already computed for the
+                        // preview text, so this does not read the Keychain.
+                        .disabled(trimmedTemplate.isEmpty || previewURL == nil)
+                        .controlSize(.small)
+                        .help("Opens the preview URL in the chosen app")
+                }
                 if let url = previewURL {
                     Text(previewDisplayString ?? url.absoluteString)
                         .font(.caption)
@@ -412,6 +440,12 @@ struct MappingEditorSheet: View {
                     )
                     .font(.caption)
                     .foregroundStyle(.red)
+                }
+                if let message = model.testMessage {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(model.testFailed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
@@ -484,34 +518,37 @@ struct MappingEditorSheet: View {
                     .foregroundStyle(.orange)
             }
 
+            if let saveError {
+                Text(saveError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             SheetButtonRow(
                 model.existing == nil ? "Add" : "Save",
                 canConfirm: canSave,
                 onCancel: onCancel,
                 onConfirm: save
             ) {
-                Button("Test") { test() }
-                    // previewURL is password-free and already computed for the
-                    // preview text, so this does not read the Keychain.
-                    .disabled(trimmedTemplate.isEmpty || previewURL == nil)
-                    .help("Opens the preview URL in the chosen app")
-                if let message = model.testMessage {
-                    Text(message)
-                        .font(.caption)
-                        .lineLimit(2)
-                        .foregroundStyle(
-                            model.testFailed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                if let onDuplicate {
+                    Button("Duplicate", action: onDuplicate)
+                        .disabled(isDirty)
+                        .help(isDirty ? "Save or cancel your changes first" : "Make a copy of this mapping")
                 }
-                if let saveError {
-                    Text(saveError)
-                        .font(.caption)
-                        .lineLimit(2)
-                        .foregroundStyle(.red)
+                if onRemove != nil {
+                    Button("Remove…", role: .destructive) { confirmingRemoval = true }
                 }
             }
         }
         .padding(20)
         .frame(width: 460)
+        .confirmationDialog("Remove Mapping?", isPresented: $confirmingRemoval) {
+            Button("Remove", role: .destructive) { onRemove?() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("“\(model.existing?.name ?? model.name)” will be deleted. This can't be undone.")
+        }
         .task(id: handlerRefreshKey) {
             refreshHandlerCache()
         }
@@ -666,18 +703,29 @@ struct MappingEditorSheet: View {
 
     private func commitSave() {
         saveError = nil
-        let mapping = OpenMapping(
-            id: model.existing?.id ?? UUID(),
-            name: trimmedName,
-            template: trimmedTemplate,
-            action: model.action,
-            applicationBundleID: model.applicationBundleID,
-            scope: model.scope,
-            accessBookmarks: model.accessBookmarks)
-        if let message = onSave(mapping) {
+        if let message = onSave(editedMapping) {
             saveError = message
             return
         }
         onCancel()
     }
 }
+
+#if DEBUG
+#Preview("Edit Mapping") {
+    MappingEditorSheet(
+        model: MappingEditorModel(
+            existing: OpenMapping(name: "Finder", template: "file:///Volumes/transmission/{folder}")),
+        onCancel: {},
+        sampleServer: ServerProfile(label: "Home NAS", host: "nas.local"),
+        sampleTorrent: nil,
+        samplePassword: "",
+        sampleDownloadDir: "/downloads",
+        resolveSamplePassword: { "" },
+        onSave: { _ in nil },
+        onDuplicate: {},
+        onRemove: {}
+    )
+    .environment(prefsPreviewProfileStore)
+}
+#endif

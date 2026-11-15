@@ -82,8 +82,24 @@ struct ServersPrefsPane: View {
             ServerProfileForm(
                 target: target,
                 onCancel: { editor = nil },
-                onSaved: { editor = nil })
+                onSaved: { editor = nil },
+                onDuplicate: editorAction(for: target) { profile in
+                    // Open the copy so it can be renamed straight away.
+                    if let copy = duplicate(profile.id) { editor = .edit(copy) }
+                },
+                onRemove: editorAction(for: target) { profile in
+                    editor = nil
+                    removeServer(profile.id)
+                })
         }
+    }
+
+    /// Duplicate and Remove only exist for a saved server.
+    private func editorAction(
+        for target: ServerEditorTarget, _ action: @escaping (ServerProfile) -> Void
+    ) -> (() -> Void)? {
+        guard case .edit(let profile) = target else { return nil }
+        return { action(profile) }
     }
 
     private func serverRow(_ profile: ServerProfile) -> some View {
@@ -92,7 +108,7 @@ struct ServersPrefsPane: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(profile.label)
                     .fontWeight(isActive ? .semibold : .regular)
-                Text("\(profile.host):\(profile.port)")
+                Text(verbatim: "\(profile.host):\(profile.port)")
                     .font(.caption)
                     .monospaced()
                     .foregroundStyle(.secondary)
@@ -103,6 +119,14 @@ struct ServersPrefsPane: View {
                     .foregroundStyle(.secondary)
                     .help("Active server")
             }
+            Button {
+                editor = .edit(profile)
+            } label: {
+                Image(systemName: "info.circle")
+            }
+            .buttonStyle(.borderless)
+            .help("Server Details")
+            .accessibilityLabel("Details for \(profile.label)")
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { editor = .edit(profile) }
@@ -132,14 +156,17 @@ struct ServersPrefsPane: View {
     }
 
     /// The copy is meant to work as-is, so it takes the Keychain secret too.
-    private func duplicate(_ id: UUID) {
+    @discardableResult
+    private func duplicate(_ id: UUID) -> ServerProfile? {
         do {
-            guard let copy = try profileStore.duplicate(id: id) else { return }
+            guard let copy = try profileStore.duplicate(id: id) else { return nil }
             if let password = try? keychain.password(for: id), !password.isEmpty {
                 try? keychain.setPassword(password, for: copy.id)
             }
+            return copy
         } catch {
             actionError = error.localizedDescription
+            return nil
         }
     }
 
@@ -163,6 +190,8 @@ struct ServerProfileForm: View {
     let target: ServerEditorTarget
     let onCancel: () -> Void
     let onSaved: () -> Void
+    let onDuplicate: (() -> Void)?
+    let onRemove: (() -> Void)?
 
     @Environment(ServerProfileStore.self) private var profileStore
 
@@ -172,6 +201,7 @@ struct ServerProfileForm: View {
     @State private var testMessage: String?
     @State private var testFailed = false
     @State private var saveError: String?
+    @State private var confirmingRemoval = false
 
     /// The values the sheet opened with, for the unsaved-changes check.
     private let initialFields: Fields
@@ -199,10 +229,18 @@ struct ServerProfileForm: View {
         }
     }
 
-    init(target: ServerEditorTarget, onCancel: @escaping () -> Void, onSaved: @escaping () -> Void) {
+    init(
+        target: ServerEditorTarget,
+        onCancel: @escaping () -> Void,
+        onSaved: @escaping () -> Void,
+        onDuplicate: (() -> Void)? = nil,
+        onRemove: (() -> Void)? = nil
+    ) {
         self.target = target
         self.onCancel = onCancel
         self.onSaved = onSaved
+        self.onDuplicate = onDuplicate
+        self.onRemove = onRemove
         let initial: Fields =
             switch target {
             case .create: Fields()
@@ -222,31 +260,51 @@ struct ServerProfileForm: View {
                 Section("Connection") {
                     TextField("Label", text: $fields.label, prompt: Text("Home NAS"))
                     TextField("Host", text: $fields.host, prompt: Text("localhost"))
-                        .monospaced()
                     TextField(
                         "Port",
                         value: $fields.port,
                         format: .number.grouping(.never),
                         prompt: Text("9091")
                     )
-                    .monospaced()
                     TextField("RPC path", text: $fields.rpcPath, prompt: Text("/transmission/rpc"))
-                        .monospaced()
                     Toggle("Use HTTPS", isOn: $fields.useHTTPS)
+                    HStack(spacing: 8) {
+                        Button("Test Connection") {
+                            Task { await runConnectionTest() }
+                        }
+                        .disabled(isTesting || fields.host.isEmpty)
+                        if isTesting {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                        if let testMessage {
+                            Text(testMessage)
+                                .font(.caption)
+                                .foregroundStyle(testFailed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                                .lineLimit(2)
+                                .help(testMessage)
+                        }
+                    }
                 }
 
                 Section("Authentication") {
                     TextField("Username", text: $fields.username, prompt: Text("Optional"))
-                        .monospaced()
                     SecureField(
                         "Password",
                         text: $fields.password,
                         prompt: Text(hasStoredPassword ? "Leave blank to keep" : "Optional")
                     )
-                    .monospaced()
                 }
             }
             .formStyle(.grouped)
+
+            if let saveError {
+                Text(saveError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 20)
+            }
 
             SheetButtonRow(
                 isCreating ? "Add Server" : "Save",
@@ -254,27 +312,25 @@ struct ServerProfileForm: View {
                 onCancel: onCancel,
                 onConfirm: save
             ) {
-                Button("Test Connection") {
-                    Task { await runConnectionTest() }
+                if let onDuplicate {
+                    Button("Duplicate", action: onDuplicate)
+                        .disabled(isDirty)
+                        .help(isDirty ? "Save or cancel your changes first" : "Make a copy of this server")
                 }
-                .disabled(isTesting || fields.host.isEmpty)
-                if isTesting {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                if let status = statusMessage {
-                    Text(status.text)
-                        .font(.caption)
-                        .foregroundStyle(status.failed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .help(status.text)
+                if onRemove != nil {
+                    Button("Remove…", role: .destructive) { confirmingRemoval = true }
                 }
             }
             .padding(.horizontal, 20)
         }
         .padding(.vertical, 20)
-        .frame(width: 480, height: 480)
+        .frame(width: 480, height: 520)
+        .confirmationDialog("Remove Server?", isPresented: $confirmingRemoval) {
+            Button("Remove", role: .destructive) { onRemove?() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The saved password will be deleted. Torrents on the daemon are not affected.")
+        }
         .onAppear {
             if let profile = editedProfile {
                 hasStoredPassword = keychain.hasPassword(for: profile.id)
@@ -292,16 +348,10 @@ struct ServerProfileForm: View {
         return false
     }
 
-    private var canSave: Bool {
-        !fields.host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && fields != initialFields
-    }
+    private var isDirty: Bool { fields != initialFields }
 
-    /// A save error wins over the last connection test's outcome.
-    private var statusMessage: (text: String, failed: Bool)? {
-        if let saveError { return (saveError, true) }
-        if let testMessage { return (testMessage, testFailed) }
-        return nil
+    private var canSave: Bool {
+        !fields.host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && isDirty
     }
 
     private func runConnectionTest() async {
@@ -384,5 +434,13 @@ struct ServerProfileForm: View {
         .environment(prefsPreviewProfileStore)
         .environment(prefsPreviewStore)
         .frame(width: 700, height: 480)
+}
+
+#Preview("Edit Server") {
+    ServerProfileForm(
+        target: .edit(ServerProfile(label: "Home NAS", host: "nas.local")),
+        onCancel: {}, onSaved: {}, onDuplicate: {}, onRemove: {}
+    )
+    .environment(prefsPreviewProfileStore)
 }
 #endif

@@ -16,6 +16,7 @@ struct MappingsPrefsPane: View {
     /// Created fresh on every Add/Edit click; a non-nil model shows the sheet.
     @State private var editingModel: MappingEditorModel?
     @State private var saveError: String?
+    @State private var pendingRemoval: OpenMapping?
 
     private let keychain = KeychainStore()
 
@@ -73,7 +74,32 @@ struct MappingsPrefsPane: View {
                     } catch {
                         return error.localizedDescription
                     }
+                },
+                onDuplicate: model.existing.map { mapping in
+                    {
+                        // Open the copy so it can be renamed straight away.
+                        if let copy = duplicate(mapping) { edit(copy) }
+                    }
+                },
+                onRemove: model.existing.map { mapping in
+                    {
+                        editingModel = nil
+                        remove(mapping)
+                    }
                 })
+        }
+        .confirmationDialog(
+            "Remove Mapping?",
+            isPresented: Binding(
+                get: { pendingRemoval != nil },
+                set: { if !$0 { pendingRemoval = nil } }
+            ),
+            presenting: pendingRemoval
+        ) { mapping in
+            Button("Remove", role: .destructive) { remove(mapping) }
+            Button("Cancel", role: .cancel) {}
+        } message: { mapping in
+            Text("“\(mapping.name)” will be deleted. This can't be undone.")
         }
     }
 
@@ -94,23 +120,47 @@ struct MappingsPrefsPane: View {
             }
             Spacer()
             Button {
-                editingModel = MappingEditorModel(existing: mapping)
+                edit(mapping)
             } label: {
-                Image(systemName: "pencil")
+                Image(systemName: "info.circle")
             }
             .buttonStyle(.borderless)
-            .help("Edit mapping")
-            Button {
-                do {
-                    try mappingStore.remove(id: mapping.id)
-                } catch {
-                    saveError = error.localizedDescription
-                }
-            } label: {
-                Image(systemName: "minus.circle")
-            }
-            .buttonStyle(.borderless)
-            .help("Delete mapping")
+            .help("Mapping Details")
+            .accessibilityLabel("Details for \(mapping.name)")
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { edit(mapping) }
+        .contextMenu {
+            Button("Edit…") { edit(mapping) }
+            Button("Duplicate") { duplicate(mapping) }
+            Divider()
+            Button("Remove…", role: .destructive) { pendingRemoval = mapping }
+        }
+    }
+
+    private func edit(_ mapping: OpenMapping) {
+        editingModel = MappingEditorModel(existing: mapping)
+    }
+
+    @discardableResult
+    private func duplicate(_ mapping: OpenMapping) -> OpenMapping? {
+        var copy = mapping
+        copy.id = UUID()
+        copy.name = "\(mapping.name) (Copy)"
+        do {
+            try mappingStore.add(copy)
+            return copy
+        } catch {
+            saveError = error.localizedDescription
+            return nil
+        }
+    }
+
+    private func remove(_ mapping: OpenMapping) {
+        do {
+            try mappingStore.remove(id: mapping.id)
+        } catch {
+            saveError = error.localizedDescription
         }
     }
 
