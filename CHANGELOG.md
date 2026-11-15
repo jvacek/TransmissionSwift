@@ -29,6 +29,13 @@
   - Fit the Peers tab to the inspector: client and flags sit under the address, and download and upload speeds share a column
   - Sort the inspector's file list from a Sort By menu, and show how many files the torrent has
   - Fix quick clicks on a column header only flipping the sort every other time
+  - Use the same title and bottom buttons in every sheet, including Add Torrent
+  - Restyle the Add Torrent options like a system form, so labels no longer clip at larger text sizes
+  - Only warn about a slash when renaming a torrent
+  - Use the standard empty-state layout while connecting and for searches with no results, and stop showing the disconnected labels in red
+  - List servers in Settings like mappings, and edit each one in its own sheet
+  - Add a details button to server and mapping rows, with Duplicate and Remove in the editor
+  - Ask before removing a mapping, and only enable Save once something changed
 - Performance
   - Lower memory use, smoother sorting and less work while idle on large lists
 
