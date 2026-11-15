@@ -295,18 +295,17 @@ struct MainWindow: View {
                 disconnectedView(reason: reason)
             case .connected:
                 if !store.list.searchQuery.isEmpty && store.list.visibleTorrents.isEmpty {
-                    ContentUnavailableView.search(text: store.list.searchQuery)
-                        .overlay(alignment: .bottom) {
-                            HStack(spacing: 8) {
-                                Button("Clear Search") { store.list.searchQuery = "" }
-                                Button("Reset Filters") {
-                                    store.list.searchQuery = ""
-                                    store.list.resetFilters()
-                                }
-                            }
-                            .buttonStyle(.borderless)
-                            .padding(.bottom, 48)
+                    ContentUnavailableView {
+                        Label("No Results for “\(store.list.searchQuery)”", systemImage: "magnifyingglass")
+                    } description: {
+                        Text("Check the spelling or try a new search.")
+                    } actions: {
+                        Button("Clear Search") { store.list.searchQuery = "" }
+                        Button("Reset Filters") {
+                            store.list.searchQuery = ""
+                            store.list.resetFilters()
                         }
+                    }
                 } else if store.list.torrents.isEmpty {
                     noTorrentsView
                 } else {
@@ -320,25 +319,15 @@ struct MainWindow: View {
         // Deliberately NOT a live TorrentListView: a second table bound to the
         // same store during the connecting→connected transition caused
         // coordinators to race each other's selection writes (empty write
-        // clobbering the real selection). Inert background + overlay only.
-        ZStack {
-            Rectangle()
-                .fill(.background)
-            VStack(spacing: 16) {
-                ProgressView()
-                Text(message)
-                    .font(.headline)
-                Button("Cancel") {
-                    store.simulateConnection(.disconnected(reason: "Cancelled by user"))
-                }
+        // clobbering the real selection). Inert placeholder only.
+        ContentUnavailableView {
+            ProgressView()
+        } description: {
+            Text(message)
+        } actions: {
+            Button("Cancel") {
+                store.simulateConnection(.disconnected(reason: "Cancelled by user"))
             }
-            .padding(.horizontal, 36)
-            .padding(.vertical, 28)
-            .background(
-                .regularMaterial,
-                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-            )
-            .shadow(radius: 12, y: 4)
         }
     }
 
@@ -346,8 +335,7 @@ struct MainWindow: View {
         let profile = profileStore.activeProfile
         let address = profile.map { "\($0.host):\($0.port)" } ?? "unknown host"
         return ContentUnavailableView {
-            Label("Connection Lost", systemImage: "exclamationmark.triangle")
-                .foregroundStyle(.red)
+            Label("Connection Lost", systemImage: "network.slash")
         } description: {
             Text("Could not connect to \(address).\n\(reason)")
         } actions: {

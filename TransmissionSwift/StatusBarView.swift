@@ -38,7 +38,7 @@ struct StatusBarView: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
                 Text("Disconnected")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(.secondary)
                 Spacer(minLength: 8)
             case .connected:
                 leftCluster
