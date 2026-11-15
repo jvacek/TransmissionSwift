@@ -38,7 +38,9 @@ struct InspectorPeersTab: View {
                 }
                 .help(Self.detail(for: peer))
             }
-            .width(min: 120)
+            // Low enough to fit a squeezed inspector: the system column gives
+            // way to the detail when the window is narrow.
+            .width(min: 80, ideal: 90)
 
             TableColumn("%") { peer in
                 Text(peer.progress, format: .percent.precision(.fractionLength(0)))

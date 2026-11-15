@@ -36,6 +36,11 @@
   - List servers in Settings like mappings, and edit each one in its own sheet
   - Add a details button to server and mapping rows, with Duplicate and Remove in the editor
   - Ask before removing a mapping, and only enable Save once something changed
+  - Make the inspector a native column like Xcode's, with its own toolbar section for the tabs and toggle, the system divider, and resizing that works
+  - Show the torrent's name in the inspector's Metadata, with Rename next to it
+  - Collapse search to a button next to Add; click it or press ⌘F to search
+  - Animate the sidebar when it's shown or hidden from the View menu
+  - Stop the window from clipping the sidebar and inspector when it's narrow
 - Performance
   - Lower memory use, smoother sorting and less work while idle on large lists
 

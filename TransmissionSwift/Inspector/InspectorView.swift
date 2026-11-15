@@ -9,9 +9,10 @@ import TransmissionCore
 import TransmissionTestSupport
 #endif
 
-/// Right-pane inspector — header, icon-segmented tab bar, and one of five
-/// tab bodies. Renders the first selected torrent; selection changes flow in
-/// through `TorrentStore` so content refreshes instantly.
+/// Right-pane inspector: a full-width tab bar and one of four tab bodies.
+/// No header: name and status already show in the list row. Renders the
+/// first selected torrent; selection changes flow in through `TorrentStore`
+/// so content refreshes instantly.
 struct InspectorView: View {
     @Environment(TorrentStore.self) private var store
 
@@ -20,23 +21,6 @@ struct InspectorView: View {
 
         if let torrent = store.list.selectedTorrents.first {
             VStack(spacing: 0) {
-                InspectorHeader(torrent: torrent, selectionCount: store.list.selectedTorrents.count)
-
-                Picker("Inspector Tab", selection: $inspector.tab) {
-                    ForEach(InspectorTab.allCases, id: \.self) { tab in
-                        Image(systemName: tab.systemImage)
-                            .accessibilityLabel(tab.displayLabel)
-                            .tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .padding(.horizontal, 12)
-                .padding(.bottom, 10)
-                .accessibilityIdentifier("inspector.tabs")
-
-                Divider()
-
                 tabContent(for: torrent)
                     // Re-key per torrent: scroll positions and the Options
                     // tab's draft state reset on selection change, but stay
@@ -73,49 +57,27 @@ struct InspectorView: View {
     }
 }
 
-private struct InspectorHeader: View {
-    let torrent: Torrent
-    let selectionCount: Int
+/// The inspector's tabs: a glass pill per tab, after Xcode's inspector.
+/// Lives in the inspector's toolbar section (see `MainWindow`).
+struct InspectorTabPicker: View {
     @Environment(TorrentStore.self) private var store
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            StatusDot(status: torrent.status, size: 10)
-                .padding(.top, 5)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(torrent.name)
-                        .font(.headline)
-                        .lineLimit(2)
-                    if store.actionsEnabled {
-                        Button {
-                            store.openRenameTorrent(for: torrent.id)
-                        } label: {
-                            Image(systemName: "pencil")
-                                .font(.caption)
-                        }
-                        .buttonStyle(.borderless)
-                        .accessibilityLabel("Rename torrent")
-                        .help("Rename torrent")
-                    }
-                }
-                Text(subtitle)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                if selectionCount > 1 {
-                    Text("First of \(selectionCount) selected")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-            }
+        @Bindable var inspector = store.inspector
+        GlassSegmentedControl(
+            selection: $inspector.tab,
+            values: InspectorTab.allCases,
+            indicator: .glass,
+            fillsWidth: true,
+            accessibilityLabel: \.displayLabel
+        ) { tab, isSelected in
+            Image(systemName: tab.systemImage)
+                .foregroundStyle(isSelected ? .primary : .secondary)
+                .frame(minHeight: 24)
+                .help(tab.displayLabel)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-    }
-
-    private var subtitle: String {
-        let added = torrent.addedAt.formatted(.relative(presentation: .named))
-        return "\(ColumnFormatters.humanizedSize(torrent.size)) · \(torrent.status.displayLabel) · added \(added)"
+        .frame(minWidth: 160, idealWidth: 220, maxWidth: 260)
+        .accessibilityIdentifier("inspector.tabs")
     }
 }
 

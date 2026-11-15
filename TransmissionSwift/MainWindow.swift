@@ -14,11 +14,11 @@ private enum Layout {
     static let sidebarMin: CGFloat = 180
     static let sidebarIdeal: CGFloat = 212
     static let sidebarMax: CGFloat = 600
-    static let contentMin: CGFloat = 400
     static let inspectorMin: CGFloat = 280
     static let inspectorIdeal: CGFloat = 322
-    static let inspectorAbsMax: CGFloat = 1200
-    static let windowMin: CGFloat = 1060
+    static let inspectorMax: CGFloat = 600
+    static let contentMin: CGFloat = 480
+    static let contentIdeal: CGFloat = 640
 }
 
 struct MainWindow: View {
@@ -27,13 +27,23 @@ struct MainWindow: View {
     @Environment(ConnectionCoordinator.self) private var connection
     @Environment(\.openWindow) private var openWindow
     @AppStorage(PreferenceKeys.prefsPendingNavTab) private var pendingNavTab: String = ""
-    @AppStorage(PreferenceKeys.inspectorWidth) private var storedInspectorWidth: Double = Double(Layout.inspectorIdeal)
+    /// The saved inspector width, read once. It is written back through plain
+    /// `UserDefaults`, not `@AppStorage`: invalidating this view on every width
+    /// change re-applies `inspectorColumnWidth` and pins the column.
+    @State private var initialInspectorWidth: CGFloat = {
+        let saved = UserDefaults.standard.double(forKey: PreferenceKeys.inspectorWidth)
+        let width = saved > 0 ? CGFloat(saved) : Layout.inspectorIdeal
+        return min(max(width, Layout.inspectorMin), Layout.inspectorMax)
+    }()
+    /// The View menu's sidebar command writes this preference from outside any
+    /// animation, so changes are mirrored into `columnVisibility` inside one.
     @AppStorage(PreferenceKeys.sidebarVisible) private var sidebarVisible = true
+    @State private var columnVisibility: NavigationSplitViewVisibility =
+        UserDefaults.standard.object(forKey: PreferenceKeys.sidebarVisible) as? Bool == false
+        ? .detailOnly : .all
     @AppStorage(PreferenceKeys.startMinimized) private var startMinimized = false
-    @State private var windowWidth: CGFloat = Layout.windowMin
     @State private var didApplyStartMinimized = false
     @State private var openBus = OpenRequestBus.shared
-    @FocusState private var searchFocused: Bool
 
     /// No profile configured — the window shows the "No Servers" onboarding
     /// empty state instead of torrent content.
@@ -41,141 +51,106 @@ struct MainWindow: View {
         profileStore.activeProfile == nil
     }
 
-    /// Inspector width clamped to whatever space is actually available.
-    /// Shrinks automatically when the window narrows; never below inspectorMin.
-    private var inspectorWidth: CGFloat {
-        let available = windowWidth - Layout.sidebarMin - Layout.contentMin
-        let cap = max(Layout.inspectorMin, min(Layout.inspectorAbsMax, available))
-        return min(CGFloat(storedInspectorWidth), cap)
-    }
-
     var body: some View {
         @Bindable var ui = store.ui
 
-        HStack(spacing: 0) {
-            splitView
-            if store.inspector.isVisible {
-                InspectorResizeHandle(
-                    storedWidth: $storedInspectorWidth,
-                    clampedWidth: inspectorWidth,
-                    min: Layout.inspectorMin,
-                    ideal: Layout.inspectorIdeal,
-                    max: min(Layout.inspectorAbsMax, windowWidth - Layout.sidebarMin - Layout.contentMin)
+        splitView
+            .frame(minHeight: 600)
+            .onAppear {
+                // "Start minimized": miniaturize once on launch. Done here (rather
+                // than the app delegate) so it targets the actual main window.
+                if startMinimized, !didApplyStartMinimized {
+                    didApplyStartMinimized = true
+                    NSApp.keyWindow?.miniaturize(nil)
+                }
+            }
+            .onChange(of: hasNoServer) { _, noServer in
+                // The status bar (which owns the Dock badge) is hidden with no
+                // server configured — clear any stale count.
+                if noServer { NSApp.dockTile.badgeLabel = "" }
+            }
+            // Apply (or retry) a pending "open torrent" request from an App Intent.
+            // Retries when the torrent list reloads after a server switch.
+            .task { applyOpenRequest() }
+            .onChange(of: openBus.request) { _, _ in applyOpenRequest() }
+            .onChange(of: store.list.torrents) { _, _ in applyOpenRequest() }
+            .sheet(isPresented: $ui.showAddTorrent) {
+                AddTorrentSheet(
+                    isPresented: $ui.showAddTorrent,
+                    initialMode: ui.addTorrentStartMode,
+                    prefilledURL: ui.addTorrentPrefilledURL,
+                    serverName: profileStore.activeProfile?.label
                 )
-                InspectorView()
-                    .frame(width: inspectorWidth)
-                    .frame(maxHeight: .infinity)
             }
-        }
-        .frame(minWidth: Layout.windowMin, minHeight: 600)
-        .onChange(of: store.ui.searchFocusRequest) { searchFocused = true }
-        .onGeometryChange(for: CGFloat.self) {
-            $0.size.width
-        } action: {
-            windowWidth = $0
-        }
-        .onAppear {
-            // "Start minimized": miniaturize once on launch. Done here (rather
-            // than the app delegate) so it targets the actual main window.
-            if startMinimized, !didApplyStartMinimized {
-                didApplyStartMinimized = true
-                NSApp.keyWindow?.miniaturize(nil)
+            .sheet(isPresented: $ui.showEditLabels) {
+                EditLabelsSheet(
+                    isPresented: $ui.showEditLabels,
+                    ids: ui.editLabelsTargetIDs
+                )
             }
-        }
-        .onChange(of: hasNoServer) { _, noServer in
-            // The status bar (which owns the Dock badge) is hidden with no
-            // server configured — clear any stale count.
-            if noServer { NSApp.dockTile.badgeLabel = "" }
-        }
-        // Apply (or retry) a pending "open torrent" request from an App Intent.
-        // Retries when the torrent list reloads after a server switch.
-        .task { applyOpenRequest() }
-        .onChange(of: openBus.request) { _, _ in applyOpenRequest() }
-        .onChange(of: store.list.torrents) { _, _ in applyOpenRequest() }
-        .sheet(isPresented: $ui.showAddTorrent) {
-            AddTorrentSheet(
-                isPresented: $ui.showAddTorrent,
-                initialMode: ui.addTorrentStartMode,
-                prefilledURL: ui.addTorrentPrefilledURL,
-                serverName: profileStore.activeProfile?.label
-            )
-        }
-        .sheet(isPresented: $ui.showEditLabels) {
-            EditLabelsSheet(
-                isPresented: $ui.showEditLabels,
-                ids: ui.editLabelsTargetIDs
-            )
-        }
-        .sheet(isPresented: $ui.showSetLocation) {
-            SetLocationSheet(
-                isPresented: $ui.showSetLocation,
-                ids: ui.setLocationTargetIDs,
-                serverName: profileStore.activeProfile?.label
-            )
-        }
-        .sheet(isPresented: $ui.showRenameTorrent) {
-            if let id = ui.renameTorrentTargetID {
-                RenameTorrentSheet(isPresented: $ui.showRenameTorrent, id: id)
+            .sheet(isPresented: $ui.showSetLocation) {
+                SetLocationSheet(
+                    isPresented: $ui.showSetLocation,
+                    ids: ui.setLocationTargetIDs,
+                    serverName: profileStore.activeProfile?.label
+                )
             }
-        }
-        .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first else { return false }
-            let scheme = url.scheme?.lowercased()
-            let accepted =
-                url.pathExtension == "torrent" || scheme == "magnet" || scheme == "http"
-                || scheme == "https"
-            if accepted {
-                store.addFromExternalURL(url)
+            .sheet(isPresented: $ui.showRenameTorrent) {
+                if let id = ui.renameTorrentTargetID {
+                    RenameTorrentSheet(isPresented: $ui.showRenameTorrent, id: id)
+                }
             }
-            return accepted
-        }
-        .confirmationDialog(
-            removeDialogTitle,
-            isPresented: Binding(
-                get: { store.actions.pendingRemoval != nil },
-                set: { if !$0 { store.actions.cancelPendingRemoval() } }
-            ),
-            presenting: store.actions.pendingRemoval
-        ) { _ in
-            Button("Remove", role: .destructive) { store.actions.confirmPendingRemoval() }
-            Button("Cancel", role: .cancel) { store.actions.cancelPendingRemoval() }
-        } message: { pending in
-            Text(removeDialogMessage(for: pending))
-        }
-        .alert(
-            store.lastActionError?.title ?? "Action Failed",
-            isPresented: Binding(
-                get: { store.lastActionError != nil },
-                set: { if !$0 { store.lastActionError = nil } }
-            ),
-            presenting: store.lastActionError
-        ) { _ in
-            Button("OK", role: .cancel) { store.lastActionError = nil }
-        } message: { error in
-            Text(error.localizedDescription)
-        }
+            .dropDestination(for: URL.self) { urls, _ in
+                guard let url = urls.first else { return false }
+                let scheme = url.scheme?.lowercased()
+                let accepted =
+                    url.pathExtension == "torrent" || scheme == "magnet" || scheme == "http"
+                    || scheme == "https"
+                if accepted {
+                    store.addFromExternalURL(url)
+                }
+                return accepted
+            }
+            .confirmationDialog(
+                removeDialogTitle,
+                isPresented: Binding(
+                    get: { store.actions.pendingRemoval != nil },
+                    set: { if !$0 { store.actions.cancelPendingRemoval() } }
+                ),
+                presenting: store.actions.pendingRemoval
+            ) { _ in
+                Button("Remove", role: .destructive) { store.actions.confirmPendingRemoval() }
+                Button("Cancel", role: .cancel) { store.actions.cancelPendingRemoval() }
+            } message: { pending in
+                Text(removeDialogMessage(for: pending))
+            }
+            .alert(
+                store.lastActionError?.title ?? "Action Failed",
+                isPresented: Binding(
+                    get: { store.lastActionError != nil },
+                    set: { if !$0 { store.lastActionError = nil } }
+                ),
+                presenting: store.lastActionError
+            ) { _ in
+                Button("OK", role: .cancel) { store.lastActionError = nil }
+            } message: { error in
+                Text(error.localizedDescription)
+            }
     }
 
     // MARK: - Split view
 
-    /// The sidebar toggle in the View menu writes the same preference, so the
-    /// built-in toolbar toggle and our command stay in step.
-    private var sidebarVisibility: Binding<NavigationSplitViewVisibility> {
-        Binding(
-            get: { sidebarVisible ? .all : .detailOnly },
-            set: { sidebarVisible = $0 != .detailOnly })
-    }
-
     private var splitView: some View {
         @Bindable var store = store
-        @Bindable var list = store.list
-        return NavigationSplitView(columnVisibility: sidebarVisibility) {
+        @Bindable var inspector = store.inspector
+        return NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView()
                 .navigationSplitViewColumnWidth(
                     min: Layout.sidebarMin, ideal: Layout.sidebarIdeal, max: Layout.sidebarMax)
         } detail: {
             listPane
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .navigationSplitViewColumnWidth(min: Layout.contentMin, ideal: Layout.contentIdeal)
                 .navigationTitle(profileStore.activeProfile?.label ?? "Transmission")
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     // No connection exists in the no-server state, so the status
@@ -184,12 +159,6 @@ struct MainWindow: View {
                         StatusBarView()
                     }
                 }
-                .searchable(
-                    text: $list.searchQuery,
-                    placement: .toolbar,
-                    prompt: "Search torrents"
-                )
-                .searchFocused($searchFocused)
                 .toolbar {
                     ToolbarItem(placement: .navigation) {
                         serverSwitcherMenu
@@ -197,7 +166,47 @@ struct MainWindow: View {
                     MainToolbar()
                 }
         }
+        // On the split view, so the inspector is a full-height column with its
+        // own toolbar section that pushes the detail's items aside, as in Xcode.
+        .inspector(isPresented: $inspector.isVisible) {
+            InspectorView()
+                .onGeometryChange(for: CGFloat.self) {
+                    $0.size.width
+                } action: { width in
+                    // The column passes through narrower widths while it animates closed.
+                    guard width >= Layout.inspectorMin else { return }
+                    UserDefaults.standard.set(Double(width), forKey: PreferenceKeys.inspectorWidth)
+                }
+                .inspectorColumnWidth(
+                    min: Layout.inspectorMin,
+                    ideal: initialInspectorWidth,
+                    max: Layout.inspectorMax
+                )
+                .toolbar {
+                    // SwiftUI keeps a hidden inspector's toolbar items and
+                    // pushes them into the overflow menu once search expands,
+                    // so the list's toolbar takes the toggle while it's closed.
+                    if inspector.isVisible {
+                        if store.list.selectedTorrents.first != nil {
+                            ToolbarItem(placement: .primaryAction) {
+                                InspectorTabPicker()
+                            }
+                            .sharedBackgroundVisibility(.hidden)
+                        }
+                        ToolbarSpacer(.flexible)
+                        InspectorToggle()
+                    }
+                }
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onChange(of: sidebarVisible) { _, visible in
+            let target: NavigationSplitViewVisibility = visible ? .all : .detailOnly
+            guard columnVisibility != target else { return }
+            withAnimation { columnVisibility = target }
+        }
+        .onChange(of: columnVisibility) { _, visibility in
+            sidebarVisible = visibility != .detailOnly
+        }
     }
 
     // MARK: - Server switcher
@@ -373,46 +382,6 @@ struct MainWindow: View {
             }
             .buttonStyle(.glassProminent)
         }
-    }
-}
-
-// MARK: - Inspector resize handle
-
-private struct InspectorResizeHandle: View {
-    @Binding var storedWidth: Double
-    let clampedWidth: CGFloat
-    let min: CGFloat
-    let ideal: CGFloat
-    let max: CGFloat
-
-    @GestureState private var dragStartWidth: CGFloat? = nil
-
-    var body: some View {
-        Color.clear
-            .frame(width: 8)
-            .overlay(
-                Rectangle()
-                    .fill(Color(nsColor: .separatorColor))
-                    .frame(width: 1)
-            )
-            .contentShape(Rectangle())
-            .onTapGesture(count: 2) {
-                storedWidth = Double(ideal)
-            }
-            .gesture(
-                DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                    .updating($dragStartWidth) { _, state, _ in
-                        if state == nil { state = clampedWidth }
-                    }
-                    .onChanged { value in
-                        let start = dragStartWidth ?? clampedWidth
-                        let proposed = start - value.translation.width
-                        storedWidth = Double(Swift.max(min, Swift.min(max, proposed)))
-                    }
-            )
-            .onHover { inside in
-                if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
-            }
     }
 }
 

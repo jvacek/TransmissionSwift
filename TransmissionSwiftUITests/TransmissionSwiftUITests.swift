@@ -233,7 +233,7 @@ final class TransmissionSwiftUITests: XCTestCase {
 
         // ⌘F lands in the search field.
         app.typeKey("f", modifierFlags: .command)
-        let search = app.searchFields.firstMatch
+        let search = app.searchFields["toolbar.search"]
         XCTAssertTrue(search.waitForExistence(timeout: 3))
         app.typeText("ubuntu")
         XCTAssertTrue(
@@ -256,21 +256,24 @@ final class TransmissionSwiftUITests: XCTestCase {
         XCTAssertTrue(sidebarItem.exists, "Expected a Show/Hide Sidebar item")
         app.typeKey(.escape, modifierFlags: [])
 
-        let inspector = app.descendants(matching: .any)
-            .matching(identifier: "inspector.tabs").firstMatch
-        let inspectorWasVisible = inspector.exists
+        // Read the state from the toggle's label: the tab picker sits in the
+        // toolbar and appears a moment after the pane does.
+        let toggle = app.buttons["toolbar.inspector"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        func inspectorVisible() -> Bool { toggle.label == "Hide Inspector" }
+        let inspectorWasVisible = inspectorVisible()
         // The app owns this preference. If an assertion aborts the test, put
         // the pane back through the same shortcut instead of leaving the
         // developer's app toggled.
         defer {
-            if inspector.exists != inspectorWasVisible {
+            if inspectorVisible() != inspectorWasVisible {
                 app.typeKey("i", modifierFlags: .command)
             }
         }
         app.typeKey("i", modifierFlags: .command)
-        XCTAssertTrue(waitUntil { inspector.exists != inspectorWasVisible })
+        XCTAssertTrue(waitUntil { inspectorVisible() != inspectorWasVisible })
         app.typeKey("i", modifierFlags: .command)
-        XCTAssertTrue(waitUntil { inspector.exists == inspectorWasVisible })
+        XCTAssertTrue(waitUntil { inspectorVisible() == inspectorWasVisible })
 
         let sidebar = app.descendants(matching: .any)
             .matching(identifier: "sidebar.status.all").firstMatch
@@ -348,7 +351,7 @@ final class TransmissionSwiftUITests: XCTestCase {
         }
         XCTAssertTrue(tabs.waitForExistence(timeout: 5), "Expected the inspector")
 
-        let filesTab = tabs.radioButtons["Files"]
+        let filesTab = tabs.buttons["Files"]
         XCTAssertTrue(filesTab.waitForExistence(timeout: 3), "Expected the Files tab")
         filesTab.click()
 
@@ -387,7 +390,7 @@ final class TransmissionSwiftUITests: XCTestCase {
             app.typeKey("i", modifierFlags: .command)
         }
         XCTAssertTrue(tabs.waitForExistence(timeout: 5))
-        tabs.radioButtons["Files"].click()
+        tabs.buttons["Files"].click()
 
         let list = app.descendants(matching: .any)
             .matching(identifier: "inspector.files.list").firstMatch
@@ -483,7 +486,7 @@ final class TransmissionSwiftUITests: XCTestCase {
             app.typeKey("i", modifierFlags: .command)
         }
         XCTAssertTrue(tabs.waitForExistence(timeout: 5))
-        tabs.radioButtons["Peers"].click()
+        tabs.buttons["Peers"].click()
 
         // SwiftUI exposes the Table as an outline.
         let peers = app.outlines["inspector.peers.table"]
@@ -519,7 +522,7 @@ final class TransmissionSwiftUITests: XCTestCase {
             app.typeKey("i", modifierFlags: .command)
         }
         XCTAssertTrue(tabs.waitForExistence(timeout: 5))
-        tabs.radioButtons["Files"].click()
+        tabs.buttons["Files"].click()
 
         let list = app.descendants(matching: .any)
             .matching(identifier: "inspector.files.list").firstMatch
