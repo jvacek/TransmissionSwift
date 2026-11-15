@@ -63,7 +63,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         tableView.gridStyleMask = []
         tableView.floatsGroupRows = false
         tableView.intercellSpacing = NSSize(width: 0, height: 0)
-        tableView.headerView = NSTableHeaderView()
+        tableView.headerView = SortingTableHeaderView()
         tableView.setAccessibilityIdentifier("torrents.table")
 
         // Column layout persistence: NSTableView autosaves order, widths and
@@ -882,5 +882,32 @@ private final class TorrentTableView: NSTableView {
             return !selectedRowIndexes.isEmpty
         }
         return super.validateUserInterfaceItem(item)
+    }
+}
+
+/// A header where every click sorts, however fast. AppKit treats a header click
+/// with a click count of 2 as a double click and sends it to the table's
+/// `doubleAction` (which opens the inspector for rows) instead of sorting, so
+/// quick clicks alternated between flipping the sort and doing nothing.
+final class SortingTableHeaderView: NSTableHeaderView {
+    override func mouseDown(with event: NSEvent) {
+        super.mouseDown(with: Self.singleClick(event))
+    }
+
+    /// `event` with its click count reset to 1; unchanged when it already is.
+    static func singleClick(_ event: NSEvent) -> NSEvent {
+        guard event.clickCount > 1,
+            let single = NSEvent.mouseEvent(
+                with: event.type,
+                location: event.locationInWindow,
+                modifierFlags: event.modifierFlags,
+                timestamp: event.timestamp,
+                windowNumber: event.windowNumber,
+                context: nil,
+                eventNumber: event.eventNumber,
+                clickCount: 1,
+                pressure: event.pressure)
+        else { return event }
+        return single
     }
 }

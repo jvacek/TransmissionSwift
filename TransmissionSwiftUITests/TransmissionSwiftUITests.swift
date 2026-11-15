@@ -542,6 +542,61 @@ final class TransmissionSwiftUITests: XCTestCase {
             "Expected the menu to name the active sort, got \(sort.title)")
     }
 
+    /// Clicking a column header quickly must flip the sort on every click.
+    /// Clicks inside the double-click interval arrive with a click count of 2,
+    /// and AppKit used to route those to the table's `doubleAction` instead of
+    /// sorting, so every second fast click did nothing.
+    @MainActor
+    func testSnapshotHeaderFlipsSortOnEveryFastClick() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let app = snapshotApp(fixture)
+        let table = app.tables["torrents.table"]
+        XCTAssertTrue(table.cells.firstMatch.waitForExistence(timeout: 15))
+        let header = table.buttons["Size"]
+        XCTAssertTrue(header.waitForExistence(timeout: 5))
+        // Click by coordinate. Under the toolbar the header reads as not
+        // hittable to XCUITest (AppKit hit-tests it fine), and element clicks
+        // then stop behaving like a real double click, hiding the bug.
+        let headerPoint = header.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let parkPoint = app.windows.firstMatch.coordinate(
+            withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02))
+
+        // The sort direction isn't in the accessibility tree, so read the
+        // arrow from pixels, with the pointer parked so hover can't differ.
+        func arrow() -> Data {
+            parkPoint.hover()
+            Thread.sleep(forTimeInterval: 0.3)
+            return header.screenshot().pngRepresentation
+        }
+        func topRow() -> String {
+            table.cells.element(boundBy: 0).staticTexts.firstMatch.label
+        }
+
+        headerPoint.click()
+        Thread.sleep(forTimeInterval: 0.6)
+        let firstArrow = arrow()
+        let firstTop = topRow()
+
+        headerPoint.click()
+        Thread.sleep(forTimeInterval: 0.6)
+        let secondArrow = arrow()
+        let secondTop = topRow()
+        XCTAssertNotEqual(secondArrow, firstArrow, "Expected a slow second click to flip the arrow")
+        XCTAssertNotEqual(secondTop, firstTop, "Expected a slow second click to re-sort the rows")
+
+        // Two fast clicks flip twice, landing back where they started. With
+        // the bug only the first flipped, leaving the first click's state.
+        headerPoint.doubleClick()
+        Thread.sleep(forTimeInterval: 0.6)
+        XCTAssertEqual(
+            topRow(), secondTop, "Expected both clicks of a fast double click to re-sort the rows")
+        XCTAssertEqual(
+            arrow(), secondArrow, "Expected both clicks of a fast double click to flip the arrow")
+    }
+
     /// Launches the app on the committed snapshot fixture. State restoration is
     /// switched off: a Preferences window left open by an earlier test would
     /// cover the table and make rows unhittable.
