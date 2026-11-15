@@ -6,41 +6,54 @@ import SwiftUI
 import TransmissionCore
 import TransmissionRPC
 
+/// What the server editor sheet is showing: a new profile, or an existing one.
+enum ServerEditorTarget: Identifiable {
+    case create
+    case edit(ServerProfile)
+
+    var id: String {
+        switch self {
+        case .create: return "new"
+        case .edit(let profile): return profile.id.uuidString
+        }
+    }
+}
+
+/// App-wide daemon profiles, listed with the active one first. Editing opens
+/// `ServerProfileForm` in a sheet, the same shape as the Mappings pane.
 struct ServersPrefsPane: View {
     @Environment(ServerProfileStore.self) private var profileStore
 
-    private enum PaneSelection: Hashable {
-        case existing(UUID)
-        case new
-    }
-
-    @State private var selection: PaneSelection?
-    @State private var pendingNew = false
+    /// Non-nil while the editor sheet is up.
+    @State private var editor: ServerEditorTarget?
     @State private var pendingRemovalID: UUID?
     @State private var actionError: String?
 
     private let keychain = KeychainStore()
 
     var body: some View {
-        HStack(spacing: 0) {
-            VStack(spacing: 0) {
-                serverList
-                Divider()
-                listFooter
-            }
-            .frame(minWidth: 10, maxWidth: 210)
+        Form {
+            Section {
+                if profileStore.profiles.isEmpty {
+                    Text("No servers yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(sortedProfiles) { profile in
+                        serverRow(profile)
+                    }
+                }
 
-            Divider()
-
-            formPane
-                .frame(maxWidth: .infinity)
-        }
-        .frame(minHeight: 420)
-        .onAppear {
-            if selection == nil, let first = sortedProfiles.first {
-                selection = .existing(first.id)
+                Button {
+                    editor = .create
+                } label: {
+                    Label("Add Server…", systemImage: "plus")
+                }
+                .buttonStyle(.borderless)
+            } header: {
+                Text("Servers")
             }
         }
+        .formStyle(.grouped)
         .alert(
             "Couldn't Update Servers",
             isPresented: Binding(
@@ -65,28 +78,43 @@ struct ServersPrefsPane: View {
         } message: { _ in
             Text("The saved password will be deleted. Torrents on the daemon are not affected.")
         }
+        .sheet(item: $editor) { target in
+            ServerProfileForm(
+                target: target,
+                onCancel: { editor = nil },
+                onSaved: { editor = nil })
+        }
     }
 
-    // MARK: List
-
-    /// A hand-rolled sidebar instead of `List`: on macOS 26, List rows taller
-    /// than one line crash SwiftUI's table core during the first layout pass
-    /// (`TableViewListCore_Mac2` assertion — previews die with a cryptic
-    /// design-time error). The server list is small and fixed, so a
-    /// ScrollView of buttons loses nothing.
-    private var serverList: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 1) {
-                ForEach(sortedProfiles) { profile in
-                    serverRow(profile)
-                }
-                if pendingNew {
-                    newServerRow
-                }
+    private func serverRow(_ profile: ServerProfile) -> some View {
+        let isActive = profileStore.activeProfile?.id == profile.id
+        return HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(profile.label)
+                    .fontWeight(isActive ? .semibold : .regular)
+                Text("\(profile.host):\(profile.port)")
+                    .font(.caption)
+                    .monospaced()
+                    .foregroundStyle(.secondary)
             }
-            //            .padding(.horizontal, 0)
-            .padding(.vertical, 4)
-        }.frame(width: 200)
+            Spacer()
+            if isActive {
+                Image(systemName: "checkmark")
+                    .foregroundStyle(.secondary)
+                    .help("Active server")
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { editor = .edit(profile) }
+        .contextMenu {
+            if !isActive {
+                Button("Make Active") { makeActive(profile.id) }
+            }
+            Button("Edit…") { editor = .edit(profile) }
+            Button("Duplicate") { duplicate(profile.id) }
+            Divider()
+            Button("Remove…", role: .destructive) { pendingRemovalID = profile.id }
+        }
     }
 
     /// The profile list with the active profile pinned to the top.
@@ -95,11 +123,24 @@ struct ServersPrefsPane: View {
         return [active] + profileStore.profiles.filter { $0.id != active.id }
     }
 
-    private func select(_ newSelection: PaneSelection) {
-        if selection == .new, newSelection != .new {
-            pendingNew = false
+    private func makeActive(_ id: UUID) {
+        do {
+            try profileStore.setActive(id)
+        } catch {
+            actionError = error.localizedDescription
         }
-        selection = newSelection
+    }
+
+    /// The copy is meant to work as-is, so it takes the Keychain secret too.
+    private func duplicate(_ id: UUID) {
+        do {
+            guard let copy = try profileStore.duplicate(id: id) else { return }
+            if let password = try? keychain.password(for: id), !password.isEmpty {
+                try? keychain.setPassword(password, for: copy.id)
+            }
+        } catch {
+            actionError = error.localizedDescription
+        }
     }
 
     private func removeServer(_ id: UUID) {
@@ -108,377 +149,231 @@ struct ServersPrefsPane: View {
             // The profile id is never reused, so an orphaned secret would sit
             // in the Keychain forever.
             try? keychain.deletePassword(for: id)
-            selection = profileStore.profiles.first.map { .existing($0.id) }
             Task { await SpotlightIndexer.indexServers(profileStore.profiles) }
         } catch {
-            // The store rolled back; keep the server selected for a retry.
+            // The store rolled back; the row stays for a retry.
             actionError = error.localizedDescription
-        }
-    }
-
-    private func serverRow(_ profile: ServerProfile) -> some View {
-        let isActive = profileStore.activeProfile?.id == profile.id
-        let isSelected = selection == .existing(profile.id)
-        return Button {
-            select(.existing(profile.id))
-        } label: {
-            HStack(spacing: 4) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(profile.label)
-                        .fontWeight(isActive ? .semibold : .regular)
-                    Text("\(profile.host):" + String(profile.port))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospaced()
-                }
-                Spacer()
-                if isActive {
-                    Image(systemName: "checkmark")
-                        .imageScale(.small)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(isSelected ? AnyShapeStyle(Color.accentColor.opacity(0.25)) : AnyShapeStyle(.clear))
-            )
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-            if !isActive {
-                Button("Make Active") {
-                    do {
-                        try profileStore.setActive(profile.id)
-                    } catch {
-                        actionError = error.localizedDescription
-                    }
-                }
-            }
-        }
-    }
-
-    private var newServerRow: some View {
-        Button {
-            selection = .new
-        } label: {
-            Label("New Server", systemImage: "plus.circle")
-                .italic()
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .background(
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(
-                            selection == .new ? AnyShapeStyle(Color.accentColor.opacity(0.25)) : AnyShapeStyle(.clear)
-                        )
-                )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var listFooter: some View {
-        HStack(spacing: 0) {
-            Button {
-                pendingNew = true
-                selection = .new
-            } label: {
-                Label("Add Server", systemImage: "plus")
-                    .labelStyle(.iconOnly)
-                    .frame(width: 28, height: 28)
-            }
-            .buttonStyle(.borderless)
-            .help("Add server")
-
-            Button {
-                if case .existing(let id) = selection {
-                    pendingRemovalID = id
-                }
-            } label: {
-                Label("Remove Server", systemImage: "minus")
-                    .labelStyle(.iconOnly)
-                    .frame(width: 28, height: 28)
-            }
-            .buttonStyle(.borderless)
-            .disabled(!canRemove)
-            .help("Remove selected server")
-
-            Button {
-                if case .existing(let id) = selection,
-                    let copy = try? profileStore.duplicate(id: id)
-                {
-                    if let pwd = try? keychain.password(for: id), !pwd.isEmpty {
-                        try? keychain.setPassword(pwd, for: copy.id)
-                    }
-                    selection = .existing(copy.id)
-                }
-            } label: {
-                Label("Duplicate Server", systemImage: "square.on.square")
-                    .labelStyle(.iconOnly)
-                    .frame(width: 28, height: 28)
-            }
-            .buttonStyle(.borderless)
-            .disabled(!canRemove)
-            .help("Duplicate selected server")
-
-            Spacer()
-        }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 2)
-    }
-
-    private var canRemove: Bool {
-        if case .existing = selection { return true }
-        return false
-    }
-
-    // MARK: Form
-
-    @ViewBuilder
-    private var formPane: some View {
-        switch selection {
-        case .new:
-            ServerProfileForm(
-                mode: .create { newID in
-                    pendingNew = false
-                    selection = .existing(newID)
-                },
-                onCancel: {
-                    pendingNew = false
-                    selection = profileStore.profiles.first.map { .existing($0.id) }
-                }
-            )
-        case .existing(let id):
-            if let profile = profileStore.profiles.first(where: { $0.id == id }) {
-                ServerProfileForm(mode: .edit(profile), onCancel: nil)
-                    .id(id)
-            } else {
-                emptyState
-            }
-        case nil:
-            emptyState
-        }
-    }
-
-    private var emptyState: some View {
-        ContentUnavailableView {
-            Label("No Server Selected", systemImage: "server.rack")
-        } description: {
-            Text("Select a server from the list, or click + to add one.")
         }
     }
 }
 
-// MARK: - Server profile form
+// MARK: - Server profile editor
 
 struct ServerProfileForm: View {
-    enum Mode {
-        case create(onCreate: (UUID) -> Void)
-        case edit(ServerProfile)
-    }
+    let target: ServerEditorTarget
+    let onCancel: () -> Void
+    let onSaved: () -> Void
 
     @Environment(ServerProfileStore.self) private var profileStore
 
-    let mode: Mode
-    var onCancel: (() -> Void)?
-
-    @State private var label: String = ""
-    @State private var host: String = "localhost"
-    @State private var port: Int = 9091
-    @State private var rpcPath: String = "/transmission/rpc"
-    @State private var username: String = ""
-    @State private var password: String = ""
-    @State private var hasStoredPassword: Bool = false
-    @State private var useHTTPS: Bool = false
+    @State private var fields: Fields
+    @State private var hasStoredPassword = false
     @State private var isTesting = false
-    @State private var testResultMessage: String?
-    @State private var testResultIsFailure = false
+    @State private var testMessage: String?
+    @State private var testFailed = false
     @State private var saveError: String?
 
+    /// The values the sheet opened with, for the unsaved-changes check.
+    private let initialFields: Fields
     private let keychain = KeychainStore()
 
-    var body: some View {
-        Form {
-            Section("Connection") {
-                TextField("Label", text: $label, prompt: Text("Home NAS"))
-                LabeledContent("Host") {
-                    TextField("", text: $host)
-                        .monospaced()
-                }
-                LabeledContent("Port") {
-                    TextField("", value: $port, format: .number.grouping(.never))
-                        .monospaced()
-                }
-                LabeledContent("RPC Path") {
-                    TextField("", text: $rpcPath)
-                        .monospaced()
-                }
-                Toggle("Use HTTPS", isOn: $useHTTPS)
-            }
+    /// Field state as one value, so "changed since opening" is a comparison.
+    private struct Fields: Equatable {
+        var label = ""
+        var host = ""
+        var port = 9091
+        var rpcPath = "/transmission/rpc"
+        var username = ""
+        var password = ""
+        var useHTTPS = false
 
-            Section("Authentication") {
-                LabeledContent("Username") {
-                    TextField("", text: $username, prompt: Text("optional"))
+        init() {}
+
+        init(_ profile: ServerProfile) {
+            label = profile.label
+            host = profile.host
+            port = profile.port
+            rpcPath = profile.rpcPath
+            username = profile.username ?? ""
+            useHTTPS = profile.useHTTPS
+        }
+    }
+
+    init(target: ServerEditorTarget, onCancel: @escaping () -> Void, onSaved: @escaping () -> Void) {
+        self.target = target
+        self.onCancel = onCancel
+        self.onSaved = onSaved
+        let initial: Fields =
+            switch target {
+            case .create: Fields()
+            case .edit(let profile): Fields(profile)
+            }
+        initialFields = initial
+        _fields = State(initialValue: initial)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(isCreating ? "Add Server" : "Edit Server")
+                .font(.headline)
+                .padding(.horizontal, 20)
+
+            Form {
+                Section("Connection") {
+                    TextField("Label", text: $fields.label, prompt: Text("Home NAS"))
+                    TextField("Host", text: $fields.host, prompt: Text("localhost"))
                         .monospaced()
+                    TextField(
+                        "Port",
+                        value: $fields.port,
+                        format: .number.grouping(.never),
+                        prompt: Text("9091")
+                    )
+                    .monospaced()
+                    TextField("RPC path", text: $fields.rpcPath, prompt: Text("/transmission/rpc"))
+                        .monospaced()
+                    Toggle("Use HTTPS", isOn: $fields.useHTTPS)
                 }
-                LabeledContent("Password") {
+
+                Section("Authentication") {
+                    TextField("Username", text: $fields.username, prompt: Text("Optional"))
+                        .monospaced()
                     SecureField(
-                        "",
-                        text: $password,
-                        prompt: Text(
-                            hasStoredPassword && password.isEmpty ? "Leave blank to keep" : "optional"
-                        )
+                        "Password",
+                        text: $fields.password,
+                        prompt: Text(hasStoredPassword ? "Leave blank to keep" : "Optional")
                     )
                     .monospaced()
                 }
             }
-        }
-        .formStyle(.grouped)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            bottomBar
-        }
-        .onAppear { loadFromMode() }
-    }
+            .formStyle(.grouped)
 
-    private var bottomBar: some View {
-        VStack(spacing: 0) {
-            Divider()
-            HStack(spacing: 8) {
+            SheetButtonRow(
+                isCreating ? "Add Server" : "Save",
+                canConfirm: canSave,
+                onCancel: onCancel,
+                onConfirm: save
+            ) {
                 Button("Test Connection") {
                     Task { await runConnectionTest() }
                 }
-                .disabled(isTesting || host.isEmpty)
+                .disabled(isTesting || fields.host.isEmpty)
                 if isTesting {
                     ProgressView()
                         .controlSize(.small)
                 }
-                if let msg = testResultMessage {
-                    Text(msg)
+                if let status = statusMessage {
+                    Text(status.text)
                         .font(.caption)
-                        .foregroundStyle(testResultIsFailure ? AnyShapeStyle(.red) : AnyShapeStyle(.green))
-                } else if let err = saveError {
-                    Text(err)
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(status.failed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .help(status.text)
                 }
-                Spacer()
-                if isCreating, let cancel = onCancel {
-                    Button("Cancel", action: cancel)
-                        .keyboardShortcut(.cancelAction)
-                }
-                Button(isCreating ? "Add Server" : "Save Changes") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(host.isEmpty)
-                    .buttonStyle(.borderedProminent)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(.regularMaterial)
+            .padding(.horizontal, 20)
         }
+        .padding(.vertical, 20)
+        .frame(width: 480, height: 480)
+        .onAppear {
+            if let profile = editedProfile {
+                hasStoredPassword = keychain.hasPassword(for: profile.id)
+            }
+        }
+    }
+
+    private var editedProfile: ServerProfile? {
+        if case .edit(let profile) = target { return profile }
+        return nil
+    }
+
+    private var isCreating: Bool {
+        if case .create = target { return true }
+        return false
+    }
+
+    private var canSave: Bool {
+        !fields.host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && fields != initialFields
+    }
+
+    /// A save error wins over the last connection test's outcome.
+    private var statusMessage: (text: String, failed: Bool)? {
+        if let saveError { return (saveError, true) }
+        if let testMessage { return (testMessage, testFailed) }
+        return nil
     }
 
     private func runConnectionTest() async {
         isTesting = true
-        testResultMessage = nil
+        testMessage = nil
         defer { isTesting = false }
 
-        var components = URLComponents()
-        components.scheme = useHTTPS ? "https" : "http"
-        components.host = host
-        components.port = port
-        components.path = rpcPath.hasPrefix("/") ? rpcPath : "/" + rpcPath
-        guard let rpcURL = components.url else {
-            testResultIsFailure = true
-            testResultMessage = "Invalid URL"
+        let probe = ServerProfile(
+            label: "",
+            host: fields.host,
+            port: fields.port,
+            rpcPath: fields.rpcPath,
+            useHTTPS: fields.useHTTPS)
+        guard let rpcURL = probe.rpcURL else {
+            testFailed = true
+            testMessage = "Invalid URL"
             return
         }
 
         var credentials: Credentials?
-        if !username.isEmpty {
+        if !fields.username.isEmpty {
             let pwd: String
-            if !password.isEmpty {
-                pwd = password
-            } else if case .edit(let profile) = mode {
+            if !fields.password.isEmpty {
+                pwd = fields.password
+            } else if let profile = editedProfile {
                 do {
                     pwd = try keychain.password(for: profile.id) ?? ""
                 } catch {
-                    testResultIsFailure = true
-                    testResultMessage = "Couldn't read the saved password from the Keychain."
+                    testFailed = true
+                    testMessage = "Couldn't read the saved password from the Keychain."
                     return
                 }
             } else {
                 pwd = ""
             }
             if !pwd.isEmpty {
-                credentials = Credentials(username: username, password: pwd)
+                credentials = Credentials(username: fields.username, password: pwd)
             }
         }
 
         let client = URLSessionTransmissionClient(rpcURL: rpcURL, credentials: credentials)
         do {
             let info = try await client.sessionGet()
-            testResultIsFailure = false
-            testResultMessage = "Connected · Transmission \(info.version) (RPC \(info.rpcVersion))"
+            testFailed = false
+            testMessage = "Connected · Transmission \(info.version) (RPC \(info.rpcVersion))"
         } catch {
-            testResultIsFailure = true
-            testResultMessage = error.localizedDescription
+            testFailed = true
+            testMessage = error.localizedDescription
         }
     }
 
-    private var isCreating: Bool {
-        if case .create = mode { return true }
-        return false
-    }
-
-    private func loadFromMode() {
-        guard case .edit(let profile) = mode else { return }
-        label = profile.label
-        host = profile.host
-        port = profile.port
-        rpcPath = profile.rpcPath
-        username = profile.username ?? ""
-        useHTTPS = profile.useHTTPS
-        hasStoredPassword = keychain.hasPassword(for: profile.id)
-        // password field starts empty — keychain secret is never read on load
-    }
-
     private func save() {
-        switch mode {
-        case .create(let onCreate):
-            let profile = ServerProfile(
-                label: label.isEmpty ? host : label,
-                host: host,
-                port: port,
-                rpcPath: rpcPath,
-                username: username.isEmpty ? nil : username,
-                useHTTPS: useHTTPS
-            )
-            do {
-                if !password.isEmpty { try keychain.setPassword(password, for: profile.id) }
+        let profile = ServerProfile(
+            id: editedProfile?.id ?? UUID(),
+            label: fields.label.isEmpty ? fields.host : fields.label,
+            host: fields.host,
+            port: fields.port,
+            rpcPath: fields.rpcPath,
+            username: fields.username.isEmpty ? nil : fields.username,
+            useHTTPS: fields.useHTTPS)
+        do {
+            if !fields.password.isEmpty {
+                try keychain.setPassword(fields.password, for: profile.id)
+            }
+            if isCreating {
                 try profileStore.add(profile)
-                onCreate(profile.id)
-            } catch {
-                saveError = error.localizedDescription
-            }
-
-        case .edit(var profile):
-            profile.label = label.isEmpty ? host : label
-            profile.host = host
-            profile.port = port
-            profile.rpcPath = rpcPath
-            profile.username = username.isEmpty ? nil : username
-            profile.useHTTPS = useHTTPS
-            do {
-                if !password.isEmpty { try keychain.setPassword(password, for: profile.id) }
+            } else {
                 try profileStore.update(profile)
-            } catch {
-                saveError = error.localizedDescription
             }
+            onSaved()
+        } catch {
+            saveError = error.localizedDescription
         }
     }
 }
