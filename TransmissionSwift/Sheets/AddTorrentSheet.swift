@@ -22,7 +22,6 @@ struct AddTorrentSheet: View {
 
     @FocusState private var focusedField: Field?
     @State private var mode: AddTorrentInputMode = .file
-    @Namespace private var selectionNamespace
     @State private var fileURL: URL?
     @State private var fileTorrentName: String?
     @State private var addFiles: [TorrentAddFile] = []
@@ -125,41 +124,19 @@ struct AddTorrentSheet: View {
 
     // MARK: - Sections
 
-    /// File vs. link — the only mutually-exclusive choice — as a Liquid Glass
-    /// segmented control in the system style: one glass capsule holding all
-    /// segments, with the selected one as a raised accent pill that slides
-    /// between segments (droplet-style, via `matchedGeometryEffect`). The pill
-    /// is a plain fill, not nested glass — glass can't sample glass. The stock
-    /// `.segmented` picker keeps its pre-Tahoe chrome in content areas, hence
-    /// hand-rolled.
+    /// File vs. link, the only mutually exclusive choice.
     private var modePicker: some View {
-        HStack(spacing: 0) {
-            ForEach(AddTorrentInputMode.allCases, id: \.self) { segment in
-                let isSelected = mode == segment
-                Button {
-                    withAnimation(.smooth(duration: 0.35)) { mode = segment }
-                } label: {
-                    Text(segment.label)
-                        .font(.callout.weight(isSelected ? .semibold : .regular))
-                        .foregroundStyle(isSelected ? Color.white : Color.secondary)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 8)
-                        .background {
-                            if isSelected {
-                                Capsule()
-                                    .fill(Color.accentColor)
-                                    .matchedGeometryEffect(id: "modeSelection", in: selectionNamespace)
-                            }
-                        }
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(segment.label)
-                .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-
-            }
+        GlassSegmentedControl(
+            selection: $mode,
+            values: AddTorrentInputMode.allCases,
+            accessibilityLabel: \.label
+        ) { segment, isSelected in
+            Text(segment.label)
+                .font(.callout.weight(isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? Color.white : Color.secondary)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 8)
         }
-        .glassEffect(.regular.interactive(), in: .capsule)
         .frame(maxWidth: .infinity)
     }
 
@@ -668,40 +645,26 @@ struct AddTorrentSheet: View {
         }
     }
 
-    /// Priority as a Liquid Glass segmented control matching `modePicker`:
-    /// one interactive glass capsule, with an accent pill that slides between
-    /// segments (`matchedGeometryEffect`). Keeps the priority glyphs visible —
-    /// macOS segmented pickers drop `Label` icons.
+    private static func priorityAccessibilityLabel(_ level: TorrentPriority) -> String {
+        "Priority \(level.displayLabel)"
+    }
+
+    /// Priority, keeping its glyphs visible.
     private var prioritySegments: some View {
-        HStack(spacing: 0) {
-            ForEach([TorrentPriority.high, .normal, .low], id: \.self) { level in
-                let isSelected = priority == level
-                Button {
-                    withAnimation(.smooth(duration: 0.35)) { priority = level }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: level.systemImage)
-                        Text(level.displayLabel)
-                    }
-                    .font(.callout)
-                    .foregroundStyle(isSelected ? Color.white : level.displayColor)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
-                    .background {
-                        if isSelected {
-                            Capsule()
-                                .fill(Color.accentColor)
-                                .matchedGeometryEffect(id: "prioritySelection", in: selectionNamespace)
-                        }
-                    }
-                    .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Priority \(level.displayLabel)")
-                .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        GlassSegmentedControl(
+            selection: $priority,
+            values: [TorrentPriority.high, .normal, .low],
+            accessibilityLabel: Self.priorityAccessibilityLabel
+        ) { level, isSelected in
+            HStack(spacing: 4) {
+                Image(systemName: level.systemImage)
+                Text(level.displayLabel)
             }
+            .font(.callout)
+            .foregroundStyle(isSelected ? Color.white : level.displayColor)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
         }
-        .glassEffect(.regular.interactive(), in: .capsule)
     }
 
     // MARK: - Logic
