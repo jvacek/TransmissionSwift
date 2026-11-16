@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import Foundation
 import Testing
 
 @testable import TransmissionSwift
@@ -26,6 +27,29 @@ struct ColumnFormattersTests {
         #expect(ColumnFormatters.ratio(0) == "\u{2014}")
         #expect(ColumnFormatters.ratio(-1) == "\u{2014}")
         #expect(ColumnFormatters.ratio(-2) == "\u{2014}")
+    }
+
+    @Test func lastActivity_nilIsEmDash() {
+        #expect(ColumnFormatters.lastActivity(nil) == "\u{2014}")
+    }
+
+    @Test func lastActivity_underAMinuteIsJustNow() {
+        // Each incremental poll moves activityDate by a second; the text must not.
+        let now = Date()
+        #expect(ColumnFormatters.lastActivity(now, now: now) == "Just now")
+        #expect(ColumnFormatters.lastActivity(now.addingTimeInterval(-1), now: now) == "Just now")
+        #expect(ColumnFormatters.lastActivity(now.addingTimeInterval(-59), now: now) == "Just now")
+    }
+
+    @Test func lastActivity_daemonClockAheadIsJustNow() {
+        // activityDate comes from the daemon's clock; a skew must not read "in 2 sec.".
+        let now = Date()
+        #expect(ColumnFormatters.lastActivity(now.addingTimeInterval(2), now: now) == "Just now")
+    }
+
+    @Test func lastActivity_olderUsesRelativeStyle() {
+        let date = Date().addingTimeInterval(-3600)
+        #expect(ColumnFormatters.lastActivity(date) == date.formatted(.relative(presentation: .named)))
     }
 
     @Test func ratio_positiveIsTwoDecimals() {
