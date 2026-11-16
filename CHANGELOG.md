@@ -2,6 +2,48 @@
 
 **Versions under 0.6.2 need to be updated manually.** Please check the [release page](https://github.com/jvacek/TransmissionSwift/releases).
 
+## 0.7.4
+
+14th November 2026
+
+- New
+  - Drag torrents out of the table as magnet links
+  - Type to jump to a torrent in the list
+  - Use the inspector's file list with the keyboard and VoiceOver
+  - Ask before removing a server, and delete its saved password too
+- Fixes
+  - Show a Reconnecting label, and recover on your own after a daemon restart, sleep or network change
+  - Show clearer errors, and give up on stalled requests sooner
+  - Fix Edit Labels erasing labels that only some of the selected torrents had
+  - Fix Cancel still applying a change
+  - Fix actions and open sheets targeting the wrong server after switching
+  - Fix server settings being lost when the settings file is damaged
+  - Keep the torrent list when the main window is closed and reopened
+  - Clear the Dock badge when the window closes, and remove deleted servers from Spotlight
+  - Fix tag colours after switching between light and dark mode
+  - Blend the torrent list's column header into the toolbar, like Finder
+  - Drop the status bar's frosted background and divider so it sits flush with the window
+  - Draw tags as flat colour pills, like Finder
+  - Use the system row height in the torrent list, so it's as compact as Finder's
+  - Label the inspector toolbar button Show or Hide Inspector, and have VoiceOver read the server switcher as the server's name
+  - Fit the Peers tab to the inspector: client and flags sit under the address, and download and upload speeds share a column
+  - Sort the inspector's file list from a Sort By menu, and show how many files the torrent has
+  - Fix quick clicks on a column header only flipping the sort every other time
+  - Use the same title and bottom buttons in every sheet, including Add Torrent
+  - Restyle the Add Torrent options like a system form, so labels no longer clip at larger text sizes
+  - Only warn about a slash when renaming a torrent
+  - Use the standard empty-state layout while connecting and for searches with no results, and stop showing the disconnected labels in red
+  - List servers in Settings like mappings, and edit each one in its own sheet
+  - Add a details button to server and mapping rows, with Duplicate and Remove in the editor
+  - Ask before removing a mapping, and only enable Save once something changed
+  - Make the inspector a native column like Xcode's, with its own toolbar section for the tabs and toggle, the system divider, and resizing that works
+  - Show the torrent's name in the inspector's Metadata, with Rename next to it
+  - Collapse search to a button next to Add; click it or press ⌘F to search
+  - Animate the sidebar when it's shown or hidden from the View menu
+  - Stop the window from clipping the sidebar and inspector when it's narrow
+- Performance
+  - Lower memory use, smoother sorting and less work while idle on large lists
+
 ## 0.7.3
 
 11th November 2026

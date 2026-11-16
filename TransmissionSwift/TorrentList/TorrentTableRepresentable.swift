@@ -44,7 +44,8 @@ struct TorrentTableRepresentable: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let tableView = TorrentTableView()
-        tableView.rowHeight = 28
+        // System row height (Finder's list view), not a hardcoded one.
+        tableView.rowSizeStyle = .default
         tableView.usesAutomaticRowHeights = false
         tableView.allowsMultipleSelection = true
         tableView.allowsEmptySelection = true
@@ -62,7 +63,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
         tableView.gridStyleMask = []
         tableView.floatsGroupRows = false
         tableView.intercellSpacing = NSSize(width: 0, height: 0)
-        tableView.headerView = NSTableHeaderView()
+        tableView.headerView = SortingTableHeaderView()
         tableView.setAccessibilityIdentifier("torrents.table")
 
         // Column layout persistence: NSTableView autosaves order, widths and
@@ -706,6 +707,17 @@ extension TorrentTableRepresentable.Coordinator: NSTableViewDataSource {
         displayedRows.count
     }
 
+    /// Dragging a row out yields its magnet link, so torrents can be dropped
+    /// into another client, a browser or a note.
+    func tableView(
+        _ tableView: NSTableView, pasteboardWriterForRow row: Int
+    ) -> NSPasteboardWriting? {
+        guard displayedRows.indices.contains(row) else { return nil }
+        let item = NSPasteboardItem()
+        item.setString(displayedRows[row].torrent.magnetURI, forType: .string)
+        return item
+    }
+
     func tableView(
         _ tableView: NSTableView, objectValueFor tableColumn: NSTableColumn?, row: Int
     ) -> Any? {
@@ -714,6 +726,16 @@ extension TorrentTableRepresentable.Coordinator: NSTableViewDataSource {
 }
 
 extension TorrentTableRepresentable.Coordinator: NSTableViewDelegate {
+    /// Native type-ahead: typing a torrent's name jumps to it. The table is
+    /// cell-view based, so `objectValueFor` is nil and this is the only way to
+    /// give AppKit a string to match.
+    func tableView(
+        _ tableView: NSTableView, typeSelectStringFor tableColumn: NSTableColumn?, row: Int
+    ) -> String? {
+        guard displayedRows.indices.contains(row) else { return nil }
+        return displayedRows[row].torrent.name
+    }
+
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard displayedRows.indices.contains(row), let tableColumn,
             let column = TransmissionCore.TableColumn(rawValue: tableColumn.identifier.rawValue)
@@ -745,10 +767,8 @@ extension TorrentTableRepresentable.Coordinator: NSTableViewDelegate {
     }
 
     func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
-        // Snapshot replay is read-only: still render the persisted sort
-        // indicator, but don't forward a user sort attempt to the store, where
-        // it would persist `tablePreferences` to the real UserDefaults.
-        guard actionsEnabled, !isNormalizingSortDescriptors else { return }
+        // Snapshot replay sorts too: its store keeps the preference in memory.
+        guard !isNormalizingSortDescriptors else { return }
         // AppKit promotes the clicked column to PRIMARY, keeping older entries
         // as secondaries. This is a single-sort table: collapse to the primary
         // before resolving it (the `.last` of that list was the original bug —
@@ -862,5 +882,32 @@ private final class TorrentTableView: NSTableView {
             return !selectedRowIndexes.isEmpty
         }
         return super.validateUserInterfaceItem(item)
+    }
+}
+
+/// A header where every click sorts, however fast. AppKit treats a header click
+/// with a click count of 2 as a double click and sends it to the table's
+/// `doubleAction` (which opens the inspector for rows) instead of sorting, so
+/// quick clicks alternated between flipping the sort and doing nothing.
+final class SortingTableHeaderView: NSTableHeaderView {
+    override func mouseDown(with event: NSEvent) {
+        super.mouseDown(with: Self.singleClick(event))
+    }
+
+    /// `event` with its click count reset to 1; unchanged when it already is.
+    static func singleClick(_ event: NSEvent) -> NSEvent {
+        guard event.clickCount > 1,
+            let single = NSEvent.mouseEvent(
+                with: event.type,
+                location: event.locationInWindow,
+                modifierFlags: event.modifierFlags,
+                timestamp: event.timestamp,
+                windowNumber: event.windowNumber,
+                context: nil,
+                eventNumber: event.eventNumber,
+                clickCount: 1,
+                pressure: event.pressure)
+        else { return event }
+        return single
     }
 }

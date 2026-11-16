@@ -11,9 +11,12 @@ import Foundation
 /// the relevant opt-in is off — names and tracker hosts) are skipped, since
 /// fuzzed contents can legitimately look like arbitrary text (e.g. a fuzzed
 /// file name "qwer.ty"). Kept names get an IP check only (no FQDN check —
-/// real names contain dots). Kept tracker hosts are intentional, so only the
-/// passkey query tripwire applies to them. Everything else is scanned for
-/// IPs / hostnames / unscrubbed URLs.
+/// real names contain dots). Free text (`comment` / `creator` /
+/// `errorString` / `lastAnnounceResult`) is rewritten by the scrubber, which
+/// fakes every nested hostname and fuzzes paths; its output can also look like
+/// a hostname ("foo.tracker-1.invalid", "f.LB"), so only structural tripwires
+/// (URL scheme, `.onion`, passkey query) and IPs apply there. Kept tracker
+/// hosts are intentional, so only the passkey query tripwire applies.
 public enum SnapshotLeakChecker {
     /// Throws `SnapshotError.leakDetected` listing every offending value.
     ///
@@ -138,7 +141,6 @@ public enum SnapshotLeakChecker {
                 leaks.append("\(path): passkey query remnant")
             }
             checkIPs(string, path: path, leaks: &leaks)
-            checkFQDNs(string, path: path, leaks: &leaks)
         case .magnet:
             checkMagnet(
                 string, path: path, anonymizeTrackers: anonymizeTrackers, leaks: &leaks)

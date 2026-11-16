@@ -170,9 +170,11 @@ struct GeneralPrefsPane: View {
     }
 }
 
+#if DEBUG
 #Preview("General") {
     GeneralPrefsPane()
         .environment(FaviconStore())
         .environment(GeoIPStore())
         .frame(width: 480, height: 1080)
 }
+#endif

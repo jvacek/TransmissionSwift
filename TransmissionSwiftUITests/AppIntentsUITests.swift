@@ -20,7 +20,7 @@
 //  availability is still guarded by @available below.
 //
 
-#if canImport(AppIntentsTesting)
+#if APP_INTENTS_UI_TESTS && canImport(AppIntentsTesting)
 import AppIntentsTesting
 import XCTest
 

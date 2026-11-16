@@ -28,8 +28,16 @@ public enum SnapshotError: Error, LocalizedError, Sendable, Equatable {
         case .captureUnsupported:
             return "Snapshot capture requires a live server connection."
         case .leakDetected(let details):
-            let list = details.prefix(5).joined(separator: "\n")
-            return "Snapshot refused: \(details.count) potential leak(s) detected.\(list.isEmpty ? "" : "\n" + list)"
+            let shown = details.prefix(5).joined(separator: "\n")
+            let more =
+                details.count > 5 ? "\n…and \(details.count - 5) more." : ""
+            return """
+                The snapshot was not saved: the privacy check still found \
+                \(details.count) value\(details.count == 1 ? "" : "s") that looked \
+                identifying after redaction. This is a bug in the app's redaction, \
+                not a problem with your server. Please report it with this message.
+                \(shown)\(more)
+                """
         case .malformed(let message):
             return "Snapshot could not be built: \(message)"
         case .unsupportedVersion(let version):

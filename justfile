@@ -57,7 +57,7 @@ test: test-packages test-app
 
 # Run only the daemon-free snapshot UI tests (no credentials, no daemon).
 test-snapshot:
-    set -o pipefail; xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'platform=macOS' test -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotMainWindow -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotTorrentMenuAndCopyShortcut -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotCopyAndViewCommands | (command -v xcbeautify >/dev/null && xcbeautify || cat)
+    set -o pipefail; xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'platform=macOS' test -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotMainWindow -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotTorrentMenuAndCopyShortcut -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotCopyAndViewCommands -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotTypeSelectJumpsToTorrent -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotFilesTabListsEveryFile -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotFilesTabTakesKeyboardFocus -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotTableClearsToolbarAndStatusBar -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotToolbarLabels -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotPeersTableFitsInspector -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotFilesTabSortMenu -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotHeaderFlipsSortOnEveryFastClick | (command -v xcbeautify >/dev/null && xcbeautify || cat)
 
 # Start the local dev daemon (needs `brew install transmission-cli`).
 daemon:
@@ -72,11 +72,16 @@ test-e2e:
 # creates a development certificate on first run if you're signed into Xcode.
 # Defaults to the project's team — override with `just test-appintents <TEAM_ID>`.
 test-appintents team="JK45236K44":
-    set -o pipefail; TEST_RUNNER_TRANSMISSION_APPINTENTS=1 xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'platform=macOS' -allowProvisioningUpdates DEVELOPMENT_TEAM={{ team }} test -only-testing:TransmissionSwiftUITests/AppIntentsUITests | (command -v xcbeautify >/dev/null && xcbeautify || cat)
+    xcrun swift scripts/check_appintents_toolchain.swift
+    set -o pipefail; TEST_RUNNER_TRANSMISSION_APPINTENTS=1 xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'platform=macOS' -allowProvisioningUpdates DEVELOPMENT_TEAM={{ team }} -Xswiftc -DAPP_INTENTS_UI_TESTS test -only-testing:TransmissionSwiftUITests/AppIntentsUITests | (command -v xcbeautify >/dev/null && xcbeautify || cat)
 
 # Launch a Debug build showing the committed snapshot fixture (read-only, no daemon).
 run-snapshot snapshot="{{ snapshot_fixture }}":
     open Build/Products/Debug/TransmissionSwift.app --args --snapshot {{ snapshot }}
+
+# Like run-snapshot, but the replay ticks like a live daemon every `poll` seconds, each response delayed by `latency` seconds.
+run-snapshot-live poll="1" latency="0.3" snapshot="{{ snapshot_fixture }}":
+    open Build/Products/Debug/TransmissionSwift.app --args --snapshot {{ snapshot }} --snapshot-poll {{ poll }} --snapshot-latency {{ latency }}
 
 # Preview the Pages site locally: render into build/site, then serve it.
 serve:

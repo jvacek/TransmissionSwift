@@ -187,6 +187,7 @@ struct WindowMenuExcluder: NSViewRepresentable {
     }
 }
 
+#if DEBUG
 #Preview("Preferences — Connected") {
     PreferencesView()
         .environment(prefsPreviewProfileStore)
@@ -197,3 +198,4 @@ struct WindowMenuExcluder: NSViewRepresentable {
         .environment(TagColorStore())
         .frame(width: 700, height: 560)
 }
+#endif

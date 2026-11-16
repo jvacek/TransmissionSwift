@@ -4,7 +4,10 @@
 
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 /// Key-value overview of the selected torrent: transfer state up top, then
 /// immutable torrent metadata, then location/labels/priority.
@@ -84,6 +87,7 @@ struct InspectorGeneralTab: View {
                 .font(.headline)
 
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
+                nameRow
                 row("Size", ColumnFormatters.humanizedSize(torrent.size))
                 row(
                     "Pieces",
@@ -119,6 +123,29 @@ struct InspectorGeneralTab: View {
                 trackerRow
             }
             .font(.callout)
+        }
+    }
+
+    /// Wraps instead of truncating: the name is the one value worth reading whole.
+    private var nameRow: some View {
+        GridRow(alignment: .firstTextBaseline) {
+            Text("Name")
+                .foregroundStyle(.secondary)
+                .gridColumnAlignment(.trailing)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(torrent.name)
+                    .lineLimit(4)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if store.actionsEnabled {
+                    Button("Rename…") {
+                        store.openRenameTorrent(for: torrent.id)
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                    .accessibilityLabel("Rename torrent")
+                }
+            }
         }
     }
 
@@ -318,9 +345,11 @@ struct InspectorGeneralTab: View {
     }
 }
 
+#if DEBUG
 #Preview {
     InspectorGeneralTab(torrent: Torrent.samples[4])
         .environment(TorrentStore(service: MockTorrentService()))
         .environment(TagColorStore())
         .frame(width: 322, height: 640)
 }
+#endif

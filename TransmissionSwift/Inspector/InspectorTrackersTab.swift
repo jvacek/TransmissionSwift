@@ -4,7 +4,10 @@
 
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 /// Tracker announce endpoints grouped by failover tier, one `GroupBox` card
 /// per tracker. Every edit (add, change URL, remove, re-tier) rewrites the
@@ -319,6 +322,7 @@ private struct AddTrackerSheet: View {
                 Spacer()
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
+                    .disabled(isSaving)
                 Button(submitLabel) {
                     Task { await submit() }
                 }
@@ -329,6 +333,7 @@ private struct AddTrackerSheet: View {
         }
         .padding(20)
         .frame(width: 420)
+        .interactiveDismissDisabled(isSaving)
         .onAppear {
             announce = editing?.announce ?? ""
         }
@@ -372,6 +377,7 @@ private struct AddTrackerSheet: View {
             saveError =
                 store.lastActionError?.localizedDescription
                 ?? (editing == nil ? "Failed to add the tracker." : "Failed to change the tracker URL.")
+            store.lastActionError = nil
         }
     }
 }
@@ -416,34 +422,44 @@ nonisolated func trackerAnnounceValidation(
     return nil
 }
 
+#if DEBUG
 #Preview("Multi-tier Trackers") {
     InspectorTrackersTab(torrent: Torrent.samples[4])
         .environment(previewTorrentStore)
         .environment(FaviconStore())
         .frame(width: 322, height: 500)
 }
+#endif
 
+#if DEBUG
 #Preview("Private Trackers") {
     InspectorTrackersTab(torrent: Torrent.samples[1])
         .environment(previewTorrentStore)
         .environment(FaviconStore())
         .frame(width: 322, height: 500)
 }
+#endif
 
+#if DEBUG
 #Preview("Add Tracker") {
     AddTrackerSheet(torrent: Torrent.samples[4])
         .environment(previewTorrentStore)
         .frame(width: 420)
 }
+#endif
 
+#if DEBUG
 #Preview("Change Tracker URL") {
     AddTrackerSheet(torrent: Torrent.samples[4], editing: Torrent.samples[4].trackers[0])
         .environment(previewTorrentStore)
         .frame(width: 420)
 }
+#endif
 
+#if DEBUG
 #Preview("Add Tracker (Private)") {
     AddTrackerSheet(torrent: Torrent.samples[1])
         .environment(previewTorrentStore)
         .frame(width: 420)
 }
+#endif

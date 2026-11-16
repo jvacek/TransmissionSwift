@@ -128,8 +128,10 @@ struct TransfersPrefsPane: View {
     }
 }
 
+#if DEBUG
 #Preview("Transfers — Connected") {
     TransfersPrefsPane()
         .environment(prefsPreviewStore)
         .frame(width: 480, height: 620)
 }
+#endif

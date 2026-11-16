@@ -10,6 +10,12 @@ Use `just <recipe>`; `just --list` shows all. The justfile wraps the common comm
 
 Inside Xcode, prefer the `xcode` MCP tools (`BuildProject`, `RunSomeTests`, `XcodeRefreshCodeIssuesInFile`) over raw `xcodebuild` — they pre-parse output and save context.
 
+## Toolchain
+
+- The App Intents UI tests are a separate, compile-gated lane: `just test-appintents` passes `-DAPP_INTENTS_UI_TESTS` and preflights `AppIntentsTesting` with `scripts/check_appintents_toolchain.swift`.
+- Never add that define to the default test build. The main UI suite must not link `AppIntentsTesting`; a mismatched Xcode/macOS pair would otherwise stop every UI test from loading.
+- Pin the Xcode/macOS pair in CI. Xcode 27.2's `AppIntentsTesting` did not load against macOS 27.0.1 (missing `AppIntentsTypeSupport` symbol). Update both together, or use the pair baked into the runner image.
+
 ## Conventions
 
 - **Style:** swift-format owns it (`.swift-format`, 4 spaces). Run it; don't argue.

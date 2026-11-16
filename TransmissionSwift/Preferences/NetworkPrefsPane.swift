@@ -118,14 +118,18 @@ struct NetworkPrefsPane: View {
     }
 }
 
+#if DEBUG
 #Preview("Network — Connected") {
     NetworkPrefsPane()
         .environment(prefsPreviewStore)
         .frame(width: 480, height: 1000)
 }
+#endif
 
+#if DEBUG
 #Preview("Session — Not Connected") {
     NetworkPrefsPane()
         .environment(prefsDisconnectedPreviewStore)
         .frame(width: 480, height: 360)
 }
+#endif

@@ -141,6 +141,17 @@ final class TransmissionSwiftUITests: XCTestCase {
         XCTAssertTrue(resume.waitForExistence(timeout: 3))
         XCTAssertFalse(resume.isEnabled)
         XCTAssertFalse(app.menuItems["Start or Stop All"].isEnabled)
+        // SwiftUI does not propagate `.disabled` to a command submenu's parent
+        // item, so assert the actions themselves rather than "Priority".
+        XCTAssertTrue(app.menuItems["Priority"].waitForExistence(timeout: 3))
+        app.menuItems["Priority"].click()
+        for name in ["High", "Normal", "Low"] {
+            let item = app.menuItems[name]
+            XCTAssertTrue(item.waitForExistence(timeout: 3), "Expected the \(name) priority item")
+            XCTAssertFalse(item.isEnabled)
+        }
+        app.typeKey(.escape, modifierFlags: [])
+        torrentMenu.click()
         XCTAssertTrue(app.menuItems["Edit Labels…"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.menuItems["Set Location…"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.menuItems["Rename…"].waitForExistence(timeout: 3))
@@ -222,7 +233,7 @@ final class TransmissionSwiftUITests: XCTestCase {
 
         // ⌘F lands in the search field.
         app.typeKey("f", modifierFlags: .command)
-        let search = app.searchFields.firstMatch
+        let search = app.searchFields["toolbar.search"]
         XCTAssertTrue(search.waitForExistence(timeout: 3))
         app.typeText("ubuntu")
         XCTAssertTrue(
@@ -245,21 +256,24 @@ final class TransmissionSwiftUITests: XCTestCase {
         XCTAssertTrue(sidebarItem.exists, "Expected a Show/Hide Sidebar item")
         app.typeKey(.escape, modifierFlags: [])
 
-        let inspector = app.descendants(matching: .any)
-            .matching(identifier: "inspector.tabs").firstMatch
-        let inspectorWasVisible = inspector.exists
+        // Read the state from the toggle's label: the tab picker sits in the
+        // toolbar and appears a moment after the pane does.
+        let toggle = app.buttons["toolbar.inspector"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        func inspectorVisible() -> Bool { toggle.label == "Hide Inspector" }
+        let inspectorWasVisible = inspectorVisible()
         // The app owns this preference. If an assertion aborts the test, put
         // the pane back through the same shortcut instead of leaving the
         // developer's app toggled.
         defer {
-            if inspector.exists != inspectorWasVisible {
+            if inspectorVisible() != inspectorWasVisible {
                 app.typeKey("i", modifierFlags: .command)
             }
         }
         app.typeKey("i", modifierFlags: .command)
-        XCTAssertTrue(waitUntil { inspector.exists != inspectorWasVisible })
+        XCTAssertTrue(waitUntil { inspectorVisible() != inspectorWasVisible })
         app.typeKey("i", modifierFlags: .command)
-        XCTAssertTrue(waitUntil { inspector.exists == inspectorWasVisible })
+        XCTAssertTrue(waitUntil { inspectorVisible() == inspectorWasVisible })
 
         let sidebar = app.descendants(matching: .any)
             .matching(identifier: "sidebar.status.all").firstMatch
@@ -273,6 +287,317 @@ final class TransmissionSwiftUITests: XCTestCase {
         XCTAssertTrue(waitUntil { sidebar.exists != sidebarWasVisible })
         app.typeKey("s", modifierFlags: [.command, .control])
         XCTAssertTrue(waitUntil { sidebar.exists == sidebarWasVisible })
+    }
+
+    /// Type-select is an AppKit delegate path: clicking a row then typing a
+    /// prefix must move the selection. The unit test covers the delegate return
+    /// value; this proves NSTableView actually consults it.
+    @MainActor
+    func testSnapshotTypeSelectJumpsToTorrent() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let app = snapshotApp(fixture)
+        let table = app.tables["torrents.table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 15))
+        XCTAssertTrue(table.cells.firstMatch.waitForExistence(timeout: 10))
+
+        // Select a row first: the inspector shows its tab picker only when a
+        // torrent is selected.
+        table.cells.firstMatch.click()
+        let tabs = app.descendants(matching: .any)
+            .matching(identifier: "inspector.tabs").firstMatch
+        if !tabs.waitForExistence(timeout: 2) {
+            app.typeKey("i", modifierFlags: .command)
+        }
+        XCTAssertTrue(tabs.waitForExistence(timeout: 5), "Expected the inspector")
+
+        // Focus the table again, then type a prefix of a torrent that is not first.
+        table.cells.firstMatch.click()
+        app.typeText("debian")
+
+        let selected = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Debian 12.6")
+        ).firstMatch
+        XCTAssertTrue(
+            selected.waitForExistence(timeout: 5),
+            "Expected type-select to move the selection to Debian 12.6")
+    }
+
+    /// The Files tab uses a real Table. The fixture's Debian torrent has
+    /// seven files, so this proves the inspector detail fetch and the new list
+    /// both render every row.
+    @MainActor
+    func testSnapshotFilesTabListsEveryFile() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let app = snapshotApp(fixture)
+        let table = app.tables["torrents.table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 15))
+
+        let debian = table.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Debian 12.6")
+        ).firstMatch
+        XCTAssertTrue(debian.waitForExistence(timeout: 10))
+        debian.click()
+
+        let tabs = app.descendants(matching: .any)
+            .matching(identifier: "inspector.tabs").firstMatch
+        if !tabs.waitForExistence(timeout: 2) {
+            app.typeKey("i", modifierFlags: .command)
+        }
+        XCTAssertTrue(tabs.waitForExistence(timeout: 5), "Expected the inspector")
+
+        let filesTab = tabs.buttons["Files"]
+        XCTAssertTrue(filesTab.waitForExistence(timeout: 3), "Expected the Files tab")
+        filesTab.click()
+
+        let list = app.descendants(matching: .any)
+            .matching(identifier: "inspector.files.list").firstMatch
+        XCTAssertTrue(list.waitForExistence(timeout: 5), "Expected the files list")
+
+        let firstFile = list.staticTexts["debian-12.6.0-amd64-netinst.iso"]
+        XCTAssertTrue(
+            firstFile.waitForExistence(timeout: 15),
+            "Expected the Debian torrent's file rows")
+        XCTAssertEqual(list.checkBoxes.count, 7)
+    }
+
+    /// Clicking a file row must hand keyboard focus to the files list. SwiftUI
+    /// keeps the torrent table as the window's key view otherwise, so arrows
+    /// moved the torrent selection while the files list drew a grey highlight.
+    @MainActor
+    func testSnapshotFilesTabTakesKeyboardFocus() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let app = snapshotApp(fixture)
+        let table = app.tables["torrents.table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 15))
+        let debian = table.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Debian 12.6")
+        ).firstMatch
+        XCTAssertTrue(debian.waitForExistence(timeout: 10))
+        debian.click()
+
+        let tabs = app.descendants(matching: .any)
+            .matching(identifier: "inspector.tabs").firstMatch
+        if !tabs.waitForExistence(timeout: 2) {
+            app.typeKey("i", modifierFlags: .command)
+        }
+        XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+        tabs.buttons["Files"].click()
+
+        let list = app.descendants(matching: .any)
+            .matching(identifier: "inspector.files.list").firstMatch
+        XCTAssertTrue(list.waitForExistence(timeout: 5))
+        let firstFile = list.cells.element(boundBy: 0)
+        XCTAssertTrue(firstFile.waitForExistence(timeout: 15))
+        firstFile.click()
+
+        app.typeKey(.downArrow, modifierFlags: [])
+        XCTAssertTrue(
+            waitUntil { list.cells.element(boundBy: 1).isSelected },
+            "Expected Down to move the file selection, not the torrent selection")
+    }
+
+    /// The table runs under the toolbar (so its header blends in) but must
+    /// still inset its rows below it, and it must stop above the status bar.
+    @MainActor
+    func testSnapshotTableClearsToolbarAndStatusBar() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let app = snapshotApp(fixture)
+        let table = app.tables["torrents.table"]
+        let firstRow = table.cells.firstMatch
+        XCTAssertTrue(firstRow.waitForExistence(timeout: 15))
+        let statusBar = app.staticTexts["statusBar.count"]
+        XCTAssertTrue(statusBar.waitForExistence(timeout: 5))
+        let toolbar = app.toolbars.firstMatch
+        XCTAssertTrue(toolbar.waitForExistence(timeout: 5))
+
+        XCTAssertGreaterThanOrEqual(
+            firstRow.frame.minY, toolbar.frame.maxY,
+            "Expected the first row to start below the toolbar, not under it")
+        // The table's own frame, not the last row: the fixture is too short
+        // for rows to reach the bottom, but the table fills its clip view.
+        XCTAssertLessThanOrEqual(
+            table.frame.maxY, statusBar.frame.minY + 1,
+            "Expected the table to stop above the status bar, not run under it")
+    }
+
+    /// Toolbar buttons speak like the View menu ("Show/Hide Inspector"), and
+    /// the icon-only server switcher reads as the server's name.
+    @MainActor
+    func testSnapshotToolbarLabels() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let app = snapshotApp(fixture)
+        let inspectorButton = app.buttons["toolbar.inspector"]
+        XCTAssertTrue(inspectorButton.waitForExistence(timeout: 15))
+        let before = inspectorButton.label
+        XCTAssertTrue(["Show Inspector", "Hide Inspector"].contains(before), "Got \(before)")
+        let expected = before == "Show Inspector" ? "Hide Inspector" : "Show Inspector"
+
+        // Toggling persists, so flip it back either way.
+        inspectorButton.click()
+        defer { inspectorButton.click() }
+        XCTAssertTrue(
+            waitUntil { inspectorButton.label == expected },
+            "Expected the inspector button's label to follow the inspector")
+
+        let switcher = app.descendants(matching: .any)
+            .matching(identifier: "toolbar.serverSwitcher").firstMatch
+        XCTAssertTrue(switcher.waitForExistence(timeout: 5))
+        // A menu button exposes its accessibility label as the title.
+        XCTAssertEqual(
+            switcher.title, "My remote server",
+            "Expected the server switcher to read as the server name, not the symbol")
+    }
+
+    /// Every Peers column fits the inspector's default width, so speeds never
+    /// sit off to the right behind a horizontal scroll.
+    @MainActor
+    func testSnapshotPeersTableFitsInspector() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let app = snapshotApp(fixture)
+        let table = app.tables["torrents.table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 15))
+        let ubuntu = table.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Ubuntu 24.04.2")
+        ).firstMatch
+        XCTAssertTrue(ubuntu.waitForExistence(timeout: 10))
+        ubuntu.click()
+
+        let tabs = app.descendants(matching: .any)
+            .matching(identifier: "inspector.tabs").firstMatch
+        if !tabs.waitForExistence(timeout: 2) {
+            app.typeKey("i", modifierFlags: .command)
+        }
+        XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+        tabs.buttons["Peers"].click()
+
+        // SwiftUI exposes the Table as an outline.
+        let peers = app.outlines["inspector.peers.table"]
+        let firstRow = peers.outlineRows.firstMatch
+        XCTAssertTrue(firstRow.waitForExistence(timeout: 5))
+        let lastCell = firstRow.cells.element(boundBy: firstRow.cells.count - 1)
+        XCTAssertLessThanOrEqual(
+            lastCell.frame.maxX, peers.frame.maxX + 1,
+            "Expected the last Peers column to fit inside the inspector")
+    }
+
+    /// The Files tab sorts from a Finder-style "Sort By" menu. Picking a key
+    /// resorts the rows and starts at that key's natural direction (most
+    /// complete first for Progress).
+    @MainActor
+    func testSnapshotFilesTabSortMenu() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let app = snapshotApp(fixture)
+        let table = app.tables["torrents.table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 15))
+        let debian = table.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Debian 12.6")
+        ).firstMatch
+        XCTAssertTrue(debian.waitForExistence(timeout: 10))
+        debian.click()
+
+        let tabs = app.descendants(matching: .any)
+            .matching(identifier: "inspector.tabs").firstMatch
+        if !tabs.waitForExistence(timeout: 2) {
+            app.typeKey("i", modifierFlags: .command)
+        }
+        XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+        tabs.buttons["Files"].click()
+
+        let list = app.descendants(matching: .any)
+            .matching(identifier: "inspector.files.list").firstMatch
+        let firstRow = list.cells.element(boundBy: 0)
+        XCTAssertTrue(firstRow.waitForExistence(timeout: 15))
+        // Name order puts the 4% DVD image first.
+        XCTAssertTrue(firstRow.staticTexts["4%"].exists)
+
+        let sort = app.descendants(matching: .any)
+            .matching(identifier: "inspector.files.sort").firstMatch
+        XCTAssertTrue(sort.waitForExistence(timeout: 5))
+        sort.click()
+        app.menuItems["Progress"].click()
+
+        XCTAssertTrue(
+            waitUntil { list.cells.element(boundBy: 0).staticTexts["100%"].exists },
+            "Expected Progress to sort the most complete file first")
+        XCTAssertTrue(
+            waitUntil { sort.title == "Sort by Progress" },
+            "Expected the menu to name the active sort, got \(sort.title)")
+    }
+
+    /// Clicking a column header quickly must flip the sort on every click.
+    /// Clicks inside the double-click interval arrive with a click count of 2,
+    /// and AppKit used to route those to the table's `doubleAction` instead of
+    /// sorting, so every second fast click did nothing.
+    @MainActor
+    func testSnapshotHeaderFlipsSortOnEveryFastClick() throws {
+        guard let fixture = fixtureURL() else {
+            throw XCTSkip("Missing committed snapshot fixture")
+        }
+
+        let app = snapshotApp(fixture)
+        let table = app.tables["torrents.table"]
+        XCTAssertTrue(table.cells.firstMatch.waitForExistence(timeout: 15))
+        let header = table.buttons["Size"]
+        XCTAssertTrue(header.waitForExistence(timeout: 5))
+        // Click by coordinate. Under the toolbar the header reads as not
+        // hittable to XCUITest (AppKit hit-tests it fine), and element clicks
+        // then stop behaving like a real double click, hiding the bug.
+        let headerPoint = header.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let parkPoint = app.windows.firstMatch.coordinate(
+            withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02))
+
+        // The sort direction isn't in the accessibility tree, so read the
+        // arrow from pixels, with the pointer parked so hover can't differ.
+        func arrow() -> Data {
+            parkPoint.hover()
+            Thread.sleep(forTimeInterval: 0.3)
+            return header.screenshot().pngRepresentation
+        }
+        func topRow() -> String {
+            table.cells.element(boundBy: 0).staticTexts.firstMatch.label
+        }
+
+        headerPoint.click()
+        Thread.sleep(forTimeInterval: 0.6)
+        let firstArrow = arrow()
+        let firstTop = topRow()
+
+        headerPoint.click()
+        Thread.sleep(forTimeInterval: 0.6)
+        let secondArrow = arrow()
+        let secondTop = topRow()
+        XCTAssertNotEqual(secondArrow, firstArrow, "Expected a slow second click to flip the arrow")
+        XCTAssertNotEqual(secondTop, firstTop, "Expected a slow second click to re-sort the rows")
+
+        // Two fast clicks flip twice, landing back where they started. With
+        // the bug only the first flipped, leaving the first click's state.
+        headerPoint.doubleClick()
+        Thread.sleep(forTimeInterval: 0.6)
+        XCTAssertEqual(
+            topRow(), secondTop, "Expected both clicks of a fast double click to re-sort the rows")
+        XCTAssertEqual(
+            arrow(), secondArrow, "Expected both clicks of a fast double click to flip the arrow")
     }
 
     /// Launches the app on the committed snapshot fixture. State restoration is

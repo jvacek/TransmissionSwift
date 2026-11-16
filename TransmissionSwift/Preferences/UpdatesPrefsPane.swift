@@ -20,7 +20,9 @@ struct UpdatesPrefsPane: View {
     }
 }
 
+#if DEBUG
 #Preview("Updates") {
     UpdatesPrefsPane()
         .frame(width: 480, height: 240)
 }
+#endif

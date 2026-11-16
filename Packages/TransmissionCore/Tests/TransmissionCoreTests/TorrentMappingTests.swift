@@ -775,6 +775,7 @@ struct RPCTorrentServiceTests {
         private(set) var fullPolls = 0
         private var fullPollTorrents: [WireTorrent] = []
         private var incrementalTorrents: [WireTorrent] = []
+        private var torrentGetError: TransmissionError?
 
         /// Which response a test can hold, so it lands after the snapshot it
         /// must no longer be allowed to write.
@@ -790,6 +791,11 @@ struct RPCTorrentServiceTests {
         func setStubTorrents(full: [WireTorrent], incremental: [WireTorrent] = []) {
             fullPollTorrents = full
             incrementalTorrents = incremental
+        }
+
+        /// Makes the next polls fail, so the health stream can be observed.
+        func setTorrentGetError(_ error: TransmissionError?) {
+            torrentGetError = error
         }
 
         /// Answer the next request of this kind from current state, then block
@@ -816,6 +822,7 @@ struct RPCTorrentServiceTests {
             -> TorrentGetResponse
         {
             callCount += 1
+            if let torrentGetError { throw torrentGetError }
             let kind: Gate
             let response: TorrentGetResponse
             if ids == nil {
@@ -964,6 +971,26 @@ struct RPCTorrentServiceTests {
         _ = try await iterator.next()
         // Without the wake-up this would wait out the whole 2-second interval.
         #expect(Date().timeIntervalSince(posted) < 1.5)
+    }
+
+    @Test("health reports a failed poll and recovery")
+    func healthReportsFailures() async throws {
+        let stub = StubClient()
+        let service = RPCTorrentService(
+            client: stub, pollingInterval: { 60 }, incrementalPollingInterval: { 0.1 },
+            retryDelayProvider: { _ in 0.05 })
+        let health = await service.pollHealth()
+        let stream = await service.torrentsStream()
+        var torrents = stream.makeAsyncIterator()
+        _ = try await torrents.next()
+        var states = health.makeAsyncIterator()
+        #expect(await states.next() == .ok)
+
+        await stub.setTorrentGetError(.network(URLError(.timedOut)))
+        #expect(await states.next() == .failing)
+
+        await stub.setTorrentGetError(nil)
+        #expect(await states.next() == .ok)
     }
 
     @Test("a response from a replaced stream cannot seed the new stream's cache")

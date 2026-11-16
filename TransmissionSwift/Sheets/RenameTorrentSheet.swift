@@ -4,7 +4,10 @@
 
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 /// Sheet for renaming a torrent's root (its display name).
 ///
@@ -33,7 +36,7 @@ struct RenameTorrentSheet: View {
                     .truncationMode(.middle)
             }
 
-            TextField("New name", text: $newName)
+            TextField("Name", text: $newName, prompt: Text("New Name"))
                 .textFieldStyle(.roundedBorder)
                 .disabled(isSaving)
                 .onSubmit { Task { await apply() } }
@@ -52,20 +55,18 @@ struct RenameTorrentSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            HStack {
-                Spacer()
-                Button("Cancel") { isPresented = false }
-                    .keyboardShortcut(.cancelAction)
-                Button(isSaving ? "Renaming…" : "Rename") {
-                    Task { await apply() }
-                }
-                .buttonStyle(.glassProminent)
-                .disabled(!canApply)
-                .keyboardShortcut(.defaultAction)
-            }
+            SheetButtonRow(
+                "Rename",
+                busyTitle: "Renaming…",
+                isBusy: isSaving,
+                canConfirm: canApply,
+                onCancel: { isPresented = false },
+                onConfirm: { Task { await apply() } }
+            )
         }
         .padding(20)
         .frame(width: 400)
+        .interactiveDismissDisabled(isSaving)
         .onAppear {
             newName = currentName ?? ""
         }
@@ -79,15 +80,15 @@ struct RenameTorrentSheet: View {
         newName.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Only a slash is worth explaining: an empty or unchanged name simply
+    /// keeps Rename disabled, the way Finder behaves.
     private var validationError: String? {
-        if trimmedName.isEmpty { return "Enter a new name." }
-        if trimmedName.contains("/") { return "The name can't contain “/”." }
-        if trimmedName == currentName { return "Enter a different name." }
-        return nil
+        trimmedName.contains("/") ? "The name can't contain “/”." : nil
     }
 
     private var canApply: Bool {
-        !isSaving && validationError == nil && store.actionsEnabled
+        !isSaving && store.actionsEnabled && validationError == nil
+            && !trimmedName.isEmpty && trimmedName != currentName
     }
 
     private func apply() async {
@@ -100,10 +101,12 @@ struct RenameTorrentSheet: View {
             isPresented = false
         } else {
             saveError = store.lastActionError?.localizedDescription ?? "Failed to rename torrent."
+            store.lastActionError = nil
         }
     }
 }
 
+#if DEBUG
 #Preview("Rename Torrent") {
     let store = TorrentStore(service: MockTorrentService())
     store.list.selectedTorrentIDs = [5]
@@ -111,3 +114,4 @@ struct RenameTorrentSheet: View {
         .environment(store)
         .frame(width: 400)
 }
+#endif

@@ -948,6 +948,23 @@ struct TorrentStoreTests {
         #expect(store.list.torrents.isEmpty)
     }
 
+    @Test("health failures raise the reconnecting flag and recovery clears it")
+    @MainActor
+    func reconnectingFlag() async {
+        let service = MockTorrentService()
+        let store = TorrentStore(service: service)
+        await waitFor { store.connection == .connected }
+        #expect(!store.isReconnecting)
+
+        await service.reportHealth(.failing)
+        await waitFor { store.isReconnecting }
+        #expect(store.isReconnecting)
+
+        await service.reportHealth(.ok)
+        await waitFor { !store.isReconnecting }
+        #expect(!store.isReconnecting)
+    }
+
     @Test("disconnect stops polling and clears per-server state")
     @MainActor
     func disconnectClearsPerServerState() async {

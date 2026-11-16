@@ -349,6 +349,7 @@ struct ServerPathField: View {
     }
 }
 
+#if DEBUG
 #Preview("Server Path Field") {
     @Previewable @State var path = "Movies"
     return ServerPathField(
@@ -360,3 +361,4 @@ struct ServerPathField: View {
     .padding(20)
     .frame(width: 460)
 }
+#endif

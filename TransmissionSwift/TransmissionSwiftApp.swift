@@ -118,7 +118,8 @@ struct TransmissionSwiftApp: App {
         if let snapshotPath {
             do {
                 let snapshotService = try SnapshotTorrentService(
-                    fileURL: URL(fileURLWithPath: snapshotPath))
+                    fileURL: URL(fileURLWithPath: snapshotPath),
+                    options: Self.parseReplayOptions(from: args))
                 // Colours are captured in the snapshot, so replay shows the same
                 // assignments without touching the user's real prefs.
                 snapshotTagColors = snapshotService.tagColors
@@ -132,7 +133,15 @@ struct TransmissionSwiftApp: App {
         } else {
             service = EmptyTorrentService()
         }
-        let store = TorrentStore(service: service)
+        // Replay sorts in memory, starting from the saved sort, so clicking a
+        // header behaves as it does live without overwriting the real preference.
+        let store =
+            snapshotPath == nil
+            ? TorrentStore(service: service)
+            : TorrentStore(
+                service: service,
+                tablePreferences: InMemoryTablePreferencesStore(
+                    UserDefaultsTablePreferencesStore().tablePreferences))
         self._torrentStore = State(wrappedValue: store)
         // Owned by the app so closing the main window does not rebuild the
         // connect flow (and re-read the Keychain) when it reopens.
@@ -163,6 +172,21 @@ struct TransmissionSwiftApp: App {
             tagColorStore.seed(snapshotTagColors)
         }
         self._tagColorStore = State(wrappedValue: tagColorStore)
+    }
+
+    /// `--snapshot-poll <seconds>` makes replay tick like a live daemon;
+    /// `--snapshot-latency <seconds>` delays each simulated response, like a slow
+    /// server. Both default to off (a frozen replay).
+    static func parseReplayOptions(from args: [String]) -> SnapshotReplayOptions {
+        func seconds(after flag: String) -> Duration? {
+            guard let index = args.firstIndex(of: flag), args.indices.contains(index + 1),
+                let value = Double(args[index + 1]), value >= 0
+            else { return nil }
+            return .milliseconds(Int(value * 1000))
+        }
+        return SnapshotReplayOptions(
+            pollInterval: seconds(after: "--snapshot-poll").flatMap { $0 > .zero ? $0 : nil },
+            latency: seconds(after: "--snapshot-latency") ?? .zero)
     }
 
     /// Extracts the snapshot path from `--snapshot <path>` or `--snapshot=<path>`.
@@ -333,6 +357,27 @@ private struct TorrentCommands: Commands {
                 torrentStore.perform(.pause, ids: ids)
             }
             .keyboardShortcut("p", modifiers: .command)
+            .disabled(!canAct)
+
+            // Same submenu the row context menu shows. No checkmarks: reading a
+            // torrent's live priority here would rebuild the menu bar on every
+            // poll. Shortcuts follow the canonical high → normal → low order.
+            Menu("Priority") {
+                Button("High") {
+                    torrentStore.perform(.setPriority(.high), ids: ids)
+                }
+                .keyboardShortcut("1", modifiers: [.command, .option])
+
+                Button("Normal") {
+                    torrentStore.perform(.setPriority(.normal), ids: ids)
+                }
+                .keyboardShortcut("2", modifiers: [.command, .option])
+
+                Button("Low") {
+                    torrentStore.perform(.setPriority(.low), ids: ids)
+                }
+                .keyboardShortcut("3", modifiers: [.command, .option])
+            }
             .disabled(!canAct)
 
             Button("Start or Stop Selected") {

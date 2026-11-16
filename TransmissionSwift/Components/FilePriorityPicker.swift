@@ -150,6 +150,7 @@ struct FilePriorityPicker: View {
     }
 }
 
+#if DEBUG
 #Preview("File Priority Picker") {
     VStack(alignment: .leading, spacing: 14) {
         HStack(spacing: 16) {
@@ -179,7 +180,9 @@ struct FilePriorityPicker: View {
     }
     .padding(20)
 }
+#endif
 
+#if DEBUG
 #Preview("Priority chip in row") {
     VStack(spacing: 0) {
         HStack(spacing: 4) {
@@ -207,3 +210,4 @@ struct FilePriorityPicker: View {
     .padding()
     .background(Color(nsColor: .windowBackgroundColor))
 }
+#endif

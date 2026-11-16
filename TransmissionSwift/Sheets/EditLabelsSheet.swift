@@ -4,7 +4,10 @@
 
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 /// Dedicated popup for editing a torrent's labels. Prefills with the union of
 /// the target set's labels, so a bulk edit keeps every existing label, and
@@ -29,20 +32,18 @@ struct EditLabelsSheet: View {
             TagsInputField(tags: $tags, suggestions: suggestions)
                 .disabled(!store.actionsEnabled)
 
-            HStack {
-                Spacer()
-                Button("Cancel") { isPresented = false }
-                    .keyboardShortcut(.cancelAction)
-                Button(isSaving ? "Applying…" : "Apply") {
-                    Task { await apply() }
-                }
-                .buttonStyle(.glassProminent)
-                .disabled(isSaving || !store.actionsEnabled)
-                .keyboardShortcut(.defaultAction)
-            }
+            SheetButtonRow(
+                "Apply",
+                busyTitle: "Applying…",
+                isBusy: isSaving,
+                canConfirm: store.actionsEnabled,
+                onCancel: { isPresented = false },
+                onConfirm: { Task { await apply() } }
+            )
         }
         .padding(20)
         .frame(width: 400)
+        .interactiveDismissDisabled(isSaving)
         .onAppear { tags = initialLabels }
     }
 
@@ -74,6 +75,7 @@ struct EditLabelsSheet: View {
     }
 }
 
+#if DEBUG
 #Preview("Edit Labels") {
     let store = TorrentStore(service: MockTorrentService())
     return EditLabelsSheet(isPresented: .constant(true), ids: [2])
@@ -81,3 +83,4 @@ struct EditLabelsSheet: View {
         .environment(TagColorStore())
         .frame(width: 400)
 }
+#endif

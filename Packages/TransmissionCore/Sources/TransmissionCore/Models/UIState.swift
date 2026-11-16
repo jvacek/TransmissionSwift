@@ -21,7 +21,7 @@ public enum ConnectionState: Sendable, Equatable {
     }
 }
 
-/// One of the five tabs in the right-pane inspector.
+/// One of the four tabs in the right-pane inspector.
 public enum InspectorTab: String, Hashable, Sendable, CaseIterable, Codable {
-    case general, files, peers, trackers, options
+    case general, files, peers, trackers
 }

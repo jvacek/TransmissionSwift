@@ -22,7 +22,6 @@ struct AddTorrentSheet: View {
 
     @FocusState private var focusedField: Field?
     @State private var mode: AddTorrentInputMode = .file
-    @Namespace private var selectionNamespace
     @State private var fileURL: URL?
     @State private var fileTorrentName: String?
     @State private var addFiles: [TorrentAddFile] = []
@@ -61,8 +60,8 @@ struct AddTorrentSheet: View {
         // its content, letting the known-folders list expand the sheet
         // dynamically; only that list itself scrolls when it overflows.
         sheetContent
-            .overlay(alignment: .top) { headerBar }
             .frame(width: 560)
+            .interactiveDismissDisabled(isAdding)
             .fileImporter(
                 isPresented: $showFileImporter,
                 allowedContentTypes: [.torrentFile]
@@ -101,56 +100,43 @@ struct AddTorrentSheet: View {
             }
     }
 
-    /// The sheet's form. Kept out of a scroll view — it always fits — with top
-    /// padding clearing the floating glass header.
+    /// The sheet's form. Kept out of a scroll view: it always fits, letting the
+    /// known-folders list expand the sheet dynamically.
     private var sheetContent: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Add Torrent")
+                .font(.headline)
             modePicker
             sourceSection
             filesSection
             optionsSection
+            SheetButtonRow(
+                "Add",
+                busyTitle: "Adding…",
+                isBusy: isAdding,
+                canConfirm: isValid,
+                onCancel: { isPresented = false },
+                onConfirm: { Task { await submit() } }
+            )
         }
-        .padding(.top, 45)
-        .padding([.horizontal, .bottom], 20)
+        .padding(20)
     }
 
     // MARK: - Sections
 
-    /// File vs. link — the only mutually-exclusive choice — as a Liquid Glass
-    /// segmented control in the system style: one glass capsule holding all
-    /// segments, with the selected one as a raised accent pill that slides
-    /// between segments (droplet-style, via `matchedGeometryEffect`). The pill
-    /// is a plain fill, not nested glass — glass can't sample glass. The stock
-    /// `.segmented` picker keeps its pre-Tahoe chrome in content areas, hence
-    /// hand-rolled.
+    /// File vs. link, the only mutually exclusive choice.
     private var modePicker: some View {
-        HStack(spacing: 0) {
-            ForEach(AddTorrentInputMode.allCases, id: \.self) { segment in
-                let isSelected = mode == segment
-                Button {
-                    withAnimation(.smooth(duration: 0.35)) { mode = segment }
-                } label: {
-                    Text(segment.label)
-                        .font(.callout.weight(isSelected ? .semibold : .regular))
-                        .foregroundStyle(isSelected ? Color.white : Color.secondary)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 8)
-                        .background {
-                            if isSelected {
-                                Capsule()
-                                    .fill(Color.accentColor)
-                                    .matchedGeometryEffect(id: "modeSelection", in: selectionNamespace)
-                            }
-                        }
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(segment.label)
-                .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-
-            }
+        GlassSegmentedControl(
+            selection: $mode,
+            values: AddTorrentInputMode.allCases,
+            accessibilityLabel: \.label
+        ) { segment, isSelected in
+            Text(segment.label)
+                .font(.callout.weight(isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? Color.white : Color.secondary)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 8)
         }
-        .glassEffect(.regular.interactive(), in: .capsule)
         .frame(maxWidth: .infinity)
     }
 
@@ -168,14 +154,7 @@ struct AddTorrentSheet: View {
             .frame(height: 24)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.secondary.opacity(0.07))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(Color.secondary.opacity(0.25))
-            )
+            .background(cardBackground())
     }
 
     @ViewBuilder
@@ -283,14 +262,7 @@ struct AddTorrentSheet: View {
                         }
                     }
                     .padding(8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.secondary.opacity(0.06))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(Color.secondary.opacity(0.15))
-                    )
+                    .background(cardBackground())
                     .onChange(of: fileFilter) { _, _ in
                         rebuildTree()
                         selectedNodeIDs.removeAll()
@@ -457,14 +429,12 @@ struct AddTorrentSheet: View {
         }
     }
 
+    /// The system search field, with a clear button beside it: the stock
+    /// rounded field has no clear affordance on macOS.
     private var fileFilterField: some View {
-        HStack(spacing: 5) {
-            Image(systemName: "magnifyingglass")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            TextField("Filter files", text: $fileFilter)
-                .textFieldStyle(.plain)
-                .font(.callout)
+        HStack(spacing: 4) {
+            TextField("Filter Files", text: $fileFilter)
+                .textFieldStyle(.roundedBorder)
             if !fileFilter.isEmpty {
                 Button {
                     fileFilter = ""
@@ -476,16 +446,6 @@ struct AddTorrentSheet: View {
                 .accessibilityLabel("Clear file filter")
             }
         }
-        .padding(.horizontal, 7)
-        .frame(height: 24)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.secondary.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .stroke(Color.secondary.opacity(0.18))
-        )
     }
 
     private func inputField(for mode: AddTorrentInputMode) -> Field? {
@@ -495,40 +455,52 @@ struct AddTorrentSheet: View {
         }
     }
 
+    /// Shared inset-card surface: one system fill and the system separator, so
+    /// every box in the sheet matches in light and dark mode.
+    private func cardBackground(cornerRadius: CGFloat = 8) -> some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(.quaternary)
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(Color(nsColor: .separatorColor)))
+    }
+
     /// Shared options that apply to either source, in a grouped-form-style
-    /// card: fixed-width label column, vertical separator, control leading.
+    /// card. A Grid lets the label column size to its longest label at any
+    /// text size; the toggles below span the full row.
     private var optionsSection: some View {
-        VStack(spacing: 0) {
-            formRow("Destination", alignLabelToTop: true) {
-                ServerPathField(
-                    path: $destination,
-                    defaultDirectory: store.list.downloadDirectory,
-                    folders: knownFolders,
-                    serverName: serverName,
-                    torrentName: expectedTorrentName)
+        VStack(alignment: .leading, spacing: 10) {
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
+                GridRow(alignment: .top) {
+                    Text("Destination")
+                    ServerPathField(
+                        path: $destination,
+                        defaultDirectory: store.list.downloadDirectory,
+                        folders: knownFolders,
+                        serverName: serverName,
+                        torrentName: expectedTorrentName)
+                }
+                Divider().gridCellColumns(2)
+                GridRow {
+                    Text("Tags")
+                    TagsInputField(tags: $tags, suggestions: store.list.facets.labels.map(\.name))
+                        .help(
+                            "Type a tag and press Return to add it, or pick an existing one from the list that appears."
+                        )
+                }
+                Divider().gridCellColumns(2)
+                GridRow {
+                    Text("Priority")
+                    prioritySegments
+                }
             }
             Divider()
-            formRow("Tags") {
-                TagsInputField(tags: $tags, suggestions: store.list.facets.labels.map(\.name))
-                    .help(
-                        "Type a tag and press Return to add it — or pick an existing one from the list that appears."
-                    )
-            }
-            Divider()
-            formRow("Priority") {
-                prioritySegments
-            }
-            Divider()
-            formRow("") {
-                Toggle("Start when added", isOn: $startWhenAdded)
-            }
+            fullWidthToggle("Start when added", isOn: $startWhenAdded)
             // Links have no local file, so the cleanup option only makes
-            // sense — and only shows — for file adds.
+            // sense (and only shows) for file adds.
             if mode == .file {
                 Divider()
-                formRow("") {
-                    Toggle("Delete .torrent file after adding", isOn: $deleteSourceFile)
-                }
+                fullWidthToggle("Delete .torrent file after adding", isOn: $deleteSourceFile)
             }
             if let saveError {
                 Divider()
@@ -538,18 +510,23 @@ struct AddTorrentSheet: View {
                     .lineLimit(nil)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.secondary.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.secondary.opacity(0.15))
-        )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(cardBackground(cornerRadius: 10))
+    }
+
+    /// A grouped-form toggle row: label leading, switch trailing. A bare
+    /// switch-style `Toggle` keeps its switch next to the label outside a Form.
+    private func fullWidthToggle(_ title: String, isOn: Binding<Bool>) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Toggle(title, isOn: isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+        }
     }
 
     /// Folders the daemon already knows about, offered as one-click destinations.
@@ -668,106 +645,26 @@ struct AddTorrentSheet: View {
         }
     }
 
-    private let formLabelWidth: CGFloat = 90
-
-    private func formRow(
-        _ label: String, alignLabelToTop: Bool = false, @ViewBuilder content: () -> some View
-    ) -> some View {
-        HStack(alignment: alignLabelToTop ? .top : .center, spacing: 12) {
-            Text(label)
-                .foregroundStyle(.primary)
-                .frame(width: formLabelWidth, alignment: .leading)
-                .padding(.top, alignLabelToTop ? 4 : 0)
-            content()
-                .frame(maxWidth: .infinity, alignment: .trailing)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+    private static func priorityAccessibilityLabel(_ level: TorrentPriority) -> String {
+        "Priority \(level.displayLabel)"
     }
 
-    /// Priority as a Liquid Glass segmented control matching `modePicker`:
-    /// one interactive glass capsule, with an accent pill that slides between
-    /// segments (`matchedGeometryEffect`). Keeps the priority glyphs visible —
-    /// macOS segmented pickers drop `Label` icons.
+    /// Priority, keeping its glyphs visible.
     private var prioritySegments: some View {
-        HStack(spacing: 0) {
-            ForEach([TorrentPriority.high, .normal, .low], id: \.self) { level in
-                let isSelected = priority == level
-                Button {
-                    withAnimation(.smooth(duration: 0.35)) { priority = level }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: level.systemImage)
-                        Text(level.displayLabel)
-                    }
-                    .font(.callout)
-                    .foregroundStyle(isSelected ? Color.white : level.displayColor)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
-                    .background {
-                        if isSelected {
-                            Capsule()
-                                .fill(Color.accentColor)
-                                .matchedGeometryEffect(id: "prioritySelection", in: selectionNamespace)
-                        }
-                    }
-                    .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Priority \(level.displayLabel)")
-                .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        GlassSegmentedControl(
+            selection: $priority,
+            values: [TorrentPriority.high, .normal, .low],
+            accessibilityLabel: Self.priorityAccessibilityLabel
+        ) { level, isSelected in
+            HStack(spacing: 4) {
+                Image(systemName: level.systemImage)
+                Text(level.displayLabel)
             }
+            .font(.callout)
+            .foregroundStyle(isSelected ? Color.white : level.displayColor)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
         }
-        .glassEffect(.regular.interactive(), in: .capsule)
-    }
-
-    /// Header in the style of a modern modal: glass close button left, big
-    /// title centered, prominent glass add button right. Both buttons sit
-    /// close to the sheet's corners so their curvature nests concentrically
-    /// with the window's rounded corners.
-    private var headerBar: some View {
-        GlassEffectContainer {
-            Text("Add Torrent")
-                .font(.title2.weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .overlay(alignment: .leading) {
-                    Button {
-                        isPresented = false
-                    } label: {
-                        // Explicit glassEffect on fixed bounds — the `.glass`
-                        // button style's circle doesn't reliably track the
-                        // frame, which made it render smaller than the Add
-                        // capsule.
-                        Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .semibold))
-                            .frame(width: 32, height: 32)
-                            .glassEffect(.regular, in: .circle)
-                            // Make the whole glass circle the hit target —
-                            // `.plain` buttons otherwise only hit-test the
-                            // glyph itself.
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .frame(height: 44)
-                    .controlSize(.large)
-                    .keyboardShortcut(.cancelAction)
-                    .accessibilityLabel("Cancel")
-
-                }
-                .overlay(alignment: .trailing) {
-                    Button(isAdding ? "Adding…" : "Add") {
-                        Task { await submit() }
-                    }
-                    .buttonStyle(.glassProminent)
-                    .buttonBorderShape(.capsule)
-                    .controlSize(.large)
-                    //                    .frame(height: 50)
-                    .disabled(!isValid || isAdding)
-                    .keyboardShortcut(.defaultAction)
-                }
-        }
-        .padding(.horizontal, 10)
-        .padding(.top, 14)
     }
 
     // MARK: - Logic
@@ -815,6 +712,7 @@ struct AddTorrentSheet: View {
             isPresented = false
         } else {
             saveError = store.lastActionError?.localizedDescription ?? "Failed to add torrent."
+            store.lastActionError = nil
         }
     }
 }
@@ -832,30 +730,38 @@ extension AddTorrentInputMode {
     }
 }
 
+#if DEBUG
 #Preview("Add Torrent") {
     AddTorrentSheet(isPresented: .constant(true))
         .environment(previewTorrentStore)
         .environment(TagColorStore())
 }
+#endif
 
+#if DEBUG
 #Preview("Magnet / URL") {
     AddTorrentSheet(isPresented: .constant(true), initialMode: .link)
         .environment(previewTorrentStore)
         .environment(TagColorStore())
 }
+#endif
 
+#if DEBUG
 #Preview("File selection") {
     AddTorrentSheet(isPresented: .constant(true), prefilledURL: previewMultiFileTorrentURL())
         .environment(previewTorrentStore)
         .environment(TagColorStore())
 }
+#endif
 
+#if DEBUG
 #Preview("File selection collapsed") {
     AddTorrentSheet(isPresented: .constant(true), prefilledURL: previewMultiFileTorrentURL())
         .defaultAppStorage(previewCollapsedFilesDefaults)
         .environment(previewTorrentStore)
         .environment(TagColorStore())
 }
+#endif
 
 /// A separate defaults store so the collapsed preview doesn't flip the real
 /// preview (or the app) into the collapsed state.

@@ -5,7 +5,10 @@
 import AppKit
 import SwiftUI
 import TransmissionCore
+
+#if DEBUG
 import TransmissionTestSupport
+#endif
 
 /// Per-file selection and bandwidth priority. Mutations dispatch through the
 /// store; the service broadcasts a fresh snapshot, which flows back in via
@@ -19,107 +22,134 @@ struct InspectorFilesTab: View {
     @State private var selectedFiles: Set<TorrentFile.ID> = []
     @State private var sortKey: FileSortKey = .name
     @State private var sortAscending: Bool = true
+    @State private var sortedFiles: [TorrentFile] = []
+    @State private var sizeColumnWidth: CGFloat = 60
+    @FocusState private var listFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             headerRow
             Divider()
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(sortedFiles) { file in
-                        FileRow(
-                            file: file,
-                            sizeColumnWidth: sizeColumnWidth,
-                            wanted: wantedBinding(for: file),
-                            priority: priorityBinding(for: file),
-                            actionsEnabled: store.actionsEnabled
-                        )
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 3)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                        .background(rowBackground(for: file))
-                        .onTapGesture {
-                            toggleSelection(file.id)
-                        }
-                        .contextMenu {
-                            mappingMenu(for: file)
-                        }
-                    }
+            Table(sortedFiles, selection: $selectedFiles) {
+                TableColumn("") { file in
+                    FileRow(
+                        file: file,
+                        sizeColumnWidth: sizeColumnWidth,
+                        wanted: wantedBinding(for: file),
+                        priority: priorityBinding(for: file),
+                        actionsEnabled: store.actionsEnabled,
+                        isSelected: selectedFiles.contains(file.id)
+                    )
+                    .contextMenu { fileMenu(for: file) }
                 }
+            }
+            .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnHeaders(.hidden)
+            // The torrents table is a raw NSTableView: it stays the window's key
+            // view, so without SwiftUI focus this table's selection draws grey
+            // and arrows move the torrent selection. Focus on click only, never
+            // on appear, so selecting a torrent does not pull focus here.
+            .focused($listFocused)
+            .simultaneousGesture(TapGesture().onEnded { listFocused = true })
+            .onKeyPress(.space) {
+                guard !selectedFiles.isEmpty else { return .ignored }
+                let wanted = torrent.files.first { selectedFiles.contains($0.id) }?.wanted ?? true
+                setWanted(!wanted, for: Array(selectedFiles))
+                return .handled
             }
             .accessibilityIdentifier("inspector.files.list")
         }
+        .onChange(of: torrent.files, initial: true) { _, _ in rebuildFileCache() }
+        .onChange(of: sortKey) { _, _ in rebuildFileCache() }
+        .onChange(of: sortAscending) { _, _ in rebuildFileCache() }
     }
 
-    /// Header row with one sort chip per key. The active chip shows the current
-    /// direction; clicking it again flips ascending/descending.
+    /// One "Sort By" menu, like Finder's for a list too narrow for column
+    /// headers: pick a key, then a direction. Picking a key resets the
+    /// direction to that key's natural one (largest and most complete first).
     private var headerRow: some View {
-        HStack(spacing: 2) {
-            ForEach(FileSortKey.allCases) { key in
-                sortButton(for: key)
-            }
+        HStack {
+            Text(torrent.files.count == 1 ? "1 file" : "\(torrent.files.count) files")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
             Spacer()
+            Menu {
+                Picker("Sort By", selection: sortKeyBinding) {
+                    ForEach(FileSortKey.allCases) { key in
+                        Text(key.displayLabel).tag(key)
+                    }
+                }
+                .pickerStyle(.inline)
+                Picker("Order", selection: $sortAscending) {
+                    Text("Ascending").tag(true)
+                    Text("Descending").tag(false)
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Text("Sort by \(sortKey.displayLabel)")
+            }
+            .menuStyle(.button)
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            .fixedSize()
+            .help("Sort files")
+            .accessibilityIdentifier("inspector.files.sort")
         }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 3)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
     }
 
-    private func sortButton(for key: FileSortKey) -> some View {
-        let isActive = key == sortKey
-        return Button {
-            if isActive {
-                sortAscending.toggle()
-            } else {
+    private var sortKeyBinding: Binding<FileSortKey> {
+        Binding(
+            get: { sortKey },
+            set: { key in
                 sortKey = key
                 sortAscending = key.defaultAscending
+            })
+    }
+
+    private func rebuildFileCache() {
+        sortedFiles = torrent.files.sorted { isOrderedBefore($0, $1) }
+        sizeColumnWidth = Self.sizeColumnWidth(for: torrent.files)
+    }
+
+    private func setWanted(_ wanted: Bool, for ids: [TorrentFile.ID]) {
+        Task {
+            await store.actions.setFilesWanted(torrent.id, fileIDs: ids, wanted: wanted)
+        }
+    }
+
+    private func setPriority(_ choice: FilePriorityChoice, for ids: [TorrentFile.ID]) {
+        Task {
+            if let priority = choice.priority {
+                await store.actions.setFilesWanted(torrent.id, fileIDs: ids, wanted: true)
+                await store.actions.setFilePriority(torrent.id, fileIDs: ids, priority: priority)
+            } else {
+                await store.actions.setFilesWanted(torrent.id, fileIDs: ids, wanted: false)
             }
-        } label: {
-            HStack(spacing: 3) {
-                Text(key.displayLabel)
-                if isActive {
-                    Image(systemName: sortAscending ? "arrow.up" : "arrow.down")
-                        .font(.caption2)
+        }
+    }
+
+    @ViewBuilder
+    private func fileMenu(for file: TorrentFile) -> some View {
+        let ids = fileTargetIDs(selected: selectedFiles, clicked: file.id)
+        Button("Download Selected") { setWanted(true, for: ids) }
+            .disabled(!store.actionsEnabled)
+        Button("Don't Download Selected") { setWanted(false, for: ids) }
+            .disabled(!store.actionsEnabled)
+        Menu("Priority") {
+            ForEach(FilePriorityChoice.allCases, id: \.self) { choice in
+                Button {
+                    setPriority(choice, for: ids)
+                } label: {
+                    Label(choice.displayLabel, systemImage: choice.systemImage)
                 }
             }
-            .font(.caption)
-            .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(isActive ? Color.accentColor.opacity(0.12) : Color.clear, in: Capsule())
         }
-        .buttonStyle(.plain)
-        .help(
-            isActive
-                ? "\(key.displayLabel) \(sortAscending ? "ascending" : "descending")" : "Sort by \(key.displayLabel)")
-    }
-
-    private var sortedFiles: [TorrentFile] {
-        torrent.files.sorted { isOrderedBefore($0, $1) }
-    }
-
-    /// Zebra only on real rows (no phantom stripes), using the native stripe
-    /// colour so it adapts to light/dark mode. Selected rows get the standard
-    /// selection fill instead.
-    private func rowBackground(for file: TorrentFile) -> Color {
-        if selectedFiles.contains(file.id) {
-            return Color(nsColor: .selectedContentBackgroundColor)
-        }
-        guard !file.id.isMultiple(of: 2) else { return .clear }
-        return Color(nsColor: NSColor.alternatingContentBackgroundColors[1])
-    }
-
-    /// Click selects just this file; ⌘-click toggles it in/out of the selection.
-    private func toggleSelection(_ id: TorrentFile.ID) {
-        if NSEvent.modifierFlags.contains(.command) {
-            if selectedFiles.contains(id) {
-                selectedFiles.remove(id)
-            } else {
-                selectedFiles.insert(id)
-            }
-        } else {
-            selectedFiles = [id]
-        }
+        .disabled(!store.actionsEnabled)
+        Divider()
+        mappingMenu(for: file)
     }
 
     @ViewBuilder
@@ -166,10 +196,11 @@ struct InspectorFilesTab: View {
 
     /// Width of the widest size string, so the size column and its trailing
     /// progress bar stay aligned across rows regardless of the values shown.
-    private var sizeColumnWidth: CGFloat {
+    /// Computed when the file list changes, not on every body pass.
+    private static func sizeColumnWidth(for files: [TorrentFile]) -> CGFloat {
         let font = NSFont.monospacedDigitSystemFont(
             ofSize: NSFont.systemFontSize(for: .small), weight: .regular)
-        let widths = torrent.files.map { file in
+        let widths = files.map { file in
             (ColumnFormatters.humanizedSize(file.size) as NSString).size(
                 withAttributes: [.font: font]).width
         }
@@ -206,6 +237,15 @@ struct InspectorFilesTab: View {
     }
 }
 
+/// Which files a context-menu action targets: the whole selection when the
+/// clicked row is part of it, otherwise just that row. Pure so the bulk-target
+/// rule is testable without a window.
+nonisolated func fileTargetIDs(
+    selected: Set<TorrentFile.ID>, clicked: TorrentFile.ID
+) -> [TorrentFile.ID] {
+    selected.contains(clicked) ? Array(selected) : [clicked]
+}
+
 /// One file: checkbox + name + priority capsule on the first line, size +
 /// progress on the second. Compact for the narrow inspector.
 private struct FileRow: View {
@@ -214,6 +254,7 @@ private struct FileRow: View {
     @Binding var wanted: Bool
     @Binding var priority: FilePriorityChoice
     let actionsEnabled: Bool
+    let isSelected: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -223,17 +264,21 @@ private struct FileRow: View {
                     .labelsHidden()
                     .accessibilityLabel("Download \(file.displayName)")
                     .disabled(!actionsEnabled)
+                    .focusable(false)
                     .padding(.top, 2)
                 Text(file.displayName)
                     .font(.callout.monospaced())
                     .lineLimit(1)
                     .truncationMode(.middle)
+                    .foregroundStyle(
+                        isSelected ? Color(nsColor: .selectedTextColor) : Color.primary)
                 Spacer(minLength: 8)
                 FilePriorityPicker(
                     choice: $priority,
                     isEnabled: actionsEnabled,
                     label: "Priority for \(file.displayName)"
                 )
+                .focusable(false)
                 .padding(.top, 1)
             }
 
@@ -241,7 +286,11 @@ private struct FileRow: View {
                 Text(ColumnFormatters.humanizedSize(file.size))
                     .font(.caption)
                     .monospacedDigit()
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(
+                        isSelected
+                            ? Color(nsColor: .selectedTextColor).opacity(0.8)
+                            : Color.secondary
+                    )
                     .frame(width: sizeColumnWidth, alignment: .trailing)
                 ProgressBar(
                     value: file.progress,
@@ -263,8 +312,8 @@ private enum FileSortKey: CaseIterable, Identifiable {
         switch self {
         case .name: return "Name"
         case .size: return "Size"
-        case .priority: return "Prio"
-        case .progress: return "%"
+        case .priority: return "Priority"
+        case .progress: return "Progress"
         }
     }
 
@@ -276,6 +325,7 @@ private enum FileSortKey: CaseIterable, Identifiable {
     }
 }
 
+#if DEBUG
 #Preview {
     InspectorFilesTab(torrent: Torrent.samples[4])
         .environment(TorrentStore(service: MockTorrentService()))
@@ -288,3 +338,4 @@ private enum FileSortKey: CaseIterable, Identifiable {
         )
         .frame(width: 322, height: 400)
 }
+#endif

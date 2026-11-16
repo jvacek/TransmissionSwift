@@ -70,8 +70,10 @@ struct SpeedPrefsPane: View {
     }
 }
 
+#if DEBUG
 #Preview("Speed — Connected") {
     SpeedPrefsPane()
         .environment(prefsPreviewStore)
         .frame(width: 480, height: 540)
 }
+#endif

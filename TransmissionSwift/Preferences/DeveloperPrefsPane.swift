@@ -167,9 +167,11 @@ struct DeveloperPrefsPane: View {
     }
 }
 
+#if DEBUG
 #Preview("Developer — Connected") {
     DeveloperPrefsPane()
         .environment(prefsPreviewStore)
         .environment(TagColorStore())
         .frame(minWidth: 620, minHeight: 520)
 }
+#endif

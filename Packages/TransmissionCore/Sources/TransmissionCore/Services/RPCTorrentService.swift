@@ -8,13 +8,17 @@ import TransmissionRPC
 
 private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category: "core")
 
-public actor RPCTorrentService: TorrentService {
+public actor RPCTorrentService: TorrentService, PollHealthReporting {
     private let client: any TransmissionClient
     private let pollingInterval: @Sendable () -> TimeInterval
     /// Interval for the daemon's changed set between full polls; clamped to
     /// `pollingInterval` so the incremental path can't be slower than the base.
     private let incrementalPollingInterval: @Sendable () -> TimeInterval
+    /// Failed-poll backoff. Injected so tests do not wait out the real cap.
+    private let retryDelayProvider: @Sendable (Int) -> TimeInterval
     private var continuation: AsyncThrowingStream<[Torrent], Error>.Continuation?
+    private var healthContinuation: AsyncStream<PollHealth>.Continuation?
+    private var lastHealth: PollHealth?
     private var pollTask: Task<Void, Never>?
     /// The sleep between ticks, kept so a polling-preference change can cut it
     /// short instead of waiting out the old interval.
@@ -44,11 +48,15 @@ public actor RPCTorrentService: TorrentService {
             let v = UserDefaults.standard.double(
                 forKey: PreferenceKeys.incrementalPollingIntervalSeconds)
             return v > 0 ? v : PollingIntervals.defaultIncremental
+        },
+        retryDelayProvider: @escaping @Sendable (Int) -> TimeInterval = {
+            min(5 * Double($0), 10)
         }
     ) {
         self.client = client
         self.pollingInterval = pollingInterval
         self.incrementalPollingInterval = incrementalPollingInterval
+        self.retryDelayProvider = retryDelayProvider
     }
 
     public func torrentsStream() async -> AsyncThrowingStream<[Torrent], Error> {
@@ -70,6 +78,23 @@ public actor RPCTorrentService: TorrentService {
         // Cancelling the consumer's for-await must cancel the unstructured poll task.
         cont.onTermination = { [task] _ in task.cancel() }
         return stream
+    }
+
+    /// Starts a fresh health stream, replacing any previous one. The store
+    /// consumes it to show "reconnecting" while the poll loop retries.
+    public func pollHealth() async -> AsyncStream<PollHealth> {
+        healthContinuation?.finish()
+        let (stream, continuation) = AsyncStream.makeStream(
+            of: PollHealth.self, bufferingPolicy: .bufferingNewest(1))
+        healthContinuation = continuation
+        lastHealth = nil
+        return stream
+    }
+
+    private func reportHealth(_ health: PollHealth) {
+        guard health != lastHealth else { return }
+        lastHealth = health
+        healthContinuation?.yield(health)
     }
 
     /// Fetches free space and caches the full `SessionInfo` as a side effect.
@@ -147,25 +172,31 @@ public actor RPCTorrentService: TorrentService {
                     }
                 }
                 consecutiveFailures = 0
+                reportHealth(.ok)
             } catch {
                 logger.error("Poll error: \(error)")
                 consecutiveFailures += 1
+                reportHealth(.failing)
                 // Only an auth failure or a malformed URL is terminal. A daemon
                 // restart, sleep/wake, or network handover retries forever, so
                 // the stream recovers on its own instead of parking the app in
                 // "disconnected" until the user clicks Reconnect.
                 if Self.shouldStop(for: error) {
                     stream.finish(throwing: error)
+                    healthContinuation?.finish()
+                    healthContinuation = nil
                     return
                 }
                 failed = true
             }
             await sleep(
                 failed
-                    ? max(incremental, Self.retryDelay(afterFailures: consecutiveFailures))
+                    ? max(incremental, retryDelayProvider(consecutiveFailures))
                     : incremental)
         }
         stream.finish()
+        healthContinuation?.finish()
+        healthContinuation = nil
     }
 
     /// Sleep between ticks. Cancelling this task, or a polling-preference
