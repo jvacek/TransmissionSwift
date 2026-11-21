@@ -351,12 +351,13 @@ struct TorrentTableRepresentable: NSViewRepresentable {
 
         private func populateRowMenu(_ menu: NSMenu, ids: [Torrent.ID]) {
             menu.removeAllItems()
-            let priorities = ids.compactMap { id in
-                displayedRows.first { $0.id == id }?.torrent.priority
+            let torrents = ids.compactMap { id in
+                displayedRows.first { $0.id == id }?.torrent
             }
             let specs = TorrentRowMenu.items(
                 ids: ids,
-                priorities: priorities,
+                priorities: torrents.map(\.priority),
+                startStop: StartStopAvailability(torrents),
                 actionsEnabled: actionsEnabled,
                 labelsSupported: labelsSupported,
                 mappings: mappings)

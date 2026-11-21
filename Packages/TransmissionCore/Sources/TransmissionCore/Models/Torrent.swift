@@ -242,6 +242,25 @@ extension Torrent {
     }
 }
 
+/// Whether Resume / Pause would do anything for a set of torrents. Each is
+/// enabled when at least one torrent would change, like Finder's mixed-state
+/// commands. Pausing also cancels a pending or running verify, so torrents
+/// in Checking can always be paused.
+public struct StartStopAvailability: Equatable, Sendable {
+    public var canStart: Bool
+    public var canStop: Bool
+
+    public init(canStart: Bool, canStop: Bool) {
+        self.canStart = canStart
+        self.canStop = canStop
+    }
+
+    public init(_ torrents: [Torrent]) {
+        canStart = torrents.contains { $0.isStopped }
+        canStop = torrents.contains { !$0.isStopped }
+    }
+}
+
 public enum TorrentStatus: String, Sendable, Hashable, CaseIterable, Codable {
     case downloading, seeding, paused, checking, queued, error, completed
 }

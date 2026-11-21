@@ -351,13 +351,13 @@ private struct TorrentCommands: Commands {
                 torrentStore.perform(.resume, ids: ids)
             }
             .keyboardShortcut("r", modifiers: .command)
-            .disabled(!canAct)
+            .disabled(!canAct || !torrentStore.list.selectionStartStop.canStart)
 
             Button("Pause") {
                 torrentStore.perform(.pause, ids: ids)
             }
             .keyboardShortcut("p", modifiers: .command)
-            .disabled(!canAct)
+            .disabled(!canAct || !torrentStore.list.selectionStartStop.canStop)
 
             // Same submenu the row context menu shows. No checkmarks: reading a
             // torrent's live priority here would rebuild the menu bar on every

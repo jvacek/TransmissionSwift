@@ -55,7 +55,7 @@ struct MainToolbar: ToolbarContent {
             Button("Resume", systemImage: "play.fill") {
                 Task { await store.actions.start(Array(store.list.selectedTorrentIDs)) }
             }
-            .disabled(!store.actionsEnabled || store.list.selectedTorrentIDs.isEmpty)
+            .disabled(!store.actionsEnabled || !store.list.selectionStartStop.canStart)
             .help("Resume selected torrents")
             .accessibilityIdentifier("toolbar.resume")
         }
@@ -63,7 +63,7 @@ struct MainToolbar: ToolbarContent {
             Button("Pause", systemImage: "pause.fill") {
                 Task { await store.actions.stop(Array(store.list.selectedTorrentIDs)) }
             }
-            .disabled(!store.actionsEnabled || store.list.selectedTorrentIDs.isEmpty)
+            .disabled(!store.actionsEnabled || !store.list.selectionStartStop.canStop)
             .help("Pause selected torrents")
             .accessibilityIdentifier("toolbar.pause")
         }

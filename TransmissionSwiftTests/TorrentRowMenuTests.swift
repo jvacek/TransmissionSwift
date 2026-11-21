@@ -14,6 +14,7 @@ struct TorrentRowMenuTests {
     private func menuItems(
         ids: [Torrent.ID] = [1],
         priorities: [TorrentPriority] = [.normal],
+        startStop: StartStopAvailability = StartStopAvailability(canStart: true, canStop: true),
         actionsEnabled: Bool = true,
         labelsSupported: Bool = true,
         mappings: [OpenMapping] = []
@@ -21,6 +22,7 @@ struct TorrentRowMenuTests {
         TorrentRowMenu.items(
             ids: ids,
             priorities: priorities,
+            startStop: startStop,
             actionsEnabled: actionsEnabled,
             labelsSupported: labelsSupported,
             mappings: mappings)
@@ -50,6 +52,16 @@ struct TorrentRowMenuTests {
         let items = menuItems(actionsEnabled: false)
         #expect(enabled(items, .resume) == false)
         #expect(enabled(items, .setLocation) == false)
+    }
+
+    @Test func rowMenu_gatesResumeAndPauseOnWhatWouldChange() {
+        let running = menuItems(startStop: StartStopAvailability(canStart: false, canStop: true))
+        #expect(enabled(running, .resume) == false)
+        #expect(enabled(running, .pause) == true)
+
+        let stopped = menuItems(startStop: StartStopAvailability(canStart: true, canStop: false))
+        #expect(enabled(stopped, .resume) == true)
+        #expect(enabled(stopped, .pause) == false)
     }
 
     @Test func rowMenu_gatesEditLabelsOnLabelSupport() {
