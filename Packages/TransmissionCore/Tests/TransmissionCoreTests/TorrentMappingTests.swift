@@ -195,15 +195,19 @@ struct StatusMappingTests {
         #expect(!make(status: .paused, isStopped: false).isStopped)
     }
 
-    @Test("status 1, 3, 5 map to .queued")
+    @Test("status 3, 5 (transfer waits) map to .queued")
     func queuedStatuses() {
-        for s in [1, 3, 5] {
+        for s in [3, 5] {
             #expect(Torrent(wire: makeWire(status: s)).status == .queued, "status \(s) should be .queued")
         }
     }
 
-    @Test("status 2 maps to .checking")
-    func status2() { #expect(Torrent(wire: makeWire(status: 2)).status == .checking) }
+    @Test("status 1 (queued for verification) and 2 map to .checking")
+    func checkingStatuses() {
+        for s in [1, 2] {
+            #expect(Torrent(wire: makeWire(status: s)).status == .checking, "status \(s) should be .checking")
+        }
+    }
 
     @Test("status 4 maps to .downloading")
     func status4() { #expect(Torrent(wire: makeWire(status: 4)).status == .downloading) }

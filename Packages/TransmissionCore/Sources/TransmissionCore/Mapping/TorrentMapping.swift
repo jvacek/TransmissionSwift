@@ -276,8 +276,10 @@ extension Torrent {
         if isFinished { return .completed }
         switch wireStatus {
         case 0: return .paused
-        case 1, 3, 5: return .queued
-        case 2: return .checking
+        // 1 is "queued for verification", not a transfer wait: it belongs with
+        // the verifying torrents, the way Transmission's own clients bucket it.
+        case 1, 2: return .checking
+        case 3, 5: return .queued
         case 4: return .downloading
         case 6: return .seeding
         default: return .paused

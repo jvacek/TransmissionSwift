@@ -166,7 +166,8 @@ public struct TorrentFilterSelection: Hashable, Sendable {
 /// `.active` matches torrents with a live transfer (a peer or webseed moving
 /// data in either direction) or currently verifying — the same meaning the
 /// Transmission web and GTK clients give "Active". Idle seeds and stalled
-/// downloads are not active.
+/// downloads are not active. `.checking` covers both verifying and queued for
+/// verification; `.queued` is transfer waits only.
 public enum TorrentStatusFilter: String, Hashable, Sendable, CaseIterable, Codable {
     case all, downloading, seeding, active, paused, checking, queued, error
 }
