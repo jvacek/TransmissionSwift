@@ -226,6 +226,8 @@ extension Torrent {
             status: status,
             isStopped: wire.status == 0,
             progress: wire.percentDone,
+            verifyProgress: wire.recheckProgress ?? 0,
+            isWaitingToVerify: wire.status == 1,
             downloadSpeed: wire.rateDownload,
             uploadSpeed: wire.rateUpload,
             connectedPeerCount: wire.peersConnected,

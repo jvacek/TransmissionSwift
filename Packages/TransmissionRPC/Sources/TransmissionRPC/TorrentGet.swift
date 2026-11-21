@@ -81,6 +81,8 @@ public struct WireTorrent: Codable, Sendable {
     public var errorString: String
     public var isFinished: Bool
     public var percentDone: Double
+    /// Verify progress, 0...1; only meaningful while `status` is checking.
+    public var recheckProgress: Double? = nil
     public var rateDownload: Int64
     public var rateUpload: Int64
     public var peersConnected: Int
@@ -145,6 +147,7 @@ public struct WireTorrent: Codable, Sendable {
         case errorString
         case isFinished
         case percentDone
+        case recheckProgress
         case rateDownload
         case rateUpload
         case peersConnected
@@ -231,7 +234,7 @@ extension TorrentGetResponse {
     public static let listFields: [String] = [
         "id", "name", "hashString", "totalSize",
         "status", "error", "errorString", "isFinished",
-        "percentDone", "rateDownload", "rateUpload",
+        "percentDone", "recheckProgress", "rateDownload", "rateUpload",
         "peersConnected", "peersSendingToUs", "peersGettingFromUs", "webseedsSendingToUs", "peersFrom",
         "eta", "uploadRatio",
         "downloadDir", "addedDate",

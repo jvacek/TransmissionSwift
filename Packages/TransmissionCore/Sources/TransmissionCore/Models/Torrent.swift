@@ -18,6 +18,11 @@ public struct Torrent: Identifiable, Hashable, Sendable {
     /// other callers can omit it and get the best guess from `status`.
     public var isStopped: Bool
     public var progress: Double
+    /// Verify progress, 0...1; only meaningful while `status` is checking.
+    public var verifyProgress: Double
+    /// `.checking` but still waiting in the daemon's verify queue (wire
+    /// status 1), as opposed to being hashed right now (wire status 2).
+    public var isWaitingToVerify: Bool
     public var downloadSpeed: Int64
     public var uploadSpeed: Int64
     public var connectedPeerCount: Int
@@ -82,6 +87,8 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         // daemon's value because `.completed` can be either stopped or seeding.
         isStopped: Bool? = nil,
         progress: Double,
+        verifyProgress: Double = 0,
+        isWaitingToVerify: Bool = false,
         downloadSpeed: Int64 = 0,
         uploadSpeed: Int64 = 0,
         connectedPeerCount: Int = 0,
@@ -128,6 +135,8 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         self.status = status
         self.isStopped = isStopped ?? (status == .paused)
         self.progress = progress
+        self.verifyProgress = verifyProgress
+        self.isWaitingToVerify = isWaitingToVerify && status == .checking
         self.downloadSpeed = downloadSpeed
         self.uploadSpeed = uploadSpeed
         self.connectedPeerCount = connectedPeerCount
@@ -170,7 +179,14 @@ public struct Torrent: Identifiable, Hashable, Sendable {
 }
 
 extension Torrent {
-    /// True when at least one live transfer link exists — a peer or webseed
+    /// Progress-column value: the re-check's own progress while verifying (a
+    /// finished torrent otherwise reads 100% for the whole verify), else
+    /// overall completion.
+    public var displayProgress: Double {
+        status == .checking && verifyProgress > 0 ? verifyProgress : progress
+    }
+
+    /// True while at least one live transfer link exists — a peer or webseed
     /// moving data in either direction — or the torrent is verifying. Mirrors
     /// Transmission's web (`testState(FilterActive)`) and GTK
     /// (`Activity::ACTIVE`) definitions: an idle seed or a stalled download is

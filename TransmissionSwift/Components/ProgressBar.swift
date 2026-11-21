@@ -9,7 +9,7 @@ import TransmissionCore
 /// table's Progress column.
 struct ProgressBar: View {
     let value: Double
-    let status: TorrentStatus
+    let tint: Color
 
     var body: some View {
         // `.transaction { $0.animation = nil }` wipes any inherited animation
@@ -21,7 +21,7 @@ struct ProgressBar: View {
         HStack(spacing: 6) {
             ProgressView(value: max(0, min(1, value)))
                 .progressViewStyle(.linear)
-                .tint(status.displayColor)
+                .tint(tint)
                 .frame(maxWidth: .infinity)
             Text("\(Int(value * 100))%")
                 .monospacedDigit()
@@ -35,11 +35,11 @@ struct ProgressBar: View {
 #if DEBUG
 #Preview {
     VStack(alignment: .leading) {
-        ProgressBar(value: 0.62, status: .downloading)
-        ProgressBar(value: 1.0, status: .seeding)
-        ProgressBar(value: 0.34, status: .paused)
-        ProgressBar(value: 0.91, status: .checking)
-        ProgressBar(value: 0.44, status: .error)
+        ProgressBar(value: 0.62, tint: TorrentStatus.downloading.displayColor)
+        ProgressBar(value: 1.0, tint: TorrentStatus.seeding.displayColor)
+        ProgressBar(value: 0.34, tint: TorrentStatus.paused.displayColor)
+        ProgressBar(value: 0.91, tint: TorrentStatus.checking.displayColor)
+        ProgressBar(value: 0.44, tint: TorrentStatus.error.displayColor)
     }
     .frame(width: 240)
     .padding()

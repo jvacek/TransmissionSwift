@@ -16,6 +16,8 @@ private func makeWire(
     error: Int = 0,
     errorString: String = "",
     isFinished: Bool = false,
+    percentDone: Double = 0.0,
+    recheckProgress: Double? = nil,
     eta: Int = -1,
     uploadRatio: Double = 0.0,
     bandwidthPriority: Int = 0,
@@ -63,7 +65,8 @@ private func makeWire(
         error: error,
         errorString: errorString,
         isFinished: isFinished,
-        percentDone: 0.0,
+        percentDone: percentDone,
+        recheckProgress: recheckProgress,
         rateDownload: 0,
         rateUpload: 0,
         peersConnected: 0,
@@ -207,6 +210,26 @@ struct StatusMappingTests {
         for s in [1, 2] {
             #expect(Torrent(wire: makeWire(status: s)).status == .checking, "status \(s) should be .checking")
         }
+    }
+
+    @Test("only wire status 1 is waiting to verify")
+    func waitingToVerify() {
+        #expect(Torrent(wire: makeWire(status: 1)).isWaitingToVerify)
+        #expect(!Torrent(wire: makeWire(status: 2)).isWaitingToVerify)
+        #expect(!Torrent(wire: makeWire(status: 3)).isWaitingToVerify)
+        // An error overrides the status, so the flag must not linger.
+        #expect(!Torrent(wire: makeWire(status: 1, error: 3)).isWaitingToVerify)
+    }
+
+    @Test("recheckProgress drives displayProgress only while checking")
+    func recheckProgressDisplay() {
+        #expect(
+            Torrent(wire: makeWire(status: 2, percentDone: 1, recheckProgress: 0.4)).displayProgress == 0.4)
+        // A finished torrent's re-check must not leak into another state.
+        #expect(
+            Torrent(wire: makeWire(status: 6, percentDone: 1, recheckProgress: 0.4)).displayProgress == 1)
+        // Old daemons / snapshots without the field fall back to completion.
+        #expect(Torrent(wire: makeWire(status: 2, percentDone: 0.3)).displayProgress == 0.3)
     }
 
     @Test("status 4 maps to .downloading")

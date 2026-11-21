@@ -39,6 +39,15 @@ extension TorrentStatus {
     }
 }
 
+extension Torrent {
+    /// Progress-bar tint. A torrent waiting in the verify queue isn't being
+    /// hashed yet, so it gets the idle grey; only the one being verified keeps
+    /// the checking colour.
+    var progressNSColor: NSColor {
+        isWaitingToVerify ? TorrentStatus.queued.nsDisplayColor : status.nsDisplayColor
+    }
+}
+
 extension TorrentPriority {
     var displayLabel: String {
         switch self {
