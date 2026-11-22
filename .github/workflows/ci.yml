@@ -68,6 +68,8 @@ jobs:
   build-app:
     name: Build & test macOS app (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # A hung UI test would otherwise hold the runner for GitHub's 6-hour limit.
+    timeout-minutes: 30
     # macos-26 is the deployment floor, xcode-27 is the current toolchain/OS.
     # xcode-27 is a public-preview image, so on PRs (pre-release work) its leg is
     # allowed to fail; on main — from which releases are cut — both legs must pass.
@@ -93,7 +95,10 @@ jobs:
         # legs, so without matrix.os they would share one cache.
         uses: actions/cache/restore@v6
         with:
-          path: ~/Library/Developer/Xcode/DerivedData
+          # Same paths as "Save DerivedData", or the cache version differs.
+          path: |
+            ~/Library/Developer/Xcode/DerivedData
+            !~/Library/Developer/Xcode/DerivedData/*/Logs
           key: deriveddata-${{ runner.os }}-${{ matrix.os }}-${{ github.sha }}
           restore-keys: deriveddata-${{ runner.os }}-${{ matrix.os }}-
 
@@ -120,7 +125,22 @@ jobs:
             -scheme TransmissionSwift \
             -destination 'platform=macOS' \
             $SIGNING_ARGS \
+            COMPILER_INDEX_STORE_ENABLE=NO \
             build-for-testing | xcbeautify --renderer github-actions
+
+      - name: Save DerivedData
+        # Only from main, so the cache follows main's build products. A key that
+        # only changed with project.pbxproj went stale. Right after the build, so
+        # a failing test run still refreshes it.
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v6
+        with:
+          # Logs are not build products; restore and save must list the same
+          # paths, or the cache version differs and every restore misses.
+          path: |
+            ~/Library/Developer/Xcode/DerivedData
+            !~/Library/Developer/Xcode/DerivedData/*/Logs
+          key: deriveddata-${{ runner.os }}-${{ matrix.os }}-${{ github.sha }}
 
       - name: Test
         run: |
@@ -133,15 +153,6 @@ jobs:
             $SIGNING_ARGS \
             -resultBundlePath TestResults.xcresult \
             test-without-building | xcbeautify --renderer github-actions
-
-      - name: Save DerivedData
-        # Only from main, so the cache follows main's build products. A key that
-        # only changed with project.pbxproj went stale.
-        if: github.ref == 'refs/heads/main'
-        uses: actions/cache/save@v6
-        with:
-          path: ~/Library/Developer/Xcode/DerivedData
-          key: deriveddata-${{ runner.os }}-${{ matrix.os }}-${{ github.sha }}
 
       - name: Upload test results
         # Crash logs and failure screenshots: UI failures on the runner's small
@@ -160,6 +171,7 @@ jobs:
     # link AppIntentsTesting, or one bad host framework takes down every UI test.
     # Enforced on main; on PRs non-blocking, like build-app's xcode-27 leg.
     runs-on: xcode-27
+    timeout-minutes: 30
     continue-on-error: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v7
@@ -171,7 +183,10 @@ jobs:
         # Restore only: build-app's xcode-27 leg saves this cache.
         uses: actions/cache/restore@v6
         with:
-          path: ~/Library/Developer/Xcode/DerivedData
+          # Same paths as "Save DerivedData", or the cache version differs.
+          path: |
+            ~/Library/Developer/Xcode/DerivedData
+            !~/Library/Developer/Xcode/DerivedData/*/Logs
           key: deriveddata-${{ runner.os }}-xcode-27-${{ github.sha }}
           restore-keys: deriveddata-${{ runner.os }}-xcode-27-
 
@@ -200,6 +215,7 @@ jobs:
             -destination 'platform=macOS' \
             -allowProvisioningUpdates \
             DEVELOPMENT_TEAM=JK45236K44 \
+            COMPILER_INDEX_STORE_ENABLE=NO \
             'SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) APP_INTENTS_UI_TESTS' \
             test -only-testing:TransmissionSwiftUITests/AppIntentsUITests \
             | xcbeautify --renderer github-actions
