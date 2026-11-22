@@ -1,6 +1,39 @@
 # Changelog
 
-**Versions under 0.6.2 need to be updated manually.** Please check the [release page](https://github.com/jvacek/TransmissionSwift/releases).
+Special shoutout to my new sponsors! Thank you very much. [Feel free to join them ;)](https://transmissionswift.jvacek.eu/donate/)
+
+## 0.8.0
+
+14th November 2026
+
+- Requires macOS 26.1 or later
+- Connections
+  - Reconnects on its own after a daemon restart, sleep or network change, with a Reconnecting label
+  - Shows an error when a server can't be reached, instead of connecting forever
+  - Actions and open sheets no longer go to the previous server after switching
+- Torrent list
+  - Drag torrents out as magnet links, and type a name to jump to one
+  - Set priority from the Torrent menu, and see re-check progress while a torrent verifies
+  - Resume and Pause are only enabled when they would change something
+  - Stopped, finished and errored torrents show under Paused, and torrents waiting to verify under Checking
+  - Finder-like look: system row height, flat tag pills, and a header and status bar that blend into the window
+  - Fixed a stale Active count, quick header clicks not flipping the sort, and tag colours after a light/dark switch
+- Inspector
+  - Now a native column like Xcode's, with its tabs at the top and resizing that works
+  - The file list works with the keyboard and VoiceOver, and sorts from a Sort By menu
+  - The Peers tab fits the column, Rename sits next to the name in Metadata, and the empty Options tab is gone
+- Window
+  - Search from a magnifier button (click or ⌘F), and the server switcher shows the server's name
+  - No more clipped sidebar and inspector on narrow windows
+  - Closing and reopening the window keeps the torrent list, and clears the Dock badge while it's closed
+- Settings
+  - Servers are listed like mappings and edited in their own sheet, with address and port checks and a way to remove the saved password
+  - Asks before removing a server or mapping. Removing a server also deletes its password and its Spotlight entries
+  - A damaged server list is kept as a copy, and the app tells you where
+- Sheets
+  - Every sheet has the same title and buttons, and Cancel really cancels
+  - Editing labels on several torrents only adds or removes the labels you changed
+- Less work while idle and smoother sorting on large lists
 
 ## 0.7.3
 
