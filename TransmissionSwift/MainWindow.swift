@@ -11,7 +11,7 @@ import TransmissionTestSupport
 #endif
 
 private enum Layout {
-    static let sidebarMin: CGFloat = 180
+    static let sidebarMin: CGFloat = 160
     static let sidebarIdeal: CGFloat = 212
     static let sidebarMax: CGFloat = 600
     static let inspectorMin: CGFloat = 280
