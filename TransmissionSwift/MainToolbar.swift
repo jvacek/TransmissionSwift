@@ -17,6 +17,8 @@ import TransmissionCore
 /// two different stores breaks `@ToolbarContentBuilder` conditional inference.
 struct MainToolbar: ToolbarContent {
     @Environment(TorrentStore.self) private var store
+    /// Whether the inspector owns the toggle in its own toolbar section.
+    let inspectorInToolbar: Bool
 
     var body: some ToolbarContent {
         // Group 1 — Add
@@ -81,7 +83,8 @@ struct MainToolbar: ToolbarContent {
 
         // While open, the inspector column declares the toggle (see
         // `MainWindow`), so it sits in the toolbar section above it, as in Xcode.
-        if !store.inspector.isVisible {
+        // On a narrow window it lives here instead.
+        if !inspectorInToolbar || !store.inspector.isVisible {
             ToolbarSpacer(.fixed)
             InspectorToggle()
         }

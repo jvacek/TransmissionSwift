@@ -15,12 +15,24 @@ import TransmissionTestSupport
 /// so content refreshes instantly.
 struct InspectorView: View {
     @Environment(TorrentStore.self) private var store
+    /// The toolbar above the inspector holds the tabs when the window is wide
+    /// enough; a narrow window shows them at the top of the column instead.
+    let usesToolbarTabs: Bool
 
     var body: some View {
         @Bindable var inspector = store.inspector
 
         if let torrent = store.list.selectedTorrents.first {
             VStack(spacing: 0) {
+                if !usesToolbarTabs {
+                    InspectorTabPicker()
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+
+                    Divider()
+                }
+
                 tabContent(for: torrent)
                     // Re-key per torrent: scroll positions and the Options
                     // tab's draft state reset on selection change, but stay
@@ -58,7 +70,8 @@ struct InspectorView: View {
 }
 
 /// The inspector's tabs: a glass pill per tab, after Xcode's inspector.
-/// Lives in the inspector's toolbar section (see `MainWindow`).
+/// Sits in the inspector's toolbar section on a wide window (see `MainWindow`),
+/// else at the top of the column.
 struct InspectorTabPicker: View {
     @Environment(TorrentStore.self) private var store
 
@@ -76,7 +89,6 @@ struct InspectorTabPicker: View {
                 .frame(minHeight: 24)
                 .help(tab.displayLabel)
         }
-        .frame(minWidth: 160, idealWidth: 220, maxWidth: 260)
         .accessibilityIdentifier("inspector.tabs")
     }
 }
@@ -85,7 +97,7 @@ struct InspectorTabPicker: View {
 #Preview("Selected") {
     let service = MockTorrentService()
     let store = TorrentStore(service: service)
-    return InspectorView()
+    return InspectorView(usesToolbarTabs: false)
         .environment(store)
         .environment(TagColorStore())
         .environment(GeoIPStore())
@@ -96,7 +108,7 @@ struct InspectorTabPicker: View {
 
 #if DEBUG
 #Preview("Empty") {
-    InspectorView()
+    InspectorView(usesToolbarTabs: false)
         .environment(TorrentStore(service: MockTorrentService(initial: [])))
         .environment(TagColorStore())
         .environment(GeoIPStore())

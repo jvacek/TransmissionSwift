@@ -19,6 +19,12 @@ private enum Layout {
     static let inspectorMax: CGFloat = 600
     static let contentMin: CGFloat = 480
     static let contentIdeal: CGFloat = 640
+    /// Below this width the toolbar cannot hold the inspector's tabs and
+    /// toggle, so they move into the list toolbar and the inspector content.
+    static let inspectorToolbarMinWidth: CGFloat = 1320
+    /// The narrowest the window may get: the three columns' minimums. The
+    /// toolbar may want more, but it can compress instead of pinning the window.
+    static let windowMinWidth: CGFloat = 960
 }
 
 struct MainWindow: View {
@@ -43,6 +49,7 @@ struct MainWindow: View {
         ? .detailOnly : .all
     @AppStorage(PreferenceKeys.startMinimized) private var startMinimized = false
     @State private var didApplyStartMinimized = false
+    @State private var windowIsWide = true
     @State private var openBus = OpenRequestBus.shared
 
     /// No profile configured — the window shows the "No Servers" onboarding
@@ -56,12 +63,34 @@ struct MainWindow: View {
 
         splitView
             .frame(minHeight: 600)
+            .onGeometryChange(for: Bool.self) { proxy in
+                proxy.size.width >= Layout.inspectorToolbarMinWidth
+            } action: { wide in
+                windowIsWide = wide
+            }
             .onAppear {
                 // "Start minimized": miniaturize once on launch. Done here (rather
                 // than the app delegate) so it targets the actual main window.
                 if startMinimized, !didApplyStartMinimized {
                     didApplyStartMinimized = true
                     NSApp.keyWindow?.miniaturize(nil)
+                }
+                // SwiftUI asks for a window as wide as the whole toolbar, which
+                // can put the inspector's trailing controls off-screen on a
+                // small display. Cap the minimum and fit the window to the
+                // screen once the first layout settles; the toolbar and the
+                // inspector then rearrange themselves for the narrower width.
+                DispatchQueue.main.async {
+                    guard
+                        let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isVisible }),
+                        let screen = window.screen ?? NSScreen.main
+                    else { return }
+                    window.contentMinSize = NSSize(
+                        width: Layout.windowMinWidth, height: window.contentMinSize.height)
+                    let fitted = window.frame.intersection(screen.visibleFrame)
+                    if fitted != window.frame {
+                        window.setFrame(fitted, display: true)
+                    }
                 }
             }
             .onChange(of: hasNoServer) { _, noServer in
@@ -163,13 +192,13 @@ struct MainWindow: View {
                     ToolbarItem(placement: .navigation) {
                         serverSwitcherMenu
                     }
-                    MainToolbar()
+                    MainToolbar(inspectorInToolbar: windowIsWide)
                 }
         }
         // On the split view, so the inspector is a full-height column with its
         // own toolbar section that pushes the detail's items aside, as in Xcode.
         .inspector(isPresented: $inspector.isVisible) {
-            InspectorView()
+            InspectorView(usesToolbarTabs: windowIsWide)
                 .onGeometryChange(for: CGFloat.self) {
                     $0.size.width
                 } action: { width in
@@ -186,10 +215,12 @@ struct MainWindow: View {
                     // SwiftUI keeps a hidden inspector's toolbar items and
                     // pushes them into the overflow menu once search expands,
                     // so the list's toolbar takes the toggle while it's closed.
-                    if inspector.isVisible {
+                    // A narrow window puts them there too (see `Layout`).
+                    if inspector.isVisible, windowIsWide {
                         if store.list.selectedTorrents.first != nil {
                             ToolbarItem(placement: .primaryAction) {
                                 InspectorTabPicker()
+                                    .frame(minWidth: 160, idealWidth: 220, maxWidth: 260)
                             }
                             .sharedBackgroundVisibility(.hidden)
                         }
