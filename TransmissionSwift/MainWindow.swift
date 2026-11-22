@@ -67,22 +67,6 @@ struct MainWindow: View {
                     didApplyStartMinimized = true
                     NSApp.keyWindow?.miniaturize(nil)
                 }
-                // The columns' ideal widths can open the window wider than the
-                // display. Fit it to the screen once the first layout settles.
-                DispatchQueue.main.async {
-                    guard
-                        let window =
-                            NSApp.windows.first(where: { $0.identifier?.rawValue == "main" })
-                            ?? NSApp.keyWindow ?? NSApp.windows.first,
-                        let screen = window.screen ?? NSScreen.main
-                    else { return }
-                    window.contentMinSize = NSSize(
-                        width: Layout.windowMinWidth, height: window.contentMinSize.height)
-                    let fitted = window.frame.intersection(screen.visibleFrame)
-                    if fitted != window.frame {
-                        window.setFrame(fitted, display: true)
-                    }
-                }
             }
             .onChange(of: hasNoServer) { _, noServer in
                 // The status bar (which owns the Dock badge) is hidden with no
@@ -163,6 +147,7 @@ struct MainWindow: View {
 
     private var splitView: some View {
         @Bindable var store = store
+        @Bindable var list = store.list
         @Bindable var inspector = store.inspector
         return NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView()
@@ -416,3 +401,25 @@ struct MainWindow: View {
         .frame(width: 1100, height: 640)
 }
 #endif
+
+/// Fits the window to the display once it is in the window hierarchy: the
+/// columns' ideal widths can otherwise open it wider than a small screen.
+private struct WindowFitToScreen: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            guard let window = view.window, let screen = window.screen ?? NSScreen.main else {
+                return
+            }
+            window.contentMinSize = NSSize(
+                width: Layout.windowMinWidth, height: window.contentMinSize.height)
+            let fitted = window.frame.intersection(screen.visibleFrame)
+            if fitted != window.frame {
+                window.setFrame(fitted, display: true)
+            }
+        }
+        return view
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {}
+}
