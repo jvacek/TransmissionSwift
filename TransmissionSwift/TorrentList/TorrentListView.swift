@@ -15,12 +15,13 @@ struct TorrentListView: View {
         let prefs = store.list.tablePreferences
         // Read the selection in the body so a change from a menu, intent or the
         // inspector invalidates this view. Referencing it only inside the
-        // binding closure does not establish an observation dependency.
-        let selectionIDs = store.list.selectedTorrentIDs
+        // binding closure does not establish an observation dependency. The
+        // getter still reads the store so it never returns a stale capture.
+        _ = store.list.selectedTorrentIDs
         return TorrentTableRepresentable(
             rows: store.list.visibleTorrents,
             selection: Binding(
-                get: { selectionIDs },
+                get: { store.list.selectedTorrentIDs },
                 set: { store.list.selectedTorrentIDs = $0 }
             ),
             downloadDirectoryBase: store.list.downloadDirectory,
