@@ -554,13 +554,14 @@ struct MappingEditorSheet: View {
         }
         .alert("Allow access to local files?", isPresented: $showAccessAlert) {
             Button("Pre-approve directory…") {
-                chooseAccessFolder {
-                    commitSave()
+                chooseAccessFolder { stored in
+                    if stored { commitSave() }
                 }
             }
             Button("Save without access") {
                 commitSave()
             }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text(accessPromptMessage)
         }
@@ -616,7 +617,9 @@ struct MappingEditorSheet: View {
     /// download dir is the suggested starting point). Creating the bookmark
     /// must go through the powerbox panel — a path the app can't reach yet has
     /// no bookmark to record.
-    private func chooseAccessFolder(then completion: (() -> Void)? = nil) {
+    /// `completion` receives true only when a folder was chosen and its
+    /// bookmark recorded.
+    private func chooseAccessFolder(then completion: ((Bool) -> Void)? = nil) {
         let panel = NSOpenPanel()
         panel.title = "Allow Access"
         panel.message =
@@ -629,21 +632,24 @@ struct MappingEditorSheet: View {
             panel.directoryURL = URL(fileURLWithPath: dir, isDirectory: true)
         }
         panel.begin { response in
-            if response == .OK, let url = panel.url {
-                do {
-                    let bookmark = try url.bookmarkData(
-                        options: .withSecurityScope,
-                        includingResourceValuesForKeys: nil,
-                        relativeTo: nil)
-                    if !model.accessBookmarks.contains(bookmark) {
-                        model.accessBookmarks.append(bookmark)
-                    }
-                } catch {
-                    model.testMessage = "Could not save access permission: \(error.localizedDescription)"
-                    model.testFailed = true
-                }
+            guard response == .OK, let url = panel.url else {
+                completion?(false)
+                return
             }
-            completion?()
+            do {
+                let bookmark = try url.bookmarkData(
+                    options: .withSecurityScope,
+                    includingResourceValuesForKeys: nil,
+                    relativeTo: nil)
+                if !model.accessBookmarks.contains(bookmark) {
+                    model.accessBookmarks.append(bookmark)
+                }
+                completion?(true)
+            } catch {
+                model.testMessage = "Could not save access permission: \(error.localizedDescription)"
+                model.testFailed = true
+                completion?(false)
+            }
         }
     }
 
