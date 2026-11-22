@@ -139,7 +139,18 @@ jobs:
             -scheme TransmissionSwift \
             -destination 'platform=macOS' \
             $SIGNING_ARGS \
+            -resultBundlePath TestResults.xcresult \
             test | xcbeautify --renderer github-actions
+
+      - name: Upload test results
+        # Crash logs and failure screenshots: UI failures on the runner's small
+        # display don't reproduce locally.
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: TestResults-${{ matrix.os }}
+          path: TestResults.xcresult
+          retention-days: 7
 
       - name: Check App Intents toolchain
         # AppIntentsTesting is a host framework; a mismatched Xcode/macOS pair

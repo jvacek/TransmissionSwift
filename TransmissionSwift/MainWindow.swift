@@ -427,8 +427,11 @@ private struct WindowFitToScreen: NSViewRepresentable {
             }
         }
 
+        /// setFrame posts didResize synchronously; don't refit from inside a fit.
+        private static var isFitting = false
+
         private static func fit(_ window: NSWindow) {
-            guard !window.styleMask.contains(.fullScreen),
+            guard !isFitting, !window.styleMask.contains(.fullScreen),
                 let visible = (window.screen ?? NSScreen.main)?.visibleFrame,
                 window.frame.width > visible.width || window.frame.height > visible.height
             else { return }
@@ -442,6 +445,8 @@ private struct WindowFitToScreen: NSViewRepresentable {
             frame.origin.x = max(min(frame.minX, visible.maxX - frame.width), visible.minX)
             frame.origin.y = max(min(frame.minY, visible.maxY - frame.height), visible.minY)
             guard frame != window.frame else { return }
+            isFitting = true
+            defer { isFitting = false }
             window.setFrame(frame, display: true)
         }
     }
