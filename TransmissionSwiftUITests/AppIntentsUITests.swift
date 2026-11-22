@@ -15,9 +15,10 @@
 //  signed with the same development team, which local ad-hoc builds are not. Set
 //  TEST_RUNNER_TRANSMISSION_APPINTENTS=1 and a DEVELOPMENT_TEAM to run these.
 //
-//  The framework only exists in the macOS 27 SDK / Xcode 27, so the whole file
-//  is compiled out on older toolchains (e.g. a macos-26 CI runner). Runtime
-//  availability is still guarded by @available below.
+//  Compiled out unless the APP_INTENTS_UI_TESTS define is set (`just
+//  test-appintents`), so the main UI suite never links AppIntentsTesting. The
+//  framework only exists in the macOS 27 SDK / Xcode 27; runtime availability
+//  is still guarded by @available below.
 //
 
 #if APP_INTENTS_UI_TESTS && canImport(AppIntentsTesting)
