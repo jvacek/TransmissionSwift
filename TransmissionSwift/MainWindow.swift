@@ -11,14 +11,14 @@ import TransmissionTestSupport
 #endif
 
 private enum Layout {
-    static let sidebarMin: CGFloat = 160
+    static let sidebarMin: CGFloat = 180
     static let sidebarIdeal: CGFloat = 212
     static let sidebarMax: CGFloat = 600
     static let inspectorMin: CGFloat = 280
     static let inspectorIdeal: CGFloat = 322
     static let inspectorMax: CGFloat = 600
     static let contentMin: CGFloat = 480
-    static let contentIdeal: CGFloat = 480
+    static let contentIdeal: CGFloat = 640
 }
 
 struct MainWindow: View {
@@ -152,7 +152,7 @@ struct MainWindow: View {
                     min: Layout.sidebarMin, ideal: Layout.sidebarIdeal, max: Layout.sidebarMax)
         } detail: {
             listPane
-                .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .navigationSplitViewColumnWidth(min: Layout.contentMin, ideal: Layout.contentIdeal)
                 .navigationTitle(profileStore.activeProfile?.label ?? "Transmission")
                 .safeAreaInset(edge: .bottom, spacing: 0) {
