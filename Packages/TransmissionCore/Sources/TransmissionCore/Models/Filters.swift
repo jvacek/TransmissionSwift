@@ -164,10 +164,15 @@ public struct TorrentFilterSelection: Hashable, Sendable {
 
 /// The status-section rows in the sidebar. `.all` matches every torrent;
 /// `.active` matches torrents with a live transfer (a peer or webseed moving
-/// data in either direction) or currently verifying — the same meaning the
-/// Transmission web and GTK clients give "Active". Idle seeds and stalled
-/// downloads are not active. `.checking` covers both verifying and queued for
-/// verification; `.queued` is transfer waits only.
+/// data in either direction) or being verified — the same meaning the
+/// Transmission web client gives "Active". Idle seeds, stalled downloads and
+/// the verify queue are not active.
+///
+/// Every row except Error reads the daemon's `activity`, so the buckets
+/// overlap the way Transmission's web client does: an errored torrent also
+/// shows under what it is doing, and a torrent stopped at its seed limit
+/// shows under Paused. `.checking` covers the verify queue too; `.queued` is
+/// transfer waits only.
 public enum TorrentStatusFilter: String, Hashable, Sendable, CaseIterable, Codable {
     case all, downloading, seeding, active, paused, checking, queued, error
 }
@@ -178,14 +183,11 @@ extension TorrentStatusFilter {
         switch self {
         case .all: return true
         case .active: return torrent.isActive
-        case .downloading: return torrent.status == .downloading
-        case .seeding: return torrent.status == .seeding
-        // Stopped by the daemon, whatever the status shows: a torrent that hit
-        // its seed limit (.completed) or stopped with an error belongs here
-        // too, as in Transmission's web client.
+        case .downloading: return torrent.activity == .downloading
+        case .seeding: return torrent.activity == .seeding
         case .paused: return torrent.isStopped
-        case .checking: return torrent.status == .checking
-        case .queued: return torrent.status == .queued
+        case .checking: return torrent.activity.isVerify
+        case .queued: return torrent.activity == .downloadQueued || torrent.activity == .seedQueued
         case .error: return torrent.status == .error
         }
     }

@@ -49,12 +49,14 @@ public final class InspectorModel {
     private struct DetailSignature: Equatable {
         let id: Torrent.ID
         let status: TorrentStatus
+        let activity: TorrentActivity
         let progress: Double
         let havePieces: Int
 
         init(_ torrent: Torrent) {
             id = torrent.id
             status = torrent.status
+            activity = torrent.activity
             progress = torrent.progress
             havePieces = torrent.havePieces
         }

@@ -39,10 +39,10 @@ struct TorrentListModelTests {
     func selectionStartStop() {
         var running = MockFixtures.torrents()[0]
         running.id = 1
-        running.isStopped = false
+        running.activity = .downloading
         var stopped = running
         stopped.id = 2
-        stopped.isStopped = true
+        stopped.activity = .stopped
         let model = loaded([running, stopped])
 
         #expect(model.selectionStartStop == StartStopAvailability(canStart: false, canStop: false))
@@ -54,7 +54,7 @@ struct TorrentListModelTests {
         #expect(model.selectionStartStop == StartStopAvailability(canStart: true, canStop: true))
 
         // A poll that stops the selected torrent updates it without a reselect.
-        running.isStopped = true
+        running.activity = .stopped
         model.selectedTorrentIDs = [1]
         model.setTorrents([running, stopped])
         #expect(model.selectionStartStop == StartStopAvailability(canStart: true, canStop: false))
@@ -106,7 +106,7 @@ struct TorrentListModelTests {
         model.setStatusFilter(.downloading)
 
         #expect(!model.visibleTorrents.isEmpty)
-        #expect(model.visibleTorrents.allSatisfy { $0.status == .downloading })
+        #expect(model.visibleTorrents.allSatisfy { $0.activity == .downloading })
     }
 
     @Test("search is a case-insensitive name substring")

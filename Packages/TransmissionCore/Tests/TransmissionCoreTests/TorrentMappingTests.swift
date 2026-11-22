@@ -120,9 +120,9 @@ private func makeWire(
 
 @Suite("TorrentMapping — status")
 struct StatusMappingTests {
-    @Test("error >= 2 maps to .error for every non-verify status")
+    @Test("error >= 2 maps to .error regardless of status integer")
     func errorOverridesStatus() {
-        for status in [0, 3, 4, 5, 6] {
+        for status in [0, 1, 2, 3, 4, 5, 6] {
             let t = Torrent(wire: makeWire(status: status, error: 2))
             #expect(t.status == .error, "status=\(status) error=2 should be .error")
         }
@@ -130,13 +130,18 @@ struct StatusMappingTests {
         #expect(t3.status == .error)
     }
 
-    @Test("a verify outranks an error but keeps the error message")
-    func verifyOutranksError() {
-        for status in [1, 2] {
-            let t = Torrent(wire: makeWire(status: status, error: 2, errorString: "Unregistered torrent"))
-            #expect(t.status == .checking, "status=\(status) error=2 should be .checking")
-            #expect(t.errorMessage == "Unregistered torrent")
+    @Test("activity keeps the daemon's state when an error or the seed limit owns the status")
+    func activityIgnoresErrorAndFinished() {
+        let expected: [Int: TorrentActivity] = [
+            0: .stopped, 1: .verifyQueued, 2: .verifying, 3: .downloadQueued,
+            4: .downloading, 5: .seedQueued, 6: .seeding,
+        ]
+        for (wireStatus, activity) in expected {
+            #expect(Torrent(wire: makeWire(status: wireStatus)).activity == activity)
+            #expect(Torrent(wire: makeWire(status: wireStatus, error: 2)).activity == activity)
         }
+        #expect(Torrent(wire: makeWire(status: 0, isFinished: true)).activity == .stopped)
+        #expect(Torrent(wire: makeWire(status: 99)).activity == .stopped)
     }
 
     @Test("error >= 2 with non-empty errorString uses errorString")
@@ -182,17 +187,17 @@ struct StatusMappingTests {
         #expect(!Torrent(wire: makeWire(status: 6, isFinished: true)).isStopped)
     }
 
-    @Test("a non-wire torrent derives stopped from its status")
-    func isStoppedDerivedFromStatus() {
-        func make(status: TorrentStatus, isStopped: Bool? = nil) -> Torrent {
+    @Test("a non-wire torrent derives its activity from its status")
+    func activityDerivedFromStatus() {
+        func make(status: TorrentStatus, activity: TorrentActivity? = nil, progress: Double = 0) -> Torrent {
             Torrent(
                 id: 1,
                 name: "Torrent",
                 hash: "hash",
                 size: 1,
                 status: status,
-                isStopped: isStopped,
-                progress: 0,
+                activity: activity,
+                progress: progress,
                 primaryTracker: "",
                 downloadFolder: "/downloads",
                 addedAt: Date(timeIntervalSince1970: 0),
@@ -202,9 +207,14 @@ struct StatusMappingTests {
         }
 
         #expect(make(status: .paused).isStopped)
-        #expect(!make(status: .seeding).isStopped)
+        #expect(make(status: .seeding).activity == .seeding)
+        #expect(make(status: .checking).activity == .verifying)
+        #expect(make(status: .queued).activity == .downloadQueued)
+        #expect(make(status: .queued, progress: 1).activity == .seedQueued)
+        #expect(make(status: .error).activity == .downloading)
+        #expect(make(status: .error, progress: 1).activity == .seeding)
         // An explicit value from a non-wire source still wins.
-        #expect(!make(status: .paused, isStopped: false).isStopped)
+        #expect(!make(status: .paused, activity: .seeding).isStopped)
     }
 
     @Test("status 3, 5 (transfer waits) map to .queued")
@@ -221,19 +231,14 @@ struct StatusMappingTests {
         }
     }
 
-    @Test("only wire status 1 is waiting to verify")
-    func waitingToVerify() {
-        #expect(Torrent(wire: makeWire(status: 1)).isWaitingToVerify)
-        #expect(!Torrent(wire: makeWire(status: 2)).isWaitingToVerify)
-        #expect(!Torrent(wire: makeWire(status: 3)).isWaitingToVerify)
-        // Waiting holds even with an error, since a verify outranks it.
-        #expect(Torrent(wire: makeWire(status: 1, error: 3)).isWaitingToVerify)
-    }
-
-    @Test("recheckProgress drives displayProgress only while checking")
+    @Test("recheckProgress drives displayProgress only while verifying")
     func recheckProgressDisplay() {
         #expect(
             Torrent(wire: makeWire(status: 2, percentDone: 1, recheckProgress: 0.4)).displayProgress == 0.4)
+        // An error owning the status must not hide the verify's progress.
+        #expect(
+            Torrent(wire: makeWire(status: 2, error: 2, percentDone: 1, recheckProgress: 0.4))
+                .displayProgress == 0.4)
         // A finished torrent's re-check must not leak into another state.
         #expect(
             Torrent(wire: makeWire(status: 6, percentDone: 1, recheckProgress: 0.4)).displayProgress == 1)

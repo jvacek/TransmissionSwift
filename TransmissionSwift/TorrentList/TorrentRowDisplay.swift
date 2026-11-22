@@ -28,7 +28,7 @@ nonisolated struct TorrentRowDisplay: Equatable {
             && lhs.torrent.size == rhs.torrent.size
             && lhs.torrent.progress == rhs.torrent.progress
             && lhs.torrent.verifyProgress == rhs.torrent.verifyProgress
-            && lhs.torrent.isWaitingToVerify == rhs.torrent.isWaitingToVerify
+            && lhs.torrent.activity == rhs.torrent.activity
             && lhs.torrent.status == rhs.torrent.status
             && lhs.torrent.downloadSpeed == rhs.torrent.downloadSpeed
             && lhs.torrent.uploadSpeed == rhs.torrent.uploadSpeed

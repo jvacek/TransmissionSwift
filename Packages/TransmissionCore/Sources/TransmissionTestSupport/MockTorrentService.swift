@@ -90,6 +90,7 @@ public actor MockTorrentService: TorrentService, PollHealthReporting {
         }
         if newProgress >= 1 {
             state[index].status = .seeding
+            state[index].activity = .seeding
             state[index].downloadSpeed = 0
             state[index].eta = .infinity
         }
@@ -131,8 +132,10 @@ public actor MockTorrentService: TorrentService, PollHealthReporting {
     public func start(_ ids: [Torrent.ID]) async throws {
         let set = Set(ids)
         for index in state.indices where set.contains(state[index].id) {
-            guard state[index].status == .paused || state[index].status == .queued else { continue }
-            state[index].status = state[index].progress >= 1 ? .seeding : .downloading
+            guard state[index].isStopped || state[index].status == .queued else { continue }
+            let isDone = state[index].progress >= 1
+            state[index].status = isDone ? .seeding : .downloading
+            state[index].activity = isDone ? .seeding : .downloading
         }
         broadcast()
     }
@@ -141,6 +144,7 @@ public actor MockTorrentService: TorrentService, PollHealthReporting {
         let set = Set(ids)
         for index in state.indices where set.contains(state[index].id) {
             state[index].status = .paused
+            state[index].activity = .stopped
             state[index].downloadSpeed = 0
             state[index].uploadSpeed = 0
             state[index].eta = nil
@@ -159,6 +163,7 @@ public actor MockTorrentService: TorrentService, PollHealthReporting {
         let set = Set(ids)
         for index in state.indices where set.contains(state[index].id) {
             state[index].status = .checking
+            state[index].activity = .verifying
             state[index].downloadSpeed = 0
             state[index].uploadSpeed = 0
         }

@@ -224,10 +224,9 @@ extension Torrent {
             hash: wire.hashString,
             size: wire.totalSize,
             status: status,
-            isStopped: wire.status == 0,
+            activity: TorrentActivity(wireStatus: wire.status),
             progress: wire.percentDone,
             verifyProgress: wire.recheckProgress ?? 0,
-            isWaitingToVerify: wire.status == 1,
             downloadSpeed: wire.rateDownload,
             uploadSpeed: wire.rateUpload,
             connectedPeerCount: wire.peersConnected,
@@ -273,21 +272,17 @@ extension Torrent {
     }
 
     // Internal so TorrentMappingTests can verify the logic table directly.
+    /// The display label. An error wins: the filters read `activity`, so a
+    /// torrent with an error still shows under Checking, Downloading etc.
     static func mapStatus(wireStatus: Int, error: Int, isFinished: Bool) -> TorrentStatus {
-        // 1 is "queued for verification", not a transfer wait: it belongs with
-        // the verifying torrents, the way Transmission's own clients bucket it.
-        // A verify outranks an error: it is short-lived and user-requested, and
-        // a tracker error ("unregistered torrent") would otherwise hide it. The
-        // error message still maps, and the torrent returns to Error after.
-        if wireStatus == 1 || wireStatus == 2 { return .checking }
         if error >= 2 { return .error }
         if isFinished { return .completed }
-        switch wireStatus {
-        case 0: return .paused
-        case 3, 5: return .queued
-        case 4: return .downloading
-        case 6: return .seeding
-        default: return .paused
+        switch TorrentActivity(wireStatus: wireStatus) {
+        case .stopped: return .paused
+        case .verifyQueued, .verifying: return .checking
+        case .downloadQueued, .seedQueued: return .queued
+        case .downloading: return .downloading
+        case .seeding: return .seeding
         }
     }
 }

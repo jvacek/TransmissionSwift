@@ -49,6 +49,8 @@ public final class TorrentListModel {
     private var facetSignature: [FacetSignature] = []
     private struct FacetSignature: Equatable {
         let status: TorrentStatus
+        /// Most status rows filter on `activity`, which an error can hide.
+        let activity: TorrentActivity
         let primaryTracker: String
         let downloadFolder: String
         let labels: [String]
@@ -202,6 +204,7 @@ public final class TorrentListModel {
         let signature = torrents.map { torrent in
             FacetSignature(
                 status: torrent.status,
+                activity: torrent.activity,
                 primaryTracker: torrent.primaryTracker,
                 downloadFolder: torrent.downloadFolder,
                 labels: torrent.labels,

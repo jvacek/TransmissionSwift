@@ -12,9 +12,9 @@ import TransmissionCore
 struct TorrentCommandsTests {
     @Test func toggleStartsStoppedTorrentsAndStopsTheRest() {
         let torrents = [
-            makeTableTorrent(id: 1, status: .paused, isStopped: true),
+            makeTableTorrent(id: 1, status: .paused),
             makeTableTorrent(id: 2, status: .downloading),
-            makeTableTorrent(id: 3, status: .completed, isStopped: true),
+            makeTableTorrent(id: 3, status: .completed, activity: .stopped),
             makeTableTorrent(id: 4, status: .completed),
         ]
 
@@ -27,7 +27,7 @@ struct TorrentCommandsTests {
     @Test func toggleOnlyConsidersSelectedTorrentsInTableOrder() {
         let torrents = [
             makeTableTorrent(id: 1),
-            makeTableTorrent(id: 2, status: .paused, isStopped: true),
+            makeTableTorrent(id: 2, status: .paused),
             makeTableTorrent(id: 3),
         ]
 
