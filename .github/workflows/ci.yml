@@ -126,19 +126,6 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN_PATH"
           security find-identity -p codesigning -v
 
-      - name: Widen the virtual display
-        # Not required: the app also adapts to a narrow window. When the runner
-        # supports it, a wider display exercises the inspector's toolbar section.
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          brew install displayplacer
-          displayplacer list
-          id=$(displayplacer list | awk '/^Persistent screen id: /{print $4; exit}')
-          displayplacer "id:$id res:1920x1080 hz:60 color_depth:7 scaling:off origin:(0,0) degree:0"
-          sleep 2
-          system_profiler SPDisplaysDataType | grep Resolution
-
       - name: Test
         env:
           # The app and the UI-test runner must share a team for the App Intents
