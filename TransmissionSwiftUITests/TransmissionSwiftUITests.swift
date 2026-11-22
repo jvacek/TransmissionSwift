@@ -457,9 +457,10 @@ final class TransmissionSwiftUITests: XCTestCase {
         let switcher = app.descendants(matching: .any)
             .matching(identifier: "toolbar.serverSwitcher").firstMatch
         XCTAssertTrue(switcher.waitForExistence(timeout: 5))
-        // A menu button exposes its accessibility label as the title.
+        // The title is the symbol's name on macOS 26; the label is what
+        // VoiceOver reads.
         XCTAssertEqual(
-            switcher.title, "My remote server",
+            switcher.label, "My remote server",
             "Expected the server switcher to read as the server name, not the symbol")
     }
 
