@@ -92,8 +92,13 @@ jobs:
           path: |
             ~/Library/Developer/Xcode/DerivedData
             !~/Library/Developer/Xcode/DerivedData/*/Logs
-          key: deriveddata-${{ runner.os }}-xcode-27-${{ github.sha }}
-          restore-keys: deriveddata-${{ runner.os }}-xcode-27-
+          # The package graph is part of the key: restoring products built
+          # against the previous Sentry/Sparkle revision leaves stale explicit
+          # modules and headers behind, and the build then fails to import the
+          # framework ("SDK is not supported by the compiler"). A dependency
+          # bump therefore starts from a cold DerivedData.
+          key: deriveddata-${{ runner.os }}-xcode-27-${{ hashFiles('TransmissionSwift.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
+          restore-keys: deriveddata-${{ runner.os }}-xcode-27-${{ hashFiles('TransmissionSwift.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
 
       - name: Show available SDKs
         run: xcodebuild -showsdks
@@ -121,7 +126,8 @@ jobs:
           path: |
             ~/Library/Developer/Xcode/DerivedData
             !~/Library/Developer/Xcode/DerivedData/*/Logs
-          key: deriveddata-${{ runner.os }}-xcode-27-${{ github.sha }}
+          # Same key as "Restore DerivedData".
+          key: deriveddata-${{ runner.os }}-xcode-27-${{ hashFiles('TransmissionSwift.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
 
       - name: Package test products
         # tar, not the raw folder: artifact zips drop the frameworks' symlinks
@@ -213,8 +219,8 @@ jobs:
           path: |
             ~/Library/Developer/Xcode/DerivedData
             !~/Library/Developer/Xcode/DerivedData/*/Logs
-          key: deriveddata-${{ runner.os }}-xcode-27-${{ github.sha }}
-          restore-keys: deriveddata-${{ runner.os }}-xcode-27-
+          key: deriveddata-${{ runner.os }}-xcode-27-${{ hashFiles('TransmissionSwift.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
+          restore-keys: deriveddata-${{ runner.os }}-xcode-27-${{ hashFiles('TransmissionSwift.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
 
       - name: Check App Intents toolchain
         # AppIntentsTesting is a host framework; a mismatched Xcode/macOS pair
