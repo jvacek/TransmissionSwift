@@ -643,6 +643,42 @@ final class TransmissionSwiftUITests: XCTestCase {
             "Expected Zoom to fit the window to the screen, got \(window.frame)")
     }
 
+    /// TEMP: reproduce fitWindowToScreen and print the numbers the runner sees.
+    @MainActor
+    func testTempGeometryProbe() throws {
+        guard let fixture = fixtureURL() else { throw XCTSkip("Missing fixture") }
+        for (i, screen) in NSScreen.screens.enumerated() {
+            print("GEO screen[\(i)] frame=\(screen.frame) visible=\(screen.visibleFrame)")
+        }
+        print("GEO main=\(String(describing: NSScreen.main?.frame))")
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--snapshot", fixture.path, "-ApplePersistenceIgnoreState", "YES",
+            "-NSWindow Frame main", "0 63 1000 652 0 0 1024 768",
+        ]
+        app.launch()
+        let window = app.windows["main"]
+        XCTAssertTrue(window.waitForExistence(timeout: 15))
+        print("GEO launch=\(window.frame)")
+        let sidebar = app.descendants(matching: .any)
+            .matching(identifier: "sidebar.status.all").firstMatch
+        print("GEO sidebarExists=\(sidebar.exists)")
+        if sidebar.exists {
+            app.typeKey("s", modifierFlags: [.command, .control])
+            _ = waitUntil { !sidebar.exists }
+            print("GEO afterHideSidebar=\(window.frame)")
+        }
+        app.menuBars.firstMatch.menuBarItems["Window"].click()
+        app.menuItems["Zoom"].click()
+        Thread.sleep(forTimeInterval: 1)
+        print("GEO afterZoom=\(window.frame)")
+        let inspectorToggle = app.buttons["toolbar.inspector"]
+        print("GEO toggle=\(inspectorToggle.exists) \(inspectorToggle.frame)")
+        let tabs = app.descendants(matching: .any)
+            .matching(identifier: "inspector.tabs").firstMatch
+        print("GEO tabs=\(tabs.exists) \(tabs.exists ? String(describing: tabs.frame) : "-")")
+    }
+
     /// Polls the given condition, keeping menu state assertions honest while
     /// SwiftUI commits the selection change.
     private func waitUntil(timeout: TimeInterval = 3, _ condition: () -> Bool) -> Bool {
