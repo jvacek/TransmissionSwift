@@ -679,12 +679,15 @@ final class TransmissionSwiftUITests: XCTestCase {
         let tabs = app.descendants(matching: .any)
             .matching(identifier: "inspector.tabs").firstMatch
         let search = app.buttons["toolbar.searchButton"]
+        let items = app.toolbars.firstMatch.buttons.allElementsBoundByIndex.prefix(14)
+            .map { "\($0.identifier.isEmpty ? $0.label : $0.identifier)@\(Int($0.frame.minX))w\(Int($0.frame.width))" }
         XCTFail(
             "GEO screen=\(NSScreen.main?.frame ?? .zero) "
                 + "launch=\(launch) afterHide=\(hidden) zoomed=\(zoomed) "
                 + "toggle=\(inspectorToggle.exists ? String(describing: inspectorToggle.frame) : "-") "
                 + "search=\(search.exists ? String(describing: search.frame) : "-") "
-                + "tabs=\(tabs.exists ? String(describing: tabs.frame) : "-")")
+                + "tabs=\(tabs.exists ? String(describing: tabs.frame) : "-") "
+                + "items=\(items.joined(separator: " "))")
     }
 
     /// Polls the given condition, keeping menu state assertions honest while
