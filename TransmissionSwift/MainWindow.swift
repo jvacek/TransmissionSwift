@@ -60,12 +60,16 @@ struct MainWindow: View {
 
     var body: some View {
         @Bindable var ui = store.ui
+        // Sent into the geometry closure by value: the `Layout` constant is
+        // main-actor isolated and the closure is not.
+        let toolbarMinWidth = Layout.inspectorToolbarMinWidth
 
         splitView
             .frame(minHeight: 600)
             .onGeometryChange(for: Bool.self) { proxy in
-                proxy.size.width >= Layout.inspectorToolbarMinWidth
+                proxy.size.width >= toolbarMinWidth
             } action: { wide in
+                guard wide != windowIsWide else { return }
                 windowIsWide = wide
             }
             .onAppear {
