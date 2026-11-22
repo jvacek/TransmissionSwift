@@ -63,16 +63,23 @@ struct MainWindow: View {
         profileStore.activeProfile == nil
     }
 
+    private var screenWidth: CGFloat {
+        (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame.width ?? 0
+    }
+
     var body: some View {
         @Bindable var ui = store.ui
         // Sent into the geometry closure by value: the `Layout` constant is
         // main-actor isolated and the closure is not.
         let toolbarMinWidth = Layout.inspectorToolbarMinWidth
+        // A window can be wider than the display it opens on; only use the
+        // toolbar section when the screen has room for it.
+        let screenIsWide = screenWidth >= toolbarMinWidth
 
         splitView
             .frame(minHeight: 600)
             .onGeometryChange(for: Bool.self) { proxy in
-                proxy.size.width >= toolbarMinWidth
+                proxy.size.width >= toolbarMinWidth && screenIsWide
             } action: { wide in
                 guard wide != windowIsWide else { return }
                 windowIsWide = wide
@@ -91,7 +98,9 @@ struct MainWindow: View {
                 // inspector then rearrange themselves for the narrower width.
                 DispatchQueue.main.async {
                     guard
-                        let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isVisible }),
+                        let window =
+                            NSApp.windows.first(where: { $0.identifier?.rawValue == "main" })
+                            ?? NSApp.keyWindow ?? NSApp.windows.first,
                         let screen = window.screen ?? NSScreen.main
                     else { return }
                     window.contentMinSize = NSSize(
