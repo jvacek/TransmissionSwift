@@ -457,11 +457,15 @@ final class TransmissionSwiftUITests: XCTestCase {
         let switcher = app.descendants(matching: .any)
             .matching(identifier: "toolbar.serverSwitcher").firstMatch
         XCTAssertTrue(switcher.waitForExistence(timeout: 5))
-        // The title is the symbol's name on macOS 26; the label is what
-        // VoiceOver reads.
+        // The same `.accessibilityLabel` lands in different attributes: macOS 26
+        // maps it to AXDescription (XCUITest's label) and leaves the symbol's
+        // name in the title; macOS 27 maps it to AXTitle and leaves the label
+        // empty. Assert the accessible name, whichever slot holds it.
+        let accessibleName = switcher.label.isEmpty ? switcher.title : switcher.label
         XCTAssertEqual(
-            switcher.label, "My remote server",
-            "Expected the server switcher to read as the server name, not the symbol")
+            accessibleName, "My remote server",
+            "Expected the server switcher to read as the server name, not the symbol; "
+                + "got label '\(switcher.label)', title '\(switcher.title)'")
     }
 
     /// Every Peers column fits the inspector's default width, so speeds never
