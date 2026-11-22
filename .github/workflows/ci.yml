@@ -177,6 +177,6 @@ jobs:
             -destination 'platform=macOS' \
             -allowProvisioningUpdates \
             DEVELOPMENT_TEAM=JK45236K44 \
-            -Xswiftc -DAPP_INTENTS_UI_TESTS \
+            'SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) APP_INTENTS_UI_TESTS' \
             test -only-testing:TransmissionSwiftUITests/AppIntentsUITests \
             | xcbeautify --renderer github-actions
