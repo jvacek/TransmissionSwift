@@ -97,7 +97,8 @@ extension TorrentCellContent {
                 toolTip: nil,
                 accessibilityLabel: text)
         case .progress:
-            let percent = "\(Int((row.torrent.progress * 100).rounded()))%"
+            let value = row.torrent.displayProgress
+            let percent = "\(Int((value * 100).rounded()))%"
             return TorrentCellContent(
                 shape: .progress,
                 text: "",
@@ -105,9 +106,9 @@ extension TorrentCellContent {
                 color: .labelColor,
                 alignment: .left,
                 toolTip: nil,
-                accessibilityLabel: "\(Int((row.torrent.progress * 100).rounded())) percent",
-                progressValue: row.torrent.progress,
-                progressTint: row.torrent.status.nsDisplayColor,
+                accessibilityLabel: "\(Int((value * 100).rounded())) percent",
+                progressValue: value,
+                progressTint: row.torrent.progressNSColor,
                 percentText: percent,
                 secondaryFont: monoDigitFont,
                 secondaryColor: .secondaryLabelColor)

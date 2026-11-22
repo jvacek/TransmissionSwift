@@ -16,6 +16,8 @@ private func makeWire(
     error: Int = 0,
     errorString: String = "",
     isFinished: Bool = false,
+    percentDone: Double = 0.0,
+    recheckProgress: Double? = nil,
     eta: Int = -1,
     uploadRatio: Double = 0.0,
     bandwidthPriority: Int = 0,
@@ -63,7 +65,8 @@ private func makeWire(
         error: error,
         errorString: errorString,
         isFinished: isFinished,
-        percentDone: 0.0,
+        percentDone: percentDone,
+        recheckProgress: recheckProgress,
         rateDownload: 0,
         rateUpload: 0,
         peersConnected: 0,
@@ -127,6 +130,20 @@ struct StatusMappingTests {
         #expect(t3.status == .error)
     }
 
+    @Test("activity keeps the daemon's state when an error or the seed limit owns the status")
+    func activityIgnoresErrorAndFinished() {
+        let expected: [Int: TorrentActivity] = [
+            0: .stopped, 1: .verifyQueued, 2: .verifying, 3: .downloadQueued,
+            4: .downloading, 5: .seedQueued, 6: .seeding,
+        ]
+        for (wireStatus, activity) in expected {
+            #expect(Torrent(wire: makeWire(status: wireStatus)).activity == activity)
+            #expect(Torrent(wire: makeWire(status: wireStatus, error: 2)).activity == activity)
+        }
+        #expect(Torrent(wire: makeWire(status: 0, isFinished: true)).activity == .stopped)
+        #expect(Torrent(wire: makeWire(status: 99)).activity == .stopped)
+    }
+
     @Test("error >= 2 with non-empty errorString uses errorString")
     func errorMessageFromString() {
         let t = Torrent(wire: makeWire(error: 2, errorString: "Disk full"))
@@ -170,17 +187,17 @@ struct StatusMappingTests {
         #expect(!Torrent(wire: makeWire(status: 6, isFinished: true)).isStopped)
     }
 
-    @Test("a non-wire torrent derives stopped from its status")
-    func isStoppedDerivedFromStatus() {
-        func make(status: TorrentStatus, isStopped: Bool? = nil) -> Torrent {
+    @Test("a non-wire torrent derives its activity from its status")
+    func activityDerivedFromStatus() {
+        func make(status: TorrentStatus, activity: TorrentActivity? = nil, progress: Double = 0) -> Torrent {
             Torrent(
                 id: 1,
                 name: "Torrent",
                 hash: "hash",
                 size: 1,
                 status: status,
-                isStopped: isStopped,
-                progress: 0,
+                activity: activity,
+                progress: progress,
                 primaryTracker: "",
                 downloadFolder: "/downloads",
                 addedAt: Date(timeIntervalSince1970: 0),
@@ -190,20 +207,44 @@ struct StatusMappingTests {
         }
 
         #expect(make(status: .paused).isStopped)
-        #expect(!make(status: .seeding).isStopped)
+        #expect(make(status: .seeding).activity == .seeding)
+        #expect(make(status: .checking).activity == .verifying)
+        #expect(make(status: .queued).activity == .downloadQueued)
+        #expect(make(status: .queued, progress: 1).activity == .seedQueued)
+        #expect(make(status: .error).activity == .downloading)
+        #expect(make(status: .error, progress: 1).activity == .seeding)
         // An explicit value from a non-wire source still wins.
-        #expect(!make(status: .paused, isStopped: false).isStopped)
+        #expect(!make(status: .paused, activity: .seeding).isStopped)
     }
 
-    @Test("status 1, 3, 5 map to .queued")
+    @Test("status 3, 5 (transfer waits) map to .queued")
     func queuedStatuses() {
-        for s in [1, 3, 5] {
+        for s in [3, 5] {
             #expect(Torrent(wire: makeWire(status: s)).status == .queued, "status \(s) should be .queued")
         }
     }
 
-    @Test("status 2 maps to .checking")
-    func status2() { #expect(Torrent(wire: makeWire(status: 2)).status == .checking) }
+    @Test("status 1 (queued for verification) and 2 map to .checking")
+    func checkingStatuses() {
+        for s in [1, 2] {
+            #expect(Torrent(wire: makeWire(status: s)).status == .checking, "status \(s) should be .checking")
+        }
+    }
+
+    @Test("recheckProgress drives displayProgress only while verifying")
+    func recheckProgressDisplay() {
+        #expect(
+            Torrent(wire: makeWire(status: 2, percentDone: 1, recheckProgress: 0.4)).displayProgress == 0.4)
+        // An error owning the status must not hide the verify's progress.
+        #expect(
+            Torrent(wire: makeWire(status: 2, error: 2, percentDone: 1, recheckProgress: 0.4))
+                .displayProgress == 0.4)
+        // A finished torrent's re-check must not leak into another state.
+        #expect(
+            Torrent(wire: makeWire(status: 6, percentDone: 1, recheckProgress: 0.4)).displayProgress == 1)
+        // Old daemons / snapshots without the field fall back to completion.
+        #expect(Torrent(wire: makeWire(status: 2, percentDone: 0.3)).displayProgress == 0.3)
+    }
 
     @Test("status 4 maps to .downloading")
     func status4() { #expect(Torrent(wire: makeWire(status: 4)).status == .downloading) }

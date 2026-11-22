@@ -24,7 +24,17 @@ public final class TorrentListModel {
 
     public private(set) var selectedSidebarFilters: Set<SidebarFilter> = [.status(.all)]
     public private(set) var filterSelection = TorrentFilterSelection()
-    public var selectedTorrentIDs: Set<Torrent.ID> = []
+    public var selectedTorrentIDs: Set<Torrent.ID> = [] {
+        didSet {
+            if selectedTorrentIDs != oldValue {
+                refreshSelectionStartStop()
+            }
+        }
+    }
+    /// Resume / Pause availability for the selection. Only reassigned when it
+    /// changes, so the menu bar and toolbar can read it without re-evaluating
+    /// on every poll.
+    public private(set) var selectionStartStop = StartStopAvailability([])
     public var searchQuery: String = "" {
         didSet {
             if searchQuery != oldValue {
@@ -39,6 +49,8 @@ public final class TorrentListModel {
     private var facetSignature: [FacetSignature] = []
     private struct FacetSignature: Equatable {
         let status: TorrentStatus
+        /// Most status rows filter on `activity`, which an error can hide.
+        let activity: TorrentActivity
         let primaryTracker: String
         let downloadFolder: String
         let labels: [String]
@@ -90,6 +102,7 @@ public final class TorrentListModel {
         rebuildFacetsIfChanged()
         pruneSidebarFiltersIfNeeded()
         rebuildVisibleTorrents()
+        refreshSelectionStartStop()
     }
 
     /// Set the daemon's default download directory. Forces a facet recompute
@@ -178,12 +191,20 @@ public final class TorrentListModel {
             .sorted(using: column.comparator(order: prefs.sortAscending ? .forward : .reverse))
     }
 
+    private func refreshSelectionStartStop() {
+        let next = StartStopAvailability(selectedTorrents)
+        if next != selectionStartStop {
+            selectionStartStop = next
+        }
+    }
+
     /// Recomputes `facets` only when the fields the sidebar reads from actually
     /// changed, instead of every poll tick.
     private func rebuildFacetsIfChanged() {
         let signature = torrents.map { torrent in
             FacetSignature(
                 status: torrent.status,
+                activity: torrent.activity,
                 primaryTracker: torrent.primaryTracker,
                 downloadFolder: torrent.downloadFolder,
                 labels: torrent.labels,

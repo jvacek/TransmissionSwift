@@ -33,7 +33,7 @@ struct InspectorGeneralTab: View {
             Text("Transfer")
                 .font(.headline)
 
-            ProgressBar(value: torrent.progress, status: torrent.status)
+            ProgressBar(value: torrent.displayProgress, tint: Color(nsColor: torrent.progressNSColor))
 
             Text(progressCaption)
                 .font(.caption)

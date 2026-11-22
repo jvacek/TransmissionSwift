@@ -35,6 +35,31 @@ struct TorrentListModelTests {
         #expect(model.selectedTorrentIDs == [fixtures[0].id])
     }
 
+    @Test("selection start/stop availability follows selection and status")
+    func selectionStartStop() {
+        var running = MockFixtures.torrents()[0]
+        running.id = 1
+        running.activity = .downloading
+        var stopped = running
+        stopped.id = 2
+        stopped.activity = .stopped
+        let model = loaded([running, stopped])
+
+        #expect(model.selectionStartStop == StartStopAvailability(canStart: false, canStop: false))
+
+        model.selectedTorrentIDs = [1]
+        #expect(model.selectionStartStop == StartStopAvailability(canStart: false, canStop: true))
+
+        model.selectedTorrentIDs = [1, 2]
+        #expect(model.selectionStartStop == StartStopAvailability(canStart: true, canStop: true))
+
+        // A poll that stops the selected torrent updates it without a reselect.
+        running.activity = .stopped
+        model.selectedTorrentIDs = [1]
+        model.setTorrents([running, stopped])
+        #expect(model.selectionStartStop == StartStopAvailability(canStart: true, canStop: false))
+    }
+
     @Test("an empty snapshot preserves the selection (reconnect must not wipe it)")
     func emptySnapshotKeepsSelection() {
         let fixtures = MockFixtures.torrents()
@@ -81,7 +106,7 @@ struct TorrentListModelTests {
         model.setStatusFilter(.downloading)
 
         #expect(!model.visibleTorrents.isEmpty)
-        #expect(model.visibleTorrents.allSatisfy { $0.status == .downloading })
+        #expect(model.visibleTorrents.allSatisfy { $0.activity == .downloading })
     }
 
     @Test("search is a case-insensitive name substring")

@@ -18,8 +18,9 @@ struct FilterFacetsTests {
         #expect(facets.statusCounts[.all] == torrents.count)
         // Active = a live peer/webseed link or checking, not the old union.
         #expect(facets.statusCounts[.active] == 7)
-        #expect(facets.statusCounts[.downloading] == 3)
-        #expect(facets.statusCounts[.seeding] == 3)
+        // The two errored fixtures also count under what they are doing.
+        #expect(facets.statusCounts[.downloading] == 4)
+        #expect(facets.statusCounts[.seeding] == 4)
         #expect(facets.statusCounts[.paused] == 1)
         #expect(facets.statusCounts[.checking] == 1)
         #expect(facets.statusCounts[.queued] == 1)
@@ -108,7 +109,8 @@ struct TorrentFilteringTests {
         let torrents = MockFixtures.torrents()
 
         #expect(torrents.filtered(by: TorrentFilterSelection(statuses: [.all])).count == torrents.count)
-        #expect(torrents.filtered(by: TorrentFilterSelection(statuses: [.downloading])).count == 3)
+        // Includes the errored download.
+        #expect(torrents.filtered(by: TorrentFilterSelection(statuses: [.downloading])).count == 4)
         #expect(torrents.filtered(by: TorrentFilterSelection(statuses: [.paused])).count == 1)
         #expect(torrents.filtered(by: TorrentFilterSelection(folders: ["Linux ISOs"])).count == 4)
         // "Linux" labels the three Linux ISOs (Ubuntu, Arch, Debian). The
@@ -121,26 +123,52 @@ struct TorrentFilteringTests {
     @Test("active matches live links and checking, not idle seeds or queued")
     func activeStatusFiltering() {
         func torrent(
-            status: TorrentStatus, sending: Int = 0, getting: Int = 0, webseeds: Int = 0
+            _ activity: TorrentActivity, sending: Int = 0, getting: Int = 0, webseeds: Int = 0
         ) -> Torrent {
-            Torrent(
-                id: 0, name: "t", hash: "h", size: 0, status: status, progress: 0,
-                peersSendingToUs: sending, peersGettingFromUs: getting,
-                webseedsSendingToUs: webseeds,
-                primaryTracker: "", downloadFolder: "", addedAt: .distantPast,
-                pieces: 0, pieceSize: 0, havePieces: 0
-            )
+            filterTorrent(
+                .downloading, activity, sending: sending, getting: getting, webseeds: webseeds)
         }
 
         let active = TorrentStatusFilter.active
-        #expect(active.matches(torrent(status: .downloading, sending: 1)))
-        #expect(active.matches(torrent(status: .seeding, getting: 1)))
-        #expect(active.matches(torrent(status: .downloading, webseeds: 1)))
-        #expect(active.matches(torrent(status: .checking)))
-        #expect(!active.matches(torrent(status: .downloading)))  // stalled, no live link
-        #expect(!active.matches(torrent(status: .seeding)))  // idle seed
-        #expect(!active.matches(torrent(status: .queued)))
-        #expect(!active.matches(torrent(status: .paused)))
+        #expect(active.matches(torrent(.downloading, sending: 1)))
+        #expect(active.matches(torrent(.seeding, getting: 1)))
+        #expect(active.matches(torrent(.downloading, webseeds: 1)))
+        #expect(active.matches(torrent(.verifying)))
+        #expect(!active.matches(torrent(.verifyQueued)))  // waiting, not hashing
+        #expect(!active.matches(torrent(.downloading)))  // stalled, no live link
+        #expect(!active.matches(torrent(.seeding)))  // idle seed
+        #expect(!active.matches(torrent(.downloadQueued)))
+        #expect(!active.matches(torrent(.stopped)))
+    }
+
+    @Test("status rows follow the daemon's activity, so an error overlaps them")
+    func statusRowsFollowActivity() {
+        func rows(_ status: TorrentStatus, _ activity: TorrentActivity) -> Set<TorrentStatusFilter> {
+            let torrent = filterTorrent(status, activity)
+            return Set(TorrentStatusFilter.allCases.filter { $0 != .all && $0.matches(torrent) })
+        }
+
+        #expect(rows(.downloading, .downloading) == [.downloading])
+        #expect(rows(.error, .downloading) == [.error, .downloading])
+        #expect(rows(.error, .seeding) == [.error, .seeding])  // e.g. all trackers failed
+        #expect(rows(.error, .stopped) == [.error, .paused])
+        #expect(rows(.error, .verifying) == [.error, .checking, .active])
+        #expect(rows(.checking, .verifyQueued) == [.checking])
+        #expect(rows(.completed, .stopped) == [.paused])  // stopped at its seed limit
+        #expect(rows(.completed, .seeding) == [.seeding])
+        #expect(rows(.queued, .downloadQueued) == [.queued])
+        #expect(rows(.queued, .seedQueued) == [.queued])
+    }
+
+    private func filterTorrent(
+        _ status: TorrentStatus, _ activity: TorrentActivity,
+        sending: Int = 0, getting: Int = 0, webseeds: Int = 0
+    ) -> Torrent {
+        Torrent(
+            id: 0, name: "t", hash: "h", size: 0, status: status, activity: activity, progress: 0,
+            peersSendingToUs: sending, peersGettingFromUs: getting, webseedsSendingToUs: webseeds,
+            primaryTracker: "", downloadFolder: "", addedAt: .distantPast,
+            pieces: 0, pieceSize: 0, havePieces: 0)
     }
 
     @Test("a torrent matches when any of its labels is selected")
@@ -184,7 +212,7 @@ struct TorrentFilteringTests {
         )
 
         #expect(!filtered.isEmpty)
-        #expect(filtered.allSatisfy { $0.status == .downloading })
+        #expect(filtered.allSatisfy { $0.activity == .downloading })
         #expect(filtered.allSatisfy { $0.primaryTracker == "releases.ubuntu.com" })
         #expect(filtered.allSatisfy { $0.labels.contains("Linux") })
     }
@@ -825,7 +853,7 @@ struct TorrentStoreTests {
         store.list.toggleLabelFilter("Linux")
 
         #expect(!store.list.visibleTorrents.isEmpty)
-        #expect(store.list.visibleTorrents.allSatisfy { $0.status == .downloading })
+        #expect(store.list.visibleTorrents.allSatisfy { $0.activity == .downloading })
         #expect(store.list.visibleTorrents.allSatisfy { $0.primaryTracker == "releases.ubuntu.com" })
         #expect(store.list.visibleTorrents.allSatisfy { $0.labels.contains("Linux") })
     }

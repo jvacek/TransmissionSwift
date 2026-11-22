@@ -11,13 +11,15 @@ public struct Torrent: Identifiable, Hashable, Sendable {
     public var name: String
     public var hash: String
     public var size: Int64
+    /// One label for display: the dot, the Status column, the Error filter.
+    /// Folds in errors and the seed limit, so it can hide what the torrent is
+    /// doing; filters and actions read `activity` instead.
     public var status: TorrentStatus
-    /// The daemon's wire status was 0. Not derivable from `status`, which
-    /// reports every finished torrent as `.completed` whether it is stopped or
-    /// still seeding. The wire mapping passes the daemon's value explicitly;
-    /// other callers can omit it and get the best guess from `status`.
-    public var isStopped: Bool
+    /// What the daemon is doing with the torrent, unaffected by errors.
+    public var activity: TorrentActivity
     public var progress: Double
+    /// Verify progress, 0...1; only meaningful while `activity` is `.verifying`.
+    public var verifyProgress: Double
     public var downloadSpeed: Int64
     public var uploadSpeed: Int64
     public var connectedPeerCount: Int
@@ -79,9 +81,11 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         size: Int64,
         status: TorrentStatus,
         // `nil` derives a best guess from `status`; the wire mapping passes the
-        // daemon's value because `.completed` can be either stopped or seeding.
-        isStopped: Bool? = nil,
+        // daemon's value, which `status` can't recover once an error or the
+        // seed limit has replaced it.
+        activity: TorrentActivity? = nil,
         progress: Double,
+        verifyProgress: Double = 0,
         downloadSpeed: Int64 = 0,
         uploadSpeed: Int64 = 0,
         connectedPeerCount: Int = 0,
@@ -126,8 +130,9 @@ public struct Torrent: Identifiable, Hashable, Sendable {
         self.hash = hash
         self.size = size
         self.status = status
-        self.isStopped = isStopped ?? (status == .paused)
+        self.activity = activity ?? TorrentActivity(bestGuessFor: status, progress: progress)
         self.progress = progress
+        self.verifyProgress = verifyProgress
         self.downloadSpeed = downloadSpeed
         self.uploadSpeed = uploadSpeed
         self.connectedPeerCount = connectedPeerCount
@@ -170,13 +175,22 @@ public struct Torrent: Identifiable, Hashable, Sendable {
 }
 
 extension Torrent {
-    /// True when at least one live transfer link exists — a peer or webseed
-    /// moving data in either direction — or the torrent is verifying. Mirrors
-    /// Transmission's web (`testState(FilterActive)`) and GTK
-    /// (`Activity::ACTIVE`) definitions: an idle seed or a stalled download is
-    /// not active.
+    /// Progress-column value: the re-check's own progress while verifying (a
+    /// finished torrent otherwise reads 100% for the whole verify), else
+    /// overall completion.
+    public var displayProgress: Double {
+        activity == .verifying && verifyProgress > 0 ? verifyProgress : progress
+    }
+
+    /// Stopped by the daemon. Drives Resume / Pause and the Paused filter.
+    public var isStopped: Bool { activity == .stopped }
+
+    /// True while at least one live transfer link exists — a peer or webseed
+    /// moving data in either direction — or the torrent is being verified.
+    /// Mirrors Transmission's web client (`FilterActive`): an idle seed, a
+    /// stalled download or a torrent waiting in the verify queue is not active.
     public var isActive: Bool {
-        status == .checking
+        activity == .verifying
             || peersSendingToUs > 0
             || peersGettingFromUs > 0
             || webseedsSendingToUs > 0
@@ -226,8 +240,65 @@ extension Torrent {
     }
 }
 
+/// Whether Resume / Pause would do anything for a set of torrents. Each is
+/// enabled when at least one torrent would change, like Finder's mixed-state
+/// commands. Pausing also cancels a pending or running verify, so torrents
+/// in Checking can always be paused.
+public struct StartStopAvailability: Equatable, Sendable {
+    public var canStart: Bool
+    public var canStop: Bool
+
+    public init(canStart: Bool, canStop: Bool) {
+        self.canStart = canStart
+        self.canStop = canStop
+    }
+
+    public init(_ torrents: [Torrent]) {
+        canStart = torrents.contains { $0.isStopped }
+        canStop = torrents.contains { !$0.isStopped }
+    }
+}
+
 public enum TorrentStatus: String, Sendable, Hashable, CaseIterable, Codable {
     case downloading, seeding, paused, checking, queued, error, completed
+}
+
+/// The daemon's own activity (`tr_torrent_activity`, the RPC's `status`),
+/// kept apart from `TorrentStatus` so an error or the seed limit can't hide
+/// it. A torrent can be in Error and Downloading at once.
+public enum TorrentActivity: String, Sendable, Hashable, CaseIterable, Codable {
+    case stopped, verifyQueued, verifying, downloadQueued, downloading, seedQueued, seeding
+
+    /// Maps the RPC `status` integer. Unknown values read as stopped.
+    public init(wireStatus: Int) {
+        switch wireStatus {
+        case 1: self = .verifyQueued
+        case 2: self = .verifying
+        case 3: self = .downloadQueued
+        case 4: self = .downloading
+        case 5: self = .seedQueued
+        case 6: self = .seeding
+        default: self = .stopped
+        }
+    }
+
+    /// For torrents not built from the wire (mocks, previews): the activity
+    /// `status` most likely stands for. An errored or completed torrent is
+    /// assumed to still be running.
+    public init(bestGuessFor status: TorrentStatus, progress: Double) {
+        let isDone = progress >= 1
+        switch status {
+        case .paused: self = .stopped
+        case .checking: self = .verifying
+        case .queued: self = isDone ? .seedQueued : .downloadQueued
+        case .downloading: self = .downloading
+        case .seeding, .completed: self = .seeding
+        case .error: self = isDone ? .seeding : .downloading
+        }
+    }
+
+    /// In the verify queue or being verified.
+    public var isVerify: Bool { self == .verifyQueued || self == .verifying }
 }
 
 /// Case order is the canonical display order for menus and dropdowns — high

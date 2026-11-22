@@ -233,7 +233,7 @@ final class TransmissionSwiftUITests: XCTestCase {
 
         // ⌘F lands in the search field.
         app.typeKey("f", modifierFlags: .command)
-        let search = app.searchFields["toolbar.search"]
+        let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 3))
         app.typeText("ubuntu")
         XCTAssertTrue(
@@ -457,10 +457,15 @@ final class TransmissionSwiftUITests: XCTestCase {
         let switcher = app.descendants(matching: .any)
             .matching(identifier: "toolbar.serverSwitcher").firstMatch
         XCTAssertTrue(switcher.waitForExistence(timeout: 5))
-        // A menu button exposes its accessibility label as the title.
+        // The same `.accessibilityLabel` lands in different attributes: macOS 26
+        // maps it to AXDescription (XCUITest's label) and leaves the symbol's
+        // name in the title; macOS 27 maps it to AXTitle and leaves the label
+        // empty. Assert the accessible name, whichever slot holds it.
+        let accessibleName = switcher.label.isEmpty ? switcher.title : switcher.label
         XCTAssertEqual(
-            switcher.title, "My remote server",
-            "Expected the server switcher to read as the server name, not the symbol")
+            accessibleName, "My remote server",
+            "Expected the server switcher to read as the server name, not the symbol; "
+                + "got label '\(switcher.label)', title '\(switcher.title)'")
     }
 
     /// Every Peers column fits the inspector's default width, so speeds never
@@ -602,14 +607,47 @@ final class TransmissionSwiftUITests: XCTestCase {
 
     /// Launches the app on the committed snapshot fixture. State restoration is
     /// switched off: a Preferences window left open by an earlier test would
-    /// cover the table and make rows unhittable.
+    /// cover the table and make rows unhittable. The window frame is pinned
+    /// too, since frame autosave ignores that switch: whatever an earlier
+    /// launch saved would otherwise come back.
     private func snapshotApp(_ fixture: URL) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "--snapshot", fixture.path, "-ApplePersistenceIgnoreState", "YES",
+            "-NSWindow Frame main", "0 63 1000 652 0 0 1024 768",
         ]
         app.launch()
+        fitWindowToScreen(app)
         return app
+    }
+
+    /// On the CI runners' 1024pt display the toolbar holds the window at about
+    /// 1150pt with all three columns, leaving the inspector's right edge
+    /// off-screen. Hiding the sidebar lowers that minimum, and Zoom then fits
+    /// the window to the screen. The hidden sidebar persists, so later launches
+    /// skip this; a display wide enough never gets here.
+    private func fitWindowToScreen(_ app: XCUIApplication) {
+        let window = app.windows["main"]
+        guard window.waitForExistence(timeout: 15), let screen = NSScreen.main,
+            window.frame.maxX > screen.frame.maxX
+        else { return }
+        let sidebar = app.descendants(matching: .any)
+            .matching(identifier: "sidebar.status.all").firstMatch
+        if sidebar.exists {
+            app.typeKey("s", modifierFlags: [.command, .control])
+            XCTAssertTrue(waitUntil { !sidebar.exists }, "Expected ⌃⌘S to hide the sidebar")
+        }
+        // The sidebar leaves the accessibility tree before its column finishes
+        // collapsing, and until then the window's minimum still includes it:
+        // an early Zoom is a no-op (seen on macOS 26), so retry until it fits.
+        XCTAssertTrue(
+            waitUntil(timeout: 10) {
+                app.menuBars.firstMatch.menuBarItems["Window"].click()
+                app.menuItems["Zoom"].click()
+                Thread.sleep(forTimeInterval: 0.5)
+                return window.frame.maxX <= screen.frame.maxX
+            },
+            "Expected Zoom to fit the window to the screen, got \(window.frame)")
     }
 
     /// Polls the given condition, keeping menu state assertions honest while

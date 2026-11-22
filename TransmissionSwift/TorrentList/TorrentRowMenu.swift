@@ -42,6 +42,7 @@ nonisolated enum TorrentRowMenu {
     static func items(
         ids: [Torrent.ID],
         priorities: [TorrentPriority],
+        startStop: StartStopAvailability,
         actionsEnabled: Bool,
         labelsSupported: Bool,
         mappings: [OpenMapping]
@@ -52,8 +53,8 @@ nonisolated enum TorrentRowMenu {
         let uniformPriority = Set(priorities).count == 1 ? priorities.first : nil
 
         var items: [TorrentRowMenuItem] = []
-        items.append(TorrentRowMenuItem(.resume, isEnabled: canAct))
-        items.append(TorrentRowMenuItem(.pause, isEnabled: canAct))
+        items.append(TorrentRowMenuItem(.resume, isEnabled: canAct && startStop.canStart))
+        items.append(TorrentRowMenuItem(.pause, isEnabled: canAct && startStop.canStop))
         for priority in TorrentPriority.allCases {
             items.append(
                 TorrentRowMenuItem(

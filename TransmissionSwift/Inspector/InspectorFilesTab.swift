@@ -294,7 +294,7 @@ private struct FileRow: View {
                     .frame(width: sizeColumnWidth, alignment: .trailing)
                 ProgressBar(
                     value: file.progress,
-                    status: file.progress >= 1 ? .seeding : .downloading)
+                    tint: (file.progress >= 1 ? TorrentStatus.seeding : .downloading).displayColor)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
