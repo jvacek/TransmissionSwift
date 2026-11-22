@@ -19,6 +19,9 @@ private enum Layout {
     static let inspectorMax: CGFloat = 600
     static let contentMin: CGFloat = 480
     static let contentIdeal: CGFloat = 640
+    /// Below this width the toolbar cannot hold the inspector's tabs and
+    /// toggle, so they move into the list toolbar and the inspector content.
+    static let inspectorToolbarMinWidth: CGFloat = 1320
 }
 
 struct MainWindow: View {
@@ -43,6 +46,10 @@ struct MainWindow: View {
         ? .detailOnly : .all
     @AppStorage(PreferenceKeys.startMinimized) private var startMinimized = false
     @State private var didApplyStartMinimized = false
+    /// Starts narrow and widens from the first layout: declaring the wide
+    /// toolbar up front sets the window's minimum width before the window can
+    /// disagree, which pushed it wider than a 1024pt display.
+    @State private var windowIsWide = false
     @State private var openBus = OpenRequestBus.shared
     @FocusState private var searchFocused: Bool
 
@@ -54,9 +61,18 @@ struct MainWindow: View {
 
     var body: some View {
         @Bindable var ui = store.ui
+        // Sent into the geometry closure by value: the `Layout` constant is
+        // main-actor isolated and the closure is not.
+        let toolbarMinWidth = Layout.inspectorToolbarMinWidth
 
         splitView
             .frame(minHeight: 600)
+            .onGeometryChange(for: Bool.self) { proxy in
+                proxy.size.width >= toolbarMinWidth
+            } action: { wide in
+                guard wide != windowIsWide else { return }
+                windowIsWide = wide
+            }
             .onAppear {
                 // "Start minimized": miniaturize once on launch. Done here (rather
                 // than the app delegate) so it targets the actual main window.
@@ -175,10 +191,10 @@ struct MainWindow: View {
                     MainToolbar()
                 }
         }
-        // On the split view, so the inspector is a full-height column that
-        // pushes the detail's items aside, as in Xcode.
+        // On the split view, so the inspector is a full-height column with its
+        // own toolbar section that pushes the detail's items aside, as in Xcode.
         .inspector(isPresented: $inspector.isVisible) {
-            InspectorView()
+            InspectorView(usesToolbarTabs: windowIsWide)
                 .onGeometryChange(for: CGFloat.self) {
                     $0.size.width
                 } action: { width in
@@ -191,6 +207,9 @@ struct MainWindow: View {
                     ideal: initialInspectorWidth,
                     max: Layout.inspectorMax
                 )
+                .toolbar {
+                    InspectorTabsToolbar(shows: inspector.isVisible && windowIsWide)
+                }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onChange(of: sidebarVisible) { _, visible in
