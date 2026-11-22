@@ -601,6 +601,37 @@ final class TransmissionSwiftUITests: XCTestCase {
             arrow(), secondArrow, "Expected both clicks of a fast double click to flip the arrow")
     }
 
+    // TEMPORARY: reports the main window's width at each step on the runner.
+    @MainActor
+    func testZZWindowGeometryReport() throws {
+        guard let fixture = fixtureURL() else { throw XCTSkip("no fixture") }
+        let app = snapshotApp(fixture)
+        let window = app.windows["main"]
+        let table = app.tables["torrents.table"]
+        XCTAssertTrue(table.cells.firstMatch.waitForExistence(timeout: 15))
+        var log = ["launch=\(window.frame)"]
+        let toggle = app.buttons["toolbar.inspector"]
+        log.append("toggle=\(toggle.label)")
+        let debian = table.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Debian 12.6")
+        ).firstMatch
+        debian.click()
+        Thread.sleep(forTimeInterval: 2)
+        log.append("selected=\(window.frame) toggle=\(toggle.label)")
+        if toggle.label == "Show Inspector" {
+            app.typeKey("i", modifierFlags: .command)
+            Thread.sleep(forTimeInterval: 2)
+            log.append("afterCmdI=\(window.frame)")
+        }
+        app.typeKey("i", modifierFlags: .command)
+        Thread.sleep(forTimeInterval: 2)
+        log.append("hidden=\(window.frame)")
+        app.typeKey("i", modifierFlags: .command)
+        Thread.sleep(forTimeInterval: 2)
+        log.append("shownAgain=\(window.frame)")
+        XCTFail("GEOM " + log.joined(separator: " | "))
+    }
+
     /// Launches the app on the committed snapshot fixture. State restoration is
     /// switched off: a Preferences window left open by an earlier test would
     /// cover the table and make rows unhittable. The window frame is pinned
