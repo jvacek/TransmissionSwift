@@ -189,7 +189,7 @@ struct MainWindow: View {
                     $0.size.width
                 } action: { width in
                     // The column passes through narrower widths while it animates closed.
-                    guard width >= Layout.inspectorMin else { return }
+                    guard store.inspector.isVisible, width >= Layout.inspectorMin else { return }
                     UserDefaults.standard.set(Double(width), forKey: PreferenceKeys.inspectorWidth)
                 }
                 .inspectorColumnWidth(
