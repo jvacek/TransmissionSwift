@@ -146,6 +146,23 @@ struct TorrentFilteringTests {
         #expect(!active.matches(torrent(status: .paused)))
     }
 
+    @Test("paused matches every stopped torrent, finished or errored")
+    func pausedMatchesStopped() {
+        func torrent(_ status: TorrentStatus, stopped: Bool) -> Torrent {
+            Torrent(
+                id: 0, name: "t", hash: "h", size: 0, status: status, isStopped: stopped,
+                progress: 1, primaryTracker: "", downloadFolder: "", addedAt: .distantPast,
+                pieces: 0, pieceSize: 0, havePieces: 0)
+        }
+
+        let paused = TorrentStatusFilter.paused
+        #expect(paused.matches(torrent(.paused, stopped: true)))
+        #expect(paused.matches(torrent(.completed, stopped: true)))  // hit its seed limit
+        #expect(paused.matches(torrent(.error, stopped: true)))
+        #expect(!paused.matches(torrent(.completed, stopped: false)))  // still seeding
+        #expect(!paused.matches(torrent(.error, stopped: false)))
+    }
+
     @Test("a torrent matches when any of its labels is selected")
     func multiLabelFiltering() {
         let torrents = MockFixtures.torrents()

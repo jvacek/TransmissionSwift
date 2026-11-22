@@ -180,7 +180,10 @@ extension TorrentStatusFilter {
         case .active: return torrent.isActive
         case .downloading: return torrent.status == .downloading
         case .seeding: return torrent.status == .seeding
-        case .paused: return torrent.status == .paused
+        // Stopped by the daemon, whatever the status shows: a torrent that hit
+        // its seed limit (.completed) or stopped with an error belongs here
+        // too, as in Transmission's web client.
+        case .paused: return torrent.isStopped
         case .checking: return torrent.status == .checking
         case .queued: return torrent.status == .queued
         case .error: return torrent.status == .error
