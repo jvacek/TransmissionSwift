@@ -603,11 +603,15 @@ final class TransmissionSwiftUITests: XCTestCase {
 
     /// Launches the app on the committed snapshot fixture. State restoration is
     /// switched off: a Preferences window left open by an earlier test would
-    /// cover the table and make rows unhittable.
+    /// cover the table and make rows unhittable. The window frame is pinned
+    /// too, since frame autosave ignores that switch: whatever an earlier
+    /// launch saved would otherwise come back, wider than the runners'
+    /// 1024x768 display.
     private func snapshotApp(_ fixture: URL) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "--snapshot", fixture.path, "-ApplePersistenceIgnoreState", "YES",
+            "-NSWindow Frame main", "0 63 1000 652 0 0 1024 768",
         ]
         app.launch()
         return app
