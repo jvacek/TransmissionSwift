@@ -432,7 +432,17 @@ private struct WindowFitToScreen: NSViewRepresentable {
                 let visible = (window.screen ?? NSScreen.main)?.visibleFrame,
                 window.frame.width > visible.width || window.frame.height > visible.height
             else { return }
-            window.setFrame(window.frame.intersection(visible), display: true)
+            // Clamp rather than intersect: a window placed wholly off the
+            // visible frame intersects to a null rect, which AppKit rejects.
+            // Never below the minimum SwiftUI set, or it resizes straight back
+            // and the two fight forever.
+            var frame = window.frame
+            frame.size.width = max(min(frame.width, visible.width), window.minSize.width)
+            frame.size.height = max(min(frame.height, visible.height), window.minSize.height)
+            frame.origin.x = max(min(frame.minX, visible.maxX - frame.width), visible.minX)
+            frame.origin.y = max(min(frame.minY, visible.maxY - frame.height), visible.minY)
+            guard frame != window.frame else { return }
+            window.setFrame(frame, display: true)
         }
     }
 }
