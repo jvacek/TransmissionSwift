@@ -317,11 +317,13 @@ final class TransmissionSwiftUITests: XCTestCase {
         table.cells.firstMatch.click()
         app.typeText("debian")
 
-        let selected = app.staticTexts.matching(
+        // The name is on screen either way; only the row's selection proves the jump.
+        let debianRow = table.tableRows.containing(
             NSPredicate(format: "label CONTAINS %@", "Debian 12.6")
         ).firstMatch
+        XCTAssertTrue(debianRow.waitForExistence(timeout: 5))
         XCTAssertTrue(
-            selected.waitForExistence(timeout: 5),
+            waitUntil(timeout: 5) { debianRow.isSelected },
             "Expected type-select to move the selection to Debian 12.6")
     }
 
