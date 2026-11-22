@@ -610,12 +610,8 @@ final class TransmissionSwiftUITests: XCTestCase {
 
         let app = snapshotApp(fixture)
         _ = app.tables["torrents.table"].waitForExistence(timeout: 15)
-        for (index, screen) in NSScreen.screens.enumerated() {
-            print(
-                "GEOM screen[\(index)] frame=\(screen.frame) visible=\(screen.visibleFrame) scale=\(screen.backingScaleFactor)"
-            )
-        }
-        print("GEOM window=\(app.windows.firstMatch.frame)")
+        let screens = NSScreen.screens.map { "\($0.frame) visible \($0.visibleFrame)" }
+            .joined(separator: " | ")
 
         _ = app.tables["torrents.table"].cells.firstMatch.waitForExistence(timeout: 10)
         app.tables["torrents.table"].cells.firstMatch.click()
@@ -627,7 +623,8 @@ final class TransmissionSwiftUITests: XCTestCase {
         let tabs = app.descendants(matching: .any).matching(identifier: "inspector.tabs")
             .firstMatch
         _ = tabs.waitForExistence(timeout: 5)
-        print("GEOM tabs=\(tabs.frame) window=\(app.windows.firstMatch.frame)")
+        XCTFail(
+            "GEOM window=\(app.windows.firstMatch.frame) tabs=\(tabs.frame) screens=\(screens)")
     }
 
     /// Launches the app on the committed snapshot fixture. State restoration is
