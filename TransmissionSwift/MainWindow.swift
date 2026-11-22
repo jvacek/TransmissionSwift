@@ -57,7 +57,6 @@ struct MainWindow: View {
 
         splitView
             .frame(minHeight: 600)
-            .background(WindowFitToScreen())
             .onAppear {
                 // "Start minimized": miniaturize once on launch. Done here (rather
                 // than the app delegate) so it targets the actual main window.
@@ -399,55 +398,3 @@ struct MainWindow: View {
         .frame(width: 1100, height: 640)
 }
 #endif
-
-/// Keeps the window within its display. SwiftUI sizes a new window from the
-/// columns' ideal widths, possibly after the view first appears, so a one-off
-/// fit can run too early; refitting on every resize also catches later growth.
-private struct WindowFitToScreen: NSViewRepresentable {
-    func makeNSView(context: Context) -> FittingView { FittingView() }
-
-    func updateNSView(_ view: FittingView, context: Context) {}
-
-    final class FittingView: NSView {
-        private var resizeObserver: (any NSObjectProtocol)?
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            if let resizeObserver { NotificationCenter.default.removeObserver(resizeObserver) }
-            resizeObserver = nil
-            guard let window else { return }
-            Self.fit(window)
-            resizeObserver = NotificationCenter.default.addObserver(
-                forName: NSWindow.didResizeNotification, object: window, queue: .main
-            ) { [weak self] _ in
-                MainActor.assumeIsolated {
-                    guard let window = self?.window else { return }
-                    Self.fit(window)
-                }
-            }
-        }
-
-        /// setFrame posts didResize synchronously; don't refit from inside a fit.
-        private static var isFitting = false
-
-        private static func fit(_ window: NSWindow) {
-            guard !isFitting, !window.styleMask.contains(.fullScreen),
-                let visible = (window.screen ?? NSScreen.main)?.visibleFrame,
-                window.frame.width > visible.width || window.frame.height > visible.height
-            else { return }
-            // Clamp rather than intersect: a window placed wholly off the
-            // visible frame intersects to a null rect, which AppKit rejects.
-            // Never below the minimum SwiftUI set, or it resizes straight back
-            // and the two fight forever.
-            var frame = window.frame
-            frame.size.width = max(min(frame.width, visible.width), window.minSize.width)
-            frame.size.height = max(min(frame.height, visible.height), window.minSize.height)
-            frame.origin.x = max(min(frame.minX, visible.maxX - frame.width), visible.minX)
-            frame.origin.y = max(min(frame.minY, visible.maxY - frame.height), visible.minY)
-            guard frame != window.frame else { return }
-            isFitting = true
-            defer { isFitting = false }
-            window.setFrame(frame, display: true)
-        }
-    }
-}

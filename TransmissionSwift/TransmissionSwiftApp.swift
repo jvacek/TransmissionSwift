@@ -225,6 +225,18 @@ struct TransmissionSwiftApp: App {
                 }
             }
         }
+        // Left alone, a new window takes the columns' ideal widths, which can
+        // exceed a small display (CI runners have 1024pt) and put the inspector
+        // off-screen. The split view reports no ideal width of its own, so the
+        // default is the columns' sum, capped to the display.
+        .defaultWindowPlacement { content, context in
+            let visible = context.defaultDisplay.visibleRect.size
+            let idealHeight = content.sizeThatFits(.unspecified).height
+            return WindowPlacement(
+                size: CGSize(
+                    width: min(1180, visible.width),
+                    height: min(idealHeight, visible.height)))
+        }
         .commands {
             FileCommands(torrentStore: torrentStore)
             EditCommands(torrentStore: torrentStore)
