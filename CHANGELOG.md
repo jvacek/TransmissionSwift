@@ -45,6 +45,8 @@
   - Stop the window from clipping the sidebar and inspector when it's narrow
 - Performance
   - Lower memory use, smoother sorting and less work while idle on large lists
+- Requirements
+  - macOS 26.1 or later
 
 ## 0.7.3
 

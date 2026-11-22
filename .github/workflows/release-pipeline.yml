@@ -39,7 +39,8 @@ env:
 jobs:
   build-release:
     name: Build and publish
-    runs-on: macos-26
+    # The newest SDK; the deployment target keeps the app running on macOS 26.1+.
+    runs-on: xcode-27
     concurrency:
       # Serialize stable and pre-release runs: they all write the same
       # appcast, so concurrent runs could clobber each other.

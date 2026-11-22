@@ -9,7 +9,7 @@ This document captures the architectural decisions made up front. Treat it as lo
 ## 1. Platforms
 
 - **Primary target:** macOS only.
-- **Minimum deployment:** macOS 26.
+- **Minimum deployment:** macOS 26.1 (the app target; the packages stay at 26). 26.1 adds toolbar `visibilityPriority`, which an `if #available` check can't wrap inside a toolbar builder.
 - **Architectures:** Universal binary — Apple Silicon + Intel.
 - **Future-proofing:** Code outside the app target must not import `AppKit`. Keep `TransmissionRPC` and `TransmissionCore` platform-agnostic so iOS/iPadOS can be added later as a separate app target without restructuring.
 
@@ -203,6 +203,7 @@ tested without the shared defaults.
 | Date | Decision | Status |
 |---|---|---|
 | 2026-06-10 | macOS-only, min macOS 26, universal binary | Active |
+| 2026-11-22 | App minimum raised to macOS 26.1 for toolbar `visibilityPriority` | Active |
 | 2026-06-10 | Three-layer module split via local Swift Packages | Active |
 | 2026-06-10 | Hand-rolled RPC client; reject mogeko/transmission-rpc dependency | Active |
 | 2026-06-10 | async/await + `@Observable`, no Combine | Active |
