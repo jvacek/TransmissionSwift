@@ -56,7 +56,9 @@ private struct AddToolbarGroup: ToolbarContent {
     }
 }
 
-/// Group 2 — actions on the selected torrents.
+/// Group 2 — actions on the selected torrents. Low visibility priority: on a
+/// narrow window they move into the toolbar's overflow menu first, so an open
+/// search field keeps its room.
 private struct SelectionToolbarGroup: ToolbarContent {
     @Environment(TorrentStore.self) private var store
 
@@ -69,6 +71,7 @@ private struct SelectionToolbarGroup: ToolbarContent {
             .help("Resume selected torrents")
             .accessibilityIdentifier("toolbar.resume")
         }
+        .visibilityPriority(.low)
         ToolbarItem(placement: .primaryAction) {
             Button("Pause", systemImage: "pause.fill") {
                 Task { await store.actions.stop(Array(store.list.selectedTorrentIDs)) }
@@ -77,6 +80,7 @@ private struct SelectionToolbarGroup: ToolbarContent {
             .help("Pause selected torrents")
             .accessibilityIdentifier("toolbar.pause")
         }
+        .visibilityPriority(.low)
         ToolbarItem(placement: .primaryAction) {
             Button("Remove", systemImage: "trash", role: .destructive) {
                 store.actions.requestRemove(Array(store.list.selectedTorrentIDs))
@@ -85,6 +89,7 @@ private struct SelectionToolbarGroup: ToolbarContent {
             .help("Remove selected torrents")
             .accessibilityIdentifier("toolbar.remove")
         }
+        .visibilityPriority(.low)
         ToolbarItem(placement: .primaryAction) {
             Button("Set Location", systemImage: "folder") {
                 store.openSetLocation(for: Array(store.list.selectedTorrentIDs))
@@ -93,6 +98,7 @@ private struct SelectionToolbarGroup: ToolbarContent {
             .help("Set download location for selected torrents")
             .accessibilityIdentifier("toolbar.setLocation")
         }
+        .visibilityPriority(.low)
     }
 }
 
@@ -122,10 +128,12 @@ struct InspectorToggle: ToolbarContent {
 }
 
 /// Search, in its own `ToolbarContent` for the same type-check reason as
-/// `InspectorToggle`.
+/// `InspectorToggle`. High visibility priority: the field can't live in the
+/// overflow menu, so without it an expanding field would just vanish.
 private struct SearchToolbarItem: ToolbarContent {
     var body: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) { ToolbarSearchField() }
+            .visibilityPriority(.high)
     }
 }
 
