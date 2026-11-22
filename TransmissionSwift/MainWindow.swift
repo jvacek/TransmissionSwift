@@ -51,6 +51,13 @@ struct MainWindow: View {
         profileStore.activeProfile == nil
     }
 
+    /// Observes the torrent list only while an open request is pending, so a
+    /// regular poll does not re-evaluate the whole window.
+    private var pendingOpenTorrentIDs: [Torrent.ID] {
+        guard openBus.request != nil else { return [] }
+        return store.list.torrents.map(\.id)
+    }
+
     var body: some View {
         @Bindable var ui = store.ui
 
@@ -73,7 +80,7 @@ struct MainWindow: View {
             // Retries when the torrent list reloads after a server switch.
             .task { applyOpenRequest() }
             .onChange(of: openBus.request) { _, _ in applyOpenRequest() }
-            .onChange(of: store.list.torrents) { _, _ in applyOpenRequest() }
+            .onChange(of: pendingOpenTorrentIDs) { _, _ in applyOpenRequest() }
             .sheet(isPresented: $ui.showAddTorrent) {
                 AddTorrentSheet(
                     isPresented: $ui.showAddTorrent,
