@@ -76,10 +76,8 @@ jobs:
     # macOS 26.1+. test-app then runs this exact build on each macOS major.
     runs-on: xcode-27
     timeout-minutes: 30
-    env:
-      # The app and the UI-test runner must share a team for the AppIntentsTests
-      # unit suite.
-      SIGNING_ARGS: -allowProvisioningUpdates DEVELOPMENT_TEAM=JK45236K44
+    # Unsigned on purpose: Debug has no DEVELOPMENT_TEAM, so it builds ad-hoc
+    # and fork PRs (which get no secrets) pass. Only app-intents signs.
     steps:
       - uses: actions/checkout@v7
 
@@ -100,25 +98,15 @@ jobs:
       - name: Show available SDKs
         run: xcodebuild -showsdks
 
-      - name: Import signing certificate
-        # App Intents reject an unsigned (ad-hoc) app.
-        env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.APP_INTENTS_CERT_P12_BASE64 }}
-          P12_PASSWORD: ${{ secrets.APP_INTENTS_CERT_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.APP_INTENTS_KEYCHAIN_PASSWORD }}
-        run: scripts/ci_import_signing_cert.sh
-
       # One compile: a plain `build` followed by `test` compiled everything twice,
       # because the test build uses different settings (coverage, testability).
       - name: Build for testing
         run: |
           set -o pipefail
-          # shellcheck disable=SC2086  # SIGNING_ARGS is intentionally word-split.
           xcodebuild \
             -project TransmissionSwift.xcodeproj \
             -scheme TransmissionSwift \
             -destination 'platform=macOS' \
-            $SIGNING_ARGS \
             COMPILER_INDEX_STORE_ENABLE=NO \
             build-for-testing | xcbeautify --renderer github-actions
 
@@ -205,7 +193,9 @@ jobs:
     # Its own job, so this compile-gated build runs alongside build-app instead
     # of after it. It must stay a separate build: the main test build must not
     # link AppIntentsTesting, or one bad host framework takes down every UI test.
-    # Enforced on main; on PRs non-blocking.
+    # Enforced on main; on PRs non-blocking. Needs the signing secrets, which
+    # fork PRs don't get.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: xcode-27
     timeout-minutes: 30
     continue-on-error: ${{ github.event_name == 'pull_request' }}
