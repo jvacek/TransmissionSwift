@@ -19,12 +19,6 @@ private enum Layout {
     static let inspectorMax: CGFloat = 600
     static let contentMin: CGFloat = 480
     static let contentIdeal: CGFloat = 640
-    /// Below this width the toolbar cannot hold the inspector's tabs and
-    /// toggle, so they move into the list toolbar and the inspector content.
-    static let inspectorToolbarMinWidth: CGFloat = 1320
-    /// The narrowest the window may get: the three columns' minimums. The
-    /// toolbar may want more, but it can compress instead of pinning the window.
-    static let windowMinWidth: CGFloat = 960
 }
 
 struct MainWindow: View {
@@ -49,12 +43,6 @@ struct MainWindow: View {
         ? .detailOnly : .all
     @AppStorage(PreferenceKeys.startMinimized) private var startMinimized = false
     @State private var didApplyStartMinimized = false
-    /// Chosen from the screen on launch, so a small display never opens the
-    /// wide toolbar and then has to move its items after the first layout.
-    @State private var windowIsWide: Bool = {
-        let width = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame.width ?? 0
-        return width >= Layout.inspectorToolbarMinWidth
-    }()
     @State private var openBus = OpenRequestBus.shared
 
     /// No profile configured — the window shows the "No Servers" onboarding
@@ -63,52 +51,17 @@ struct MainWindow: View {
         profileStore.activeProfile == nil
     }
 
-    private var screenWidth: CGFloat {
-        (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame.width ?? 0
-    }
-
     var body: some View {
         @Bindable var ui = store.ui
-        // Sent into the geometry closure by value: the `Layout` constant is
-        // main-actor isolated and the closure is not.
-        let toolbarMinWidth = Layout.inspectorToolbarMinWidth
-        // A window can be wider than the display it opens on; only use the
-        // toolbar section when the screen has room for it.
-        let screenIsWide = screenWidth >= toolbarMinWidth
 
         splitView
             .frame(minHeight: 600)
-            .onGeometryChange(for: Bool.self) { proxy in
-                proxy.size.width >= toolbarMinWidth && screenIsWide
-            } action: { wide in
-                guard wide != windowIsWide else { return }
-                windowIsWide = wide
-            }
             .onAppear {
                 // "Start minimized": miniaturize once on launch. Done here (rather
                 // than the app delegate) so it targets the actual main window.
                 if startMinimized, !didApplyStartMinimized {
                     didApplyStartMinimized = true
                     NSApp.keyWindow?.miniaturize(nil)
-                }
-                // SwiftUI asks for a window as wide as the whole toolbar, which
-                // can put the inspector's trailing controls off-screen on a
-                // small display. Cap the minimum and fit the window to the
-                // screen once the first layout settles; the toolbar and the
-                // inspector then rearrange themselves for the narrower width.
-                DispatchQueue.main.async {
-                    guard
-                        let window =
-                            NSApp.windows.first(where: { $0.identifier?.rawValue == "main" })
-                            ?? NSApp.keyWindow ?? NSApp.windows.first,
-                        let screen = window.screen ?? NSScreen.main
-                    else { return }
-                    window.contentMinSize = NSSize(
-                        width: Layout.windowMinWidth, height: window.contentMinSize.height)
-                    let fitted = window.frame.intersection(screen.visibleFrame)
-                    if fitted != window.frame {
-                        window.setFrame(fitted, display: true)
-                    }
                 }
             }
             .onChange(of: hasNoServer) { _, noServer in
@@ -210,13 +163,13 @@ struct MainWindow: View {
                     ToolbarItem(placement: .navigation) {
                         serverSwitcherMenu
                     }
-                    MainToolbar(inspectorInToolbar: windowIsWide)
+                    MainToolbar()
                 }
         }
-        // On the split view, so the inspector is a full-height column with its
-        // own toolbar section that pushes the detail's items aside, as in Xcode.
+        // On the split view, so the inspector is a full-height column that
+        // pushes the detail's items aside, as in Xcode.
         .inspector(isPresented: $inspector.isVisible) {
-            InspectorView(usesToolbarTabs: windowIsWide)
+            InspectorView()
                 .onGeometryChange(for: CGFloat.self) {
                     $0.size.width
                 } action: { width in
@@ -229,23 +182,6 @@ struct MainWindow: View {
                     ideal: initialInspectorWidth,
                     max: Layout.inspectorMax
                 )
-                .toolbar {
-                    // SwiftUI keeps a hidden inspector's toolbar items and
-                    // pushes them into the overflow menu once search expands,
-                    // so the list's toolbar takes the toggle while it's closed.
-                    // A narrow window puts them there too (see `Layout`).
-                    if inspector.isVisible, windowIsWide {
-                        if store.list.selectedTorrents.first != nil {
-                            ToolbarItem(placement: .primaryAction) {
-                                InspectorTabPicker()
-                                    .frame(minWidth: 160, idealWidth: 220, maxWidth: 260)
-                            }
-                            .sharedBackgroundVisibility(.hidden)
-                        }
-                        ToolbarSpacer(.flexible)
-                        InspectorToggle()
-                    }
-                }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onChange(of: sidebarVisible) { _, visible in

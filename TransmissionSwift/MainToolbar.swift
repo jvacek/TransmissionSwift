@@ -17,8 +17,6 @@ import TransmissionCore
 /// two different stores breaks `@ToolbarContentBuilder` conditional inference.
 struct MainToolbar: ToolbarContent {
     @Environment(TorrentStore.self) private var store
-    /// Whether the inspector owns the toggle in its own toolbar section.
-    let inspectorInToolbar: Bool
 
     var body: some ToolbarContent {
         // Group 1 — Add
@@ -52,7 +50,7 @@ struct MainToolbar: ToolbarContent {
             Button("Resume", systemImage: "play.fill") {
                 Task { await store.actions.start(Array(store.list.selectedTorrentIDs)) }
             }
-            .disabled(!store.actionsEnabled || !store.list.selectionStartStop.canStart)
+            .disabled(!store.actionsEnabled || store.list.selectedTorrentIDs.isEmpty)
             .help("Resume selected torrents")
             .accessibilityIdentifier("toolbar.resume")
         }
@@ -60,7 +58,7 @@ struct MainToolbar: ToolbarContent {
             Button("Pause", systemImage: "pause.fill") {
                 Task { await store.actions.stop(Array(store.list.selectedTorrentIDs)) }
             }
-            .disabled(!store.actionsEnabled || !store.list.selectionStartStop.canStop)
+            .disabled(!store.actionsEnabled || store.list.selectedTorrentIDs.isEmpty)
             .help("Pause selected torrents")
             .accessibilityIdentifier("toolbar.pause")
         }
@@ -81,21 +79,9 @@ struct MainToolbar: ToolbarContent {
             .accessibilityIdentifier("toolbar.setLocation")
         }
 
-        // While open, the inspector column declares the toggle (see
-        // `MainWindow`), so it sits in the toolbar section above it, as in Xcode.
-        // On a narrow window it lives here instead.
-        if !inspectorInToolbar || !store.inspector.isVisible {
-            ToolbarSpacer(.fixed)
-            InspectorToggle()
-        }
-    }
-}
+        ToolbarSpacer(.flexible)
 
-/// Show/Hide Inspector: above the inspector while open, else on the list's toolbar.
-struct InspectorToggle: ToolbarContent {
-    @Environment(TorrentStore.self) private var store
-
-    var body: some ToolbarContent {
+        // Group 3 — view toggles
         ToolbarItem(placement: .primaryAction) {
             // Same wording as the View menu item.
             let title = store.inspector.isVisible ? "Hide Inspector" : "Show Inspector"
