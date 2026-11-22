@@ -39,6 +39,7 @@
   - Make the inspector a native column like Xcode's, with its tabs above the column on a wide window and at the top of the column otherwise, the system divider, and resizing that works
   - Show the torrent's name in the inspector's Metadata, with Rename next to it
   - Focus the toolbar search field with ⌘F
+  - Show the server's name on the toolbar's server switcher
   - Animate the sidebar when it's shown or hidden from the View menu
   - Stop the window from clipping the sidebar and inspector when it's narrow
 - Performance
