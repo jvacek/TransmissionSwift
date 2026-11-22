@@ -80,7 +80,7 @@ struct TorrentActionModelTests {
         let (actions, list, service) = try await make()
         let id = list.torrents[0].id
 
-        await actions.setLabels([id], labels: ["Alpha", "Beta"])
+        try await actions.setLabels([id], labels: ["Alpha", "Beta"])
 
         let updated = try await service.torrents().first { $0.id == id }
         #expect(updated?.labels == ["Alpha", "Beta"])
@@ -91,27 +91,37 @@ struct TorrentActionModelTests {
         let (actions, list, service) = try await make()
         let id = list.torrents[0].id
 
-        let ok = await actions.renameTorrent(id, newName: "Renamed")
+        try await actions.renameTorrent(id, newName: "Renamed")
 
-        #expect(ok)
         let updated = try await service.torrents().first { $0.id == id }
         #expect(updated?.name == "Renamed")
     }
 
-    @Test("add without a connected daemon reports a not-connected error")
+    @Test("add without a connected daemon throws a not-connected error")
     func addWithoutConnection() async {
+        let list = TorrentListModel()
+        let actions = TorrentActionModel(list: list, inspector: InspectorModel(list: list))
+
+        let error = await #expect(throws: ActionError.self) {
+            try await actions.add(
+                fileURL: nil, linkURL: "magnet:?xt=urn:btih:abc", destination: "",
+                labels: [], priority: .normal, startWhenAdded: true)
+        }
+
+        #expect(error?.localizedDescription == TorrentAddError.notConnected.localizedDescription)
+    }
+
+    @Test("reportingFailure sends a thrown error to onError")
+    func reportingFailure() async {
         let list = TorrentListModel()
         let actions = TorrentActionModel(list: list, inspector: InspectorModel(list: list))
         let captured = OSAllocatedUnfairLock<ActionError?>(initialState: nil)
         actions.onError = { error in captured.withLock { $0 = error } }
 
-        let added = await actions.add(
-            fileURL: nil, linkURL: "magnet:?xt=urn:btih:abc", destination: "",
-            labels: [], priority: .normal, startWhenAdded: true)
+        await actions.reportingFailure {
+            try await actions.renameTorrent(1, newName: "x")
+        }
 
-        #expect(!added)
-        #expect(
-            captured.withLock { $0?.localizedDescription }
-                == TorrentAddError.notConnected.localizedDescription)
+        #expect(captured.withLock { $0?.localizedDescription } == "Not connected to a server.")
     }
 }

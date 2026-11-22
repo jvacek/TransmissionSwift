@@ -14,7 +14,7 @@ import TransmissionTestSupport
 /// Maps to RPC `torrent-rename-path` with `path` = the torrent's current name.
 /// The new name must be a single path component — empty input and names
 /// containing `/` are rejected client-side; anything else (e.g. a name the
-/// daemon rejects) surfaces via `lastActionError` after Apply.
+/// daemon rejects) shows inline under the field after Apply.
 struct RenameTorrentSheet: View {
     @Environment(TorrentStore.self) private var store
     @Binding var isPresented: Bool
@@ -96,12 +96,11 @@ struct RenameTorrentSheet: View {
         isSaving = true
         defer { isSaving = false }
         saveError = nil
-        let succeeded = await store.actions.renameTorrent(id, newName: trimmedName)
-        if succeeded {
+        do {
+            try await store.actions.renameTorrent(id, newName: trimmedName)
             isPresented = false
-        } else {
-            saveError = store.lastActionError?.localizedDescription ?? "Failed to rename torrent."
-            store.lastActionError = nil
+        } catch {
+            saveError = error.localizedDescription
         }
     }
 }

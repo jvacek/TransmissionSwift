@@ -698,21 +698,20 @@ struct AddTorrentSheet: View {
         isAdding = true
         defer { isAdding = false }
         saveError = nil
-        let succeeded = await store.actions.add(
-            fileURL: mode == .file ? fileURL : nil,
-            linkURL: mode == .file ? nil : linkString.trimmingCharacters(in: .whitespacesAndNewlines),
-            destination: resolveServerPath(destination, relativeTo: store.list.downloadDirectory),
-            labels: tags,
-            priority: priority,
-            startWhenAdded: startWhenAdded,
-            files: mode == .file ? addFiles : [],
-            deleteFileAfterAdding: mode == .file && deleteSourceFile
-        )
-        if succeeded {
+        do {
+            try await store.actions.add(
+                fileURL: mode == .file ? fileURL : nil,
+                linkURL: mode == .file ? nil : linkString.trimmingCharacters(in: .whitespacesAndNewlines),
+                destination: resolveServerPath(destination, relativeTo: store.list.downloadDirectory),
+                labels: tags,
+                priority: priority,
+                startWhenAdded: startWhenAdded,
+                files: mode == .file ? addFiles : [],
+                deleteFileAfterAdding: mode == .file && deleteSourceFile
+            )
             isPresented = false
-        } else {
-            saveError = store.lastActionError?.localizedDescription ?? "Failed to add torrent."
-            store.lastActionError = nil
+        } catch {
+            saveError = error.localizedDescription
         }
     }
 }

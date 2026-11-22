@@ -83,9 +83,7 @@ struct InspectorTrackersTab: View {
             titleVisibility: .visible,
             presenting: pendingPrivateRemoval
         ) { tracker in
-            Button("Remove Tracker", role: .destructive) {
-                Task { await store.actions.removeTracker(torrent.id, tracker) }
-            }
+            Button("Remove Tracker", role: .destructive) { remove(tracker) }
             Button("Cancel", role: .cancel) {}
         } message: { _ in
             Text(
@@ -124,7 +122,15 @@ struct InspectorTrackersTab: View {
         if trackerRemovalWouldStrand(torrent) {
             pendingPrivateRemoval = tracker
         } else {
-            Task { await store.actions.removeTracker(torrent.id, tracker) }
+            remove(tracker)
+        }
+    }
+
+    private func remove(_ tracker: Tracker) {
+        Task {
+            await store.actions.reportingFailure {
+                try await store.actions.removeTracker(torrent.id, tracker)
+            }
         }
     }
 
@@ -173,7 +179,11 @@ struct InspectorTrackersTab: View {
     }
 
     private func move(_ tracker: Tracker, toTier tier: Int) {
-        Task { await store.actions.moveTracker(torrent.id, tracker, toTier: tier) }
+        Task {
+            await store.actions.reportingFailure {
+                try await store.actions.moveTracker(torrent.id, tracker, toTier: tier)
+            }
+        }
     }
 }
 
@@ -365,19 +375,15 @@ private struct AddTrackerSheet: View {
         defer { isSaving = false }
         saveError = nil
         let url = normalizedTrackerAnnounce(announce)
-        let succeeded: Bool
-        if let editing {
-            succeeded = await store.actions.replaceTracker(torrent.id, editing, announce: url)
-        } else {
-            succeeded = await store.actions.addTracker(torrent.id, announce: url)
-        }
-        if succeeded {
+        do {
+            if let editing {
+                try await store.actions.replaceTracker(torrent.id, editing, announce: url)
+            } else {
+                try await store.actions.addTracker(torrent.id, announce: url)
+            }
             dismiss()
-        } else {
-            saveError =
-                store.lastActionError?.localizedDescription
-                ?? (editing == nil ? "Failed to add the tracker." : "Failed to change the tracker URL.")
-            store.lastActionError = nil
+        } catch {
+            saveError = error.localizedDescription
         }
     }
 }
