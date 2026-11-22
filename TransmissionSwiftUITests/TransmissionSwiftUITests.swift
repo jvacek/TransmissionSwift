@@ -457,11 +457,12 @@ final class TransmissionSwiftUITests: XCTestCase {
         let switcher = app.descendants(matching: .any)
             .matching(identifier: "toolbar.serverSwitcher").firstMatch
         XCTAssertTrue(switcher.waitForExistence(timeout: 5))
-        // The title is the symbol's name on macOS 26; the label is what
-        // VoiceOver reads.
-        XCTAssertEqual(
-            switcher.label, "My remote server",
-            "Expected the server switcher to read as the server name, not the symbol")
+        // macOS 26 exposes the name as the label (the title is the symbol's
+        // name); macOS 27 leaves the label empty. VoiceOver reads either.
+        XCTAssertTrue(
+            [switcher.label, switcher.title].contains("My remote server"),
+            "Expected the server switcher to read as the server name, not the symbol; "
+                + "got label '\(switcher.label)', title '\(switcher.title)'")
     }
 
     /// Every Peers column fits the inspector's default width, so speeds never
@@ -599,37 +600,6 @@ final class TransmissionSwiftUITests: XCTestCase {
             topRow(), secondTop, "Expected both clicks of a fast double click to re-sort the rows")
         XCTAssertEqual(
             arrow(), secondArrow, "Expected both clicks of a fast double click to flip the arrow")
-    }
-
-    // TEMPORARY: reports the main window's width at each step on the runner.
-    @MainActor
-    func testZZWindowGeometryReport() throws {
-        guard let fixture = fixtureURL() else { throw XCTSkip("no fixture") }
-        let app = snapshotApp(fixture)
-        let window = app.windows["main"]
-        let table = app.tables["torrents.table"]
-        XCTAssertTrue(table.cells.firstMatch.waitForExistence(timeout: 15))
-        var log = ["launch=\(window.frame)"]
-        let toggle = app.buttons["toolbar.inspector"]
-        log.append("toggle=\(toggle.label)")
-        let debian = table.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS %@", "Debian 12.6")
-        ).firstMatch
-        debian.click()
-        Thread.sleep(forTimeInterval: 2)
-        log.append("selected=\(window.frame) toggle=\(toggle.label)")
-        if toggle.label == "Show Inspector" {
-            app.typeKey("i", modifierFlags: .command)
-            Thread.sleep(forTimeInterval: 2)
-            log.append("afterCmdI=\(window.frame)")
-        }
-        app.typeKey("i", modifierFlags: .command)
-        Thread.sleep(forTimeInterval: 2)
-        log.append("hidden=\(window.frame)")
-        app.typeKey("i", modifierFlags: .command)
-        Thread.sleep(forTimeInterval: 2)
-        log.append("shownAgain=\(window.frame)")
-        XCTFail("GEOM " + log.joined(separator: " | "))
     }
 
     /// Launches the app on the committed snapshot fixture. State restoration is
