@@ -171,6 +171,10 @@ struct MainWindow: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .navigationSplitViewColumnWidth(min: Layout.contentMin, ideal: Layout.contentIdeal)
                 .navigationTitle(profileStore.activeProfile?.label ?? "Transmission")
+                // Kept for the Window menu, but not drawn: in the toolbar the
+                // title can't shrink and holds the window ~190pt wider. The
+                // server switcher shows the name instead.
+                .toolbar(removing: .title)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     // No connection exists in the no-server state, so the status
                     // bar's counts/connection text would be misleading — hide it.
@@ -282,18 +286,16 @@ struct MainWindow: View {
                 openServerSettings()
             }
         } label: {
-            if profileStore.profiles.count > 1 {
-                Label(
-                    profileStore.activeProfile?.label ?? "No Server",
-                    systemImage: "server.rack"
-                )
-            } else {
-                Image(systemName: "server.rack")
-            }
+            // Titled "Server" for the toolbar's Icon and Text caption, but drawn
+            // with the server's name: the only place the window shows it, as
+            // the title is kept out of the toolbar (see `navigationTitle`).
+            Label("Server", systemImage: "server.rack")
+                .labelStyle(
+                    ServerSwitcherLabelStyle(name: profileStore.activeProfile?.label ?? "No Server"))
         }
+        // Capped so a long name truncates instead of widening the window.
+        .frame(maxWidth: 180)
         .help(profileStore.activeProfile?.label ?? "Server")
-        // With one server the label is icon-only; VoiceOver should still name
-        // the server, not the symbol.
         .accessibilityLabel(profileStore.activeProfile?.label ?? "No Server")
         .accessibilityIdentifier("toolbar.serverSwitcher")
     }
@@ -417,3 +419,16 @@ struct MainWindow: View {
         .frame(width: 1100, height: 640)
 }
 #endif
+
+/// Draws the server switcher's label as its icon and the server's name, while
+/// the label's own title ("Server") stays the toolbar item's caption.
+private struct ServerSwitcherLabelStyle: LabelStyle {
+    let name: String
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 6) {
+            configuration.icon
+            Text(name).lineLimit(1)
+        }
+    }
+}
