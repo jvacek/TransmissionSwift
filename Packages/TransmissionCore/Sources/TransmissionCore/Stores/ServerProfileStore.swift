@@ -5,6 +5,28 @@
 import Foundation
 import Observation
 
+/// Why the saved server list was not loaded.
+public enum ServerProfileLoadError: Error, Equatable, Sendable {
+    /// The file could not be read and was moved aside under `backupName`.
+    case quarantined(backupName: String)
+    /// The file could not be read nor moved aside. Saving is refused so the
+    /// unreadable file is never overwritten.
+    case unreadableNotMoved(fileName: String)
+}
+
+extension ServerProfileLoadError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .quarantined(let backupName):
+            return
+                "Your server list couldn't be read. A copy was saved as \(backupName) in the app's data folder."
+        case .unreadableNotMoved(let fileName):
+            return
+                "Your server list couldn't be read, and \(fileName) couldn't be moved aside. Changes to servers won't be saved until you move it out of the app's data folder and relaunch."
+        }
+    }
+}
+
 /// Owns the list of server profiles, persisted as JSON. Analogous to a tiny
 /// repository over a config file — every mutation writes through to disk.
 @MainActor
@@ -12,8 +34,12 @@ import Observation
 public final class ServerProfileStore {
     public private(set) var profiles: [ServerProfile] = []
     public private(set) var activeProfileID: UUID?
+    /// Set when the file on disk could not be loaded, for the app to show once.
+    public private(set) var loadError: ServerProfileLoadError?
 
     private let fileURL: URL
+    /// Kept apart from `loadError`, which is cleared once the user has seen it.
+    private var isWriteBlocked = false
 
     /// The active profile, falling back to the first profile when no explicit
     /// active ID is set.
@@ -57,8 +83,18 @@ public final class ServerProfileStore {
             // A corrupt or newer-schema file must not become an empty profile
             // list: the next mutation would atomically overwrite it. Move it
             // aside so the user can recover it, then start fresh.
-            Self.quarantine(fileURL)
+            do {
+                let backup = try Self.quarantine(fileURL)
+                loadError = .quarantined(backupName: backup.lastPathComponent)
+            } catch {
+                loadError = .unreadableNotMoved(fileName: fileURL.lastPathComponent)
+                isWriteBlocked = true
+            }
         }
+    }
+
+    public func acknowledgeLoadError() {
+        loadError = nil
     }
 
     public func add(_ profile: ServerProfile) throws {
@@ -166,15 +202,19 @@ public final class ServerProfileStore {
         }
     }
 
-    private nonisolated static func quarantine(_ fileURL: URL) {
+    private nonisolated static func quarantine(_ fileURL: URL) throws -> URL {
         let stamp = ISO8601DateFormatter().string(from: Date())
             .replacingOccurrences(of: ":", with: "-")
         let backup = fileURL.deletingLastPathComponent()
             .appendingPathComponent("\(fileURL.lastPathComponent).corrupt-\(stamp)")
-        try? FileManager.default.moveItem(at: fileURL, to: backup)
+        try FileManager.default.moveItem(at: fileURL, to: backup)
+        return backup
     }
 
     private func persist() throws {
+        if isWriteBlocked {
+            throw ServerProfileLoadError.unreadableNotMoved(fileName: fileURL.lastPathComponent)
+        }
         try FileManager.default.createDirectory(
             at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         let encoder = JSONEncoder()

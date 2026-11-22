@@ -96,10 +96,44 @@ struct ServerProfileStoreTests {
         let backups = try FileManager.default.contentsOfDirectory(atPath: directory.path)
             .filter { $0.hasPrefix("servers.json.corrupt-") }
         #expect(backups.count == 1)
+        let backup = try #require(backups.first)
+        #expect(store.loadError == .quarantined(backupName: backup))
+        #expect(store.loadError?.localizedDescription.contains(backup) == true)
+
+        store.acknowledgeLoadError()
+        #expect(store.loadError == nil)
 
         // The next write starts a fresh, valid file.
         try store.add(ServerProfile(label: "New", host: "nas.local"))
         #expect(ServerProfileStore(fileURL: fileURL).profiles.count == 1)
+    }
+
+    @Test("a corrupt file that cannot be moved aside is never overwritten")
+    @MainActor
+    func unmovableCorruptFileBlocksWrites() throws {
+        let fileURL = tempFileURL()
+        let directory = fileURL.deletingLastPathComponent()
+        let manager = FileManager.default
+        try manager.createDirectory(at: directory, withIntermediateDirectories: true)
+        let corrupt = Data("{ not json".utf8)
+        try corrupt.write(to: fileURL)
+        // A read-only folder lets the file be read but not renamed.
+        try manager.setAttributes([.posixPermissions: 0o555], ofItemAtPath: directory.path)
+        defer {
+            try? manager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: directory.path)
+            try? manager.removeItem(at: directory)
+        }
+
+        let store = ServerProfileStore(fileURL: fileURL)
+        #expect(store.profiles.isEmpty)
+        #expect(store.loadError == .unreadableNotMoved(fileName: "servers.json"))
+
+        store.acknowledgeLoadError()
+        #expect(throws: ServerProfileLoadError.unreadableNotMoved(fileName: "servers.json")) {
+            try store.add(ServerProfile(label: "New", host: "nas.local"))
+        }
+        #expect(store.profiles.isEmpty)
+        #expect(try Data(contentsOf: fileURL) == corrupt)
     }
 
     @Test("a failed write restores the previous profile list")

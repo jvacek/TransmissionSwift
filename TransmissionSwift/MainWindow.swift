@@ -143,6 +143,18 @@ struct MainWindow: View {
             } message: { error in
                 Text(error.localizedDescription)
             }
+            .alert(
+                "Server List Not Loaded",
+                isPresented: Binding(
+                    get: { profileStore.loadError != nil },
+                    set: { if !$0 { profileStore.acknowledgeLoadError() } }
+                ),
+                presenting: profileStore.loadError
+            ) { _ in
+                Button("OK", role: .cancel) { profileStore.acknowledgeLoadError() }
+            } message: { error in
+                Text(error.localizedDescription)
+            }
     }
 
     // MARK: - Split view
