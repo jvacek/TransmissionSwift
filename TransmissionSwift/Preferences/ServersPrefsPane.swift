@@ -176,7 +176,6 @@ struct ServersPrefsPane: View {
             // The profile id is never reused, so an orphaned secret would sit
             // in the Keychain forever.
             try? keychain.deletePassword(for: id)
-            Task { await SpotlightIndexer.indexServers(profileStore.profiles) }
         } catch {
             // The store rolled back; the row stays for a retry.
             actionError = error.localizedDescription
