@@ -16,8 +16,6 @@ import TransmissionCore
 /// two different stores breaks `@ToolbarContentBuilder` conditional inference.
 struct MainToolbar: ToolbarContent {
     @Environment(TorrentStore.self) private var store
-    /// Whether the inspector owns the toggle in its own toolbar section.
-    let inspectorInToolbar: Bool
 
     var body: some ToolbarContent {
         // Group 1 — Add
@@ -80,13 +78,29 @@ struct MainToolbar: ToolbarContent {
 
         ToolbarSpacer(.flexible)
 
-        // Group 3 — view toggles. While the inspector is open and the window is
-        // wide, the inspector column declares the toggle instead (see
-        // `MainWindow`), so it sits in the toolbar section above it, as in Xcode.
-        if !inspectorInToolbar || !store.inspector.isVisible {
-            ToolbarSpacer(.fixed)
-            InspectorToggle()
+        // Group 3 — view toggles
+        InspectorToggle()
+    }
+}
+
+/// The inspector's tab picker in the column's own toolbar section, above the
+/// column as in Xcode. Declared on every layout and left empty rather than
+/// wrapped in a builder `if`: a conditional in a `ToolbarContentBuilder` body
+/// fails the macOS 26 compiler when it reads the environment.
+struct InspectorTabsToolbar: ToolbarContent {
+    @Environment(TorrentStore.self) private var store
+    /// The column's toolbar section only exists when the inspector is open, and
+    /// only a window wide enough to hold the picker uses it.
+    let shows: Bool
+
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            if shows, store.list.selectedTorrents.first != nil {
+                InspectorTabPicker()
+                    .frame(minWidth: 160, idealWidth: 220, maxWidth: 260)
+            }
         }
+        .sharedBackgroundVisibility(.hidden)
     }
 }
 
