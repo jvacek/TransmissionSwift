@@ -85,9 +85,10 @@ struct ContentView: View {
         .task {
             CrashReporting.trackRuntimeLoad { torrentStore.list.torrents.count }
         }
-        // Donate the server list to Spotlight once at launch. (Torrents are
-        // donated by Get Torrents to avoid indexing on every poll.)
-        .task { await SpotlightIndexer.indexServers(profileStore.profiles) }
+        // Donate the server list to Spotlight at launch and on every add,
+        // rename, duplicate or removal. (Torrents are donated by Get Torrents
+        // to avoid indexing on every poll.)
+        .task(id: profileStore.profiles) { await SpotlightIndexer.indexServers(profileStore.profiles) }
         .environment(connection)
     }
 
