@@ -365,15 +365,8 @@ struct URLSessionTransmissionClientTests {
             )
         }
 
-        do {
-            _ = try await makeClient(host: host).sessionGet()
-            Issue.record("Expected an http error")
-        } catch {
-            guard case .http(let status, _) = error else {
-                Issue.record("Expected .http, got \(error)")
-                return
-            }
-            #expect(status == 409)
+        await #expect(throws: TransmissionError.sessionConflict) {
+            try await makeClient(host: host).sessionGet()
         }
         #expect(recorded.withLock { $0 } == 2)
     }

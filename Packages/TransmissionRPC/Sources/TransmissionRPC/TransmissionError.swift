@@ -12,8 +12,11 @@ public enum TransmissionError: Error, Sendable, Equatable {
     /// The response body could not be decoded as the expected JSON shape.
     case decoding(String)
     /// The daemon answered but reported failure — a non-`success` `result`
-    /// string, or a persistent 409 after refreshing the session ID.
+    /// string.
     case serverError(String)
+    /// Still 409 after adopting the fresh session ID. Usually transient, e.g.
+    /// a daemon restarting between the two requests.
+    case sessionConflict
     /// A non-success HTTP status. `body` is for logs and diagnostics; the
     /// localized message never includes it (proxies and login pages answer
     /// with HTML that is useless in a banner).
@@ -34,6 +37,8 @@ extension TransmissionError: LocalizedError {
             return "Could not read the server's response: \(detail)"
         case .serverError(let message):
             return "The server reported an error: \(message)"
+        case .sessionConflict:
+            return "The server kept rejecting the session. It may be restarting."
         case .http(let status, _):
             return "The server returned HTTP \(status)."
         case .torrentDuplicate(let name):

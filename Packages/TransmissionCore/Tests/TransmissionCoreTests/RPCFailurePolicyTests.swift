@@ -24,6 +24,7 @@ struct RPCFailurePolicyTests {
         #expect(!RPCTorrentService.isFatal(timeout))
         #expect(!RPCTorrentService.isFatal(.serverError("boom")))
         #expect(!RPCTorrentService.isFatal(.decoding("junk")))
+        #expect(!RPCTorrentService.isFatal(.sessionConflict))
     }
 
     @Test("retry delay starts at 5s and caps at 10s")

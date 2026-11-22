@@ -167,8 +167,7 @@ public actor URLSessionTransmissionClient: TransmissionClient {
         case 401:
             throw .unauthorized
         case 409:
-            throw .http(
-                status: 409, body: "Session ID handshake failed: still 409 after refresh")
+            throw .sessionConflict
         default:
             let body = Self.snippet(data, limit: 300)
             logger.error(

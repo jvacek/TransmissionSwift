@@ -241,8 +241,8 @@ public actor RPCTorrentService: TorrentService, PollHealthReporting {
         case .unauthorized:
             return true
         case .http(let status, _):
-            // The client already retried a 409 once, so any 409 that escapes is
-            // persistent. Timeouts and rate limits are worth retrying.
+            // A persistent 409 arrives as `.sessionConflict`, not here.
+            // Timeouts and rate limits are worth retrying.
             return (400...499).contains(status) && status != 408 && status != 429
         case .network(let urlError):
             return urlError.code == .badURL || urlError.code == .unsupportedURL
