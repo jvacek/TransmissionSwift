@@ -144,12 +144,11 @@ struct SetLocationSheet: View {
         isSaving = true
         defer { isSaving = false }
         saveError = nil
-        let succeeded = await store.actions.setLocation(ids, location: resolvedLocation, move: moveData)
-        if succeeded {
+        do {
+            try await store.actions.setLocation(ids, location: resolvedLocation, move: moveData)
             isPresented = false
-        } else {
-            saveError = store.lastActionError?.localizedDescription ?? "Failed to set location."
-            store.lastActionError = nil
+        } catch {
+            saveError = error.localizedDescription
         }
     }
 }

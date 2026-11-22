@@ -118,15 +118,14 @@ struct EditLabelsSheet: View {
         saveError = nil
         let updates = Self.labelUpdates(
             store.list.torrents, ids: ids, initial: initial, edited: tags)
-        for update in updates {
-            let succeeded = await store.actions.setLabels(update.ids, labels: update.labels)
-            if !succeeded {
-                saveError = store.lastActionError?.localizedDescription ?? "Failed to update labels."
-                store.lastActionError = nil
-                return
+        do {
+            for update in updates {
+                try await store.actions.setLabels(update.ids, labels: update.labels)
             }
+            isPresented = false
+        } catch {
+            saveError = error.localizedDescription
         }
-        isPresented = false
     }
 }
 

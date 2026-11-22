@@ -128,103 +128,84 @@ public final class TorrentActionModel {
         do { try await mutations.setOptions(id, options: options) } catch { report(error) }
     }
 
-    /// Replace the label set on every torrent in `ids`. Returns true on
-    /// success; the daemon's rejection surfaces via `lastActionError`.
-    @discardableResult
-    public func setLabels(_ ids: [Torrent.ID], labels: [String]) async -> Bool {
-        guard let mutations else { return false }
+    /// Replace the label set on every torrent in `ids`.
+    public func setLabels(_ ids: [Torrent.ID], labels: [String]) async throws(ActionError) {
+        let mutations = try connected()
         logger.info("setLabels store action: ids=\(ids) labels=\(labels)")
         do {
             try await mutations.setLabels(ids, labels: labels)
-            logger.info("setLabels store action succeeded for ids=\(ids)")
-            return true
         } catch {
             logger.error("setLabels store action failed for ids=\(ids): \(error)")
-            report(error)
-            return false
+            throw .from(error)
         }
     }
 
     // MARK: - Trackers
 
     /// Add one announce URL to a torrent's tracker list (into its last tier).
-    /// Returns true on success; the daemon's rejection surfaces via
-    /// `lastActionError`.
-    @discardableResult
-    public func addTracker(_ id: Torrent.ID, announce: String) async -> Bool {
-        await editTrackers(id) { TrackerList.adding(announce, to: $0) }
+    public func addTracker(_ id: Torrent.ID, announce: String) async throws(ActionError) {
+        try await editTrackers(id) { TrackerList.adding(announce, to: $0) }
     }
 
-    /// Remove one tracker by its announce URL. Returns true on success.
-    @discardableResult
-    public func removeTracker(_ id: Torrent.ID, _ tracker: Tracker) async -> Bool {
-        await editTrackers(id) { TrackerList.removing(tracker.announce, from: $0) }
+    /// Remove one tracker by its announce URL.
+    public func removeTracker(_ id: Torrent.ID, _ tracker: Tracker) async throws(ActionError) {
+        try await editTrackers(id) { TrackerList.removing(tracker.announce, from: $0) }
     }
 
     /// Move one tracker into another tier. An existing tier joins it (the two
     /// then race); a tier past the last one becomes a new backup tier.
-    @discardableResult
-    public func moveTracker(_ id: Torrent.ID, _ tracker: Tracker, toTier tier: Int) async -> Bool {
-        await editTrackers(id) { TrackerList.moving(tracker.announce, toTier: tier, in: $0) }
+    public func moveTracker(_ id: Torrent.ID, _ tracker: Tracker, toTier tier: Int) async throws(ActionError) {
+        try await editTrackers(id) { TrackerList.moving(tracker.announce, toTier: tier, in: $0) }
     }
 
     /// Point one tracker at a different announce URL, keeping its tier. This is
     /// what a private torrent needs when its tracker moves domains.
-    @discardableResult
-    public func replaceTracker(_ id: Torrent.ID, _ tracker: Tracker, announce: String) async -> Bool {
-        await editTrackers(id) {
+    public func replaceTracker(
+        _ id: Torrent.ID, _ tracker: Tracker, announce: String
+    ) async throws(ActionError) {
+        try await editTrackers(id) {
             TrackerList.replacing(tracker.announce, with: announce, in: $0)
         }
     }
 
     /// The announce list is a whole-set write, so every edit reads the trackers
     /// from the last poll, rebuilds the string and sends it back.
-    private func editTrackers(_ id: Torrent.ID, _ edit: ([Tracker]) -> String) async -> Bool {
-        guard let mutations, let torrent = list.torrents.first(where: { $0.id == id }) else {
-            return false
-        }
+    private func editTrackers(
+        _ id: Torrent.ID, _ edit: ([Tracker]) -> String
+    ) async throws(ActionError) {
+        let mutations = try connected()
+        let torrent = try listed(id)
         do {
             try await mutations.setTrackerList(id, to: edit(torrent.trackers))
-            return true
         } catch {
-            report(error)
-            return false
+            throw .from(error)
         }
     }
 
     // MARK: - Location / rename / add
 
-    @discardableResult
-    public func setLocation(_ ids: [Torrent.ID], location: String, move: Bool) async -> Bool {
-        guard let mutations else { return false }
+    public func setLocation(_ ids: [Torrent.ID], location: String, move: Bool) async throws(ActionError) {
+        let mutations = try connected()
         do {
             try await mutations.setLocation(ids, location: location, move: move)
-            return true
         } catch {
-            report(error)
-            return false
+            throw .from(error)
         }
     }
 
     /// Rename a torrent's root (its display name). `newName` must be a single
-    /// path component — no `/`. Returns true on success; surfaces daemon errors
-    /// via the coordinator's `lastActionError` like every other mutation.
-    @discardableResult
-    public func renameTorrent(_ id: Torrent.ID, newName: String) async -> Bool {
-        guard let mutations, let current = list.torrents.first(where: { $0.id == id }) else {
-            return false
-        }
+    /// path component — no `/`.
+    public func renameTorrent(_ id: Torrent.ID, newName: String) async throws(ActionError) {
+        let mutations = try connected()
+        let current = try listed(id)
         do {
             try await mutations.renamePath(id, path: current.name, newName: newName)
-            await inspector.refreshIfShowing(id)
-            return true
         } catch {
-            report(error)
-            return false
+            throw .from(error)
         }
+        await inspector.refreshIfShowing(id)
     }
 
-    @discardableResult
     public func add(
         fileURL: URL?,
         linkURL: String?,
@@ -234,11 +215,8 @@ public final class TorrentActionModel {
         startWhenAdded: Bool,
         files: [TorrentAddFile] = [],
         deleteFileAfterAdding: Bool = false
-    ) async -> Bool {
-        guard let mutations else {
-            report(TorrentAddError.notConnected)
-            return false
-        }
+    ) async throws(ActionError) {
+        guard let mutations else { throw .from(TorrentAddError.notConnected) }
         do {
             try await mutations.add(
                 fileURL: fileURL,
@@ -249,14 +227,35 @@ public final class TorrentActionModel {
                 startWhenAdded: startWhenAdded,
                 files: files
             )
-            if deleteFileAfterAdding, let fileURL {
-                deleteLocalTorrentFile(fileURL)
-            }
-            return true
+        } catch {
+            throw .from(error)
+        }
+        if deleteFileAfterAdding, let fileURL {
+            deleteLocalTorrentFile(fileURL)
+        }
+    }
+
+    /// Runs a throwing action for a caller with nowhere to show the error
+    /// inline (a context menu, a dropped file), so a failure goes to the
+    /// app-wide alert instead. Sheets catch the error themselves.
+    public func reportingFailure(_ action: () async throws -> Void) async {
+        do {
+            try await action()
         } catch {
             report(error)
-            return false
         }
+    }
+
+    private func connected() throws(ActionError) -> any TorrentMutating {
+        guard let mutations else { throw .failed(message: "Not connected to a server.") }
+        return mutations
+    }
+
+    private func listed(_ id: Torrent.ID) throws(ActionError) -> Torrent {
+        guard let torrent = list.torrents.first(where: { $0.id == id }) else {
+            throw .failed(message: "The torrent is no longer in the list.")
+        }
+        return torrent
     }
 
     /// Best-effort cleanup of the source `.torrent` file after the daemon

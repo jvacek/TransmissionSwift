@@ -32,6 +32,7 @@ public enum ActionError: Error, Identifiable, Sendable {
 
     /// Map any thrown error to the alert to show.
     public static func from(_ error: any Error) -> ActionError {
+        if let actionError = error as? ActionError { return actionError }
         if case .torrentDuplicate(let name) = error as? TransmissionError {
             return .torrentDuplicate(name: name)
         }
@@ -296,11 +297,13 @@ public final class TorrentStore {
             let deleteAfterAdding = UserDefaults.standard.bool(
                 forKey: PreferenceKeys.deleteTorrentFileAfterAdding)
             Task {
-                await actions.add(
-                    fileURL: mode == .file ? url : nil,
-                    linkURL: mode == .file ? nil : url.absoluteString,
-                    destination: "", labels: [], priority: .normal,
-                    startWhenAdded: true, deleteFileAfterAdding: deleteAfterAdding)
+                await actions.reportingFailure {
+                    try await actions.add(
+                        fileURL: mode == .file ? url : nil,
+                        linkURL: mode == .file ? nil : url.absoluteString,
+                        destination: "", labels: [], priority: .normal,
+                        startWhenAdded: true, deleteFileAfterAdding: deleteAfterAdding)
+                }
             }
             return
         }
