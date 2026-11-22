@@ -27,7 +27,7 @@ struct MainToolbar: ToolbarContent {
         ToolbarSpacer(.flexible)
         SearchToolbarItem()
         ToolbarSpacer(.fixed)
-        InspectorToggle(shows: !store.inspector.isVisible)
+        InspectorToggle(placement: .list)
     }
 }
 
@@ -107,14 +107,22 @@ private struct SelectionToolbarGroup: ToolbarContent {
 /// they don't apply: a builder `if` that reads the environment fails the
 /// macOS 26 compiler, and SwiftUI keeps a hidden inspector's items around.
 struct InspectorToggle: ToolbarContent {
+    enum Placement { case list, column }
+
     @Environment(TorrentStore.self) private var store
-    let shows: Bool
+    let placement: Placement
+
+    /// The list's copy shows while the inspector is closed, the column's
+    /// while it's open.
+    private var isDrawn: Bool {
+        store.inspector.isVisible == (placement == .column)
+    }
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
-            if shows {
+            if isDrawn {
                 // Same wording as the View menu item.
-                let title = store.inspector.isVisible ? "Hide Inspector" : "Show Inspector"
+                let title = placement == .column ? "Hide Inspector" : "Show Inspector"
                 Button(title, systemImage: "sidebar.right") {
                     store.inspector.isVisible.toggle()
                 }
@@ -122,7 +130,7 @@ struct InspectorToggle: ToolbarContent {
                 .accessibilityIdentifier("toolbar.inspector")
             }
         }
-        .sharedBackgroundVisibility(shows ? .automatic : .hidden)
+        .sharedBackgroundVisibility(isDrawn ? .automatic : .hidden)
     }
 }
 
