@@ -120,6 +120,24 @@ struct OpenMappingStoreTests {
                 == ["everywhere", "remotely"])
     }
 
+    @Test("duplicate saves a renamed copy under a new id")
+    @MainActor
+    func duplicate() throws {
+        let urls = tempURLs()
+        defer { try? FileManager.default.removeItem(at: urls.directory) }
+        let store = OpenMappingStore(fileURL: urls.mappings)
+        let original = OpenMapping(name: "Finder", template: "file:///x", scope: .local)
+        try store.add(original)
+
+        let copy = try #require(try store.duplicate(id: original.id))
+
+        #expect(copy.id != original.id)
+        #expect(copy.name == "Finder (Copy)")
+        #expect(copy.template == original.template && copy.scope == original.scope)
+        #expect(OpenMappingStore(fileURL: urls.mappings).mappings.map(\.id) == [original.id, copy.id])
+        #expect(try store.duplicate(id: UUID()) == nil)
+    }
+
     @Test("isLocal classifies loopback, private, link-local and .local hosts")
     func hostClassification() {
         for host in [

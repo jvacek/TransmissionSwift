@@ -143,12 +143,8 @@ struct MappingsPrefsPane: View {
 
     @discardableResult
     private func duplicate(_ mapping: OpenMapping) -> OpenMapping? {
-        var copy = mapping
-        copy.id = UUID()
-        copy.name = "\(mapping.name) (Copy)"
         do {
-            try mappingStore.add(copy)
-            return copy
+            return try mappingStore.duplicate(id: mapping.id)
         } catch {
             saveError = error.localizedDescription
             return nil

@@ -66,6 +66,17 @@ public final class OpenMappingStore {
         try persist()
     }
 
+    /// Saves a copy of a mapping under a new id, named "<name> (Copy)".
+    /// Returns nil when no mapping has `id`.
+    @discardableResult
+    public func duplicate(id: UUID) throws -> OpenMapping? {
+        guard var copy = mappings.first(where: { $0.id == id }) else { return nil }
+        copy.id = UUID()
+        copy.name = "\(copy.name) (Copy)"
+        try add(copy)
+        return copy
+    }
+
     /// Replaces a single mapping (used when a mapping gains a file-access
     /// bookmark during an open) and persists. No-op when it can't be found.
     public func replace(_ mapping: OpenMapping) throws {
