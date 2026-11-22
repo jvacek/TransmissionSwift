@@ -601,32 +601,6 @@ final class TransmissionSwiftUITests: XCTestCase {
             arrow(), secondArrow, "Expected both clicks of a fast double click to flip the arrow")
     }
 
-    /// TEMPORARY: print the window and screen geometry the CI runner presents.
-    @MainActor
-    func testWindowGeometryOnTheRunner() throws {
-        guard let fixture = fixtureURL() else {
-            throw XCTSkip("Missing committed snapshot fixture")
-        }
-
-        let app = snapshotApp(fixture)
-        _ = app.tables["torrents.table"].waitForExistence(timeout: 15)
-        let screens = NSScreen.screens.map { "\($0.frame) visible \($0.visibleFrame)" }
-            .joined(separator: " | ")
-
-        _ = app.tables["torrents.table"].cells.firstMatch.waitForExistence(timeout: 10)
-        app.tables["torrents.table"].cells.firstMatch.click()
-        if !app.descendants(matching: .any).matching(identifier: "inspector.tabs")
-            .firstMatch.waitForExistence(timeout: 2)
-        {
-            app.typeKey("i", modifierFlags: .command)
-        }
-        let tabs = app.descendants(matching: .any).matching(identifier: "inspector.tabs")
-            .firstMatch
-        _ = tabs.waitForExistence(timeout: 5)
-        XCTFail(
-            "GEOM window=\(app.windows.firstMatch.frame) tabs=\(tabs.frame) screens=\(screens)")
-    }
-
     /// Launches the app on the committed snapshot fixture. State restoration is
     /// switched off: a Preferences window left open by an earlier test would
     /// cover the table and make rows unhittable.
