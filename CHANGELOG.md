@@ -38,7 +38,7 @@
   - Ask before removing a mapping, and only enable Save once something changed
   - Make the inspector a native column like Xcode's, with the show/hide button above the column and the tabs at its top, the system divider, and resizing that works
   - Show the torrent's name in the inspector's Metadata, with Rename next to it
-  - Search from a magnifier button that opens into a field on click or ⌘F
+  - Search from a magnifier button that opens into a field on click or ⌘F, moving other buttons into the overflow menu when the window is narrow
   - Show the server's name on the toolbar's server switcher, and keep the toolbar buttons in separate groups
   - Keep the sidebar button in the toolbar in Icon and Text mode, and caption the server switcher "Server"
   - Animate the sidebar when it's shown or hidden from the View menu
