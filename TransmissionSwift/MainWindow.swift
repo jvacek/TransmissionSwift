@@ -413,6 +413,8 @@ private struct WindowFitToScreen: NSViewRepresentable {
             }
             window.contentMinSize = NSSize(
                 width: Layout.windowMinWidth, height: window.contentMinSize.height)
+            window.minSize = NSSize(
+                width: Layout.windowMinWidth, height: window.minSize.height)
             let fitted = window.frame.intersection(screen.visibleFrame)
             if fitted != window.frame {
                 window.setFrame(fitted, display: true)
