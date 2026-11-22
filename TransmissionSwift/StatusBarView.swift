@@ -195,7 +195,9 @@ struct StatusBarView: View {
     }
 
     /// Mirrors the active-torrent count onto the Dock icon when the
-    /// "Badge app icon" pref is on; cleared otherwise.
+    /// "Badge app icon" pref is on; cleared otherwise. The status bar is the
+    /// badge's only owner: it exists exactly while a server's list is shown,
+    /// and clears the badge when it goes away.
     private func updateDockBadge() {
         NSApp.dockTile.badgeLabel = (badgeAppIcon && activeCount > 0) ? "\(activeCount)" : ""
     }

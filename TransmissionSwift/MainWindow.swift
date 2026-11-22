@@ -143,11 +143,6 @@ struct MainWindow: View {
                     NSApp.keyWindow?.miniaturize(nil)
                 }
             }
-            .onChange(of: hasNoServer) { _, noServer in
-                // The status bar (which owns the Dock badge) is hidden with no
-                // server configured — clear any stale count.
-                if noServer { NSApp.dockTile.badgeLabel = "" }
-            }
             // Apply (or retry) a pending "open torrent" request from an App Intent.
             // Retries when the torrent list reloads after a server switch.
             .task { applyOpenRequest() }
