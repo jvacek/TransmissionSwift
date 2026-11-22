@@ -19,6 +19,8 @@ private enum Layout {
     static let inspectorMax: CGFloat = 600
     static let contentMin: CGFloat = 480
     static let contentIdeal: CGFloat = 640
+    /// The narrowest the window may get: the three columns' minimums.
+    static let windowMinWidth: CGFloat = 960
 }
 
 struct MainWindow: View {
@@ -62,6 +64,22 @@ struct MainWindow: View {
                 if startMinimized, !didApplyStartMinimized {
                     didApplyStartMinimized = true
                     NSApp.keyWindow?.miniaturize(nil)
+                }
+                // The columns' ideal widths can open the window wider than the
+                // display. Fit it to the screen once the first layout settles.
+                DispatchQueue.main.async {
+                    guard
+                        let window =
+                            NSApp.windows.first(where: { $0.identifier?.rawValue == "main" })
+                            ?? NSApp.keyWindow ?? NSApp.windows.first,
+                        let screen = window.screen ?? NSScreen.main
+                    else { return }
+                    window.contentMinSize = NSSize(
+                        width: Layout.windowMinWidth, height: window.contentMinSize.height)
+                    let fitted = window.frame.intersection(screen.visibleFrame)
+                    if fitted != window.frame {
+                        window.setFrame(fitted, display: true)
+                    }
                 }
             }
             .onChange(of: hasNoServer) { _, noServer in
