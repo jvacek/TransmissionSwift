@@ -14,11 +14,26 @@ import TransmissionCore
 /// rather than here because `ToolbarContent` structs have more limited
 /// `DynamicProperty` support than `View`, and mixing `@Environment` access for
 /// two different stores breaks `@ToolbarContentBuilder` conditional inference.
+/// Three small `ToolbarContent` groups rather than one body: the macOS 26
+/// compiler gives up on a body this size ("extra argument in call" at
+/// whichever item it reaches first).
 struct MainToolbar: ToolbarContent {
+    var body: some ToolbarContent {
+        AddToolbarGroup()
+        ToolbarSpacer(.fixed)
+        SearchToolbarItem()
+        ToolbarSpacer(.fixed)
+        SelectionToolbarGroup()
+        ToolbarSpacer(.flexible)
+        InspectorToggle()
+    }
+}
+
+/// Group 1 — Add, plus the collapsed search between it and the selection work.
+private struct AddToolbarGroup: ToolbarContent {
     @Environment(TorrentStore.self) private var store
 
     var body: some ToolbarContent {
-        // Group 1 — Add
         ToolbarItem(placement: .primaryAction) {
             Button("Add", systemImage: "plus") {
                 store.openAddSheet()
@@ -35,14 +50,14 @@ struct MainToolbar: ToolbarContent {
             .help("Add magnet link or URL")
             .accessibilityIdentifier("toolbar.addLink")
         }
+    }
+}
 
-        // Search sits between the add buttons and the selection actions.
-        ToolbarSpacer(.fixed)
-        SearchToolbarItem()
+/// Group 2 — actions on the selected torrents.
+private struct SelectionToolbarGroup: ToolbarContent {
+    @Environment(TorrentStore.self) private var store
 
-        ToolbarSpacer(.fixed)
-
-        // Group 2 — selection actions
+    var body: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button("Resume", systemImage: "play.fill") {
                 Task { await store.actions.start(Array(store.list.selectedTorrentIDs)) }
@@ -75,11 +90,6 @@ struct MainToolbar: ToolbarContent {
             .help("Set download location for selected torrents")
             .accessibilityIdentifier("toolbar.setLocation")
         }
-
-        ToolbarSpacer(.flexible)
-
-        // Group 3 — view toggles
-        InspectorToggle()
     }
 }
 
