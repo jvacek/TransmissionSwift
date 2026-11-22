@@ -49,14 +49,14 @@ build:
     set -o pipefail; xcodebuild -project {{ project }} -scheme {{ scheme }} -configuration Debug -destination 'platform=macOS' build | (command -v xcbeautify >/dev/null && xcbeautify || cat)
 
 # Run the full app test suite (unit + UI, sandboxed test container).
-test-app:
+test-app: _kill-stale
     set -o pipefail; xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'platform=macOS' test | (command -v xcbeautify >/dev/null && xcbeautify || cat)
 
 # Alias for the full local test pass: packages + app.
 test: test-packages test-app
 
 # Run only the daemon-free snapshot UI tests (no credentials, no daemon).
-test-snapshot:
+test-snapshot: _kill-stale
     set -o pipefail; xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'platform=macOS' test -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotMainWindow -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotTorrentMenuAndCopyShortcut -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotCopyAndViewCommands -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotTypeSelectJumpsToTorrent -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotFilesTabListsEveryFile -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotFilesTabTakesKeyboardFocus -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotTableClearsToolbarAndStatusBar -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotToolbarLabels -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotPeersTableFitsInspector -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotFilesTabSortMenu -only-testing:TransmissionSwiftUITests/TransmissionSwiftUITests/testSnapshotHeaderFlipsSortOnEveryFastClick | (command -v xcbeautify >/dev/null && xcbeautify || cat)
 
 # Start the local dev daemon (needs `brew install transmission-cli`).
@@ -64,14 +64,14 @@ daemon:
     transmission-daemon -g ~/.transmission-dev -t -u dev -v devpass -p 9091 -w /tmp/transmission-dev-downloads
 
 # Run the opt-in E2E UI test against a local daemon (start `just daemon` first).
-test-e2e:
+test-e2e: _kill-stale
     set -o pipefail; TEST_RUNNER_TRANSMISSION_E2E=1 xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'platform=macOS' test -only-testing:TransmissionSwiftUITests | (command -v xcbeautify >/dev/null && xcbeautify || cat)
 
 # Run the AppIntentsTesting integration tests locally. Needs Xcode 27+ and a code
 # signing team shared by the app and the test runner; `-allowProvisioningUpdates`
 # creates a development certificate on first run if you're signed into Xcode.
 # Defaults to the project's team — override with `just test-appintents <TEAM_ID>`.
-test-appintents team="JK45236K44":
+test-appintents team="JK45236K44": _kill-stale
     xcrun swift scripts/check_appintents_toolchain.swift
     set -o pipefail; TEST_RUNNER_TRANSMISSION_APPINTENTS=1 xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'platform=macOS' -allowProvisioningUpdates DEVELOPMENT_TEAM={{ team }} 'SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) APP_INTENTS_UI_TESTS' test -only-testing:TransmissionSwiftUITests/AppIntentsUITests | (command -v xcbeautify >/dev/null && xcbeautify || cat)
 
@@ -94,3 +94,8 @@ check: lint test-packages
 # Mirror CI locally: hooks + strict package tests + build + app tests.
 ci: test-packages-strict build test-app
     prek run --all-files
+
+# A leftover app or test runner from an earlier run makes UI tests attach to the wrong process.
+_kill-stale:
+    pkill -9 -x TransmissionSwift && sleep 1 || true
+    pkill -9 -f TransmissionSwiftUITests-Runner || true
