@@ -208,32 +208,11 @@ struct InspectorFilesTab: View {
     }
 
     private func wantedBinding(for file: TorrentFile) -> Binding<Bool> {
-        Binding(
-            get: { file.wanted },
-            set: { wanted in
-                Task { await store.actions.setFilesWanted(torrent.id, fileIDs: [file.id], wanted: wanted) }
-            }
-        )
+        Binding(get: { file.wanted }, set: { setWanted($0, for: [file.id]) })
     }
 
     private func priorityBinding(for file: TorrentFile) -> Binding<FilePriorityChoice> {
-        Binding(
-            get: { FilePriorityChoice(file: file) },
-            set: { choice in
-                Task {
-                    if let priority = choice.priority {
-                        if !file.wanted {
-                            await store.actions.setFilesWanted(
-                                torrent.id, fileIDs: [file.id], wanted: true)
-                        }
-                        await store.actions.setFilePriority(
-                            torrent.id, fileIDs: [file.id], priority: priority)
-                    } else {
-                        await store.actions.setFilesWanted(torrent.id, fileIDs: [file.id], wanted: false)
-                    }
-                }
-            }
-        )
+        Binding(get: { FilePriorityChoice(file: file) }, set: { setPriority($0, for: [file.id]) })
     }
 }
 
