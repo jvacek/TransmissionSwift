@@ -87,13 +87,14 @@ jobs:
       - name: Install xcbeautify
         run: brew install xcbeautify
 
-      - name: Cache DerivedData
-        uses: actions/cache@v6
+      - name: Restore DerivedData
+        # Saved per main commit (see "Save DerivedData"); PRs restore the
+        # newest. The image is part of the key: runner.os is "macOS" for both
+        # legs, so without matrix.os they would share one cache.
+        uses: actions/cache/restore@v6
         with:
           path: ~/Library/Developer/Xcode/DerivedData
-          # The image is part of the key: runner.os is "macOS" for both legs, so
-          # without matrix.os they would share (and cross-contaminate) one cache.
-          key: deriveddata-${{ runner.os }}-${{ matrix.os }}-${{ hashFiles('TransmissionSwift.xcodeproj/project.pbxproj') }}
+          key: deriveddata-${{ runner.os }}-${{ matrix.os }}-${{ github.sha }}
           restore-keys: deriveddata-${{ runner.os }}-${{ matrix.os }}-
 
       - name: Show available simulators / SDKs
@@ -133,6 +134,15 @@ jobs:
             -resultBundlePath TestResults.xcresult \
             test-without-building | xcbeautify --renderer github-actions
 
+      - name: Save DerivedData
+        # Only from main, so the cache follows main's build products. A key that
+        # only changed with project.pbxproj went stale.
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: deriveddata-${{ runner.os }}-${{ matrix.os }}-${{ github.sha }}
+
       - name: Upload test results
         # Crash logs and failure screenshots: UI failures on the runner's small
         # display don't reproduce locally.
@@ -158,11 +168,11 @@ jobs:
         run: brew install xcbeautify
 
       - name: Restore DerivedData
-        # Restore only: build-app's xcode-27 leg owns this cache and saves it.
+        # Restore only: build-app's xcode-27 leg saves this cache.
         uses: actions/cache/restore@v6
         with:
           path: ~/Library/Developer/Xcode/DerivedData
-          key: deriveddata-${{ runner.os }}-xcode-27-${{ hashFiles('TransmissionSwift.xcodeproj/project.pbxproj') }}
+          key: deriveddata-${{ runner.os }}-xcode-27-${{ github.sha }}
           restore-keys: deriveddata-${{ runner.os }}-xcode-27-
 
       - name: Check App Intents toolchain
