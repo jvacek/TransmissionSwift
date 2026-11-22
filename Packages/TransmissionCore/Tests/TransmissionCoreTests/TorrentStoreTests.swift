@@ -121,10 +121,12 @@ struct TorrentFilteringTests {
     @Test("active matches live links and checking, not idle seeds or queued")
     func activeStatusFiltering() {
         func torrent(
-            status: TorrentStatus, sending: Int = 0, getting: Int = 0, webseeds: Int = 0
+            status: TorrentStatus, waitingToVerify: Bool = false,
+            sending: Int = 0, getting: Int = 0, webseeds: Int = 0
         ) -> Torrent {
             Torrent(
                 id: 0, name: "t", hash: "h", size: 0, status: status, progress: 0,
+                isWaitingToVerify: waitingToVerify,
                 peersSendingToUs: sending, peersGettingFromUs: getting,
                 webseedsSendingToUs: webseeds,
                 primaryTracker: "", downloadFolder: "", addedAt: .distantPast,
@@ -137,6 +139,7 @@ struct TorrentFilteringTests {
         #expect(active.matches(torrent(status: .seeding, getting: 1)))
         #expect(active.matches(torrent(status: .downloading, webseeds: 1)))
         #expect(active.matches(torrent(status: .checking)))
+        #expect(!active.matches(torrent(status: .checking, waitingToVerify: true)))  // in the queue
         #expect(!active.matches(torrent(status: .downloading)))  // stalled, no live link
         #expect(!active.matches(torrent(status: .seeding)))  // idle seed
         #expect(!active.matches(torrent(status: .queued)))

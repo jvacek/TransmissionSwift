@@ -192,7 +192,8 @@ extension Torrent {
     /// (`Activity::ACTIVE`) definitions: an idle seed or a stalled download is
     /// not active.
     public var isActive: Bool {
-        status == .checking
+        // Only the verify being hashed counts; one waiting in the queue is idle.
+        (status == .checking && !isWaitingToVerify)
             || peersSendingToUs > 0
             || peersGettingFromUs > 0
             || webseedsSendingToUs > 0
