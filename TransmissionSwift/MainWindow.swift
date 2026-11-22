@@ -49,7 +49,12 @@ struct MainWindow: View {
         ? .detailOnly : .all
     @AppStorage(PreferenceKeys.startMinimized) private var startMinimized = false
     @State private var didApplyStartMinimized = false
-    @State private var windowIsWide = true
+    /// Chosen from the screen on launch, so a small display never opens the
+    /// wide toolbar and then has to move its items after the first layout.
+    @State private var windowIsWide: Bool = {
+        let width = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame.width ?? 0
+        return width >= Layout.inspectorToolbarMinWidth
+    }()
     @State private var openBus = OpenRequestBus.shared
 
     /// No profile configured — the window shows the "No Servers" onboarding
