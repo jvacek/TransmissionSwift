@@ -80,8 +80,16 @@ struct MainToolbar: ToolbarContent {
         }
 
         ToolbarSpacer(.flexible)
+        InspectorToggle()
+    }
+}
 
-        // Group 3 — view toggles
+/// Show/Hide Inspector. Its own `ToolbarContent` rather than an inline item:
+/// the macOS 26 compiler fails the whole toolbar body when the item sits here.
+struct InspectorToggle: ToolbarContent {
+    @Environment(TorrentStore.self) private var store
+
+    var body: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             // Same wording as the View menu item.
             let title = store.inspector.isVisible ? "Hide Inspector" : "Show Inspector"
