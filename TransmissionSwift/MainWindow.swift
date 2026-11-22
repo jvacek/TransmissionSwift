@@ -263,13 +263,22 @@ struct MainWindow: View {
                 openServerSettings()
             }
         } label: {
+            // macOS 27 exposes `.accessibilityLabel` (below) as the toolbar
+            // item's AXTitle rather than AXDescription, and a bare `Image`
+            // would leave the symbol's name in that slot, so the label view's
+            // own title has to be the server name. It is hidden while there is
+            // only one server.
             if profileStore.profiles.count > 1 {
                 Label(
                     profileStore.activeProfile?.label ?? "No Server",
                     systemImage: "server.rack"
                 )
             } else {
-                Image(systemName: "server.rack")
+                Label(
+                    profileStore.activeProfile?.label ?? "No Server",
+                    systemImage: "server.rack"
+                )
+                .labelStyle(.iconOnly)
             }
         }
         .help(profileStore.activeProfile?.label ?? "Server")

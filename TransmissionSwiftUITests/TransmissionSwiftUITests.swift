@@ -457,12 +457,14 @@ final class TransmissionSwiftUITests: XCTestCase {
         let switcher = app.descendants(matching: .any)
             .matching(identifier: "toolbar.serverSwitcher").firstMatch
         XCTAssertTrue(switcher.waitForExistence(timeout: 5))
-        // macOS 26 exposes the name as the label (the title is the symbol's
-        // name); macOS 27 leaves the label empty. VoiceOver reads either.
-        XCTAssertTrue(
-            [switcher.label, switcher.title].contains("My remote server"),
+        // The title is the accessible name on both OS versions: macOS 26 turns
+        // `.accessibilityLabel` into AXDescription (the label), macOS 27 into
+        // AXTitle, and the switcher's own label view supplies the same title
+        // either way.
+        XCTAssertEqual(
+            switcher.title, "My remote server",
             "Expected the server switcher to read as the server name, not the symbol; "
-                + "got label '\(switcher.label)', title '\(switcher.title)'")
+                + "got title '\(switcher.title)', label '\(switcher.label)'")
     }
 
     /// Every Peers column fits the inspector's default width, so speeds never
