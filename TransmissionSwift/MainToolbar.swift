@@ -11,10 +11,9 @@ import TransmissionCore
 /// all action items stay monochrome; status colour appears only in rows and
 /// the status bar.
 ///
-/// The server switcher lives in `MainWindow` (as a separate `.toolbar` item)
-/// rather than here because `ToolbarContent` structs have more limited
-/// `DynamicProperty` support than `View`, and mixing `@Environment` access for
-/// two different stores breaks `@ToolbarContentBuilder` conditional inference.
+/// The server switcher lives in `MainWindow` (as a separate `.toolbar` item):
+/// reading a second store's environment here breaks `@ToolbarContentBuilder`
+/// type inference.
 /// Small `ToolbarContent` groups rather than one body: the macOS 26 compiler
 /// gives up on a body this size ("extra argument in call" at whichever item
 /// it reaches first).

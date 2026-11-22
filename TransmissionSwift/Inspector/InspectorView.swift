@@ -17,8 +17,6 @@ struct InspectorView: View {
     @Environment(TorrentStore.self) private var store
 
     var body: some View {
-        @Bindable var inspector = store.inspector
-
         if let torrent = store.list.selectedTorrents.first {
             VStack(spacing: 0) {
                 InspectorTabPicker()
@@ -29,9 +27,8 @@ struct InspectorView: View {
                 Divider()
 
                 tabContent(for: torrent)
-                    // Re-key per torrent: scroll positions and the Options
-                    // tab's draft state reset on selection change, but stay
-                    // put across 1s polling snapshots.
+                    // Re-key per torrent: scroll positions reset on selection
+                    // change, but stay put across 1s polling snapshots.
                     .id(torrent.id)
             }
             // Fetch rich inspector data whenever the selected torrent changes.
@@ -54,7 +51,7 @@ struct InspectorView: View {
         // only carries list fields, so those arrays would otherwise be empty.
         // Trackers ride the list poll (`trackerStats` is a list field), so they
         // stay live without the detail fetch.
-        let detail = store.inspector.detail?.id == torrent.id ? store.inspector.detail! : torrent
+        let detail = store.inspector.detail.flatMap { $0.id == torrent.id ? $0 : nil } ?? torrent
         switch store.inspector.tab {
         case .general: InspectorGeneralTab(torrent: torrent.mergingMetadata(from: store.inspector.detail))
         case .files: InspectorFilesTab(torrent: detail)
@@ -67,7 +64,7 @@ struct InspectorView: View {
 /// The inspector's tabs: a glass pill per tab, after Xcode's inspector.
 /// Kept in the inspector content rather than its toolbar section: toolbar
 /// items declared on the column land outside the window when it is narrow.
-struct InspectorTabPicker: View {
+private struct InspectorTabPicker: View {
     @Environment(TorrentStore.self) private var store
 
     var body: some View {

@@ -40,8 +40,8 @@ struct ContentView: View {
             } else {
                 // Always render the main window — when no profile exists it shows
                 // a "No Servers" empty state pointing at Settings, so onboarding
-                // lives in one window instead of a separate page. The connect task
-                // no-ops until a profile is added (id flips from nil to a UUID).
+                // lives in one window instead of a separate page. Removing the
+                // last profile flips the id to nil, which drops the connection.
                 MainWindow()
                     .task(id: profileStore.activeProfile?.id) {
                         guard let profile = profileStore.activeProfile else {
