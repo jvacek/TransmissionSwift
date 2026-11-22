@@ -183,8 +183,6 @@ public actor RPCTorrentService: TorrentService, PollHealthReporting {
                 // "disconnected" until the user clicks Reconnect.
                 if Self.shouldStop(for: error) {
                     stream.finish(throwing: error)
-                    healthContinuation?.finish()
-                    healthContinuation = nil
                     return
                 }
                 failed = true
@@ -194,9 +192,9 @@ public actor RPCTorrentService: TorrentService, PollHealthReporting {
                     ? max(incremental, retryDelayProvider(consecutiveFailures))
                     : incremental)
         }
+        // The health stream is left alone: a cancelled loop exits after
+        // `pollHealth()` may already have installed its successor's.
         stream.finish()
-        healthContinuation?.finish()
-        healthContinuation = nil
     }
 
     /// Sleep between ticks. Cancelling this task, or a polling-preference

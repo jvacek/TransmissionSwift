@@ -250,6 +250,8 @@ public final class TorrentStore {
                 }
             } catch {
                 guard !Task.isCancelled, generation == self.streamGeneration else { return }
+                self.healthTask?.cancel()
+                self.healthTask = nil
                 self.isReconnecting = false
                 self.connection = .disconnected(reason: error.localizedDescription)
             }
