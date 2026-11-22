@@ -1,8 +1,8 @@
 # Changelog
 
-**Versions under 0.6.2 need to be updated manually.** Please check the [release page](https://github.com/jvacek/TransmissionSwift/releases).
+Special shoutout to my new sponsors! Thank you very much. [Feel free to join them ;)](https://transmissionswift.jvacek.eu/donate/)
 
-## 0.7.4
+## 0.8.0
 
 14th November 2026
 
