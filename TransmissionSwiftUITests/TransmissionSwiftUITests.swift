@@ -636,8 +636,7 @@ final class TransmissionSwiftUITests: XCTestCase {
     /// switched off: a Preferences window left open by an earlier test would
     /// cover the table and make rows unhittable. The window frame is pinned
     /// too, since frame autosave ignores that switch: whatever an earlier
-    /// launch saved would otherwise come back, wider than the runners'
-    /// 1024x768 display.
+    /// launch saved would otherwise come back.
     private func snapshotApp(_ fixture: URL) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -645,7 +644,31 @@ final class TransmissionSwiftUITests: XCTestCase {
             "-NSWindow Frame main", "0 63 1000 652 0 0 1024 768",
         ]
         app.launch()
+        fitWindowToScreen(app)
         return app
+    }
+
+    /// On the CI runners' 1024pt display the toolbar holds the window at about
+    /// 1150pt with all three columns, leaving the inspector's right edge
+    /// off-screen. Hiding the sidebar lowers that minimum, and Zoom then fits
+    /// the window to the screen. The hidden sidebar persists, so later launches
+    /// skip this; a display wide enough never gets here.
+    private func fitWindowToScreen(_ app: XCUIApplication) {
+        let window = app.windows["main"]
+        guard window.waitForExistence(timeout: 15), let screen = NSScreen.main,
+            window.frame.maxX > screen.frame.maxX
+        else { return }
+        let sidebar = app.descendants(matching: .any)
+            .matching(identifier: "sidebar.status.all").firstMatch
+        if sidebar.exists {
+            app.typeKey("s", modifierFlags: [.command, .control])
+            XCTAssertTrue(waitUntil { !sidebar.exists }, "Expected ⌃⌘S to hide the sidebar")
+        }
+        app.menuBars.firstMatch.menuBarItems["Window"].click()
+        app.menuItems["Zoom"].click()
+        XCTAssertTrue(
+            waitUntil { window.frame.maxX <= screen.frame.maxX },
+            "Expected Zoom to fit the window to the screen, got \(window.frame)")
     }
 
     /// Polls the given condition, keeping menu state assertions honest while
