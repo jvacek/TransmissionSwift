@@ -1,6 +1,6 @@
 # TransmissionSwift — Agent Instructions
 
-Native SwiftUI macOS remote control for the Transmission BitTorrent daemon (native equivalent of [transgui](https://github.com/transmission-remote-gui/transgui)). macOS-only, min macOS 26, universal binary.
+Native SwiftUI macOS remote control for the Transmission BitTorrent daemon (native equivalent of [transgui](https://github.com/transmission-remote-gui/transgui)). macOS-only, min macOS 26.1, universal binary.
 
 **Read `ARCHITECTURE.md` first** — durable architectural decisions. If anything here contradicts it, `ARCHITECTURE.md` wins; propose updating this file.
 

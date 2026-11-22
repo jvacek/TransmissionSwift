@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# Checkout is all the token is needed for; caches and artifacts use the
+# runner's own token.
+permissions:
+  contents: read
+
 # Cancel in-progress runs on new pushes to the same branch/PR.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -66,23 +71,15 @@ jobs:
           swift test --enable-code-coverage -Xswiftc -warnings-as-errors
 
   build-app:
-    name: Build & test macOS app (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    # A hung UI test would otherwise hold the runner for GitHub's 6-hour limit.
+    name: Build macOS app (xcode-27)
+    # Built once with the newest SDK; the deployment target keeps it running on
+    # macOS 26.1+. test-app then runs this exact build on each macOS major.
+    runs-on: xcode-27
     timeout-minutes: 30
-    # macos-26 is the deployment floor, xcode-27 is the current toolchain/OS.
-    # xcode-27 is a public-preview image, so on PRs (pre-release work) its leg is
-    # allowed to fail; on main — from which releases are cut — both legs must pass.
-    continue-on-error: ${{ matrix.os == 'xcode-27' && github.event_name == 'pull_request' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-26, xcode-27]
     env:
       # The app and the UI-test runner must share a team for the AppIntentsTests
-      # unit suite; xcode-27 is the only leg whose SDK runs it. Both the build
-      # and the test step need it, or test-without-building finds no products.
-      SIGNING_ARGS: ${{ matrix.os == 'xcode-27' && '-allowProvisioningUpdates DEVELOPMENT_TEAM=JK45236K44' || '' }}
+      # unit suite.
+      SIGNING_ARGS: -allowProvisioningUpdates DEVELOPMENT_TEAM=JK45236K44
     steps:
       - uses: actions/checkout@v7
 
@@ -90,24 +87,21 @@ jobs:
         run: brew install xcbeautify
 
       - name: Restore DerivedData
-        # Saved per main commit (see "Save DerivedData"); PRs restore the
-        # newest. The image is part of the key: runner.os is "macOS" for both
-        # legs, so without matrix.os they would share one cache.
+        # Saved per main commit (see "Save DerivedData"); PRs restore the newest.
         uses: actions/cache/restore@v6
         with:
           # Same paths as "Save DerivedData", or the cache version differs.
           path: |
             ~/Library/Developer/Xcode/DerivedData
             !~/Library/Developer/Xcode/DerivedData/*/Logs
-          key: deriveddata-${{ runner.os }}-${{ matrix.os }}-${{ github.sha }}
-          restore-keys: deriveddata-${{ runner.os }}-${{ matrix.os }}-
+          key: deriveddata-${{ runner.os }}-xcode-27-${{ github.sha }}
+          restore-keys: deriveddata-${{ runner.os }}-xcode-27-
 
-      - name: Show available simulators / SDKs
+      - name: Show available SDKs
         run: xcodebuild -showsdks
 
       - name: Import signing certificate
         # App Intents reject an unsigned (ad-hoc) app.
-        if: matrix.os == 'xcode-27'
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.APP_INTENTS_CERT_P12_BASE64 }}
           P12_PASSWORD: ${{ secrets.APP_INTENTS_CERT_PASSWORD }}
@@ -130,8 +124,7 @@ jobs:
 
       - name: Save DerivedData
         # Only from main, so the cache follows main's build products. A key that
-        # only changed with project.pbxproj went stale. Right after the build, so
-        # a failing test run still refreshes it.
+        # only changed with project.pbxproj went stale.
         if: github.ref == 'refs/heads/main'
         uses: actions/cache/save@v6
         with:
@@ -140,17 +133,60 @@ jobs:
           path: |
             ~/Library/Developer/Xcode/DerivedData
             !~/Library/Developer/Xcode/DerivedData/*/Logs
-          key: deriveddata-${{ runner.os }}-${{ matrix.os }}-${{ github.sha }}
+          key: deriveddata-${{ runner.os }}-xcode-27-${{ github.sha }}
+
+      - name: Package test products
+        # tar, not the raw folder: artifact zips drop the frameworks' symlinks
+        # and executable bits, which breaks the code signatures.
+        run: |
+          products=$(echo ~/Library/Developer/Xcode/DerivedData/TransmissionSwift-*/Build/Products)
+          tar -C "$products" -cf TestProducts.tar .
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: TestProducts
+          path: TestProducts.tar
+          retention-days: 1
+
+  test-app:
+    name: Test macOS app (${{ matrix.os }})
+    needs: build-app
+    # The latest image of each supported macOS major, running the one build.
+    runs-on: ${{ matrix.os }}
+    # A hung UI test would otherwise hold the runner for GitHub's 6-hour limit.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, xcode-27]
+    steps:
+      # The UI tests read their fixtures from the checkout, at the path the
+      # build recorded; GitHub's macOS runners share that path.
+      - uses: actions/checkout@v7
+
+      - name: Install xcbeautify
+        run: brew install xcbeautify
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: TestProducts
+
+      - name: Unpack test products
+        run: mkdir TestProducts && tar -C TestProducts -xf TestProducts.tar
 
       - name: Test
+        env:
+          # UI tests only on macos-26: Swift Testing comes from the runner's
+          # Xcode (26.6), which can't load unit tests built with Xcode 27's test
+          # macros. The unit tests don't depend on the OS; xcode-27 runs them.
+          ONLY_TESTING: ${{ matrix.os == 'macos-26' && '-only-testing:TransmissionSwiftUITests' || '' }}
         run: |
           set -o pipefail
-          # shellcheck disable=SC2086  # SIGNING_ARGS is intentionally word-split.
+          # shellcheck disable=SC2086  # ONLY_TESTING is intentionally word-split.
           xcodebuild \
-            -project TransmissionSwift.xcodeproj \
-            -scheme TransmissionSwift \
+            -xctestrun TestProducts/*.xctestrun \
             -destination 'platform=macOS' \
-            $SIGNING_ARGS \
+            $ONLY_TESTING \
             -resultBundlePath TestResults.xcresult \
             test-without-building | xcbeautify --renderer github-actions
 
@@ -169,7 +205,7 @@ jobs:
     # Its own job, so this compile-gated build runs alongside build-app instead
     # of after it. It must stay a separate build: the main test build must not
     # link AppIntentsTesting, or one bad host framework takes down every UI test.
-    # Enforced on main; on PRs non-blocking, like build-app's xcode-27 leg.
+    # Enforced on main; on PRs non-blocking.
     runs-on: xcode-27
     timeout-minutes: 30
     continue-on-error: ${{ github.event_name == 'pull_request' }}
@@ -180,7 +216,7 @@ jobs:
         run: brew install xcbeautify
 
       - name: Restore DerivedData
-        # Restore only: build-app's xcode-27 leg saves this cache.
+        # Restore only: build-app saves this cache.
         uses: actions/cache/restore@v6
         with:
           # Same paths as "Save DerivedData", or the cache version differs.
