@@ -13,17 +13,17 @@ import Testing
 struct RPCFailurePolicyTests {
     @Test("fatal errors end the stream at once")
     func fatalStopsImmediately() {
-        #expect(RPCTorrentService.shouldStop(for: .unauthorized))
-        #expect(RPCTorrentService.shouldStop(for: .network(URLError(.badURL))))
-        #expect(RPCTorrentService.shouldStop(for: .network(URLError(.unsupportedURL))))
+        #expect(RPCTorrentService.isFatal(.unauthorized))
+        #expect(RPCTorrentService.isFatal(.network(URLError(.badURL))))
+        #expect(RPCTorrentService.isFatal(.network(URLError(.unsupportedURL))))
     }
 
-    @Test("recoverable errors retry forever, however many have failed")
-    func recoverableNeverStops() {
+    @Test("recoverable errors are not fatal")
+    func recoverableNotFatal() {
         let timeout = TransmissionError.network(URLError(.timedOut))
-        #expect(!RPCTorrentService.shouldStop(for: timeout))
-        #expect(!RPCTorrentService.shouldStop(for: .serverError("boom")))
-        #expect(!RPCTorrentService.shouldStop(for: .decoding("junk")))
+        #expect(!RPCTorrentService.isFatal(timeout))
+        #expect(!RPCTorrentService.isFatal(.serverError("boom")))
+        #expect(!RPCTorrentService.isFatal(.decoding("junk")))
     }
 
     @Test("retry delay starts at 5s and caps at 10s")
@@ -36,12 +36,12 @@ struct RPCFailurePolicyTests {
 
     @Test("4xx HTTP statuses are fatal; timeouts, throttling and 5xx retry")
     func httpStatusPolicy() {
-        #expect(RPCTorrentService.shouldStop(for: .http(status: 404, body: "")))
-        #expect(RPCTorrentService.shouldStop(for: .http(status: 409, body: "")))
-        #expect(!RPCTorrentService.shouldStop(for: .http(status: 408, body: "")))
-        #expect(!RPCTorrentService.shouldStop(for: .http(status: 429, body: "")))
-        #expect(!RPCTorrentService.shouldStop(for: .http(status: 500, body: "")))
-        #expect(!RPCTorrentService.shouldStop(for: .http(status: 302, body: "")))
+        #expect(RPCTorrentService.isFatal(.http(status: 404, body: "")))
+        #expect(RPCTorrentService.isFatal(.http(status: 409, body: "")))
+        #expect(!RPCTorrentService.isFatal(.http(status: 408, body: "")))
+        #expect(!RPCTorrentService.isFatal(.http(status: 429, body: "")))
+        #expect(!RPCTorrentService.isFatal(.http(status: 500, body: "")))
+        #expect(!RPCTorrentService.isFatal(.http(status: 302, body: "")))
     }
 }
 
@@ -95,6 +95,40 @@ struct RPCPollLoopTests {
             pollingInterval: { 0 },
             incrementalPollingInterval: { 0 },
             retryDelayProvider: { _ in 0 })
+    }
+
+    @Test("a server that never answers ends the stream after three failures")
+    func firstConnectGivesUp() async throws {
+        let client = ScriptedClient(failing: true)
+        let service = makeService(client)
+        let stream = await service.torrentsStream()
+
+        await #expect(throws: TransmissionError.self) {
+            for try await _ in stream {}
+        }
+        #expect(await client.pollCount == 3)
+    }
+
+    @Test("after one success, failures keep retrying")
+    func connectedKeepsRetrying() async throws {
+        let client = ScriptedClient(failing: false)
+        let service = makeService(client)
+        let stream = await service.torrentsStream()
+        var iterator = stream.makeAsyncIterator()
+        _ = try await iterator.next()
+
+        await client.setFailing(true)
+        let start = await client.pollCount
+        // Past the three tries a never-connected stream gets. The loop floors
+        // its sleep at one second, so keep the count small.
+        while await client.pollCount < start + 4 {
+            await Task.yield()
+        }
+
+        // Still alive: recovering yields the next full poll.
+        await client.setFailing(false)
+        let next = try await iterator.next()
+        #expect(next != nil)
     }
 
     @Test("a replaced loop does not finish the next health stream")
