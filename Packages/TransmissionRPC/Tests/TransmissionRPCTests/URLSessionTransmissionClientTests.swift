@@ -248,7 +248,7 @@ struct URLSessionTransmissionClientTests {
         #expect(authorization == expected)
     }
 
-    @Test("requests carry the short poll timeout")
+    @Test("only poll requests carry the short timeout")
     func requestTimeout() async throws {
         let host = "request-timeout.test"
         let recorded = Mutex<TimeInterval>(0)
@@ -256,13 +256,16 @@ struct URLSessionTransmissionClientTests {
             recorded.withLock { $0 = request.timeoutInterval }
             return (
                 makeHTTPResponse(url: request.url!, statusCode: 200),
-                Data(#"{"result":"success","arguments":{}}"#.utf8)
+                Data(#"{"result":"success","arguments":{"torrents":[]}}"#.utf8)
             )
         }
+        let client = makeClient(host: host)
 
-        try await makeClient(host: host).torrentAction("torrent-start", ids: [1])
-
+        _ = try await client.torrentGet(fields: ["id"], ids: nil)
         #expect(recorded.withLock { $0 } == 10)
+
+        _ = try await client.torrentAdd(TorrentAddArguments(filename: "magnet:?xt=test"))
+        #expect(recorded.withLock { $0 } == URLRequest(url: URL(filePath: "/")).timeoutInterval)
     }
 
     @Test("a 404 surfaces as .http and keeps the body out of the message")
