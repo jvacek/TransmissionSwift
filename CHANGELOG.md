@@ -38,7 +38,7 @@
   - Ask before removing a mapping, and only enable Save once something changed
   - Make the inspector a native column like Xcode's, with the tabs at its top, the system divider, and resizing that works
   - Show the torrent's name in the inspector's Metadata, with Rename next to it
-  - Collapse search to a button next to Add; click it or press ⌘F to search
+  - Focus the toolbar search field with ⌘F
   - Animate the sidebar when it's shown or hidden from the View menu
   - Stop the window from clipping the sidebar and inspector when it's narrow
 - Performance

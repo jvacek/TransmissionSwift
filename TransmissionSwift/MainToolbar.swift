@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import AppKit
 import SwiftUI
 import TransmissionCore
 
@@ -36,12 +35,6 @@ struct MainToolbar: ToolbarContent {
             .help("Add magnet link or URL")
             .accessibilityIdentifier("toolbar.addLink")
         }
-
-        // Search sits between the add buttons and the selection actions.
-        // No visibilityPriority: that API exists only in the Xcode 27 SDK, so
-        // the macOS 26 SDK CI builds against cannot compile it.
-        ToolbarSpacer(.fixed)
-        ToolbarItem(placement: .primaryAction) { ToolbarSearchField() }
 
         ToolbarSpacer(.fixed)
 
@@ -80,16 +73,8 @@ struct MainToolbar: ToolbarContent {
         }
 
         ToolbarSpacer(.flexible)
-        InspectorToggle()
-    }
-}
 
-/// Show/Hide Inspector. Its own `ToolbarContent` rather than an inline item:
-/// the macOS 26 compiler fails the whole toolbar body when the item sits here.
-struct InspectorToggle: ToolbarContent {
-    @Environment(TorrentStore.self) private var store
-
-    var body: some ToolbarContent {
+        // Group 3 — view toggles
         ToolbarItem(placement: .primaryAction) {
             // Same wording as the View menu item.
             let title = store.inspector.isVisible ? "Hide Inspector" : "Show Inspector"
@@ -98,98 +83,6 @@ struct InspectorToggle: ToolbarContent {
             }
             .help(title)
             .accessibilityIdentifier("toolbar.inspector")
-        }
-    }
-}
-
-/// Finder-style search: a magnifier button that opens into a search field on
-/// click or ⌘F, and closes again once editing ends with nothing typed.
-///
-/// Hand-rolled because `.searchable` always lands in the trailing toolbar
-/// section, which is above the inspector while it's open.
-private struct ToolbarSearchField: View {
-    @Environment(TorrentStore.self) private var store
-    @State private var expanded = false
-    @State private var focusRequest = 0
-
-    var body: some View {
-        @Bindable var list = store.list
-        Group {
-            if expanded || !list.searchQuery.isEmpty {
-                SearchFieldView(text: $list.searchQuery, focusRequest: focusRequest) {
-                    if list.searchQuery.isEmpty { close() }
-                }
-                .frame(width: 220)
-            } else {
-                Button("Search", systemImage: "magnifyingglass") { open() }
-                    .help("Search torrents")
-                    .accessibilityIdentifier("toolbar.searchButton")
-            }
-        }
-        .onChange(of: store.ui.searchFocusRequest) { open() }
-    }
-
-    private func open() {
-        focusRequest += 1
-        withAnimation(.smooth(duration: 0.2)) { expanded = true }
-    }
-
-    private func close() {
-        withAnimation(.smooth(duration: 0.2)) { expanded = false }
-    }
-}
-
-/// `NSSearchField`, because `@FocusState` doesn't reach into toolbar items:
-/// focus goes through the window's first responder instead.
-private struct SearchFieldView: NSViewRepresentable {
-    @Binding var text: String
-    /// Each change focuses the field.
-    let focusRequest: Int
-    let onEndEditing: () -> Void
-
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    func makeNSView(context: Context) -> NSSearchField {
-        let field = NSSearchField()
-        field.placeholderString = "Search torrents"
-        field.sendsSearchStringImmediately = true
-        field.delegate = context.coordinator
-        field.setAccessibilityIdentifier("toolbar.search")
-        return field
-    }
-
-    func updateNSView(_ field: NSSearchField, context: Context) {
-        context.coordinator.parent = self
-        if field.stringValue != text { field.stringValue = text }
-        if context.coordinator.handledFocusRequest != focusRequest {
-            context.coordinator.handledFocusRequest = focusRequest
-            // Deferred: a freshly inserted field has no window yet.
-            Task { @MainActor in field.window?.makeFirstResponder(field) }
-        }
-    }
-
-    final class Coordinator: NSObject, NSSearchFieldDelegate {
-        var parent: SearchFieldView
-        var handledFocusRequest: Int?
-
-        init(_ parent: SearchFieldView) { self.parent = parent }
-
-        func controlTextDidChange(_ notification: Notification) {
-            guard let field = notification.object as? NSSearchField else { return }
-            parent.text = field.stringValue
-        }
-
-        func controlTextDidEndEditing(_ notification: Notification) {
-            parent.onEndEditing()
-        }
-
-        func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
-            guard selector == #selector(NSResponder.cancelOperation(_:)) else { return false }
-            // Escape clears the search and gives focus back to the window.
-            parent.text = ""
-            control.stringValue = ""
-            control.window?.makeFirstResponder(nil)
-            return true
         }
     }
 }

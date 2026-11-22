@@ -233,7 +233,7 @@ final class TransmissionSwiftUITests: XCTestCase {
 
         // ⌘F lands in the search field.
         app.typeKey("f", modifierFlags: .command)
-        let search = app.searchFields["toolbar.search"]
+        let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 3))
         app.typeText("ubuntu")
         XCTAssertTrue(

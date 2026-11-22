@@ -46,6 +46,7 @@ struct MainWindow: View {
     @AppStorage(PreferenceKeys.startMinimized) private var startMinimized = false
     @State private var didApplyStartMinimized = false
     @State private var openBus = OpenRequestBus.shared
+    @FocusState private var searchFocused: Bool
 
     /// No profile configured — the window shows the "No Servers" onboarding
     /// empty state instead of torrent content.
@@ -58,6 +59,7 @@ struct MainWindow: View {
 
         splitView
             .frame(minHeight: 600)
+            .background(WindowFitToScreen())
             .onAppear {
                 // "Start minimized": miniaturize once on launch. Done here (rather
                 // than the app delegate) so it targets the actual main window.
@@ -91,6 +93,7 @@ struct MainWindow: View {
             // Retries when the torrent list reloads after a server switch.
             .task { applyOpenRequest() }
             .onChange(of: openBus.request) { _, _ in applyOpenRequest() }
+            .onChange(of: store.ui.searchFocusRequest) { searchFocused = true }
             .onChange(of: store.list.torrents) { _, _ in applyOpenRequest() }
             .sheet(isPresented: $ui.showAddTorrent) {
                 AddTorrentSheet(
@@ -177,6 +180,12 @@ struct MainWindow: View {
                         StatusBarView()
                     }
                 }
+                .searchable(
+                    text: $list.searchQuery,
+                    placement: .toolbar,
+                    prompt: "Search torrents"
+                )
+                .searchFocused($searchFocused)
                 .toolbar {
                     ToolbarItem(placement: .navigation) {
                         serverSwitcherMenu
