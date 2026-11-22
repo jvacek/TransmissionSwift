@@ -18,7 +18,7 @@ private enum Layout {
     static let inspectorIdeal: CGFloat = 322
     static let inspectorMax: CGFloat = 600
     static let contentMin: CGFloat = 480
-    static let contentIdeal: CGFloat = 640
+    static let contentIdeal: CGFloat = 480
     /// The narrowest the window may get: the three columns' minimums.
     static let windowMinWidth: CGFloat = 960
 }
