@@ -4,9 +4,6 @@
 
 import SwiftUI
 import TransmissionCore
-import os
-
-private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category: "SidebarView")
 
 /// Source-list sidebar — status filters, then dynamic tracker / folder / label
 /// rollups derived from the torrent set. The store normalizes selection to one
@@ -43,9 +40,7 @@ struct SidebarView: View {
             let isEmpty = host.isEmpty
             return !isIP && !isLocalhost && !isEmpty
         }
-        let unique = Array(Set(filtered)).sorted()
-        logger.info("Favicon hosts: \(unique.count, privacy: .public) unique hosts (from \(allHosts.count) trackers)")
-        return unique
+        return Array(Set(filtered)).sorted()
     }
 
     var body: some View {
