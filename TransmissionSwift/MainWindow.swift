@@ -290,7 +290,7 @@ struct MainWindow: View {
                 )
                 .toolbar {
                     ToolbarSpacer(.flexible)
-                    InspectorToggle(shows: inspector.isVisible)
+                    InspectorToggle(placement: .column)
                 }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
