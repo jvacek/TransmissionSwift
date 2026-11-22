@@ -120,14 +120,23 @@ private func makeWire(
 
 @Suite("TorrentMapping — status")
 struct StatusMappingTests {
-    @Test("error >= 2 maps to .error regardless of status integer")
+    @Test("error >= 2 maps to .error for every non-verify status")
     func errorOverridesStatus() {
-        for status in [0, 1, 2, 3, 4, 5, 6] {
+        for status in [0, 3, 4, 5, 6] {
             let t = Torrent(wire: makeWire(status: status, error: 2))
             #expect(t.status == .error, "status=\(status) error=2 should be .error")
         }
         let t3 = Torrent(wire: makeWire(status: 4, error: 3))
         #expect(t3.status == .error)
+    }
+
+    @Test("a verify outranks an error but keeps the error message")
+    func verifyOutranksError() {
+        for status in [1, 2] {
+            let t = Torrent(wire: makeWire(status: status, error: 2, errorString: "Unregistered torrent"))
+            #expect(t.status == .checking, "status=\(status) error=2 should be .checking")
+            #expect(t.errorMessage == "Unregistered torrent")
+        }
     }
 
     @Test("error >= 2 with non-empty errorString uses errorString")
@@ -217,8 +226,8 @@ struct StatusMappingTests {
         #expect(Torrent(wire: makeWire(status: 1)).isWaitingToVerify)
         #expect(!Torrent(wire: makeWire(status: 2)).isWaitingToVerify)
         #expect(!Torrent(wire: makeWire(status: 3)).isWaitingToVerify)
-        // An error overrides the status, so the flag must not linger.
-        #expect(!Torrent(wire: makeWire(status: 1, error: 3)).isWaitingToVerify)
+        // Waiting holds even with an error, since a verify outranks it.
+        #expect(Torrent(wire: makeWire(status: 1, error: 3)).isWaitingToVerify)
     }
 
     @Test("recheckProgress drives displayProgress only while checking")

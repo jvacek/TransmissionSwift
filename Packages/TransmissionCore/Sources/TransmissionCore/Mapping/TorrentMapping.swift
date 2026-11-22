@@ -274,13 +274,16 @@ extension Torrent {
 
     // Internal so TorrentMappingTests can verify the logic table directly.
     static func mapStatus(wireStatus: Int, error: Int, isFinished: Bool) -> TorrentStatus {
+        // 1 is "queued for verification", not a transfer wait: it belongs with
+        // the verifying torrents, the way Transmission's own clients bucket it.
+        // A verify outranks an error: it is short-lived and user-requested, and
+        // a tracker error ("unregistered torrent") would otherwise hide it. The
+        // error message still maps, and the torrent returns to Error after.
+        if wireStatus == 1 || wireStatus == 2 { return .checking }
         if error >= 2 { return .error }
         if isFinished { return .completed }
         switch wireStatus {
         case 0: return .paused
-        // 1 is "queued for verification", not a transfer wait: it belongs with
-        // the verifying torrents, the way Transmission's own clients bucket it.
-        case 1, 2: return .checking
         case 3, 5: return .queued
         case 4: return .downloading
         case 6: return .seeding
