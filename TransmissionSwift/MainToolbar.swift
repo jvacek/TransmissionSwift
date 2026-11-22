@@ -37,16 +37,11 @@ struct MainToolbar: ToolbarContent {
             .accessibilityIdentifier("toolbar.addLink")
         }
 
-        // Search sits between the add buttons and the selection actions. When
-        // space runs out, the actions overflow before search does, so ⌘F never
-        // opens a field hidden in the overflow menu.
+        // Search sits between the add buttons and the selection actions.
+        // No visibilityPriority: that API exists only in the Xcode 27 SDK, so
+        // the macOS 26 SDK CI builds against cannot compile it.
         ToolbarSpacer(.fixed)
-        if #available(macOS 26.1, *) {
-            ToolbarItem(placement: .primaryAction) { ToolbarSearchField() }
-                .visibilityPriority(.high)
-        } else {
-            ToolbarItem(placement: .primaryAction) { ToolbarSearchField() }
-        }
+        ToolbarItem(placement: .primaryAction) { ToolbarSearchField() }
 
         ToolbarSpacer(.fixed)
 
