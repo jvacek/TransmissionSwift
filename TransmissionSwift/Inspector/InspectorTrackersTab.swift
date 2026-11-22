@@ -328,18 +328,14 @@ private struct AddTrackerSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            HStack {
-                Spacer()
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                    .disabled(isSaving)
-                Button(submitLabel) {
-                    Task { await submit() }
-                }
-                .buttonStyle(.glassProminent)
-                .disabled(!canSubmit)
-                .keyboardShortcut(.defaultAction)
-            }
+            SheetButtonRow(
+                editing == nil ? "Add" : "Change",
+                busyTitle: editing == nil ? "Adding…" : "Changing…",
+                isBusy: isSaving,
+                canConfirm: canSubmit,
+                onCancel: { dismiss() },
+                onConfirm: { Task { await submit() } }
+            )
         }
         .padding(20)
         .frame(width: 420)
@@ -354,11 +350,6 @@ private struct AddTrackerSheet: View {
             return "The announce URL, e.g. https://tracker.example.org/announce"
         }
         return "The new announce URL for this tracker. It keeps its tier."
-    }
-
-    private var submitLabel: String {
-        if isSaving { return editing == nil ? "Adding…" : "Changing…" }
-        return editing == nil ? "Add" : "Change"
     }
 
     private var validationError: String? {
