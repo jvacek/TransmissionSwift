@@ -61,10 +61,12 @@ private struct AddToolbarGroup: ToolbarContent {
 private struct SelectionToolbarGroup: ToolbarContent {
     @Environment(TorrentStore.self) private var store
 
+    private var selection: [Torrent.ID] { Array(store.list.selectedTorrentIDs) }
+
     var body: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button("Resume", systemImage: "play.fill") {
-                Task { await store.actions.start(Array(store.list.selectedTorrentIDs)) }
+                store.perform(.resume, ids: selection)
             }
             .disabled(!store.actionsEnabled || !store.list.selectionStartStop.canStart)
             .help("Resume selected torrents")
@@ -73,7 +75,7 @@ private struct SelectionToolbarGroup: ToolbarContent {
         .visibilityPriority(.low)
         ToolbarItem(placement: .primaryAction) {
             Button("Pause", systemImage: "pause.fill") {
-                Task { await store.actions.stop(Array(store.list.selectedTorrentIDs)) }
+                store.perform(.pause, ids: selection)
             }
             .disabled(!store.actionsEnabled || !store.list.selectionStartStop.canStop)
             .help("Pause selected torrents")
@@ -82,7 +84,7 @@ private struct SelectionToolbarGroup: ToolbarContent {
         .visibilityPriority(.low)
         ToolbarItem(placement: .primaryAction) {
             Button("Remove", systemImage: "trash", role: .destructive) {
-                store.actions.requestRemove(Array(store.list.selectedTorrentIDs))
+                store.perform(.remove, ids: selection)
             }
             .disabled(!store.actionsEnabled || store.list.selectedTorrentIDs.isEmpty)
             .help("Remove selected torrents")
@@ -91,7 +93,7 @@ private struct SelectionToolbarGroup: ToolbarContent {
         .visibilityPriority(.low)
         ToolbarItem(placement: .primaryAction) {
             Button("Set Location", systemImage: "folder") {
-                store.openSetLocation(for: Array(store.list.selectedTorrentIDs))
+                store.perform(.setLocation, ids: selection)
             }
             .disabled(!store.actionsEnabled || store.list.selectedTorrentIDs.isEmpty)
             .help("Set download location for selected torrents")
