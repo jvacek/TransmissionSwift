@@ -160,8 +160,12 @@ struct ServersPrefsPane: View {
     private func duplicate(_ id: UUID) -> ServerProfile? {
         do {
             guard let copy = try profileStore.duplicate(id: id) else { return nil }
-            if let password = try? keychain.password(for: id), !password.isEmpty {
-                try? keychain.setPassword(password, for: copy.id)
+            do {
+                if let password = try keychain.password(for: id), !password.isEmpty {
+                    try keychain.setPassword(password, for: copy.id)
+                }
+            } catch {
+                actionError = "The copy was created, but its saved password couldn't be copied."
             }
             return copy
         } catch {
