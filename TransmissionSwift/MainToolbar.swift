@@ -19,6 +19,8 @@ import TransmissionCore
 /// gives up on a body this size ("extra argument in call" at whichever item
 /// it reaches first).
 struct MainToolbar: ToolbarContent {
+    @Environment(TorrentStore.self) private var store
+
     var body: some ToolbarContent {
         AddToolbarGroup()
         ToolbarSpacer(.fixed)
@@ -26,7 +28,7 @@ struct MainToolbar: ToolbarContent {
         ToolbarSpacer(.flexible)
         SearchToolbarItem()
         ToolbarSpacer(.fixed)
-        InspectorToggle()
+        InspectorToggle(shows: !store.inspector.isVisible)
     }
 }
 
@@ -94,42 +96,28 @@ private struct SelectionToolbarGroup: ToolbarContent {
     }
 }
 
-/// The inspector's tab picker in the column's own toolbar section, above the
-/// column as in Xcode. Declared on every layout and left empty rather than
-/// wrapped in a builder `if`: a conditional in a `ToolbarContentBuilder` body
-/// fails the macOS 26 compiler when it reads the environment.
-struct InspectorTabsToolbar: ToolbarContent {
+/// Show/Hide Inspector. The list toolbar declares it while the inspector is
+/// closed and the inspector column while it's open, so it sits above the
+/// column as in Xcode. Both are declared on every layout and left empty when
+/// they don't apply: a builder `if` that reads the environment fails the
+/// macOS 26 compiler, and SwiftUI keeps a hidden inspector's items around.
+struct InspectorToggle: ToolbarContent {
     @Environment(TorrentStore.self) private var store
-    /// The column's toolbar section only exists when the inspector is open, and
-    /// only a window wide enough to hold the picker uses it.
     let shows: Bool
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
-            if shows, store.list.selectedTorrents.first != nil {
-                InspectorTabPicker()
-                    .frame(minWidth: 160, idealWidth: 220, maxWidth: 260)
+            if shows {
+                // Same wording as the View menu item.
+                let title = store.inspector.isVisible ? "Hide Inspector" : "Show Inspector"
+                Button(title, systemImage: "sidebar.right") {
+                    store.inspector.isVisible.toggle()
+                }
+                .help(title)
+                .accessibilityIdentifier("toolbar.inspector")
             }
         }
-        .sharedBackgroundVisibility(.hidden)
-    }
-}
-
-/// Show/Hide Inspector. Its own `ToolbarContent` rather than an inline item:
-/// the macOS 26 compiler fails the whole toolbar body when the item sits here.
-struct InspectorToggle: ToolbarContent {
-    @Environment(TorrentStore.self) private var store
-
-    var body: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            // Same wording as the View menu item.
-            let title = store.inspector.isVisible ? "Hide Inspector" : "Show Inspector"
-            Button(title, systemImage: "sidebar.right") {
-                store.inspector.isVisible.toggle()
-            }
-            .help(title)
-            .accessibilityIdentifier("toolbar.inspector")
-        }
+        .sharedBackgroundVisibility(shows ? .automatic : .hidden)
     }
 }
 
