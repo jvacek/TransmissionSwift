@@ -87,6 +87,15 @@ jobs:
       - name: Install xcbeautify
         run: brew install xcbeautify
 
+      - name: Cache DerivedData
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          # The image is part of the key: runner.os is "macOS" for both legs, so
+          # without matrix.os they would share (and cross-contaminate) one cache.
+          key: deriveddata-${{ runner.os }}-${{ matrix.os }}-${{ hashFiles('TransmissionSwift.xcodeproj/project.pbxproj') }}
+          restore-keys: deriveddata-${{ runner.os }}-${{ matrix.os }}-
+
       - name: Show available simulators / SDKs
         run: xcodebuild -showsdks
 
@@ -101,8 +110,6 @@ jobs:
 
       # One compile: a plain `build` followed by `test` compiled everything twice,
       # because the test build uses different settings (coverage, testability).
-      # No DerivedData cache either: a fresh checkout's timestamps invalidated
-      # it, so restoring 1.2 GB still left a full rebuild.
       - name: Build for testing
         run: |
           set -o pipefail
@@ -149,6 +156,14 @@ jobs:
 
       - name: Install xcbeautify
         run: brew install xcbeautify
+
+      - name: Restore DerivedData
+        # Restore only: build-app's xcode-27 leg owns this cache and saves it.
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: deriveddata-${{ runner.os }}-xcode-27-${{ hashFiles('TransmissionSwift.xcodeproj/project.pbxproj') }}
+          restore-keys: deriveddata-${{ runner.os }}-xcode-27-
 
       - name: Check App Intents toolchain
         # AppIntentsTesting is a host framework; a mismatched Xcode/macOS pair
