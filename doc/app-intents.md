@@ -346,12 +346,14 @@ covers `TransmissionServiceFactory`, `ServerProfileStore.readProfiles`, and the
 `TransmissionSwiftUITests/AppIntentsUITests.swift` boots the app on
 `--snapshot` and runs `GetServerStatsIntent` / `ServerEntityQuery` through the
 real App Intents stack (out-of-process, no mocks, no `@testable import`). The
-whole file is wrapped in `#if canImport(AppIntentsTesting)`, so it compiles out on
-toolchains without the framework (the framework ships only in the **macOS 27 SDK /
-Xcode 27**). Runtime availability is additionally guarded by
-`@available(macOS 27.0, *)`. A `macos-26` CI runner is fine — it just skips the
-file. (The framework's dylib is built for 26.4, so the UI test target links with a
-harmless "built for newer version" warning.)
+whole file is wrapped in `#if APP_INTENTS_UI_TESTS && canImport(AppIntentsTesting)`,
+so it is compiled out of the default test build everywhere: the main UI suite must
+never link `AppIntentsTesting`, or a mismatched Xcode/macOS pair stops every UI
+test from loading. `just test-appintents` (and the CI `app-intents` job) pass the
+define and first run `scripts/check_appintents_toolchain.swift`, which fails with a
+readable message when the framework can't load. The framework ships only in the
+**macOS 27 SDK / Xcode 27**; runtime availability is additionally guarded by
+`@available(macOS 27.0, *)`.
 
 ```bash
 just test-appintents <YOUR_TEAM_ID>     # sets the signing guard env var + DEVELOPMENT_TEAM
@@ -370,7 +372,7 @@ Build, install to `/Applications`, open Shortcuts, add the action, confirm the
 Server dropdown lists profiles with the active one preselected, and run it. This
 is the only way to verify the actual Shortcuts UX.
 
-### 4. CI lane (the `App Intents tests` step)
+### 4. CI lane (the `app-intents` job)
 
 `.github/workflows/ci.yml` runs the AppIntentsTesting lane in its own `app-intents`
 job on the `xcode-27` runner (macOS 27 image, arm64 only). It is the only CI job
@@ -440,7 +442,7 @@ prefixed form in test code; only the shell/justfile sets the prefixed name.)
 | AppIntentsTesting: `AppIntentsServicesSecurityErrorDomain Code=800 "Your app does not have permission to perform this."` | Same root cause: no signing team. | Set `DEVELOPMENT_TEAM` on the Debug app + UI test targets (needs a `Mac Development` cert). |
 | AppIntentsTesting: `AppIntentsServicesMetadataErrorDomain … "<bundle id> is not present"` | The system resolved the bundle id to a copy without intent metadata (e.g. a stale `/Applications` app), or nothing registered yet. | Ensure the current build is the installed one; run it once; `lsregister -gc` to drop stale copies. |
 | Signing-gated test **silently skips** | Reading `TEST_RUNNER_<X>` instead of the stripped `<X>` in test code. | Read the stripped name; keep the prefix only in the shell/justfile. |
-| CI: `Unable to resolve module dependency: 'AppIntentsTesting'` | CI Xcode/SDK predates macOS 27 — the framework only exists in Xcode 27. | Keep the test file `#if canImport(AppIntentsTesting)`-guarded (compiles out), or bump the runner to a macOS 27 image if you want CI to compile it. |
+| CI: `Unable to resolve module dependency: 'AppIntentsTesting'` | CI Xcode/SDK predates macOS 27 — the framework only exists in Xcode 27. | Only build the file with the `APP_INTENTS_UI_TESTS` define (`just test-appintents`, the `app-intents` CI job) on a macOS 27 image. |
 | Intent appears in Shortcuts but does nothing / errors immediately | `AppEnvironment.current` is nil, no profiles, or `service(for:)` returned nil. | Check the thrown `IntentError` message; verify `register` runs in `App.init` and a profile exists. |
 | "main actor-isolated … cannot be called from outside of the actor" | Target default isolation is MainActor; a helper called from a `nonisolated` intent member isn't. | Mark the helper `nonisolated`. |
 
@@ -470,9 +472,8 @@ security find-identity -v -p codesigning                       # is there a usab
   single, current app (ideally in `/Applications`). DerivedData, temp, and trash
   copies all register under the same id and confuse resolution.
 - **`AppIntentsTesting` needs the macOS 27 SDK (Xcode 27)** and a UI Testing
-  bundle signed with the same team. The file is `#if canImport`-guarded, so older
-  toolchains (e.g. a `macos-26` CI runner) compile it out instead of failing. The
-  app itself still targets macOS 26.
+  bundle signed with the same team. The file only compiles with the
+  `APP_INTENTS_UI_TESTS` define, so default builds never touch it.
 - **Sandbox is fine.** Intents run in the app's sandbox:
   `com.apple.security.network.client` covers RPC; Keychain and the container
   `Application Support` are the same as in-app.
