@@ -457,14 +457,15 @@ final class TransmissionSwiftUITests: XCTestCase {
         let switcher = app.descendants(matching: .any)
             .matching(identifier: "toolbar.serverSwitcher").firstMatch
         XCTAssertTrue(switcher.waitForExistence(timeout: 5))
-        // The title is the accessible name on both OS versions: macOS 26 turns
-        // `.accessibilityLabel` into AXDescription (the label), macOS 27 into
-        // AXTitle, and the switcher's own label view supplies the same title
-        // either way.
+        // The same `.accessibilityLabel` lands in different attributes: macOS 26
+        // maps it to AXDescription (XCUITest's label) and leaves the symbol's
+        // name in the title; macOS 27 maps it to AXTitle and leaves the label
+        // empty. Assert the accessible name, whichever slot holds it.
+        let accessibleName = switcher.label.isEmpty ? switcher.title : switcher.label
         XCTAssertEqual(
-            switcher.title, "My remote server",
+            accessibleName, "My remote server",
             "Expected the server switcher to read as the server name, not the symbol; "
-                + "got title '\(switcher.title)', label '\(switcher.label)'")
+                + "got label '\(switcher.label)', title '\(switcher.title)'")
     }
 
     /// Every Peers column fits the inspector's default width, so speeds never
@@ -642,52 +643,6 @@ final class TransmissionSwiftUITests: XCTestCase {
         XCTAssertTrue(
             waitUntil { window.frame.maxX <= screen.frame.maxX },
             "Expected Zoom to fit the window to the screen, got \(window.frame)")
-    }
-
-    /// TEMP: reproduce fitWindowToScreen and print the numbers the runner sees.
-    @MainActor
-    func testTempGeometryProbe() throws {
-        guard let fixture = fixtureURL() else { throw XCTSkip("Missing fixture") }
-        for (i, screen) in NSScreen.screens.enumerated() {
-            print("GEO screen[\(i)] frame=\(screen.frame) visible=\(screen.visibleFrame)")
-        }
-        print("GEO main=\(String(describing: NSScreen.main?.frame))")
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "--snapshot", fixture.path, "-ApplePersistenceIgnoreState", "YES",
-            "-NSWindow Frame main", "0 63 1000 652 0 0 1024 768",
-        ]
-        app.launch()
-        let window = app.windows["main"]
-        XCTAssertTrue(window.waitForExistence(timeout: 15))
-        let launch = window.frame
-        print("GEO launch=\(launch)")
-        let sidebar = app.descendants(matching: .any)
-            .matching(identifier: "sidebar.status.all").firstMatch
-        print("GEO sidebarExists=\(sidebar.exists)")
-        if sidebar.exists {
-            app.typeKey("s", modifierFlags: [.command, .control])
-            _ = waitUntil { !sidebar.exists }
-            print("GEO afterHideSidebar=\(window.frame)")
-        }
-        let hidden = window.frame
-        app.menuBars.firstMatch.menuBarItems["Window"].click()
-        app.menuItems["Zoom"].click()
-        Thread.sleep(forTimeInterval: 1)
-        let zoomed = window.frame
-        let inspectorToggle = app.buttons["toolbar.inspector"]
-        let tabs = app.descendants(matching: .any)
-            .matching(identifier: "inspector.tabs").firstMatch
-        let search = app.buttons["toolbar.searchButton"]
-        let items = app.toolbars.firstMatch.buttons.allElementsBoundByIndex.prefix(14)
-            .map { "\($0.identifier.isEmpty ? $0.label : $0.identifier)@\(Int($0.frame.minX))w\(Int($0.frame.width))" }
-        XCTFail(
-            "GEO screen=\(NSScreen.main?.frame ?? .zero) "
-                + "launch=\(launch) afterHide=\(hidden) zoomed=\(zoomed) "
-                + "toggle=\(inspectorToggle.exists ? String(describing: inspectorToggle.frame) : "-") "
-                + "search=\(search.exists ? String(describing: search.frame) : "-") "
-                + "tabs=\(tabs.exists ? String(describing: tabs.frame) : "-") "
-                + "items=\(items.joined(separator: " "))")
     }
 
     /// Polls the given condition, keeping menu state assertions honest while
