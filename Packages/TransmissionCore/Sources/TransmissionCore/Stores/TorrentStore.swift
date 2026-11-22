@@ -119,11 +119,7 @@ public final class TorrentStore {
     /// Suspend polling while the app is in the background. Cancels the stream
     /// and free-space tasks without changing the connection state.
     public func pausePolling() {
-        streamTask?.cancel()
-        freeSpaceTask?.cancel()
-        healthTask?.cancel()
-        healthTask = nil
-        isReconnecting = false
+        stopPolling()
     }
 
     /// Resume polling after returning to the foreground. Restarts the stream
@@ -141,11 +137,35 @@ public final class TorrentStore {
     /// Swap the backing service and restart the poll stream. Used when the
     /// active server profile changes at runtime (first-run or server switching).
     public func connect(service: any TorrentReading) {
+        stopPolling()
+        install(service)
+        connection = .connecting
+        startStream()
+    }
+
+    /// Stop polling and forget the current daemon. Used when no server profile
+    /// remains, so the app does not keep talking to a removed server.
+    public func disconnect(reason: String) {
+        stopPolling()
+        streamGeneration += 1
+        install(EmptyTorrentService())
+        connection = .disconnected(reason: reason)
+    }
+
+    private func stopPolling() {
         streamTask?.cancel()
         freeSpaceTask?.cancel()
+        stopHealth()
+    }
+
+    private func stopHealth() {
         healthTask?.cancel()
         healthTask = nil
         isReconnecting = false
+    }
+
+    /// Point every sub-model at a new daemon and drop the previous one's state.
+    private func install(_ service: any TorrentReading) {
         self.service = service
         let mutations = service.mutations
         actionsEnabled = mutations != nil
@@ -153,7 +173,6 @@ public final class TorrentStore {
         session.reset()
         actions.connect(mutations: mutations)
         inspector.connect(reading: service)
-        connection = .connecting
         resetPerServerState()
         list.setDownloadDirectory(nil)
         list.setTorrents([])
@@ -161,29 +180,6 @@ public final class TorrentStore {
         // from server A would otherwise show "0 torrents" against server B's
         // (different) tracker set until the user re-picks one.
         list.resetFilters()
-        startStream()
-    }
-
-    /// Stop polling and forget the current daemon. Used when no server profile
-    /// remains, so the app does not keep talking to a removed server.
-    public func disconnect(reason: String) {
-        streamTask?.cancel()
-        freeSpaceTask?.cancel()
-        healthTask?.cancel()
-        healthTask = nil
-        isReconnecting = false
-        streamGeneration += 1
-        service = EmptyTorrentService()
-        actionsEnabled = false
-        session.connect(reading: service, mutations: nil)
-        session.reset()
-        actions.connect(mutations: nil)
-        inspector.connect(reading: service)
-        resetPerServerState()
-        list.setDownloadDirectory(nil)
-        list.setTorrents([])
-        list.resetFilters()
-        connection = .disconnected(reason: reason)
     }
 
     /// UI state scoped to one daemon. Torrent ids are only unique per server,
@@ -207,8 +203,7 @@ public final class TorrentStore {
         // Capture the service now so a cancelled task can't accidentally call
         // methods on whatever service connect() installs while it's running.
         streamGeneration += 1
-        healthTask?.cancel()
-        healthTask = nil
+        stopHealth()
         let generation = streamGeneration
         let capturedService = service
         streamTask = Task { @MainActor [weak self] in
@@ -250,9 +245,7 @@ public final class TorrentStore {
                 }
             } catch {
                 guard !Task.isCancelled, generation == self.streamGeneration else { return }
-                self.healthTask?.cancel()
-                self.healthTask = nil
-                self.isReconnecting = false
+                self.stopHealth()
                 self.connection = .disconnected(reason: error.localizedDescription)
             }
         }
@@ -391,11 +384,7 @@ public final class TorrentStore {
     /// keychain access. Called before the blocking macOS keychain dialog so
     /// the existing mock stream can't race back and overwrite the state.
     public func beginKeychainWait() {
-        streamTask?.cancel()
-        freeSpaceTask?.cancel()
-        healthTask?.cancel()
-        healthTask = nil
-        isReconnecting = false
+        stopPolling()
         connection = .awaitingKeychain
         list.setTorrents([])
         session.reset()
