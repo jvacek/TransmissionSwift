@@ -636,6 +636,7 @@ final class TransmissionSwiftUITests: XCTestCase {
             app.typeKey("s", modifierFlags: [.command, .control])
             XCTAssertTrue(waitUntil { !sidebar.exists }, "Expected ⌃⌘S to hide the sidebar")
         }
+        let hidden = window.frame
         app.menuBars.firstMatch.menuBarItems["Window"].click()
         app.menuItems["Zoom"].click()
         XCTAssertTrue(
@@ -659,7 +660,8 @@ final class TransmissionSwiftUITests: XCTestCase {
         app.launch()
         let window = app.windows["main"]
         XCTAssertTrue(window.waitForExistence(timeout: 15))
-        print("GEO launch=\(window.frame)")
+        let launch = window.frame
+        print("GEO launch=\(launch)")
         let sidebar = app.descendants(matching: .any)
             .matching(identifier: "sidebar.status.all").firstMatch
         print("GEO sidebarExists=\(sidebar.exists)")
@@ -668,15 +670,21 @@ final class TransmissionSwiftUITests: XCTestCase {
             _ = waitUntil { !sidebar.exists }
             print("GEO afterHideSidebar=\(window.frame)")
         }
+        let hidden = window.frame
         app.menuBars.firstMatch.menuBarItems["Window"].click()
         app.menuItems["Zoom"].click()
         Thread.sleep(forTimeInterval: 1)
-        print("GEO afterZoom=\(window.frame)")
+        let zoomed = window.frame
         let inspectorToggle = app.buttons["toolbar.inspector"]
-        print("GEO toggle=\(inspectorToggle.exists) \(inspectorToggle.frame)")
         let tabs = app.descendants(matching: .any)
             .matching(identifier: "inspector.tabs").firstMatch
-        print("GEO tabs=\(tabs.exists) \(tabs.exists ? String(describing: tabs.frame) : "-")")
+        let search = app.buttons["toolbar.searchButton"]
+        XCTFail(
+            "GEO screen=\(NSScreen.main?.frame ?? .zero) "
+                + "launch=\(launch) afterHide=\(hidden) zoomed=\(zoomed) "
+                + "toggle=\(inspectorToggle.exists ? String(describing: inspectorToggle.frame) : "-") "
+                + "search=\(search.exists ? String(describing: search.frame) : "-") "
+                + "tabs=\(tabs.exists ? String(describing: tabs.frame) : "-")")
     }
 
     /// Polls the given condition, keeping menu state assertions honest while
