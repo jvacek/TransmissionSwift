@@ -146,7 +146,9 @@ struct MainWindow: View {
         return NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView()
                 .navigationSplitViewColumnWidth(
-                    min: Layout.sidebarMin, ideal: Layout.sidebarIdeal, max: Layout.sidebarMax)
+                    min: Layout.sidebarMin, ideal: Layout.sidebarIdeal, max: Layout.sidebarMax
+                )
+                .toolbar(removing: .sidebarToggle)
         } detail: {
             listPane
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -164,6 +166,15 @@ struct MainWindow: View {
                     }
                 }
                 .toolbar {
+                    // Our own toggle: the system one lives in the sidebar's
+                    // toolbar section, which in Icon and Text mode can't fit
+                    // its caption and sends it to the overflow menu.
+                    ToolbarItem(placement: .navigation) {
+                        let title = columnVisibility == .detailOnly ? "Show Sidebar" : "Hide Sidebar"
+                        Button(title, systemImage: "sidebar.left") { sidebarVisible.toggle() }
+                            .help(title)
+                            .accessibilityIdentifier("toolbar.sidebar")
+                    }
                     ToolbarItem(placement: .navigation) {
                         serverSwitcherMenu
                     }

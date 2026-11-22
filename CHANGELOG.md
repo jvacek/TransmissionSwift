@@ -40,6 +40,7 @@
   - Show the torrent's name in the inspector's Metadata, with Rename next to it
   - Search from a magnifier button that opens into a field on click or ⌘F
   - Show the server's name on the toolbar's server switcher, and keep the toolbar buttons in separate groups
+  - Keep the sidebar button in the toolbar in Icon and Text mode, and caption the server switcher "Server"
   - Animate the sidebar when it's shown or hidden from the View menu
   - Stop the window from clipping the sidebar and inspector when it's narrow
 - Performance
