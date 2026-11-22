@@ -14,11 +14,23 @@ import TransmissionCore
 /// rather than here because `ToolbarContent` structs have more limited
 /// `DynamicProperty` support than `View`, and mixing `@Environment` access for
 /// two different stores breaks `@ToolbarContentBuilder` conditional inference.
+/// Three small `ToolbarContent` groups rather than one body: the macOS 26
+/// compiler gives up on a body this size ("extra argument in call" at
+/// whichever item it reaches first).
 struct MainToolbar: ToolbarContent {
+    var body: some ToolbarContent {
+        AddToolbarGroup()
+        SelectionToolbarGroup()
+        ToolbarSpacer(.flexible)
+        InspectorToggle()
+    }
+}
+
+/// Group 1 — Add.
+private struct AddToolbarGroup: ToolbarContent {
     @Environment(TorrentStore.self) private var store
 
     var body: some ToolbarContent {
-        // Group 1 — Add
         ToolbarItem(placement: .primaryAction) {
             Button("Add", systemImage: "plus") {
                 store.openAddSheet()
@@ -35,10 +47,14 @@ struct MainToolbar: ToolbarContent {
             .help("Add magnet link or URL")
             .accessibilityIdentifier("toolbar.addLink")
         }
+    }
+}
 
-        ToolbarSpacer(.fixed)
+/// Group 2 — actions on the selected torrents.
+private struct SelectionToolbarGroup: ToolbarContent {
+    @Environment(TorrentStore.self) private var store
 
-        // Group 2 — selection actions
+    var body: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button("Resume", systemImage: "play.fill") {
                 Task { await store.actions.start(Array(store.list.selectedTorrentIDs)) }
@@ -71,10 +87,36 @@ struct MainToolbar: ToolbarContent {
             .help("Set download location for selected torrents")
             .accessibilityIdentifier("toolbar.setLocation")
         }
+    }
+}
 
-        ToolbarSpacer(.flexible)
+/// The inspector's tab picker in the column's own toolbar section, above the
+/// column as in Xcode. Declared on every layout and left empty rather than
+/// wrapped in a builder `if`: a conditional in a `ToolbarContentBuilder` body
+/// fails the macOS 26 compiler when it reads the environment.
+struct InspectorTabsToolbar: ToolbarContent {
+    @Environment(TorrentStore.self) private var store
+    /// The column's toolbar section only exists when the inspector is open, and
+    /// only a window wide enough to hold the picker uses it.
+    let shows: Bool
 
-        // Group 3 — view toggles
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            if shows, store.list.selectedTorrents.first != nil {
+                InspectorTabPicker()
+                    .frame(minWidth: 160, idealWidth: 220, maxWidth: 260)
+            }
+        }
+        .sharedBackgroundVisibility(.hidden)
+    }
+}
+
+/// Show/Hide Inspector. Its own `ToolbarContent` rather than an inline item:
+/// the macOS 26 compiler fails the whole toolbar body when the item sits here.
+struct InspectorToggle: ToolbarContent {
+    @Environment(TorrentStore.self) private var store
+
+    var body: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             // Same wording as the View menu item.
             let title = store.inspector.isVisible ? "Hide Inspector" : "Show Inspector"
