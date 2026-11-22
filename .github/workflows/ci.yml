@@ -135,7 +135,7 @@ jobs:
           brew install displayplacer
           displayplacer list
           id=$(displayplacer list | awk '/^Persistent screen id: /{print $4; exit}')
-          displayplacer "id:$id res:1920x1080 scaling:off origin:(0,0) degree:0"
+          displayplacer "id:$id res:1920x1080 hz:60 color_depth:7 scaling:off origin:(0,0) degree:0"
           sleep 2
           system_profiler SPDisplaysDataType | grep Resolution
 
