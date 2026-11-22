@@ -256,7 +256,7 @@ struct MainWindow: View {
                     // toolbar section, which in Icon and Text mode can't fit
                     // its caption and sends it to the overflow menu.
                     ToolbarItem(placement: .navigation) {
-                        let title = columnVisibility == .detailOnly ? "Show Sidebar" : "Hide Sidebar"
+                        let title = sidebarVisible ? "Hide Sidebar" : "Show Sidebar"
                         Button(title, systemImage: "sidebar.left") { sidebarVisible.toggle() }
                             .help(title)
                             .accessibilityIdentifier("toolbar.sidebar")
