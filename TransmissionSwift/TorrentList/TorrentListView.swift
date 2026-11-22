@@ -72,8 +72,9 @@ struct TorrentListView: View {
 }
 
 extension TorrentStore {
-    /// Runs a torrent action for `ids`. The row context menu, the Torrent menu
-    /// and its keyboard shortcuts all funnel through here so they cannot drift.
+    /// Runs a torrent action for `ids`. The row context menu, the Torrent menu,
+    /// its keyboard shortcuts and the toolbar all funnel through here so they
+    /// cannot drift.
     func perform(_ action: TorrentRowAction, ids: [Torrent.ID]) {
         switch action {
         case .resume: Task { await actions.start(ids) }
