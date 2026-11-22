@@ -35,6 +35,51 @@ struct EditLabelsSheetTests {
         #expect(
             EditLabelsSheet.mergedLabels(torrents, ids: [torrents[0].id]) == ["Linux"])
     }
+
+    @Test("an added label goes onto every target without spreading the others")
+    func addedLabelOnly() {
+        let torrents = MockFixtures.torrents()
+        let a = torrents[0].id  // ["Linux"]
+        let b = torrents[1].id  // ["3D", "Media"]
+        let updates = EditLabelsSheet.labelUpdates(
+            torrents, ids: [a, b], initial: ["3D", "Linux", "Media"],
+            edited: ["3D", "Linux", "Media", "New"])
+        #expect(
+            updates == [
+                .init(labels: ["3D", "Media", "New"], ids: [b]),
+                .init(labels: ["Linux", "New"], ids: [a]),
+            ])
+    }
+
+    @Test("a removed label comes off every target; untouched torrents are skipped")
+    func removedLabel() {
+        let torrents = MockFixtures.torrents()
+        let a = torrents[0].id
+        let b = torrents[1].id
+        let updates = EditLabelsSheet.labelUpdates(
+            torrents, ids: [a, b], initial: ["3D", "Linux", "Media"], edited: ["Linux", "Media"])
+        #expect(updates == [.init(labels: ["Media"], ids: [b])])
+    }
+
+    @Test("targets ending up with the same set share one write")
+    func groupsBySet() {
+        let torrents = MockFixtures.torrents()
+        let a = torrents[0].id
+        let b = torrents[1].id
+        let updates = EditLabelsSheet.labelUpdates(
+            torrents, ids: [a, b], initial: ["3D", "Linux", "Media"], edited: ["Only"])
+        #expect(updates == [.init(labels: ["Only"], ids: [a, b])])
+    }
+
+    @Test("no edit means no writes")
+    func unchangedIsEmpty() {
+        let torrents = MockFixtures.torrents()
+        let ids = [torrents[0].id, torrents[1].id]
+        let updates = EditLabelsSheet.labelUpdates(
+            torrents, ids: ids, initial: ["3D", "Linux", "Media"],
+            edited: ["Media", "3D", "Linux"])
+        #expect(updates.isEmpty)
+    }
 }
 
 /// The Files tab context menu acts on the whole selection when the clicked row
