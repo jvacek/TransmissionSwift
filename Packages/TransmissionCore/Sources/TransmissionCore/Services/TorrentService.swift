@@ -12,18 +12,6 @@ import TransmissionRPC
 /// Declaring reads and mutations separately lets a read-only source (snapshot
 /// replay) implement only what it can actually do, instead of stubbing every
 /// mutation.
-/// Optional capability: a service that can report whether its poll loop is
-/// currently succeeding. The store uses it to show a reconnecting indicator
-/// without changing the connection state or discarding the last snapshot.
-public enum PollHealth: Sendable, Equatable {
-    case ok
-    case failing
-}
-
-public protocol PollHealthReporting: Sendable {
-    func pollHealth() async -> AsyncStream<PollHealth>
-}
-
 public protocol TorrentReading: Sendable {
     /// Whether the daemon supports labels (rpc-version >= 17, Transmission 4.0).
     /// The RPC service derives this from its cached `session-get`; mock/replay
