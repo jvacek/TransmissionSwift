@@ -19,8 +19,6 @@ private enum Layout {
     static let inspectorMax: CGFloat = 600
     static let contentMin: CGFloat = 480
     static let contentIdeal: CGFloat = 480
-    /// The narrowest the window may get: the three columns' minimums.
-    static let windowMinWidth: CGFloat = 960
 }
 
 struct MainWindow: View {
@@ -402,26 +400,39 @@ struct MainWindow: View {
 }
 #endif
 
-/// Fits the window to the display once it is in the window hierarchy: the
-/// columns' ideal widths can otherwise open it wider than a small screen.
+/// Keeps the window within its display. SwiftUI sizes a new window from the
+/// columns' ideal widths, possibly after the view first appears, so a one-off
+/// fit can run too early; refitting on every resize also catches later growth.
 private struct WindowFitToScreen: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async {
-            guard let window = view.window, let screen = window.screen ?? NSScreen.main else {
-                return
-            }
-            window.contentMinSize = NSSize(
-                width: Layout.windowMinWidth, height: window.contentMinSize.height)
-            window.minSize = NSSize(
-                width: Layout.windowMinWidth, height: window.minSize.height)
-            let fitted = window.frame.intersection(screen.visibleFrame)
-            if fitted != window.frame {
-                window.setFrame(fitted, display: true)
+    func makeNSView(context: Context) -> FittingView { FittingView() }
+
+    func updateNSView(_ view: FittingView, context: Context) {}
+
+    final class FittingView: NSView {
+        private var resizeObserver: (any NSObjectProtocol)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let resizeObserver { NotificationCenter.default.removeObserver(resizeObserver) }
+            resizeObserver = nil
+            guard let window else { return }
+            Self.fit(window)
+            resizeObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didResizeNotification, object: window, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let window = self?.window else { return }
+                    Self.fit(window)
+                }
             }
         }
-        return view
-    }
 
-    func updateNSView(_ view: NSView, context: Context) {}
+        private static func fit(_ window: NSWindow) {
+            guard !window.styleMask.contains(.fullScreen),
+                let visible = (window.screen ?? NSScreen.main)?.visibleFrame,
+                window.frame.width > visible.width || window.frame.height > visible.height
+            else { return }
+            window.setFrame(window.frame.intersection(visible), display: true)
+        }
+    }
 }
