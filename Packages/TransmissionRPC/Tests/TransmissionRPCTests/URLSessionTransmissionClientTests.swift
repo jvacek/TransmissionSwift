@@ -324,6 +324,24 @@ struct URLSessionTransmissionClientTests {
         try await makeClient(host: host).torrentAction("torrent-start", ids: [1])
     }
 
+    @Test("a typed reply without arguments is a decoding error")
+    func typedReplyWithoutArguments() async throws {
+        let host = "typed-no-arguments.test"
+        StubURLProtocol.register(host: host) { request in
+            (
+                makeHTTPResponse(url: request.url!, statusCode: 200),
+                Data(#"{"result":"success"}"#.utf8)
+            )
+        }
+
+        await #expect {
+            _ = try await makeClient(host: host).sessionGet()
+        } throws: { error in
+            guard case TransmissionError.decoding = error else { return false }
+            return true
+        }
+    }
+
     @Test("sessionGet throws decoding error on malformed JSON")
     func malformedJSON() async throws {
         let host = "malformed.test"

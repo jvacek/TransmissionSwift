@@ -137,13 +137,26 @@ public actor URLSessionTransmissionClient: TransmissionClient {
         method: String,
         arguments: Arguments
     ) async throws(TransmissionError) {
-        let _: VoidReply = try await send(method: method, arguments: arguments)
+        let _: VoidReply? = try await request(method: method, arguments: arguments)
     }
 
+    /// Sends an RPC whose reply must carry typed arguments.
     private func send<Arguments: Encodable, Reply: Decodable>(
         method: String,
         arguments: Arguments
     ) async throws(TransmissionError) -> Reply {
+        guard let reply: Reply = try await request(method: method, arguments: arguments) else {
+            throw .decoding("Response for \(method) is missing the arguments object")
+        }
+        return reply
+    }
+
+    /// The spec makes a reply's `arguments` optional (mutation replies have
+    /// none), so this returns nil when it's absent and the caller decides.
+    private func request<Arguments: Encodable, Reply: Decodable>(
+        method: String,
+        arguments: Arguments
+    ) async throws(TransmissionError) -> Reply? {
         let body: Data
         do {
             body = try JSONEncoder().encode(RPCRequest(method: method, arguments: arguments))
@@ -187,14 +200,7 @@ public actor URLSessionTransmissionClient: TransmissionClient {
             guard envelope.result == "success" else {
                 throw TransmissionError.serverError(envelope.result)
             }
-            guard let reply = envelope.arguments else {
-                // The spec makes `arguments` optional; mutation replies have
-                // none. Only a typed reply that expected fields is an error.
-                if let empty = VoidReply() as? Reply { return empty }
-                throw TransmissionError.decoding(
-                    "Response for \(method) is missing the arguments object")
-            }
-            return reply
+            return envelope.arguments
         } catch let error as TransmissionError {
             throw error
         } catch {
