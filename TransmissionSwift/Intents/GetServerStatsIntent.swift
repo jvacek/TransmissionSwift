@@ -85,7 +85,7 @@ struct ServerStatsEntity: TransientAppEntity {
         self.serverID = serverID
         torrentCount = torrents.count
         activeCount = torrents.filter(\.isActive).count
-        pausedCount = torrents.filter { $0.status == .paused }.count
+        pausedCount = torrents.filter(\.isStopped).count
         let down = torrents.reduce(Int64(0)) { $0 + $1.downloadSpeed }
         let up = torrents.reduce(Int64(0)) { $0 + $1.uploadSpeed }
         downloadSpeed = Int(down)
