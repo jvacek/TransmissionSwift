@@ -35,31 +35,31 @@ enum TorrentTableColumns {
     static let all: [TorrentTableColumnSpec] = [
         TorrentTableColumnSpec(
             column: .name, title: "Name", group: .general,
-            minWidth: 160, idealWidth: 400, maxWidth: 800, hiddenByDefault: false),
+            minWidth: 240, idealWidth: 400, maxWidth: 800, hiddenByDefault: false),
         TorrentTableColumnSpec(
             column: .size, title: "Size", group: .general,
-            minWidth: 44, idealWidth: 74, maxWidth: 120, hiddenByDefault: false),
+            minWidth: 54, idealWidth: 74, maxWidth: 120, hiddenByDefault: false),
         TorrentTableColumnSpec(
             column: .progress, title: "Progress", group: .general,
-            minWidth: 60, idealWidth: 130, maxWidth: 200, hiddenByDefault: false),
+            minWidth: 80, idealWidth: 130, maxWidth: 200, hiddenByDefault: false),
         TorrentTableColumnSpec(
             column: .downloadSpeed, title: "\u{2193} Speed", group: .transfer,
-            minWidth: 56, idealWidth: 95, maxWidth: 130, hiddenByDefault: false),
+            minWidth: 70, idealWidth: 95, maxWidth: 130, hiddenByDefault: false),
         TorrentTableColumnSpec(
             column: .uploadSpeed, title: "\u{2191} Speed", group: .transfer,
-            minWidth: 56, idealWidth: 95, maxWidth: 130, hiddenByDefault: false),
+            minWidth: 70, idealWidth: 95, maxWidth: 130, hiddenByDefault: false),
         TorrentTableColumnSpec(
             column: .eta, title: "ETA", group: .transfer,
-            minWidth: 44, idealWidth: 66, maxWidth: 100, hiddenByDefault: false),
+            minWidth: 52, idealWidth: 66, maxWidth: 100, hiddenByDefault: false),
         TorrentTableColumnSpec(
             column: .ratio, title: "Ratio", group: .transfer,
-            minWidth: 40, idealWidth: 60, maxWidth: 90, hiddenByDefault: false),
+            minWidth: 50, idealWidth: 60, maxWidth: 90, hiddenByDefault: false),
         TorrentTableColumnSpec(
             column: .addedAt, title: "Added", group: .dates,
-            minWidth: 56, idealWidth: 100, maxWidth: 150, hiddenByDefault: false),
+            minWidth: 72, idealWidth: 100, maxWidth: 150, hiddenByDefault: false),
         TorrentTableColumnSpec(
             column: .primaryTracker, title: "Tracker", group: .general,
-            minWidth: 60, idealWidth: 120, maxWidth: 200, hiddenByDefault: false),
+            minWidth: 80, idealWidth: 120, maxWidth: 200, hiddenByDefault: false),
         TorrentTableColumnSpec(
             column: .connectedPeers, title: "Peers", group: .transfer,
             minWidth: 50, idealWidth: 65, maxWidth: 100, hiddenByDefault: true),

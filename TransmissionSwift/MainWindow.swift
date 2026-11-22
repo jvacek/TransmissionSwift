@@ -11,16 +11,14 @@ import TransmissionTestSupport
 #endif
 
 private enum Layout {
-    static let sidebarMin: CGFloat = 160
+    static let sidebarMin: CGFloat = 180
     static let sidebarIdeal: CGFloat = 212
     static let sidebarMax: CGFloat = 600
     static let inspectorMin: CGFloat = 280
     static let inspectorIdeal: CGFloat = 322
     static let inspectorMax: CGFloat = 600
     static let contentMin: CGFloat = 480
-    static let contentIdeal: CGFloat = 480
-    /// The narrowest the window may get: the three columns' minimums.
-    static let windowMinWidth: CGFloat = 960
+    static let contentIdeal: CGFloat = 640
 }
 
 struct MainWindow: View {
@@ -59,7 +57,6 @@ struct MainWindow: View {
 
         splitView
             .frame(minHeight: 600)
-            .background(WindowFitToScreen())
             .onAppear {
                 // "Start minimized": miniaturize once on launch. Done here (rather
                 // than the app delegate) so it targets the actual main window.
@@ -155,7 +152,7 @@ struct MainWindow: View {
                     min: Layout.sidebarMin, ideal: Layout.sidebarIdeal, max: Layout.sidebarMax)
         } detail: {
             listPane
-                .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .navigationSplitViewColumnWidth(min: Layout.contentMin, ideal: Layout.contentIdeal)
                 .navigationTitle(profileStore.activeProfile?.label ?? "Transmission")
                 .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -401,27 +398,3 @@ struct MainWindow: View {
         .frame(width: 1100, height: 640)
 }
 #endif
-
-/// Fits the window to the display once it is in the window hierarchy: the
-/// columns' ideal widths can otherwise open it wider than a small screen.
-private struct WindowFitToScreen: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async {
-            guard let window = view.window, let screen = window.screen ?? NSScreen.main else {
-                return
-            }
-            window.contentMinSize = NSSize(
-                width: Layout.windowMinWidth, height: window.contentMinSize.height)
-            window.minSize = NSSize(
-                width: Layout.windowMinWidth, height: window.minSize.height)
-            let fitted = window.frame.intersection(screen.visibleFrame)
-            if fitted != window.frame {
-                window.setFrame(fitted, display: true)
-            }
-        }
-        return view
-    }
-
-    func updateNSView(_ view: NSView, context: Context) {}
-}
