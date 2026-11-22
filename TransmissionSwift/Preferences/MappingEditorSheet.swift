@@ -11,15 +11,14 @@ import UniformTypeIdentifiers
 struct MappingEditorSheet: View {
     /// The live field state for this session.
     @Bindable var model: MappingEditorModel
-    /// Dismisses the sheet (nils out the presenting item).
-    let onCancel: () -> Void
+    /// Dismisses the sheet (nils out the presenting item), on Cancel and
+    /// after a successful save.
+    let onDismiss: () -> Void
     let sampleServer: ServerProfile
     let sampleTorrent: Torrent?
-    let samplePassword: String
     let sampleDownloadDir: String?
-    /// Resolves the password actually used for Test: the typed field, else the
-    /// stored Keychain secret. Resolved on demand so the Keychain isn't read
-    /// during view rendering.
+    /// The sample server's stored Keychain password, used by Test. Resolved on
+    /// demand so the Keychain isn't read during view rendering.
     let resolveSamplePassword: () -> String
     /// Returns an error message when persistence fails; the sheet stays open so
     /// the edit is not lost.
@@ -528,7 +527,7 @@ struct MappingEditorSheet: View {
             SheetButtonRow(
                 model.existing == nil ? "Add" : "Save",
                 canConfirm: canSave,
-                onCancel: onCancel,
+                onCancel: onDismiss,
                 onConfirm: save
             ) {
                 if let onDuplicate {
@@ -713,7 +712,7 @@ struct MappingEditorSheet: View {
             saveError = message
             return
         }
-        onCancel()
+        onDismiss()
     }
 }
 
@@ -722,10 +721,9 @@ struct MappingEditorSheet: View {
     MappingEditorSheet(
         model: MappingEditorModel(
             existing: OpenMapping(name: "Finder", template: "file:///Volumes/transmission/{folder}")),
-        onCancel: {},
+        onDismiss: {},
         sampleServer: ServerProfile(label: "Home NAS", host: "nas.local"),
         sampleTorrent: nil,
-        samplePassword: "",
         sampleDownloadDir: "/downloads",
         resolveSamplePassword: { "" },
         onSave: { _ in nil },

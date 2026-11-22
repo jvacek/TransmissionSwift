@@ -57,10 +57,9 @@ struct MappingsPrefsPane: View {
         .sheet(item: $editingModel) { model in
             MappingEditorSheet(
                 model: model,
-                onCancel: { editingModel = nil },
+                onDismiss: { editingModel = nil },
                 sampleServer: activeSampleServer,
                 sampleTorrent: torrentStore.inspector.detail ?? torrentStore.list.torrents.first,
-                samplePassword: "",
                 sampleDownloadDir: torrentStore.list.downloadDirectory,
                 resolveSamplePassword: { effectiveSamplePassword() },
                 onSave: { mapping in
