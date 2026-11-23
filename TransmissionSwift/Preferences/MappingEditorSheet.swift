@@ -27,9 +27,6 @@ struct MappingEditorSheet: View {
     var onDuplicate: (() -> Void)? = nil
     var onRemove: (() -> Void)? = nil
 
-    /// The servers the "Selected Servers" checklist offers.
-    @Environment(ServerProfileStore.self) private var profileStore
-
     @FocusState private var templateFocused: Bool
     /// Whether the placeholder reference popover is visible.
     @State private var showPlaceholderHelp = false
@@ -42,12 +39,6 @@ struct MappingEditorSheet: View {
     /// chosen app) instead of on every body pass.
     @State private var handlerAppsCache: [HandlerApp] = []
     @State private var defaultHandlerBundleIDCache: String?
-
-    private struct HandlerApp: Identifiable, Equatable {
-        let bundleID: String
-        let name: String
-        var id: String { bundleID }
-    }
 
     private struct HandlerRefreshKey: Hashable {
         let scheme: String?
@@ -127,61 +118,16 @@ struct MappingEditorSheet: View {
             defaultDownloadDirectory: sampleDownloadDir ?? "download-dir")
     }
 
-    /// Apps that can handle the preview URL's scheme, plus the currently
-    /// selected app (so the picker always reflects the saved value even when
-    /// the scheme changed). Sorted by display name. Falls back to a
-    /// scheme-only probe so an incomplete template (empty host, etc.) still
-    /// lists candidates. Called from a `.task`, never from `body`.
-    private func resolveHandlerApps() -> [HandlerApp] {
-        var apps: [HandlerApp] = []
-        if let bundleID = model.applicationBundleID {
-            apps.append(
-                HandlerApp(
-                    bundleID: bundleID,
-                    name: MappingLauncher.displayName(for: bundleID) ?? bundleID))
-        }
-        let probe = previewURL ?? templateScheme.flatMap { URL(string: "\($0)://probe") }
-        if let url = probe {
-            for appURL in NSWorkspace.shared.urlsForApplications(toOpen: url) {
-                guard let bundle = Bundle(url: appURL), let bundleID = bundle.bundleIdentifier
-                else { continue }
-                if apps.contains(where: { $0.bundleID == bundleID }) { continue }
-                let name =
-                    (bundle.localizedInfoDictionary?["CFBundleDisplayName"] as? String)
-                    ?? bundle.infoDictionary?["CFBundleName"] as? String
-                    ?? appURL.deletingPathExtension().lastPathComponent
-                apps.append(HandlerApp(bundleID: bundleID, name: name))
-            }
-        }
-        return apps.sorted {
-            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-        }
-    }
-
     /// Resolves the LaunchServices lookups once per scheme, off the body path.
     private func refreshHandlerCache() {
-        handlerAppsCache = resolveHandlerApps()
-        defaultHandlerBundleIDCache = resolveDefaultHandlerBundleID()
+        handlerAppsCache = HandlerAppResolver.apps(
+            for: previewURL ?? templateScheme.flatMap { URL(string: "\($0)://probe") },
+            selected: model.applicationBundleID)
+        defaultHandlerBundleIDCache = templateScheme.flatMap(HandlerAppResolver.defaultHandler(forScheme:))
     }
 
-    /// The URL scheme of the current template, used to probe for candidate apps
-    /// when the full preview URL can't be built.
     private var templateScheme: String? {
-        let trimmed = model.template.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let range = trimmed.range(of: "://") {
-            return String(trimmed[..<range.lowerBound]).lowercased()
-        }
-        return trimmed.hasPrefix("/") ? "file" : nil
-    }
-
-    /// The scheme's default handler, resolved via LaunchServices, so the editor
-    /// can reason about which app would actually receive the URL.
-    private func resolveDefaultHandlerBundleID() -> String? {
-        guard
-            let url = templateScheme.flatMap({ URL(string: "\($0)://probe") }),
-            let appURL = NSWorkspace.shared.urlForApplication(toOpen: url)
-        else { return nil }
-        return Bundle(url: appURL)?.bundleIdentifier
+        HandlerAppResolver.scheme(ofTemplate: model.template)
     }
 
     /// Warns when the template embeds credentials (`{password}` /
@@ -208,7 +154,7 @@ struct MappingEditorSheet: View {
     }
 
     private var canSave: Bool {
-        !trimmedName.isEmpty && !trimmedTemplate.isEmpty && previewURL != nil && scopeIsValid && isDirty
+        !trimmedName.isEmpty && !trimmedTemplate.isEmpty && previewURL != nil && model.scope.targetsAnyServer && isDirty
     }
 
     private var editedMapping: OpenMapping {
@@ -224,123 +170,6 @@ struct MappingEditorSheet: View {
 
     private var isDirty: Bool {
         model.existing.map { $0 != editedMapping } ?? true
-    }
-
-    /// A "Selected Servers" mapping must target at least one server; "All
-    /// Servers" is always valid.
-    private var scopeIsValid: Bool {
-        if case .only(let ids) = model.scope { return !ids.isEmpty }
-        return true
-    }
-
-    private enum ScopeChoice: Hashable { case all, remote, local, selected }
-
-    private var scopeChoice: Binding<ScopeChoice> {
-        Binding(
-            get: {
-                switch model.scope {
-                case .all: return .all
-                case .remote: return .remote
-                case .local: return .local
-                case .only: return .selected
-                }
-            },
-            set: { choice in
-                switch choice {
-                case .all:
-                    model.scope = .all
-                case .remote:
-                    model.scope = .remote
-                case .local:
-                    model.scope = .local
-                case .selected:
-                    if case .only = model.scope { return }
-                    // Seed with every current server so unchecking one is one
-                    // click; servers added later won't be included.
-                    model.scope = .only(Set(profileStore.profiles.map(\.id)))
-                }
-            })
-    }
-
-    private func serverToggle(_ id: UUID) -> Binding<Bool> {
-        Binding(
-            get: {
-                if case .only(let ids) = model.scope { return ids.contains(id) }
-                return true
-            },
-            set: { on in
-                guard case .only(var ids) = model.scope else { return }
-                if on { ids.insert(id) } else { ids.remove(id) }
-                model.scope = .only(ids)
-            })
-    }
-
-    @ViewBuilder
-    private var scopeSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("Applies to")
-                Spacer()
-                Picker("Applies to", selection: scopeChoice) {
-                    Text("All Servers").tag(ScopeChoice.all)
-                    Text("All Remote Servers").tag(ScopeChoice.remote)
-                    Text("All Local Servers").tag(ScopeChoice.local)
-                    Text("Selected Servers").tag(ScopeChoice.selected)
-                }
-                .pickerStyle(.menu)
-                .labelsHidden()
-            }
-
-            Text(scopeHelp)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            if case .only = model.scope {
-                if profileStore.profiles.isEmpty {
-                    Text("No servers configured yet.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(profileStore.profiles) { profile in
-                            Toggle(isOn: serverToggle(profile.id)) {
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(profile.label)
-                                    Text("\(profile.host):\(profile.port)")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .monospaced()
-                                }
-                            }
-                            .toggleStyle(.checkbox)
-                        }
-                    }
-                    if !scopeIsValid {
-                        Text("Select at least one server.")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                }
-            }
-        }
-    }
-
-    /// Explains what the chosen scope matches, so the local/remote split is
-    /// explicit: "remote" is defined as the complement of a local server.
-    private var scopeHelp: String {
-        switch model.scope {
-        case .all:
-            return "Matches every server, including servers you add later."
-        case .remote:
-            return
-                "Matches servers outside your local network, such as a seedbox or a public address. Includes servers you add later."
-        case .local:
-            return
-                "Matches localhost and your local network: private addresses (10.x, 172.16–31.x, 192.168.x), link-local addresses, and .local names. Includes servers you add later."
-        case .only:
-            return "Matches only the servers you tick below."
-        }
     }
 
     var body: some View {
@@ -509,7 +338,7 @@ struct MappingEditorSheet: View {
                 }
             }
 
-            scopeSection
+            MappingScopePicker(scope: $model.scope)
 
             if let warning = safariBasicAuthWarning {
                 Label(warning, systemImage: "exclamationmark.triangle")
