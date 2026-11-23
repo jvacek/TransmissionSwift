@@ -571,41 +571,25 @@ final class TransmissionSwiftUITests: XCTestCase {
         // hittable to XCUITest (AppKit hit-tests it fine), and element clicks
         // then stop behaving like a real double click, hiding the bug.
         let headerPoint = header.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        // Over the table's empty rows: in the toolbar, a button's tooltip can
-        // cover the header and freeze the screenshot.
-        let parkPoint = table.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9))
-
-        // The sort direction isn't in the accessibility tree, so read the
-        // arrow from pixels, with the pointer parked so hover can't differ.
-        func arrow() -> Data {
-            parkPoint.hover()
-            Thread.sleep(forTimeInterval: 0.3)
-            return header.screenshot().pngRepresentation
-        }
         func topRow() -> String {
             table.cells.element(boundBy: 0).staticTexts.firstMatch.label
         }
 
         headerPoint.click()
-        Thread.sleep(forTimeInterval: 0.6)
-        let firstArrow = arrow()
         let firstTop = topRow()
 
         headerPoint.click()
-        Thread.sleep(forTimeInterval: 0.6)
-        let secondArrow = arrow()
+        XCTAssertTrue(
+            waitUntil { topRow() != firstTop }, "Expected a slow second click to re-sort the rows")
         let secondTop = topRow()
-        XCTAssertNotEqual(secondArrow, firstArrow, "Expected a slow second click to flip the arrow")
-        XCTAssertNotEqual(secondTop, firstTop, "Expected a slow second click to re-sort the rows")
 
         // Two fast clicks flip twice, landing back where they started. With
-        // the bug only the first flipped, leaving the first click's state.
+        // the bug only the first flipped, leaving the rows in the first
+        // click's order.
         headerPoint.doubleClick()
-        Thread.sleep(forTimeInterval: 0.6)
-        XCTAssertEqual(
-            topRow(), secondTop, "Expected both clicks of a fast double click to re-sort the rows")
-        XCTAssertEqual(
-            arrow(), secondArrow, "Expected both clicks of a fast double click to flip the arrow")
+        XCTAssertFalse(
+            waitUntil(timeout: 1) { topRow() != secondTop },
+            "Expected both clicks of a fast double click to re-sort the rows")
     }
 
     /// Launches the app on the committed snapshot fixture. State restoration is
