@@ -33,7 +33,6 @@ struct MappingEditorSheet: View {
     /// Whether the save-time "allow file access?" alert is visible.
     @State private var showAccessAlert = false
     @State private var saveError: String?
-    @State private var confirmingRemoval = false
     /// Candidate apps for the current scheme, and the scheme's default handler.
     /// Both come from LaunchServices, so they are resolved once per scheme (or
     /// chosen app) instead of on every body pass.
@@ -359,24 +358,18 @@ struct MappingEditorSheet: View {
                 onCancel: onDismiss,
                 onConfirm: save
             ) {
-                if let onDuplicate {
-                    Button("Duplicate", action: onDuplicate)
-                        .disabled(isDirty)
-                        .help(isDirty ? "Save or cancel your changes first" : "Make a copy of this mapping")
-                }
-                if onRemove != nil {
-                    Button("Remove…", role: .destructive) { confirmingRemoval = true }
-                }
+                EditorSheetActions(
+                    isDirty: isDirty,
+                    duplicateHelp: "Make a copy of this mapping",
+                    removalTitle: "Remove Mapping?",
+                    removalMessage: MappingsPrefsPane.removalMessage(
+                        for: model.existing?.name ?? model.name),
+                    onDuplicate: onDuplicate,
+                    onRemove: onRemove)
             }
         }
         .padding(20)
         .frame(width: 460)
-        .confirmationDialog("Remove Mapping?", isPresented: $confirmingRemoval) {
-            Button("Remove", role: .destructive) { onRemove?() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("“\(model.existing?.name ?? model.name)” will be deleted. This can't be undone.")
-        }
         .task(id: handlerRefreshKey) {
             refreshHandlerCache()
         }

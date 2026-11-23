@@ -65,19 +65,10 @@ struct ServersPrefsPane: View {
         } message: {
             Text(actionError ?? "")
         }
-        .confirmationDialog(
-            "Remove Server?",
-            isPresented: Binding(
-                get: { pendingRemovalID != nil },
-                set: { if !$0 { pendingRemovalID = nil } }
-            ),
-            presenting: pendingRemovalID
-        ) { id in
-            Button("Remove", role: .destructive) { removeServer(id) }
-            Button("Cancel", role: .cancel) {}
-        } message: { _ in
-            Text("The saved password will be deleted. Torrents on the daemon are not affected.")
-        }
+        .removalConfirmation(
+            "Remove Server?", item: $pendingRemovalID,
+            message: { _ in Self.removalMessage }, onRemove: removeServer
+        )
         .sheet(item: $editor) { target in
             ServerProfileForm(
                 target: target,
@@ -93,6 +84,9 @@ struct ServersPrefsPane: View {
                 })
         }
     }
+
+    static let removalMessage =
+        "The saved password will be deleted. Torrents on the daemon are not affected."
 
     /// Duplicate and Remove only exist for a saved server.
     private func editorAction(
@@ -208,7 +202,6 @@ struct ServerProfileForm: View {
     @State private var testMessage: String?
     @State private var testFailed = false
     @State private var saveError: String?
-    @State private var confirmingRemoval = false
 
     /// The values the sheet opened with, for the unsaved-changes check.
     private let initialFields: Fields
@@ -333,25 +326,18 @@ struct ServerProfileForm: View {
                 onCancel: onCancel,
                 onConfirm: save
             ) {
-                if let onDuplicate {
-                    Button("Duplicate", action: onDuplicate)
-                        .disabled(isDirty)
-                        .help(isDirty ? "Save or cancel your changes first" : "Make a copy of this server")
-                }
-                if onRemove != nil {
-                    Button("Remove…", role: .destructive) { confirmingRemoval = true }
-                }
+                EditorSheetActions(
+                    isDirty: isDirty,
+                    duplicateHelp: "Make a copy of this server",
+                    removalTitle: "Remove Server?",
+                    removalMessage: ServersPrefsPane.removalMessage,
+                    onDuplicate: onDuplicate,
+                    onRemove: onRemove)
             }
             .padding(.horizontal, 20)
         }
         .padding(.vertical, 20)
         .frame(width: 480, height: 520)
-        .confirmationDialog("Remove Server?", isPresented: $confirmingRemoval) {
-            Button("Remove", role: .destructive) { onRemove?() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("The saved password will be deleted. Torrents on the daemon are not affected.")
-        }
         .onAppear {
             if let profile = editedProfile {
                 hasStoredPassword = keychain.hasPassword(for: profile.id)
