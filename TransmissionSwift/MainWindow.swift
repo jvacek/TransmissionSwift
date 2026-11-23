@@ -262,7 +262,7 @@ struct MainWindow: View {
                             .accessibilityIdentifier("toolbar.sidebar")
                     }
                     ToolbarItem(placement: .navigation) {
-                        serverSwitcherMenu
+                        ServerSwitcherMenu(onOpenSettings: openServerSettings)
                     }
                     MainToolbar()
                 }
@@ -340,37 +340,6 @@ struct MainWindow: View {
         store.list.resetFilters()
         store.list.selectedTorrentIDs = [request.torrentID]
         store.inspector.isVisible = true
-    }
-
-    private var serverSwitcherMenu: some View {
-        Menu {
-            ForEach(profileStore.profiles) { profile in
-                Toggle(
-                    isOn: Binding(
-                        get: { profileStore.activeProfile?.id == profile.id },
-                        set: { on in if on { try? profileStore.setActive(profile.id) } }
-                    )
-                ) {
-                    Text(profile.label)
-                }
-            }
-            Divider()
-            Button("Server Settings…") {
-                openServerSettings()
-            }
-        } label: {
-            // Titled "Server" for the toolbar's Icon and Text caption, but drawn
-            // with the server's name: the only place the window shows it, as
-            // the title is kept out of the toolbar (see `navigationTitle`).
-            Label("Server", systemImage: "server.rack")
-                .labelStyle(
-                    ServerSwitcherLabelStyle(name: profileStore.activeProfile?.label ?? "No Server"))
-        }
-        // Capped so a long name truncates instead of widening the window.
-        .frame(maxWidth: 180)
-        .help(profileStore.activeProfile?.label ?? "Server")
-        .accessibilityLabel(profileStore.activeProfile?.label ?? "No Server")
-        .accessibilityIdentifier("toolbar.serverSwitcher")
     }
 
     // MARK: - List pane
@@ -492,16 +461,3 @@ struct MainWindow: View {
         .frame(width: 1100, height: 640)
 }
 #endif
-
-/// Draws the server switcher's label as its icon and the server's name, while
-/// the label's own title ("Server") stays the toolbar item's caption.
-private struct ServerSwitcherLabelStyle: LabelStyle {
-    let name: String
-
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 6) {
-            configuration.icon
-            Text(name).lineLimit(1)
-        }
-    }
-}
