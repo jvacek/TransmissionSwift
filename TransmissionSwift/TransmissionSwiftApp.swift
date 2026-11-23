@@ -68,6 +68,13 @@ struct TransmissionSwiftApp: App {
         } else if args.contains("--crash-test-send") {
             CrashReporting.startForTesting()
         }
+        // UI tests on a small display: with all three columns the toolbar holds
+        // the window wider than the screen, and a running window keeps that
+        // minimum after the sidebar collapses, so start with it hidden. Stored
+        // like the user's own choice so ⌃⌘S still toggles it.
+        if args.contains("--ui-test-hide-sidebar") {
+            UserDefaults.standard.set(false, forKey: PreferenceKeys.sidebarVisible)
+        }
         #endif
 
         let snapshotPath = Self.parseSnapshotPath(from: args)
