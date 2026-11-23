@@ -64,10 +64,7 @@ struct InspectorGeneralTab: View {
                 row("Peers", peersSummary)
                 row("Downloaded", ColumnFormatters.humanizedSize(torrent.downloadedEver))
                 row("Uploaded", ColumnFormatters.humanizedSize(torrent.uploadedEver))
-                GridRow {
-                    Text("Last activity")
-                        .foregroundStyle(.secondary)
-                        .gridColumnAlignment(.trailing)
+                row("Last activity") {
                     // Re-evaluated every minute: an idle torrent's poll data stops
                     // changing, so without the timeline "Just now" would never age.
                     TimelineView(.everyMinute) { context in
@@ -326,11 +323,15 @@ struct InspectorGeneralTab: View {
     }
 
     private func row(_ label: String, _ value: String, monospaced: Bool = false) -> some View {
+        row(label) { valueText(value, monospaced: monospaced) }
+    }
+
+    private func row(_ label: String, @ViewBuilder value: () -> some View) -> some View {
         GridRow {
             Text(label)
                 .foregroundStyle(.secondary)
                 .gridColumnAlignment(.trailing)
-            valueText(value, monospaced: monospaced)
+            value()
         }
     }
 
