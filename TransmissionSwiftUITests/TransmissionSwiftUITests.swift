@@ -618,41 +618,28 @@ final class TransmissionSwiftUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = [
             "--snapshot", fixture.path, "-ApplePersistenceIgnoreState", "YES",
-            "-NSWindow Frame main", "0 63 1000 652 0 0 1024 768",
+            "-NSWindow Frame main", Self.pinnedWindowFrame(),
         ]
+        // The toolbar holds a three-column window at about 1150pt, wider than
+        // the CI runners' 1024pt display, which pushes the inspector off-screen.
+        if let screen = NSScreen.main, screen.visibleFrame.width < 1200 {
+            app.launchArguments.append("--ui-test-hide-sidebar")
+        }
         app.launch()
-        fitWindowToScreen(app)
         return app
     }
 
-    /// On the CI runners' 1024pt display the toolbar holds the window at about
-    /// 1150pt with all three columns, leaving the inspector's right edge
-    /// off-screen. Hiding the sidebar lowers that minimum. The app is then
-    /// relaunched, because on macOS 26 the running window keeps its old minimum
-    /// after the sidebar collapses; the hidden sidebar persists, so the new
-    /// launch, and every later test's, opens narrow enough. A display wide
-    /// enough never gets here.
-    @MainActor
-    private func fitWindowToScreen(_ app: XCUIApplication) {
-        let window = app.windows["main"]
-        guard window.waitForExistence(timeout: 15), let screen = NSScreen.main,
-            window.frame.maxX > screen.frame.maxX
-        else { return }
-        let sidebar = app.descendants(matching: .any)
-            .matching(identifier: "sidebar.status.all").firstMatch
-        if sidebar.exists {
-            app.typeKey("s", modifierFlags: [.command, .control])
-            XCTAssertTrue(waitUntil { !sidebar.exists }, "Expected ⌃⌘S to hide the sidebar")
-            app.terminate()
-            app.launch()
-            XCTAssertTrue(window.waitForExistence(timeout: 15))
-        }
-        guard window.frame.maxX > screen.frame.maxX else { return }
-        app.menuBars.firstMatch.menuBarItems["Window"].click()
-        app.menuItems["Zoom"].click()
-        XCTAssertTrue(
-            waitUntil { window.frame.maxX <= screen.frame.maxX },
-            "Expected Zoom to fit the window to the screen, got \(window.frame)")
+    /// A 1000×652 window at the main screen's visible origin, in the
+    /// `NSWindow Frame` autosave format (window rect, then screen rect).
+    private static func pinnedWindowFrame() -> String {
+        guard let screen = NSScreen.main else { return "0 0 1000 652 0 0 1000 652" }
+        let visible = screen.visibleFrame
+        let full = screen.frame
+        let values = [
+            visible.minX, visible.minY, min(1000, visible.width), min(652, visible.height),
+            full.minX, full.minY, full.width, full.height,
+        ]
+        return values.map { String(Int($0)) }.joined(separator: " ")
     }
 
     /// Polls the given condition, keeping menu state assertions honest while
