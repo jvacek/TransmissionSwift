@@ -87,19 +87,13 @@ struct MappingsPrefsPane: View {
                     }
                 })
         }
-        .confirmationDialog(
-            "Remove Mapping?",
-            isPresented: Binding(
-                get: { pendingRemoval != nil },
-                set: { if !$0 { pendingRemoval = nil } }
-            ),
-            presenting: pendingRemoval
-        ) { mapping in
-            Button("Remove", role: .destructive) { remove(mapping) }
-            Button("Cancel", role: .cancel) {}
-        } message: { mapping in
-            Text("“\(mapping.name)” will be deleted. This can't be undone.")
-        }
+        .removalConfirmation(
+            "Remove Mapping?", item: $pendingRemoval,
+            message: { Self.removalMessage(for: $0.name) }, onRemove: remove)
+    }
+
+    static func removalMessage(for name: String) -> String {
+        "\u{201C}\(name)\u{201D} will be deleted. This can't be undone."
     }
 
     private func row(_ mapping: OpenMapping) -> some View {
