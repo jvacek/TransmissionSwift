@@ -80,6 +80,11 @@ struct ContentView: View {
             hasAppeared = true
             showsCrashReportingConsent = shouldOfferCrashReportingConsent
         }
+        // Load counters for crash reports. The closure is called from the
+        // sampler, not from `body`, so it adds no observation of the list.
+        .task {
+            CrashReporting.trackRuntimeLoad { torrentStore.list.torrents.count }
+        }
         // Donate the server list to Spotlight once at launch. (Torrents are
         // donated by Get Torrents to avoid indexing on every poll.)
         .task { await SpotlightIndexer.indexServers(profileStore.profiles) }

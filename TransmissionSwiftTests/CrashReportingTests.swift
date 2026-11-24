@@ -46,6 +46,38 @@ struct CrashReportingTests {
         #expect(CrashReporting.environment == "debug")
     }
 
+    /// The context is the only place a hang's environment is visible, so the
+    /// mach calls behind it must return real numbers rather than defaults.
+    @Test func loadSampleReadsRealNumbers() throws {
+        let metrics = try #require(ProcessMetrics.sample())
+        #expect(metrics.cpuSeconds >= 0)
+        #expect(metrics.memoryUsedPercent > 0 && metrics.memoryUsedPercent <= 100)
+        #expect(metrics.compressedBytes >= 0)
+        #expect(metrics.loadAverage1m >= 0)
+    }
+
+    /// The event context is a flat dictionary of scalars, and every key is one
+    /// the hang triage relies on. A string or nested value here would be a PII
+    /// leak vector, so keep the shape pinned.
+    @Test func loadContextIsFlatScalars() {
+        let load = RuntimeLoad(
+            torrents: 120, cpuPercent: 3.44, memoryUsedPercent: 61.5, compressedMB: 812.3,
+            loadAverage1m: 1.237, refreshInterval: 15, incrementalInterval: 1,
+            isActive: true, windowVisible: false)
+        let context = load.context
+
+        #expect(context["torrents"] as? Int == 120)
+        #expect(context["cpu_percent"] as? Double == 3.4)
+        #expect(context["memory_used_percent"] as? Double == 61.5)
+        #expect(context["compressed_mb"] as? Double == 812.3)
+        #expect(context["load_average_1m"] as? Double == 1.24)
+        #expect(context["poll_refresh_s"] as? Double == 15)
+        #expect(context["poll_incremental_s"] as? Double == 1)
+        #expect(context["app_active"] as? Bool == true)
+        #expect(context["window_visible"] as? Bool == false)
+        #expect(context.values.allSatisfy { $0 is Int || $0 is Double || $0 is Bool })
+    }
+
     private func restore(_ defaults: UserDefaults, key: String, value: Any?) {
         if let value {
             defaults.set(value, forKey: key)
