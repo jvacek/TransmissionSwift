@@ -372,15 +372,15 @@ is the only way to verify the actual Shortcuts UX.
 
 ### 4. CI lane (the `App Intents tests` step)
 
-`.github/workflows/ci.yml` runs the AppIntentsTesting lane in the `App Intents
-tests` step of the `build-app` job, on the `xcode-27` leg (macOS 27 image, arm64
-only). It **always runs on that leg** — no repository variable or manual opt-in.
-The release pipeline does not run it. It is enforced on main pushes; PRs run it
-too, and the whole `xcode-27` leg is `continue-on-error` on `pull_request` only
-because that image is a public preview.
+`.github/workflows/ci.yml` runs the AppIntentsTesting lane in its own `app-intents`
+job on the `xcode-27` runner (macOS 27 image, arm64 only). It is the only CI job
+that signs; `build-app` and `test-app` build ad-hoc. The job runs on pushes and on
+PRs from this repository only, because fork PRs get no secrets. It is enforced on
+main pushes and `continue-on-error` on PRs. The release pipeline does not run it.
 
-Everything below is required — App Intents reject an unsigned (ad-hoc) app with
-`Code=800`, so there is no signing-free shortcut:
+Everything below is required. App Intents reject an app without a team identity
+with `Code=800`, and only Apple-issued certificates carry one, so neither ad-hoc
+nor a self-signed certificate works:
 
 - **Runner:** `xcode-27` (the macOS 27 SDK is the only place `AppIntentsTesting`
   exists).

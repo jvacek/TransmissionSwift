@@ -317,11 +317,13 @@ final class TransmissionSwiftUITests: XCTestCase {
         table.cells.firstMatch.click()
         app.typeText("debian")
 
-        let selected = app.staticTexts.matching(
+        // The name is on screen either way; only the row's selection proves the jump.
+        let debianRow = table.tableRows.containing(
             NSPredicate(format: "label CONTAINS %@", "Debian 12.6")
         ).firstMatch
+        XCTAssertTrue(debianRow.waitForExistence(timeout: 5))
         XCTAssertTrue(
-            selected.waitForExistence(timeout: 5),
+            waitUntil(timeout: 5) { debianRow.isSelected },
             "Expected type-select to move the selection to Debian 12.6")
     }
 
@@ -569,8 +571,9 @@ final class TransmissionSwiftUITests: XCTestCase {
         // hittable to XCUITest (AppKit hit-tests it fine), and element clicks
         // then stop behaving like a real double click, hiding the bug.
         let headerPoint = header.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        let parkPoint = app.windows.firstMatch.coordinate(
-            withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02))
+        // Over the table's empty rows: in the toolbar, a button's tooltip can
+        // cover the header and freeze the screenshot.
+        let parkPoint = table.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9))
 
         // The sort direction isn't in the accessibility tree, so read the
         // arrow from pixels, with the pointer parked so hover can't differ.
@@ -610,6 +613,7 @@ final class TransmissionSwiftUITests: XCTestCase {
     /// cover the table and make rows unhittable. The window frame is pinned
     /// too, since frame autosave ignores that switch: whatever an earlier
     /// launch saved would otherwise come back.
+    @MainActor
     private func snapshotApp(_ fixture: URL) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -623,9 +627,12 @@ final class TransmissionSwiftUITests: XCTestCase {
 
     /// On the CI runners' 1024pt display the toolbar holds the window at about
     /// 1150pt with all three columns, leaving the inspector's right edge
-    /// off-screen. Hiding the sidebar lowers that minimum, and Zoom then fits
-    /// the window to the screen. The hidden sidebar persists, so later launches
-    /// skip this; a display wide enough never gets here.
+    /// off-screen. Hiding the sidebar lowers that minimum. The app is then
+    /// relaunched, because on macOS 26 the running window keeps its old minimum
+    /// after the sidebar collapses; the hidden sidebar persists, so the new
+    /// launch, and every later test's, opens narrow enough. A display wide
+    /// enough never gets here.
+    @MainActor
     private func fitWindowToScreen(_ app: XCUIApplication) {
         let window = app.windows["main"]
         guard window.waitForExistence(timeout: 15), let screen = NSScreen.main,
@@ -636,17 +643,15 @@ final class TransmissionSwiftUITests: XCTestCase {
         if sidebar.exists {
             app.typeKey("s", modifierFlags: [.command, .control])
             XCTAssertTrue(waitUntil { !sidebar.exists }, "Expected ⌃⌘S to hide the sidebar")
+            app.terminate()
+            app.launch()
+            XCTAssertTrue(window.waitForExistence(timeout: 15))
         }
-        // The sidebar leaves the accessibility tree before its column finishes
-        // collapsing, and until then the window's minimum still includes it:
-        // an early Zoom is a no-op (seen on macOS 26), so retry until it fits.
+        guard window.frame.maxX > screen.frame.maxX else { return }
+        app.menuBars.firstMatch.menuBarItems["Window"].click()
+        app.menuItems["Zoom"].click()
         XCTAssertTrue(
-            waitUntil(timeout: 10) {
-                app.menuBars.firstMatch.menuBarItems["Window"].click()
-                app.menuItems["Zoom"].click()
-                Thread.sleep(forTimeInterval: 0.5)
-                return window.frame.maxX <= screen.frame.maxX
-            },
+            waitUntil { window.frame.maxX <= screen.frame.maxX },
             "Expected Zoom to fit the window to the screen, got \(window.frame)")
     }
 

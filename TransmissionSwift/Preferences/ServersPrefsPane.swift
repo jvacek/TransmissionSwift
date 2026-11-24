@@ -197,6 +197,10 @@ struct ServerProfileForm: View {
 
     @State private var fields: Fields
     @State private var hasStoredPassword = false
+    @State private var removesStoredPassword = false
+    /// Fixed for the sheet's lifetime, so a save retried after a Keychain
+    /// failure writes to the profile the first attempt already added.
+    @State private var draftID = UUID()
     @State private var isTesting = false
     @State private var testMessage: String?
     @State private var testFailed = false
@@ -272,7 +276,7 @@ struct ServerProfileForm: View {
                         Button("Test Connection") {
                             Task { await runConnectionTest() }
                         }
-                        .disabled(isTesting || fields.host.isEmpty)
+                        .disabled(isTesting || !isValid)
                         if isTesting {
                             ProgressView()
                                 .controlSize(.small)
@@ -292,8 +296,22 @@ struct ServerProfileForm: View {
                     SecureField(
                         "Password",
                         text: $fields.password,
-                        prompt: Text(hasStoredPassword ? "Leave blank to keep" : "Optional")
+                        prompt: Text(keepsStoredPassword ? "Leave blank to keep" : "Optional")
                     )
+                    if hasStoredPassword {
+                        HStack {
+                            if removesStoredPassword {
+                                Text("The saved password will be removed when you save.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Button("Keep Saved Password") { removesStoredPassword = false }
+                            } else {
+                                Spacer()
+                                Button("Remove Saved Password") { removesStoredPassword = true }
+                            }
+                        }
+                    }
                 }
             }
             .formStyle(.grouped)
@@ -348,23 +366,39 @@ struct ServerProfileForm: View {
         return false
     }
 
-    private var isDirty: Bool { fields != initialFields }
+    private var isDirty: Bool { fields != initialFields || removesStoredPassword }
 
-    private var canSave: Bool {
-        !fields.host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && isDirty
+    private var keepsStoredPassword: Bool { hasStoredPassword && !removesStoredPassword }
+
+    /// The profile the fields describe, trimmed. Save, validation and Test all
+    /// read this one value so they can't disagree about what gets stored.
+    private var candidate: ServerProfile {
+        let host = fields.host.trimmingCharacters(in: .whitespacesAndNewlines)
+        let label = fields.label.trimmingCharacters(in: .whitespacesAndNewlines)
+        let username = fields.username.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ServerProfile(
+            id: editedProfile?.id ?? draftID,
+            label: label.isEmpty ? host : label,
+            host: host,
+            port: fields.port,
+            rpcPath: fields.rpcPath.trimmingCharacters(in: .whitespacesAndNewlines),
+            username: username.isEmpty ? nil : username,
+            useHTTPS: fields.useHTTPS)
     }
+
+    private var isValid: Bool {
+        let profile = candidate
+        return !profile.host.isEmpty && (1...65535).contains(profile.port) && profile.rpcURL != nil
+    }
+
+    private var canSave: Bool { isValid && isDirty }
 
     private func runConnectionTest() async {
         isTesting = true
         testMessage = nil
         defer { isTesting = false }
 
-        let probe = ServerProfile(
-            label: "",
-            host: fields.host,
-            port: fields.port,
-            rpcPath: fields.rpcPath,
-            useHTTPS: fields.useHTTPS)
+        let probe = candidate
         guard let rpcURL = probe.rpcURL else {
             testFailed = true
             testMessage = "Invalid URL"
@@ -372,11 +406,11 @@ struct ServerProfileForm: View {
         }
 
         var credentials: Credentials?
-        if !fields.username.isEmpty {
+        if let username = probe.username {
             let pwd: String
             if !fields.password.isEmpty {
                 pwd = fields.password
-            } else if let profile = editedProfile {
+            } else if keepsStoredPassword, let profile = editedProfile {
                 do {
                     pwd = try keychain.password(for: profile.id) ?? ""
                 } catch {
@@ -388,7 +422,7 @@ struct ServerProfileForm: View {
                 pwd = ""
             }
             if !pwd.isEmpty {
-                credentials = Credentials(username: fields.username, password: pwd)
+                credentials = Credentials(username: username, password: pwd)
             }
         }
 
@@ -404,27 +438,32 @@ struct ServerProfileForm: View {
     }
 
     private func save() {
-        let profile = ServerProfile(
-            id: editedProfile?.id ?? UUID(),
-            label: fields.label.isEmpty ? fields.host : fields.label,
-            host: fields.host,
-            port: fields.port,
-            rpcPath: fields.rpcPath,
-            username: fields.username.isEmpty ? nil : fields.username,
-            useHTTPS: fields.useHTTPS)
+        guard canSave else { return }
+        let profile = candidate
+        saveError = nil
         do {
-            if !fields.password.isEmpty {
-                try keychain.setPassword(fields.password, for: profile.id)
-            }
-            if isCreating {
-                try profileStore.add(profile)
-            } else {
+            // Profile first: if the Keychain write then fails, a retry updates
+            // this same profile instead of leaving a secret with no owner.
+            if profileStore.profiles.contains(where: { $0.id == profile.id }) {
                 try profileStore.update(profile)
+            } else {
+                try profileStore.add(profile)
             }
-            onSaved()
         } catch {
             saveError = error.localizedDescription
+            return
         }
+        do {
+            if profile.username == nil || (removesStoredPassword && fields.password.isEmpty) {
+                try keychain.deletePassword(for: profile.id)
+            } else if !fields.password.isEmpty {
+                try keychain.setPassword(fields.password, for: profile.id)
+            }
+        } catch {
+            saveError = "The server was saved, but the password couldn't be updated in the Keychain."
+            return
+        }
+        onSaved()
     }
 }
 

@@ -33,8 +33,10 @@ public struct Credentials: Sendable, Equatable {
 public actor URLSessionTransmissionClient: TransmissionClient {
     private static let sessionIdHeader = "X-Transmission-Session-Id"
     /// A wedged daemon or a half-open VPN must not hold the single poll loop
-    /// for URLSession's 60-second default.
-    private static let requestTimeout: TimeInterval = 10
+    /// for URLSession's 60-second default. Other calls keep that default: a
+    /// large `torrent-add` or a `torrent-remove` with data can take longer.
+    private static let pollTimeout: TimeInterval = 10
+    private static let pollMethods: Set<String> = ["torrent-get", "session-get", "session-stats"]
 
     private let rpcURL: URL
     private let credentials: Credentials?
@@ -149,7 +151,7 @@ public actor URLSessionTransmissionClient: TransmissionClient {
             throw .decoding("Failed to encode request for \(method): \(error)")
         }
 
-        var (data, response) = try await perform(body: body)
+        var (data, response) = try await perform(method: method, body: body)
 
         // Stale or missing session ID: adopt the one the daemon offers, retry once.
         if response.statusCode == 409 {
@@ -158,7 +160,7 @@ public actor URLSessionTransmissionClient: TransmissionClient {
             }
             logger.debug("409 handshake: adopted fresh session ID, retrying once")
             sessionId = freshId
-            (data, response) = try await perform(body: body)
+            (data, response) = try await perform(method: method, body: body)
         }
 
         switch response.statusCode {
@@ -167,8 +169,7 @@ public actor URLSessionTransmissionClient: TransmissionClient {
         case 401:
             throw .unauthorized
         case 409:
-            throw .http(
-                status: 409, body: "Session ID handshake failed: still 409 after refresh")
+            throw .sessionConflict
         default:
             let body = Self.snippet(data, limit: 300)
             logger.error(
@@ -206,11 +207,13 @@ public actor URLSessionTransmissionClient: TransmissionClient {
         }
     }
 
-    private func perform(body: Data) async throws(TransmissionError) -> (Data, HTTPURLResponse) {
+    private func perform(method: String, body: Data) async throws(TransmissionError) -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: rpcURL)
         request.httpMethod = "POST"
         request.httpBody = body
-        request.timeoutInterval = Self.requestTimeout
+        if Self.pollMethods.contains(method) {
+            request.timeoutInterval = Self.pollTimeout
+        }
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let sessionId {
             request.setValue(sessionId, forHTTPHeaderField: Self.sessionIdHeader)

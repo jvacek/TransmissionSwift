@@ -9,7 +9,7 @@ This document captures the architectural decisions made up front. Treat it as lo
 ## 1. Platforms
 
 - **Primary target:** macOS only.
-- **Minimum deployment:** macOS 26.
+- **Minimum deployment:** macOS 26.1 (the app target; the packages stay at 26). 26.1 adds toolbar `visibilityPriority`, which an `if #available` check can't wrap inside a toolbar builder.
 - **Architectures:** Universal binary — Apple Silicon + Intel.
 - **Future-proofing:** Code outside the app target must not import `AppKit`. Keep `TransmissionRPC` and `TransmissionCore` platform-agnostic so iOS/iPadOS can be added later as a separate app target without restructuring.
 
@@ -187,7 +187,7 @@ tested without the shared defaults.
 - **Core layer:** the `TransmissionClient` protocol injects a fake client for service-level tests, and the store's main collaborators each have a direct suite. Mocks/fixtures live in the `TransmissionTestSupport` target.
 - **App layer:** pure logic extracted from the views (table row store, selection, sort, row-menu spec, cell-content builder, formatters) is unit-tested directly in `TransmissionSwiftTests`, as is `ConnectionCoordinator` with an injected Keychain reader, service builder and `AppEnvironment`. Views themselves are covered by previews and UI tests.
 - **UI:** a daemon-free snapshot-replay test (`just test-snapshot`) and an opt-in E2E golden path (`TEST_RUNNER_TRANSMISSION_E2E=1`, needs a live local daemon).
-- Package tests run with `-warnings-as-errors` (see the decision log).
+- Package tests run with `-warnings-as-errors` (see the decision log). The app and its test targets get `SWIFT_TREAT_WARNINGS_AS_ERRORS = YES` from the project-level build settings in every configuration; those settings do not reach Swift package dependencies.
 - **Known gaps:** `session-get` and `torrent-add` fixtures are captured from a live daemon; `torrent-get` (list + inspector), `torrent-set`, `torrent-start/stop/remove` and `free-space` are still hand-made JSON in the tests. Recapture from the dev daemon when the RPC surface is next touched.
 - The E2E XCUITest suite (`TEST_RUNNER_TRANSMISSION_E2E=1`) has not been re-run against the live daemon since the RPC layer landed; only `testAddServerAndTestConnection` is daemon-gated today.
 
@@ -203,6 +203,7 @@ tested without the shared defaults.
 | Date | Decision | Status |
 |---|---|---|
 | 2026-06-10 | macOS-only, min macOS 26, universal binary | Active |
+| 2026-11-22 | App minimum raised to macOS 26.1 for toolbar `visibilityPriority` | Active |
 | 2026-06-10 | Three-layer module split via local Swift Packages | Active |
 | 2026-06-10 | Hand-rolled RPC client; reject mogeko/transmission-rpc dependency | Active |
 | 2026-06-10 | async/await + `@Observable`, no Combine | Active |
@@ -214,7 +215,8 @@ tested without the shared defaults.
 | 2026-06-10 | ATS exception `NSAllowsArbitraryLoads` — users connect to arbitrary LAN daemons over plain HTTP | Active |
 | 2026-06-10 | App sandbox kept, with `com.apple.security.network.client` entitlement | Active |
 | 2026-08-21 | User-selected file access upgraded to read-write (`ENABLE_USER_SELECTED_FILES = readwrite`) so the Developer pane's snapshot save panel can write | Active |
-| 2026-06-10 | warnings-as-errors enforced via CI flags, not Package.swift (conflicts with Xcode's `-suppress-warnings` for package deps) | Active |
+| 2026-06-10 | Package warnings-as-errors enforced via CI flags, not Package.swift (conflicts with Xcode's `-suppress-warnings` for package deps) | Active |
+| 2026-11-22 | App warnings-as-errors set once at project level for all configurations (was per target, and missed "UI Testing", which CI builds) | Active |
 | 2026-06-10 | E2E golden-path XCUITest, opt-in via `TEST_RUNNER_TRANSMISSION_E2E=1` (needs a live local daemon) | Active |
 | 2026-06-11 | Mock-first UI buildout: views consume `protocol TorrentService` (TransmissionCore), built against `MockTorrentService` first; `RPCTorrentService` swaps in last with zero view changes | Done |
 | 2026-09-20 | Add `TorrentMetainfo` package (bencode `.torrent` decode); Core depends on it, app target stays off it. Read-only until `torrent-create` is needed | Active |

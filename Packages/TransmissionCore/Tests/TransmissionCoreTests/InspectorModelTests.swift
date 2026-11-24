@@ -105,6 +105,33 @@ struct InspectorModelTests {
         #expect(fetches == 2)
     }
 
+    @Test("poll refetches an unchanged seeding torrent only on the Peers tab")
+    func peersTabBypassesSignature() async throws {
+        let service = MockTorrentService()
+        var torrents = MockFixtures.torrents()
+        torrents[0].status = .seeding
+        torrents[0].activity = .seeding
+        torrents[0].progress = 1
+        let list = TorrentListModel()
+        list.setTorrents(torrents)
+        list.selectedTorrentIDs = [torrents[0].id]
+        let model = InspectorModel(list: list, defaults: try ephemeralDefaults())
+        model.connect(reading: service)
+
+        model.tab = .peers
+        await model.poll()
+        await model.poll()
+        await model.poll()
+        var fetches = await service.inspectorFetchCount
+        #expect(fetches == 3)
+
+        model.tab = .files
+        await model.poll()
+        await model.poll()
+        fetches = await service.inspectorFetchCount
+        #expect(fetches == 3)
+    }
+
     @Test("poll retries after a failed detail fetch")
     func failedFetchRetries() async throws {
         let reader = FlakyReader()

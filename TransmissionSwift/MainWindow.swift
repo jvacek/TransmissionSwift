@@ -19,9 +19,6 @@ private enum Layout {
     static let inspectorMax: CGFloat = 600
     static let contentMin: CGFloat = 480
     static let contentIdeal: CGFloat = 640
-    /// Below this width the toolbar cannot hold the inspector's tabs and
-    /// toggle, so they move into the list toolbar and the inspector content.
-    static let inspectorToolbarMinWidth: CGFloat = 1320
 }
 
 struct MainWindow: View {
@@ -46,12 +43,7 @@ struct MainWindow: View {
         ? .detailOnly : .all
     @AppStorage(PreferenceKeys.startMinimized) private var startMinimized = false
     @State private var didApplyStartMinimized = false
-    /// Starts narrow and widens from the first layout: declaring the wide
-    /// toolbar up front sets the window's minimum width before the window can
-    /// disagree, which pushed it wider than a 1024pt display.
-    @State private var windowIsWide = false
     @State private var openBus = OpenRequestBus.shared
-    @FocusState private var searchFocused: Bool
 
     /// No profile configured — the window shows the "No Servers" onboarding
     /// empty state instead of torrent content.
@@ -59,20 +51,18 @@ struct MainWindow: View {
         profileStore.activeProfile == nil
     }
 
+    /// Observes the torrent list only while an open request is pending, so a
+    /// regular poll does not re-evaluate the whole window.
+    private var pendingOpenTorrentIDs: [Torrent.ID] {
+        guard openBus.request != nil else { return [] }
+        return store.list.torrents.map(\.id)
+    }
+
     var body: some View {
         @Bindable var ui = store.ui
-        // Sent into the geometry closure by value: the `Layout` constant is
-        // main-actor isolated and the closure is not.
-        let toolbarMinWidth = Layout.inspectorToolbarMinWidth
 
         splitView
             .frame(minHeight: 600)
-            .onGeometryChange(for: Bool.self) { proxy in
-                proxy.size.width >= toolbarMinWidth
-            } action: { wide in
-                guard wide != windowIsWide else { return }
-                windowIsWide = wide
-            }
             .onAppear {
                 // "Start minimized": miniaturize once on launch. Done here (rather
                 // than the app delegate) so it targets the actual main window.
@@ -90,8 +80,7 @@ struct MainWindow: View {
             // Retries when the torrent list reloads after a server switch.
             .task { applyOpenRequest() }
             .onChange(of: openBus.request) { _, _ in applyOpenRequest() }
-            .onChange(of: store.ui.searchFocusRequest) { searchFocused = true }
-            .onChange(of: store.list.torrents) { _, _ in applyOpenRequest() }
+            .onChange(of: pendingOpenTorrentIDs) { _, _ in applyOpenRequest() }
             .sheet(isPresented: $ui.showAddTorrent) {
                 AddTorrentSheet(
                     isPresented: $ui.showAddTorrent,
@@ -154,23 +143,40 @@ struct MainWindow: View {
             } message: { error in
                 Text(error.localizedDescription)
             }
+            .alert(
+                "Server List Not Loaded",
+                isPresented: Binding(
+                    get: { profileStore.loadError != nil },
+                    set: { if !$0 { profileStore.acknowledgeLoadError() } }
+                ),
+                presenting: profileStore.loadError
+            ) { _ in
+                Button("OK", role: .cancel) { profileStore.acknowledgeLoadError() }
+            } message: { error in
+                Text(error.localizedDescription)
+            }
     }
 
     // MARK: - Split view
 
     private var splitView: some View {
         @Bindable var store = store
-        @Bindable var list = store.list
         @Bindable var inspector = store.inspector
         return NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView()
                 .navigationSplitViewColumnWidth(
-                    min: Layout.sidebarMin, ideal: Layout.sidebarIdeal, max: Layout.sidebarMax)
+                    min: Layout.sidebarMin, ideal: Layout.sidebarIdeal, max: Layout.sidebarMax
+                )
+                .toolbar(removing: .sidebarToggle)
         } detail: {
             listPane
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .navigationSplitViewColumnWidth(min: Layout.contentMin, ideal: Layout.contentIdeal)
                 .navigationTitle(profileStore.activeProfile?.label ?? "Transmission")
+                // Kept for the Window menu, but not drawn: in the toolbar the
+                // title can't shrink and holds the window ~190pt wider. The
+                // server switcher shows the name instead.
+                .toolbar(removing: .title)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     // No connection exists in the no-server state, so the status
                     // bar's counts/connection text would be misleading — hide it.
@@ -178,13 +184,16 @@ struct MainWindow: View {
                         StatusBarView()
                     }
                 }
-                .searchable(
-                    text: $list.searchQuery,
-                    placement: .toolbar,
-                    prompt: "Search torrents"
-                )
-                .searchFocused($searchFocused)
                 .toolbar {
+                    // Our own toggle: the system one lives in the sidebar's
+                    // toolbar section, which in Icon and Text mode can't fit
+                    // its caption and sends it to the overflow menu.
+                    ToolbarItem(placement: .navigation) {
+                        let title = columnVisibility == .detailOnly ? "Show Sidebar" : "Hide Sidebar"
+                        Button(title, systemImage: "sidebar.left") { sidebarVisible.toggle() }
+                            .help(title)
+                            .accessibilityIdentifier("toolbar.sidebar")
+                    }
                     ToolbarItem(placement: .navigation) {
                         serverSwitcherMenu
                     }
@@ -194,12 +203,12 @@ struct MainWindow: View {
         // On the split view, so the inspector is a full-height column with its
         // own toolbar section that pushes the detail's items aside, as in Xcode.
         .inspector(isPresented: $inspector.isVisible) {
-            InspectorView(usesToolbarTabs: windowIsWide)
+            InspectorView()
                 .onGeometryChange(for: CGFloat.self) {
                     $0.size.width
                 } action: { width in
                     // The column passes through narrower widths while it animates closed.
-                    guard width >= Layout.inspectorMin else { return }
+                    guard store.inspector.isVisible, width >= Layout.inspectorMin else { return }
                     UserDefaults.standard.set(Double(width), forKey: PreferenceKeys.inspectorWidth)
                 }
                 .inspectorColumnWidth(
@@ -208,7 +217,8 @@ struct MainWindow: View {
                     max: Layout.inspectorMax
                 )
                 .toolbar {
-                    InspectorTabsToolbar(shows: inspector.isVisible && windowIsWide)
+                    ToolbarSpacer(.flexible)
+                    InspectorToggle(shows: inspector.isVisible)
                 }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -282,18 +292,16 @@ struct MainWindow: View {
                 openServerSettings()
             }
         } label: {
-            if profileStore.profiles.count > 1 {
-                Label(
-                    profileStore.activeProfile?.label ?? "No Server",
-                    systemImage: "server.rack"
-                )
-            } else {
-                Image(systemName: "server.rack")
-            }
+            // Titled "Server" for the toolbar's Icon and Text caption, but drawn
+            // with the server's name: the only place the window shows it, as
+            // the title is kept out of the toolbar (see `navigationTitle`).
+            Label("Server", systemImage: "server.rack")
+                .labelStyle(
+                    ServerSwitcherLabelStyle(name: profileStore.activeProfile?.label ?? "No Server"))
         }
+        // Capped so a long name truncates instead of widening the window.
+        .frame(maxWidth: 180)
         .help(profileStore.activeProfile?.label ?? "Server")
-        // With one server the label is icon-only; VoiceOver should still name
-        // the server, not the symbol.
         .accessibilityLabel(profileStore.activeProfile?.label ?? "No Server")
         .accessibilityIdentifier("toolbar.serverSwitcher")
     }
@@ -417,3 +425,16 @@ struct MainWindow: View {
         .frame(width: 1100, height: 640)
 }
 #endif
+
+/// Draws the server switcher's label as its icon and the server's name, while
+/// the label's own title ("Server") stays the toolbar item's caption.
+private struct ServerSwitcherLabelStyle: LabelStyle {
+    let name: String
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 6) {
+            configuration.icon
+            Text(name).lineLimit(1)
+        }
+    }
+}

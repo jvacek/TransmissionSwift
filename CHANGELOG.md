@@ -1,48 +1,39 @@
 # Changelog
 
-**Versions under 0.6.2 need to be updated manually.** Please check the [release page](https://github.com/jvacek/TransmissionSwift/releases).
+Special shoutout to my new sponsors! Thank you very much. [Feel free to join them ;)](https://transmissionswift.jvacek.eu/donate/)
 
-## 0.7.4
+## 0.8.0
 
 14th November 2026
 
-- New
-  - Drag torrents out of the table as magnet links
-  - Type to jump to a torrent in the list
-  - Use the inspector's file list with the keyboard and VoiceOver
-  - Ask before removing a server, and delete its saved password too
-- Fixes
-  - Show a Reconnecting label, and recover on your own after a daemon restart, sleep or network change
-  - Show clearer errors, and give up on stalled requests sooner
-  - Fix Edit Labels erasing labels that only some of the selected torrents had
-  - Fix Cancel still applying a change
-  - Fix actions and open sheets targeting the wrong server after switching
-  - Fix server settings being lost when the settings file is damaged
-  - Keep the torrent list when the main window is closed and reopened
-  - Clear the Dock badge when the window closes, and remove deleted servers from Spotlight
-  - Fix tag colours after switching between light and dark mode
-  - Blend the torrent list's column header into the toolbar, like Finder
-  - Drop the status bar's frosted background and divider so it sits flush with the window
-  - Draw tags as flat colour pills, like Finder
-  - Use the system row height in the torrent list, so it's as compact as Finder's
-  - Label the inspector toolbar button Show or Hide Inspector, and have VoiceOver read the server switcher as the server's name
-  - Fit the Peers tab to the inspector: client and flags sit under the address, and download and upload speeds share a column
-  - Sort the inspector's file list from a Sort By menu, and show how many files the torrent has
-  - Fix quick clicks on a column header only flipping the sort every other time
-  - Use the same title and bottom buttons in every sheet, including Add Torrent
-  - Restyle the Add Torrent options like a system form, so labels no longer clip at larger text sizes
-  - Only warn about a slash when renaming a torrent
-  - Use the standard empty-state layout while connecting and for searches with no results, and stop showing the disconnected labels in red
-  - List servers in Settings like mappings, and edit each one in its own sheet
-  - Add a details button to server and mapping rows, with Duplicate and Remove in the editor
-  - Ask before removing a mapping, and only enable Save once something changed
-  - Make the inspector a native column like Xcode's, with its tabs above the column on a wide window and at the top of the column otherwise, the system divider, and resizing that works
-  - Show the torrent's name in the inspector's Metadata, with Rename next to it
-  - Focus the toolbar search field with ⌘F
-  - Animate the sidebar when it's shown or hidden from the View menu
-  - Stop the window from clipping the sidebar and inspector when it's narrow
-- Performance
-  - Lower memory use, smoother sorting and less work while idle on large lists
+- Requires macOS 26.1 or later
+- Connections
+  - Reconnects on its own after a daemon restart, sleep or network change, with a Reconnecting label
+  - Shows an error when a server can't be reached, instead of connecting forever
+  - Actions and open sheets no longer go to the previous server after switching
+- Torrent list
+  - Drag torrents out as magnet links, and type a name to jump to one
+  - Set priority from the Torrent menu, and see re-check progress while a torrent verifies
+  - Resume and Pause are only enabled when they would change something
+  - Stopped, finished and errored torrents show under Paused, and torrents waiting to verify under Checking
+  - Finder-like look: system row height, flat tag pills, and a header and status bar that blend into the window
+  - Fixed a stale Active count, quick header clicks not flipping the sort, and tag colours after a light/dark switch
+- Inspector
+  - Now a native column like Xcode's, with its tabs at the top and resizing that works
+  - The file list works with the keyboard and VoiceOver, and sorts from a Sort By menu
+  - The Peers tab fits the column, Rename sits next to the name in Metadata, and the empty Options tab is gone
+- Window
+  - Search from a magnifier button (click or ⌘F), and the server switcher shows the server's name
+  - No more clipped sidebar and inspector on narrow windows
+  - Closing and reopening the window keeps the torrent list, and clears the Dock badge while it's closed
+- Settings
+  - Servers are listed like mappings and edited in their own sheet, with address and port checks and a way to remove the saved password
+  - Asks before removing a server or mapping. Removing a server also deletes its password and its Spotlight entries
+  - A damaged server list is kept as a copy, and the app tells you where
+- Sheets
+  - Every sheet has the same title and buttons, and Cancel really cancels
+  - Editing labels on several torrents only adds or removes the labels you changed
+- Less work while idle and smoother sorting on large lists
 
 ## 0.7.3
 

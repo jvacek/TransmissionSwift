@@ -128,15 +128,20 @@ public final class TorrentActionModel {
         do { try await mutations.setOptions(id, options: options) } catch { report(error) }
     }
 
-    public func setLabels(_ ids: [Torrent.ID], labels: [String]) async {
-        guard let mutations else { return }
+    /// Replace the label set on every torrent in `ids`. Returns true on
+    /// success; the daemon's rejection surfaces via `lastActionError`.
+    @discardableResult
+    public func setLabels(_ ids: [Torrent.ID], labels: [String]) async -> Bool {
+        guard let mutations else { return false }
         logger.info("setLabels store action: ids=\(ids) labels=\(labels)")
         do {
             try await mutations.setLabels(ids, labels: labels)
             logger.info("setLabels store action succeeded for ids=\(ids)")
+            return true
         } catch {
             logger.error("setLabels store action failed for ids=\(ids): \(error)")
             report(error)
+            return false
         }
     }
 

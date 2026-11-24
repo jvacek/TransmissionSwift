@@ -122,7 +122,8 @@ public final class InspectorModel {
     func poll() async {
         guard isVisible, !isFetching, let torrent = list.selectedTorrents.first else { return }
         let signature = DetailSignature(torrent)
-        guard signature != lastPolledSignature else { return }
+        // Peers change every tick without touching the signature.
+        guard tab == .peers || signature != lastPolledSignature else { return }
         // Record only a completed fetch: a failure must stay eligible so the
         // next tick retries rather than showing empty tabs until the torrent
         // changes.

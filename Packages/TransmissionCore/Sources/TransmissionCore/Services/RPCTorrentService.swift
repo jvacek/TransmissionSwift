@@ -50,7 +50,7 @@ public actor RPCTorrentService: TorrentService, PollHealthReporting {
             return v > 0 ? v : PollingIntervals.defaultIncremental
         },
         retryDelayProvider: @escaping @Sendable (Int) -> TimeInterval = {
-            min(5 * Double($0), 10)
+            RPCTorrentService.retryDelay(afterFailures: $0)
         }
     ) {
         self.client = client
@@ -138,6 +138,7 @@ public actor RPCTorrentService: TorrentService, PollHealthReporting {
         }
         defer { NotificationCenter.default.removeObserver(waker) }
 
+        var hasConnected = false
         while !Task.isCancelled {
             let base = pollingInterval()
             let incremental = PollingIntervals.clampedIncremental(
@@ -172,19 +173,19 @@ public actor RPCTorrentService: TorrentService, PollHealthReporting {
                     }
                 }
                 consecutiveFailures = 0
+                hasConnected = true
                 reportHealth(.ok)
             } catch {
                 logger.error("Poll error: \(error)")
                 consecutiveFailures += 1
                 reportHealth(.failing)
-                // Only an auth failure or a malformed URL is terminal. A daemon
-                // restart, sleep/wake, or network handover retries forever, so
-                // the stream recovers on its own instead of parking the app in
-                // "disconnected" until the user clicks Reconnect.
-                if Self.shouldStop(for: error) {
+                // Once connected, only an auth failure or a malformed URL is
+                // terminal: a daemon restart, sleep/wake, or network handover
+                // retries forever so the stream recovers on its own. A server
+                // that never answered gets a few tries, so a wrong address
+                // surfaces an error instead of "connecting" forever.
+                if Self.isFatal(error) || (!hasConnected && consecutiveFailures >= 3) {
                     stream.finish(throwing: error)
-                    healthContinuation?.finish()
-                    healthContinuation = nil
                     return
                 }
                 failed = true
@@ -194,9 +195,9 @@ public actor RPCTorrentService: TorrentService, PollHealthReporting {
                     ? max(incremental, retryDelayProvider(consecutiveFailures))
                     : incremental)
         }
+        // The health stream is left alone: a cancelled loop exits after
+        // `pollHealth()` may already have installed its successor's.
         stream.finish()
-        healthContinuation?.finish()
-        healthContinuation = nil
     }
 
     /// Sleep between ticks. Cancelling this task, or a polling-preference
@@ -226,26 +227,22 @@ public actor RPCTorrentService: TorrentService, PollHealthReporting {
         fullPoll || changed > 0 || removed > 0
     }
 
-    /// Whether a failed poll ends the stream for good.
-    static func shouldStop(for error: TransmissionError) -> Bool {
-        isFatal(error)
-    }
-
     /// How long a failed poll waits before retrying: 5s, then 10s from the
     /// second failure onward. A LAN daemon either answers quickly or is
     /// restarting, so a short fixed cap recovers sooner than an exponential
     /// backoff.
-    static func retryDelay(afterFailures failures: Int) -> TimeInterval {
+    @usableFromInline static func retryDelay(afterFailures failures: Int) -> TimeInterval {
         min(5 * Double(failures), 10)
     }
 
-    private static func isFatal(_ error: TransmissionError) -> Bool {
+    /// Whether a failed poll ends the stream for good, even after a connection.
+    static func isFatal(_ error: TransmissionError) -> Bool {
         switch error {
         case .unauthorized:
             return true
         case .http(let status, _):
-            // The client already retried a 409 once, so any 409 that escapes is
-            // persistent. Timeouts and rate limits are worth retrying.
+            // A persistent 409 arrives as `.sessionConflict`, not here.
+            // Timeouts and rate limits are worth retrying.
             return (400...499).contains(status) && status != 408 && status != 429
         case .network(let urlError):
             return urlError.code == .badURL || urlError.code == .unsupportedURL
