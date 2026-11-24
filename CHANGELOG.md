@@ -2,6 +2,12 @@
 
 Special shoutout to my new sponsors! Thank you very much. [Feel free to join them ;)](https://transmissionswift.jvacek.eu/donate/)
 
+## 0.8.1
+
+24th November 2026
+
+- Add some extra context to the crash reports so they're a bit more meaningful.
+
 ## 0.8.0
 
 14th November 2026
