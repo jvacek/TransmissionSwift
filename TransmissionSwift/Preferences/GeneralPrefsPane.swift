@@ -6,6 +6,7 @@ import SwiftUI
 import TransmissionCore
 
 struct GeneralPrefsPane: View {
+    @AppStorage(PreferenceKeys.interfaceLanguage) private var interfaceLanguage = InterfaceLanguage.system
     @AppStorage(PreferenceKeys.showAddDialogBeforeAdding) private var showAddDialog = true
     @AppStorage(PreferenceKeys.deleteTorrentFileAfterAdding) private var deleteTorrentFileAfterAdding = false
     @AppStorage(PreferenceKeys.startMinimized) private var startMinimized = false
@@ -29,46 +30,56 @@ struct GeneralPrefsPane: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Show dialog before adding a torrent", isOn: $showAddDialog)
-                Toggle("Delete .torrent file after adding by default", isOn: $deleteTorrentFileAfterAdding)
+                Toggle(L10n.text("Show dialog before adding a torrent"), isOn: $showAddDialog)
+                Toggle(
+                    L10n.text("Delete .torrent file after adding by default"),
+                    isOn: $deleteTorrentFileAfterAdding)
             } header: {
-                Text("Downloads")
+                Text(L10n.text("Downloads"))
             } footer: {
                 Text(
-                    "The Add Torrent dialog starts with this option checked; you can turn it off for a single add. Adds that skip the dialog — drag & drop and “Open With” — follow this default directly. Magnet links have no file to delete."
+                    L10n.text(
+                        "The Add Torrent dialog starts with this option checked; you can turn it off for a single add. Adds that skip the dialog — drag & drop and “Open With” — follow this default directly. Magnet links have no file to delete."
+                    )
                 )
             }
             Section {
                 secondsRow(
-                    "Refresh interval", value: $pollingInterval,
-                    help: "How often the whole list refreshes, \(rangeText(PollingIntervals.refresh))")
+                    L10n.text("Refresh interval"), value: $pollingInterval,
+                    help: L10n.format(
+                        "How often the whole list refreshes, %@",
+                        rangeText(PollingIntervals.refresh)))
                 secondsRow(
-                    "Incremental refresh interval", value: $incrementalPollingInterval,
-                    help:
-                        "How often changed torrents refresh, \(rangeText(PollingIntervals.incremental)) and never above the refresh interval"
-                )
+                    L10n.text("Incremental refresh interval"), value: $incrementalPollingInterval,
+                    help: L10n.format(
+                        "How often changed torrents refresh, %@ and never above the refresh interval",
+                        rangeText(PollingIntervals.incremental)))
                 secondsRow(
-                    "Free space interval", value: $freeSpaceInterval,
-                    help: "How often free disk space is re-read, \(rangeText(PollingIntervals.freeSpace))")
+                    L10n.text("Free space interval"), value: $freeSpaceInterval,
+                    help: L10n.format(
+                        "How often free disk space is re-read, %@",
+                        rangeText(PollingIntervals.freeSpace)))
             } header: {
-                Text("Connection")
+                Text(L10n.text("Connection"))
             } footer: {
                 Text(
-                    "The full list refreshes every “Refresh interval” seconds. Changed torrents, and the inspector, refresh at the incremental interval in between, which is capped at 45 seconds and at the refresh interval. Values are whole seconds."
+                    L10n.text(
+                        "The full list refreshes every “Refresh interval” seconds. Changed torrents, and the inspector, refresh at the incremental interval in between, which is capped at 45 seconds and at the refresh interval. Values are whole seconds."
+                    )
                 )
             }
-            Section("Sidebar") {
-                Toggle("Fetch tracker favicons", isOn: $fetchFavicons)
+            Section(L10n.text("Sidebar")) {
+                Toggle(L10n.text("Fetch tracker favicons"), isOn: $fetchFavicons)
                     .onChange(of: fetchFavicons) { _, newValue in
                         favicons.setEnabled(newValue)
                     }
             }
             Section {
-                Toggle("Show country flags for peers", isOn: $showPeerFlags)
+                Toggle(L10n.text("Show country flags for peers"), isOn: $showPeerFlags)
                     .onChange(of: showPeerFlags) { _, newValue in
                         geoip.setEnabled(newValue)
                     }
-                Picker("Check for updates", selection: $geoIPRefresh) {
+                Picker(L10n.text("Check for updates"), selection: $geoIPRefresh) {
                     ForEach(GeoIPRefreshFrequency.allCases, id: \.self) { frequency in
                         Text(frequency.displayLabel).tag(frequency)
                     }
@@ -78,34 +89,46 @@ struct GeneralPrefsPane: View {
                 }
                 .disabled(!showPeerFlags)
             } header: {
-                Text("Peers")
+                Text(L10n.text("Peers"))
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(
-                        "Downloads a public IP-to-country database (about 4.5 MB). DB-IP releases it monthly, so daily or weekly checks usually just confirm it's current. Peer IP addresses never leave your Mac."
+                        L10n.text(
+                            "Downloads a public IP-to-country database (about 4.5 MB). DB-IP releases it monthly, so daily or weekly checks usually just confirm it's current. Peer IP addresses never leave your Mac."
+                        )
                     )
-                    Link("IP Geolocation by DB-IP", destination: URL(string: "https://db-ip.com")!)
+                    Link(
+                        L10n.text("IP Geolocation by DB-IP"),
+                        destination: URL(string: "https://db-ip.com")!)
                 }
                 .font(.caption)
             }
-            Section("Application") {
-                Toggle("Badge app icon with active count", isOn: $badgeAppIcon)
-                Toggle("Start minimized", isOn: $startMinimized)
-                Toggle("Confirm before removing", isOn: $confirmRemove)
+            Section(L10n.text("Application")) {
+                Picker(L10n.text("Language"), selection: $interfaceLanguage) {
+                    ForEach(InterfaceLanguage.allCases) { language in
+                        Text(language.displayName).tag(language)
+                    }
+                }
+                Toggle(L10n.text("Badge app icon with active count"), isOn: $badgeAppIcon)
+                Toggle(L10n.text("Start minimized"), isOn: $startMinimized)
+                Toggle(L10n.text("Confirm before removing"), isOn: $confirmRemove)
             }
-            Section("Links on status bar") {
-                Toggle("Show donate button", isOn: $showDonateButton)
-                Toggle("Show bug report button", isOn: $showBugReportButton)
+            Section(L10n.text("Links on status bar")) {
+                Toggle(L10n.text("Show donate button"), isOn: $showDonateButton)
+                Toggle(L10n.text("Show bug report button"), isOn: $showBugReportButton)
             }
             Section {
-                Toggle("Send anonymous crash reports", isOn: $sendCrashReports)
+                Toggle(L10n.text("Send anonymous crash reports"), isOn: $sendCrashReports)
                     .onChange(of: sendCrashReports) { _, newValue in
                         CrashReporting.setConsent(enabled: newValue)
                     }
             } header: {
-                Text("Diagnostics")
+                Text(L10n.text("Diagnostics"))
             } footer: {
-                Text("Crash reports help fix bugs. \(CrashReporting.privacySummary) Off by default.")
+                Text(
+                    L10n.format(
+                        "Crash reports help fix bugs. %@ Off by default.",
+                        CrashReporting.privacySummary))
             }
         }
         .formStyle(.grouped)
@@ -158,7 +181,7 @@ struct GeneralPrefsPane: View {
                 .monospacedDigit()
                 .frame(width: 60)
                 .accessibilityLabel(title)
-            Text(value.wrappedValue == 1 ? "second" : "seconds")
+            Text(value.wrappedValue == 1 ? L10n.text("second") : L10n.text("seconds"))
                 .foregroundStyle(.secondary)
                 .frame(width: 56, alignment: .leading)
         }
@@ -166,7 +189,9 @@ struct GeneralPrefsPane: View {
     }
 
     private func rangeText(_ range: ClosedRange<Double>) -> String {
-        "between \(Int(range.lowerBound)) and \(Int(range.upperBound)) seconds"
+        L10n.format(
+            "between %lld and %lld seconds",
+            Int64(range.lowerBound), Int64(range.upperBound))
     }
 }
 

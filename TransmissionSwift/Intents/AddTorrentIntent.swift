@@ -106,7 +106,7 @@ private func addTorrent(
     if let link {
         linkURL = link
         fileURL = nil
-        what = link.hasPrefix("magnet:") ? "magnet link" : "torrent URL"
+        what = link.hasPrefix("magnet:") ? L10n.text("magnet link") : L10n.text("torrent URL")
     } else if let file {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("TransmissionSwift-Intent-\(UUID().uuidString)", isDirectory: true)
@@ -117,9 +117,9 @@ private func addTorrent(
         try file.data.write(to: url, options: .atomic)
         linkURL = nil
         fileURL = url
-        what = name.isEmpty ? "torrent file" : name
+        what = name.isEmpty ? L10n.text("torrent file") : name
     } else {
-        throw IntentError(message: "Provide a magnet link, torrent URL or torrent file.")
+        throw IntentError(message: L10n.text("Provide a magnet link, torrent URL or torrent file."))
     }
 
     let startWhenAdded = !(paused ?? false)
@@ -136,5 +136,7 @@ private func addTorrent(
         throw IntentError(message: error.localizedDescription)
     }
 
-    return "Added \(what) to \(profile.label)\(startWhenAdded ? "" : " (paused)")."
+    return startWhenAdded
+        ? L10n.format("Added %@ to %@.", what, profile.label)
+        : L10n.format("Added %@ to %@ (paused).", what, profile.label)
 }

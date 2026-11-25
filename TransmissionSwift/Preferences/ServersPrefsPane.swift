@@ -35,7 +35,7 @@ struct ServersPrefsPane: View {
         Form {
             Section {
                 if profileStore.profiles.isEmpty {
-                    Text("No servers yet.")
+                    Text(L10n.text("No servers yet."))
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(sortedProfiles) { profile in
@@ -46,37 +46,39 @@ struct ServersPrefsPane: View {
                 Button {
                     editor = .create
                 } label: {
-                    Label("Add Server…", systemImage: "plus")
+                    Label(L10n.text("Add Server…"), systemImage: "plus")
                 }
                 .buttonStyle(.borderless)
             } header: {
-                Text("Servers")
+                Text(L10n.text("Servers"))
             }
         }
         .formStyle(.grouped)
         .alert(
-            "Couldn't Update Servers",
+            L10n.text("Couldn't Update Servers"),
             isPresented: Binding(
                 get: { actionError != nil },
                 set: { if !$0 { actionError = nil } }
             )
         ) {
-            Button("OK") { actionError = nil }
+            Button(L10n.text("OK")) { actionError = nil }
         } message: {
             Text(actionError ?? "")
         }
         .confirmationDialog(
-            "Remove Server?",
+            L10n.text("Remove Server?"),
             isPresented: Binding(
                 get: { pendingRemovalID != nil },
                 set: { if !$0 { pendingRemovalID = nil } }
             ),
             presenting: pendingRemovalID
         ) { id in
-            Button("Remove", role: .destructive) { removeServer(id) }
-            Button("Cancel", role: .cancel) {}
+            Button(L10n.text("Remove"), role: .destructive) { removeServer(id) }
+            Button(L10n.text("Cancel"), role: .cancel) {}
         } message: { _ in
-            Text("The saved password will be deleted. Torrents on the daemon are not affected.")
+            Text(
+                L10n.text(
+                    "The saved password will be deleted. Torrents on the daemon are not affected."))
         }
         .sheet(item: $editor) { target in
             ServerProfileForm(
@@ -117,7 +119,7 @@ struct ServersPrefsPane: View {
             if isActive {
                 Image(systemName: "checkmark")
                     .foregroundStyle(.secondary)
-                    .help("Active server")
+                    .help(L10n.text("Active server"))
             }
             Button {
                 editor = .edit(profile)
@@ -125,19 +127,19 @@ struct ServersPrefsPane: View {
                 Image(systemName: "info.circle")
             }
             .buttonStyle(.borderless)
-            .help("Server Details")
-            .accessibilityLabel("Details for \(profile.label)")
+            .help(L10n.text("Server Details"))
+            .accessibilityLabel(L10n.format("Details for %@", profile.label))
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { editor = .edit(profile) }
         .contextMenu {
             if !isActive {
-                Button("Make Active") { makeActive(profile.id) }
+                Button(L10n.text("Make Active")) { makeActive(profile.id) }
             }
-            Button("Edit…") { editor = .edit(profile) }
-            Button("Duplicate") { duplicate(profile.id) }
+            Button(L10n.text("Edit…")) { editor = .edit(profile) }
+            Button(L10n.text("Duplicate")) { duplicate(profile.id) }
             Divider()
-            Button("Remove…", role: .destructive) { pendingRemovalID = profile.id }
+            Button(L10n.text("Remove…"), role: .destructive) { pendingRemovalID = profile.id }
         }
     }
 
@@ -256,24 +258,28 @@ struct ServerProfileForm: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(isCreating ? "Add Server" : "Edit Server")
+            Text(isCreating ? L10n.text("Add Server") : L10n.text("Edit Server"))
                 .font(.headline)
                 .padding(.horizontal, 20)
 
             Form {
-                Section("Connection") {
-                    TextField("Label", text: $fields.label, prompt: Text("Home NAS"))
-                    TextField("Host", text: $fields.host, prompt: Text("localhost"))
+                Section(L10n.text("Connection")) {
                     TextField(
-                        "Port",
+                        L10n.text("Label"), text: $fields.label,
+                        prompt: Text(L10n.text("Home NAS")))
+                    TextField(L10n.text("Host"), text: $fields.host, prompt: Text("localhost"))
+                    TextField(
+                        L10n.text("Port"),
                         value: $fields.port,
                         format: .number.grouping(.never),
                         prompt: Text("9091")
                     )
-                    TextField("RPC path", text: $fields.rpcPath, prompt: Text("/transmission/rpc"))
-                    Toggle("Use HTTPS", isOn: $fields.useHTTPS)
+                    TextField(
+                        L10n.text("RPC path"), text: $fields.rpcPath,
+                        prompt: Text("/transmission/rpc"))
+                    Toggle(L10n.text("Use HTTPS"), isOn: $fields.useHTTPS)
                     HStack(spacing: 8) {
-                        Button("Test Connection") {
+                        Button(L10n.text("Test Connection")) {
                             Task { await runConnectionTest() }
                         }
                         .disabled(isTesting || !isValid)
@@ -291,24 +297,32 @@ struct ServerProfileForm: View {
                     }
                 }
 
-                Section("Authentication") {
-                    TextField("Username", text: $fields.username, prompt: Text("Optional"))
+                Section(L10n.text("Authentication")) {
+                    TextField(
+                        L10n.text("Username"), text: $fields.username,
+                        prompt: Text(L10n.text("Optional")))
                     SecureField(
-                        "Password",
+                        L10n.text("Password"),
                         text: $fields.password,
-                        prompt: Text(keepsStoredPassword ? "Leave blank to keep" : "Optional")
+                        prompt: Text(
+                            keepsStoredPassword
+                                ? L10n.text("Leave blank to keep") : L10n.text("Optional"))
                     )
                     if hasStoredPassword {
                         HStack {
                             if removesStoredPassword {
-                                Text("The saved password will be removed when you save.")
+                                Text(L10n.text("The saved password will be removed when you save."))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 Spacer()
-                                Button("Keep Saved Password") { removesStoredPassword = false }
+                                Button(L10n.text("Keep Saved Password")) {
+                                    removesStoredPassword = false
+                                }
                             } else {
                                 Spacer()
-                                Button("Remove Saved Password") { removesStoredPassword = true }
+                                Button(L10n.text("Remove Saved Password")) {
+                                    removesStoredPassword = true
+                                }
                             }
                         }
                     }
@@ -325,29 +339,34 @@ struct ServerProfileForm: View {
             }
 
             SheetButtonRow(
-                isCreating ? "Add Server" : "Save",
+                isCreating ? L10n.text("Add Server") : L10n.text("Save"),
                 canConfirm: canSave,
                 onCancel: onCancel,
                 onConfirm: save
             ) {
                 if let onDuplicate {
-                    Button("Duplicate", action: onDuplicate)
+                    Button(L10n.text("Duplicate"), action: onDuplicate)
                         .disabled(isDirty)
-                        .help(isDirty ? "Save or cancel your changes first" : "Make a copy of this server")
+                        .help(
+                            isDirty
+                                ? L10n.text("Save or cancel your changes first")
+                                : L10n.text("Make a copy of this server"))
                 }
                 if onRemove != nil {
-                    Button("Remove…", role: .destructive) { confirmingRemoval = true }
+                    Button(L10n.text("Remove…"), role: .destructive) { confirmingRemoval = true }
                 }
             }
             .padding(.horizontal, 20)
         }
         .padding(.vertical, 20)
         .frame(width: 480, height: 520)
-        .confirmationDialog("Remove Server?", isPresented: $confirmingRemoval) {
-            Button("Remove", role: .destructive) { onRemove?() }
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog(L10n.text("Remove Server?"), isPresented: $confirmingRemoval) {
+            Button(L10n.text("Remove"), role: .destructive) { onRemove?() }
+            Button(L10n.text("Cancel"), role: .cancel) {}
         } message: {
-            Text("The saved password will be deleted. Torrents on the daemon are not affected.")
+            Text(
+                L10n.text(
+                    "The saved password will be deleted. Torrents on the daemon are not affected."))
         }
         .onAppear {
             if let profile = editedProfile {
@@ -401,7 +420,7 @@ struct ServerProfileForm: View {
         let probe = candidate
         guard let rpcURL = probe.rpcURL else {
             testFailed = true
-            testMessage = "Invalid URL"
+            testMessage = L10n.text("Invalid URL")
             return
         }
 
@@ -415,7 +434,8 @@ struct ServerProfileForm: View {
                     pwd = try keychain.password(for: profile.id) ?? ""
                 } catch {
                     testFailed = true
-                    testMessage = "Couldn't read the saved password from the Keychain."
+                    testMessage = L10n.text(
+                        "Couldn't read the saved password from the Keychain.")
                     return
                 }
             } else {
@@ -430,7 +450,8 @@ struct ServerProfileForm: View {
         do {
             let info = try await client.sessionGet()
             testFailed = false
-            testMessage = "Connected · Transmission \(info.version) (RPC \(info.rpcVersion))"
+            testMessage = L10n.format(
+                "Connected · Transmission %@ (RPC %lld)", info.version, Int64(info.rpcVersion))
         } catch {
             testFailed = true
             testMessage = error.localizedDescription
@@ -460,7 +481,8 @@ struct ServerProfileForm: View {
                 try keychain.setPassword(fields.password, for: profile.id)
             }
         } catch {
-            saveError = "The server was saved, but the password couldn't be updated in the Keychain."
+            saveError = L10n.text(
+                "The server was saved, but the password couldn't be updated in the Keychain.")
             return
         }
         onSaved()

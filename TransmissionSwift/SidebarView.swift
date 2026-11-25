@@ -58,7 +58,7 @@ struct SidebarView: View {
                     .accessibilityIdentifier("sidebar.status.\(filter.rawValue)")
                 }
             } header: {
-                Text("Status")
+                Text(L10n.text("Status"))
                     .padding(.trailing, 16)
             }
 
@@ -75,7 +75,7 @@ struct SidebarView: View {
                         }
                     }
                 } header: {
-                    Text("Trackers")
+                    Text(L10n.text("Trackers"))
                         .padding(.trailing, 16)
                 }
             }
@@ -85,7 +85,7 @@ struct SidebarView: View {
                     ForEach(store.list.facets.folders) { entry in
                         let isDefaultFolder = entry.name == FolderFilter.defaultFolderName
                         SidebarFilterRow(
-                            label: isDefaultFolder ? "Default Folder" : entry.name,
+                            label: isDefaultFolder ? L10n.text("Default Folder") : entry.name,
                             leading: {
                                 Image(systemName: isDefaultFolder ? "folder.fill" : "folder")
                             },
@@ -96,7 +96,7 @@ struct SidebarView: View {
                         }
                     }
                 } header: {
-                    Text("Folders")
+                    Text(L10n.text("Folders"))
                         .padding(.trailing, 16)
                 }
             }
@@ -104,7 +104,7 @@ struct SidebarView: View {
             if !store.list.facets.labels.isEmpty {
                 Section(isExpanded: $isLabelsExpanded) {
                     SidebarFilterRow(
-                        label: "No label",
+                        label: L10n.text("No label"),
                         leading: { Image(systemName: "tag.slash") },
                         count: store.list.facets.noLabelCount,
                         isSelected: store.list.selectedSidebarFilters.contains(.label(name: LabelFilter.noLabelName))
@@ -135,7 +135,7 @@ struct SidebarView: View {
                         }
                     }
                 } header: {
-                    Text("Labels")
+                    Text(L10n.text("Labels"))
                         .padding(.trailing, 16)
                 }
             }

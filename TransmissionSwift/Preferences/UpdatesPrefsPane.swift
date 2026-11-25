@@ -12,8 +12,8 @@ struct UpdatesPrefsPane: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Check for updates on startup", isOn: $checkForUpdates)
-                Toggle("Include pre-release versions", isOn: $includePrereleases)
+                Toggle(L10n.text("Check for updates on startup"), isOn: $checkForUpdates)
+                Toggle(L10n.text("Include pre-release versions"), isOn: $includePrereleases)
             }
         }
         .formStyle(.grouped)

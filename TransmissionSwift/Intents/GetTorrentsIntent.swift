@@ -110,8 +110,10 @@ struct GetTorrentsIntent: AppIntent {
         let entities = torrents.map { TorrentEntity(torrent: $0, serverID: serverID) }
         let dialog =
             entities.isEmpty
-            ? "No matching torrents on \(profile.label)."
-            : "\(entities.count) torrent\(entities.count == 1 ? "" : "s") on \(profile.label)."
+            ? L10n.format("No matching torrents on %@.", profile.label)
+            : entities.count == 1
+                ? L10n.format("1 torrent on %@.", profile.label)
+                : L10n.format("%lld torrents on %@.", Int64(entities.count), profile.label)
         return .result(value: entities, dialog: "\(dialog)")
     }
 }

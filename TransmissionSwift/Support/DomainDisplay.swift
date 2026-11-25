@@ -9,15 +9,15 @@ import TransmissionCore
 /// Display-side extensions on the domain types. Kept in the app target so the
 /// core stays presentation-free.
 extension TorrentStatus {
-    var displayLabel: String {
+    nonisolated var displayLabel: String {
         switch self {
-        case .downloading: return "Downloading"
-        case .seeding: return "Seeding"
-        case .paused: return "Paused"
-        case .checking: return "Checking"
-        case .queued: return "Queued"
-        case .error: return "Error"
-        case .completed: return "Completed"
+        case .downloading: return L10n.text("Downloading")
+        case .seeding: return L10n.text("Seeding")
+        case .paused: return L10n.text("Paused")
+        case .checking: return L10n.text("Checking")
+        case .queued: return L10n.text("Queued")
+        case .error: return L10n.text("Error")
+        case .completed: return L10n.text("Completed")
         }
     }
 
@@ -54,11 +54,11 @@ extension Torrent {
 }
 
 extension TorrentPriority {
-    var displayLabel: String {
+    nonisolated var displayLabel: String {
         switch self {
-        case .low: return "Low"
-        case .normal: return "Normal"
-        case .high: return "High"
+        case .low: return L10n.text("Low")
+        case .normal: return L10n.text("Normal")
+        case .high: return L10n.text("High")
         }
     }
 
@@ -96,7 +96,7 @@ extension TorrentFile {
     /// the download directory, so the first component is the torrent's base
     /// directory. Stripping it shows the file as it appears inside the torrent.
     /// Single-file torrents have no separator and are returned unchanged.
-    var displayName: String {
+    nonisolated var displayName: String {
         let separators = CharacterSet(charactersIn: "/\\")
         guard let firstSeparator = name.rangeOfCharacter(from: separators) else {
             return name
@@ -106,11 +106,11 @@ extension TorrentFile {
 }
 
 extension TrackerState {
-    var displayLabel: String {
+    nonisolated var displayLabel: String {
         switch self {
-        case .working: return "Working"
-        case .idle: return "Idle"
-        case .error: return "Error"
+        case .working: return L10n.text("Working")
+        case .idle: return L10n.text("Idle")
+        case .error: return L10n.text("Error")
         }
     }
 
@@ -124,12 +124,12 @@ extension TrackerState {
 }
 
 extension InspectorTab {
-    var displayLabel: String {
+    nonisolated var displayLabel: String {
         switch self {
-        case .general: return "General"
-        case .files: return "Files"
-        case .peers: return "Peers"
-        case .trackers: return "Trackers"
+        case .general: return L10n.text("General")
+        case .files: return L10n.text("Files")
+        case .peers: return L10n.text("Peers")
+        case .trackers: return L10n.text("Trackers")
         }
     }
     var systemImage: String {
@@ -143,16 +143,16 @@ extension InspectorTab {
 }
 
 extension TorrentStatusFilter {
-    var displayLabel: String {
+    nonisolated var displayLabel: String {
         switch self {
-        case .all: return "All Torrents"
-        case .downloading: return "Downloading"
-        case .seeding: return "Seeding"
-        case .active: return "Active"
-        case .paused: return "Paused"
-        case .checking: return "Checking"
-        case .queued: return "Queued"
-        case .error: return "Error"
+        case .all: return L10n.text("All Torrents")
+        case .downloading: return L10n.text("Downloading")
+        case .seeding: return L10n.text("Seeding")
+        case .active: return L10n.text("Active")
+        case .paused: return L10n.text("Paused")
+        case .checking: return L10n.text("Checking")
+        case .queued: return L10n.text("Queued")
+        case .error: return L10n.text("Error")
         }
     }
 
@@ -182,13 +182,30 @@ nonisolated func countryFlagEmoji(for code: String) -> String? {
     return String(scalars.map(Character.init))
 }
 
-extension GeoIPRefreshFrequency {
-    var displayLabel: String {
+extension ActionError {
+    nonisolated var displayTitle: String {
         switch self {
-        case .onStartup: return "On startup"
-        case .daily: return "Daily"
-        case .weekly: return "Weekly"
-        case .monthly: return "Monthly"
+        case .failed: return L10n.text("Action Failed")
+        case .torrentDuplicate: return L10n.text("Already in List")
+        }
+    }
+
+    nonisolated var displayMessage: String {
+        switch self {
+        case .failed(let message): return message
+        case .torrentDuplicate(let name):
+            return L10n.format("“%@” is already in your list.", name)
+        }
+    }
+}
+
+extension GeoIPRefreshFrequency {
+    nonisolated var displayLabel: String {
+        switch self {
+        case .onStartup: return L10n.text("On startup")
+        case .daily: return L10n.text("Daily")
+        case .weekly: return L10n.text("Weekly")
+        case .monthly: return L10n.text("Monthly")
         }
     }
 }

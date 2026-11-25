@@ -24,13 +24,16 @@ struct SetTurtleModeIntent: AppIntent {
         let environment = try AppEnvironment.require()
         let (profile, service) = try environment.requireService(server)
         guard let mutations = service.mutations else {
-            throw IntentError(message: "This server is read-only.")
+            throw IntentError(message: L10n.text("This server is read-only."))
         }
         do {
             try await mutations.setAlternativeSpeedEnabled(enabled)
         } catch {
             throw IntentError(message: error.localizedDescription)
         }
-        return .result(dialog: "Turtle mode \(enabled ? "enabled" : "disabled") on \(profile.label).")
+        return .result(
+            dialog: enabled
+                ? "\(L10n.format("Turtle mode enabled on %@.", profile.label))"
+                : "\(L10n.format("Turtle mode disabled on %@.", profile.label))")
     }
 }

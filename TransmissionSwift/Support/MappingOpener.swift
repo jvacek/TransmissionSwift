@@ -36,7 +36,7 @@ enum MappingOpener {
         } catch {
             if MappingTemplate.needsPassword(mapping.template) {
                 store.lastActionError = .failed(
-                    message: "Couldn't read the saved password from the Keychain.")
+                    message: L10n.text("Couldn't read the saved password from the Keychain."))
                 return
             }
             password = nil
@@ -54,7 +54,7 @@ enum MappingOpener {
                 defaultDownloadDirectory: store.list.downloadDirectory,
                 file: file)
         else {
-            store.lastActionError = .failed(message: "Could not build a URL from “\(mapping.template)”")
+            store.lastActionError = .failed(message: L10n.format("Could not build a URL from “%@”", mapping.template))
             return
         }
 
@@ -107,7 +107,7 @@ enum MappingOpener {
     private static func revealInFinder(_ url: URL, store: TorrentStore) {
         guard url.scheme == "file" else {
             store.lastActionError = .failed(
-                message: "“Reveal in Finder” needs a file:// URL, got \(url.scheme ?? "none").")
+                message: L10n.format("“Reveal in Finder” needs a file:// URL, got %@.", url.scheme ?? "none"))
             return
         }
         MappingLauncher.revealInFinder(url)
@@ -140,10 +140,10 @@ enum MappingOpener {
     ) {
         let folder = url.deletingLastPathComponent()
         let panel = NSOpenPanel()
-        panel.title = "Allow Access"
+        panel.title = L10n.text("Allow Access")
         panel.message =
-            "“\(mapping.name)” opens files in \(folder.path). Choose the folder to allow access."
-        panel.prompt = "Allow"
+            L10n.format("“%@” opens files in %@. Choose the folder to allow access.", mapping.name, folder.path)
+        panel.prompt = L10n.text("Allow")
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
@@ -165,7 +165,7 @@ enum MappingOpener {
                 dispatch(url, mapping: mapping, store: store)
             } catch {
                 store.lastActionError = .failed(
-                    message: "Could not save the access permission: \(error.localizedDescription)")
+                    message: L10n.format("Could not save the access permission: %@", error.localizedDescription))
             }
         }
     }

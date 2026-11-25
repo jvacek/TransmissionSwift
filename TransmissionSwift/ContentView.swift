@@ -112,20 +112,24 @@ private struct CrashReportingConsentView: View {
             Image(systemName: "ladybug.fill")
                 .font(.system(size: 40))
                 .foregroundStyle(.secondary)
-            Text("Help improve TransmissionSwift")
+            Text(L10n.text("Help improve TransmissionSwift"))
                 .font(.title2.weight(.semibold))
-            Text("Send anonymous crash reports? \(CrashReporting.privacySummary)")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 380)
-            Text("You can change this later in Settings.")
+            Text(
+                L10n.format(
+                    "Send anonymous crash reports? %@",
+                    CrashReporting.privacySummary)
+            )
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: 380)
+            Text(L10n.text("You can change this later in Settings."))
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
             HStack(spacing: 12) {
-                Button("Not Now") { onDecision(false) }
+                Button(L10n.text("Not Now")) { onDecision(false) }
                     .accessibilityIdentifier("crashConsent.decline")
-                Button("Enable Crash Reports") { onDecision(true) }
+                Button(L10n.text("Enable Crash Reports")) { onDecision(true) }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
                     .accessibilityIdentifier("crashConsent.accept")

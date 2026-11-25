@@ -41,16 +41,16 @@ struct SetTorrentSpeedLimitsIntent: AppIntent {
         patch.uploadLimited = uploadLimited
         patch.uploadLimitKBps = uploadLimitKBps
         guard !patch.isEmpty else {
-            throw IntentError(message: "No speed-limit changes were specified.")
+            throw IntentError(message: L10n.text("No speed-limit changes were specified."))
         }
         // Mirror the server-level intent: enabling a limit without a value is
         // ambiguous (it would silently reuse whatever limit the torrent already
         // carries), so require the value.
         if downloadLimited == true, downloadLimitKBps == nil {
-            throw IntentError(message: "Set a download limit value, or turn the download limit off.")
+            throw IntentError(message: L10n.text("Set a download limit value, or turn the download limit off."))
         }
         if uploadLimited == true, uploadLimitKBps == nil {
-            throw IntentError(message: "Set an upload limit value, or turn the upload limit off.")
+            throw IntentError(message: L10n.text("Set an upload limit value, or turn the upload limit off."))
         }
 
         let environment = try AppEnvironment.require()
@@ -65,7 +65,7 @@ struct SetTorrentSpeedLimitsIntent: AppIntent {
 
         return .result(
             dialog:
-                "Updated speed limits for \(targets.count) torrent\(targets.count == 1 ? "" : "s") on \(profile.label)."
+                "\(targets.count == 1 ? L10n.format("Updated speed limits for 1 torrent on %@.", profile.label) : L10n.format("Updated speed limits for %lld torrents on %@.", Int64(targets.count), profile.label))"
         )
     }
 }

@@ -20,7 +20,7 @@ struct InspectorPeersTab: View {
         // the address and both speeds share a column, so the numbers never
         // scroll off to the right.
         Table(torrent.peers) {
-            TableColumn("Peer") { peer in
+            TableColumn(L10n.text("Peer")) { peer in
                 HStack(spacing: 6) {
                     if let code = countryCode(for: peer), let flag = countryFlagEmoji(for: code) {
                         Text(flag)
@@ -50,7 +50,7 @@ struct InspectorPeersTab: View {
             }
             .width(40)
 
-            TableColumn("Speed") { peer in
+            TableColumn(L10n.text("Speed")) { peer in
                 VStack(alignment: .trailing, spacing: 1) {
                     Text("↓ \(ColumnFormatters.humanizedSpeed(peer.downloadSpeed))")
                     Text("↑ \(ColumnFormatters.humanizedSpeed(peer.uploadSpeed))")
@@ -62,8 +62,10 @@ struct InspectorPeersTab: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(
-                    "Down \(ColumnFormatters.humanizedSpeed(peer.downloadSpeed)), "
-                        + "up \(ColumnFormatters.humanizedSpeed(peer.uploadSpeed))")
+                    L10n.format(
+                        "Down %@, up %@",
+                        ColumnFormatters.humanizedSpeed(peer.downloadSpeed),
+                        ColumnFormatters.humanizedSpeed(peer.uploadSpeed)))
             }
             .width(84)
         }
@@ -77,9 +79,9 @@ struct InspectorPeersTab: View {
         .overlay {
             if torrent.peers.isEmpty {
                 ContentUnavailableView(
-                    "No Peers",
+                    L10n.text("No Peers"),
                     systemImage: "person.2.slash",
-                    description: Text("No peers are connected right now.")
+                    description: Text(L10n.text("No peers are connected right now."))
                 )
             }
         }

@@ -36,18 +36,18 @@ struct InspectorTrackersTab: View {
                 if torrent.isPrivate {
                     PrivateTorrentNote(
                         message:
-                            "Only the trackers below are used. DHT, PEX and local peer discovery are off."
+                            L10n.text("Only the trackers below are used. DHT, PEX and local peer discovery are off.")
                     )
                 }
                 if torrent.trackers.isEmpty {
-                    Text("No trackers")
+                    Text(L10n.text("No trackers"))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
                 ForEach(tiers, id: \.tier) { group in
                     VStack(alignment: .leading, spacing: 6) {
                         if tiers.count > 1 {
-                            Text("Tier \(group.tier + 1)")
+                            Text(L10n.format("Tier %lld", Int64(group.tier + 1)))
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.secondary)
                         }
@@ -57,7 +57,7 @@ struct InspectorTrackersTab: View {
                     }
                 }
                 if store.actionsEnabled {
-                    Button("Add Tracker…", systemImage: "plus") {
+                    Button(L10n.text("Add Tracker…"), systemImage: "plus") {
                         isAddingTracker = true
                     }
                     .buttonStyle(.borderless)
@@ -75,7 +75,7 @@ struct InspectorTrackersTab: View {
             AddTrackerSheet(torrent: torrent, editing: tracker)
         }
         .confirmationDialog(
-            "Remove the last tracker?",
+            L10n.text("Remove the last tracker?"),
             isPresented: Binding(
                 get: { pendingPrivateRemoval != nil },
                 set: { if !$0 { pendingPrivateRemoval = nil } }
@@ -83,13 +83,15 @@ struct InspectorTrackersTab: View {
             titleVisibility: .visible,
             presenting: pendingPrivateRemoval
         ) { tracker in
-            Button("Remove Tracker", role: .destructive) {
+            Button(L10n.text("Remove Tracker"), role: .destructive) {
                 Task { await store.actions.removeTracker(torrent.id, tracker) }
             }
-            Button("Cancel", role: .cancel) {}
+            Button(L10n.text("Cancel"), role: .cancel) {}
         } message: { _ in
             Text(
-                "This is a private torrent, so DHT, PEX and local peer discovery are off. Without its only tracker it can't find peers."
+                L10n.text(
+                    "This is a private torrent, so DHT, PEX and local peer discovery are off. Without its only tracker it can't find peers."
+                )
             )
         }
         // Make sure icons exist for this torrent's trackers — no-op for hosts
@@ -134,10 +136,10 @@ struct InspectorTrackersTab: View {
     /// becomes a new backup.
     @ViewBuilder
     private func trackerMenu(for tracker: Tracker) -> some View {
-        Button("Change Announce URL…") {
+        Button(L10n.text("Change Announce URL…")) {
             editingTracker = tracker
         }
-        Button("Remove Tracker", role: .destructive) {
+        Button(L10n.text("Remove Tracker"), role: .destructive) {
             requestRemoval(of: tracker)
         }
         if let last = tiers.last {
@@ -150,19 +152,19 @@ struct InspectorTrackersTab: View {
                 // Tiers get a submenu of their own: a public torrent can list
                 // dozens of them, and they would swamp the card's own actions.
                 if otherTiers.isEmpty {
-                    Button("Move to New Tier") {
+                    Button(L10n.text("Move to New Tier")) {
                         move(tracker, toTier: last.tier + 1)
                     }
                 } else {
-                    Menu("Move to Tier") {
+                    Menu(L10n.text("Move to Tier")) {
                         ForEach(otherTiers, id: \.self) { tier in
-                            Button("Tier \(tier + 1)") {
+                            Button(L10n.format("Tier %lld", Int64(tier + 1))) {
                                 move(tracker, toTier: tier)
                             }
                         }
                         if canStartNewTier {
                             Divider()
-                            Button("New Tier") {
+                            Button(L10n.text("New Tier")) {
                                 move(tracker, toTier: last.tier + 1)
                             }
                         }
@@ -191,7 +193,7 @@ private struct PrivateTorrentNote: View {
                 .padding(.top, 1)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Private torrent")
+                Text(L10n.text("Private torrent"))
                     .font(.caption.weight(.semibold))
                 Text(message)
                     .font(.caption)
@@ -241,8 +243,8 @@ private struct TrackerCard: View {
                         }
                         .buttonStyle(.borderless)
                         .foregroundStyle(.secondary)
-                        .help("Remove this tracker")
-                        .accessibilityLabel("Remove \(tracker.host)")
+                        .help(L10n.text("Remove this tracker"))
+                        .accessibilityLabel(L10n.format("Remove %@", tracker.host))
                     }
                 }
                 LinkableText(
@@ -260,8 +262,11 @@ private struct TrackerCard: View {
     }
 
     private var statsLine: String {
-        "\(tracker.seedCount) seeds · \(tracker.leechCount) leechers"
-            + " · \(tracker.downloadCount.formatted()) downloads"
+        L10n.format(
+            "%@ seeds · %@ leechers · %@ downloads",
+            tracker.seedCount.formatted(),
+            tracker.leechCount.formatted(),
+            tracker.downloadCount.formatted())
     }
 }
 
@@ -281,7 +286,7 @@ private struct AddTrackerSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(editing == nil ? "Add Tracker" : "Change Tracker URL")
+            Text(editing == nil ? L10n.text("Add Tracker") : L10n.text("Change Tracker URL"))
                 .font(.headline)
             Text(hint)
                 .font(.caption)
@@ -291,11 +296,13 @@ private struct AddTrackerSheet: View {
             if torrent.isPrivate {
                 PrivateTorrentNote(
                     message:
-                        "Use the announce URL from the tracker you got this torrent from. Another tracker won't have this torrent, and a public one won't count toward your ratio."
+                        L10n.text(
+                            "Use the announce URL from the tracker you got this torrent from. Another tracker won't have this torrent, and a public one won't count toward your ratio."
+                        )
                 )
             }
 
-            TextField("Announce URL", text: $announce)
+            TextField(L10n.text("Announce URL"), text: $announce)
                 .textFieldStyle(.roundedBorder)
                 .font(.callout.monospaced())
                 .disabled(isSaving)
@@ -320,7 +327,7 @@ private struct AddTrackerSheet: View {
 
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }
+                Button(L10n.text("Cancel")) { dismiss() }
                     .keyboardShortcut(.cancelAction)
                     .disabled(isSaving)
                 Button(submitLabel) {
@@ -341,14 +348,14 @@ private struct AddTrackerSheet: View {
 
     private var hint: String {
         if editing == nil {
-            return "The announce URL, e.g. https://tracker.example.org/announce"
+            return L10n.text("The announce URL, e.g. https://tracker.example.org/announce")
         }
-        return "The new announce URL for this tracker. It keeps its tier."
+        return L10n.text("The new announce URL for this tracker. It keeps its tier.")
     }
 
     private var submitLabel: String {
-        if isSaving { return editing == nil ? "Adding…" : "Changing…" }
-        return editing == nil ? "Add" : "Change"
+        if isSaving { return editing == nil ? L10n.text("Adding…") : L10n.text("Changing…") }
+        return editing == nil ? L10n.text("Add") : L10n.text("Change")
     }
 
     private var validationError: String? {
@@ -376,7 +383,8 @@ private struct AddTrackerSheet: View {
         } else {
             saveError =
                 store.lastActionError?.localizedDescription
-                ?? (editing == nil ? "Failed to add the tracker." : "Failed to change the tracker URL.")
+                ?? (editing == nil
+                    ? L10n.text("Failed to add the tracker.") : L10n.text("Failed to change the tracker URL."))
             store.lastActionError = nil
         }
     }
@@ -401,23 +409,23 @@ nonisolated func trackerAnnounceValidation(
     _ input: String, existing: [Tracker], replacing: Tracker? = nil
 ) -> String? {
     let announce = normalizedTrackerAnnounce(input)
-    if announce.isEmpty { return "Enter an announce URL." }
+    if announce.isEmpty { return L10n.text("Enter an announce URL.") }
     guard let url = URL(string: announce),
         let scheme = url.scheme?.lowercased(),
         ["http", "https", "udp"].contains(scheme),
         let host = url.host,
         !host.isEmpty
     else {
-        return "Enter a full announce URL, like https://tracker.example.org/announce."
+        return L10n.text("Enter a full announce URL, like https://tracker.example.org/announce.")
     }
     if let replacing, replacing.announce.caseInsensitiveCompare(announce) == .orderedSame {
-        return "Enter a different announce URL."
+        return L10n.text("Enter a different announce URL.")
     }
     if existing.contains(where: {
         $0.announce != replacing?.announce
             && $0.announce.caseInsensitiveCompare(announce) == .orderedSame
     }) {
-        return "This tracker is already in the list."
+        return L10n.text("This tracker is already in the list.")
     }
     return nil
 }

@@ -78,12 +78,12 @@ final class ConnectionCoordinator {
                 // A locked Keychain or cancelled prompt must not look like a
                 // wrong password, which is what connecting blank would produce.
                 store.setConnectionFailed(
-                    reason: "Couldn't read the saved password from the Keychain.")
+                    reason: L10n.text("Couldn't read the saved password from the Keychain."))
                 return
             }
         }
         guard let service = makeService(profile, credentials) else {
-            store.setConnectionFailed(reason: "Invalid server URL")
+            store.setConnectionFailed(reason: L10n.text("Invalid server URL"))
             return
         }
         store.connect(service: service)
@@ -94,7 +94,7 @@ final class ConnectionCoordinator {
     /// Stop polling and forget the current daemon. Used when no server profile
     /// remains, so the app does not keep talking to a removed server.
     func disconnect() {
-        store.disconnect(reason: "No server configured")
+        store.disconnect(reason: L10n.text("No server configured"))
         environment?.clearConnection()
         connectedProfileID = nil
     }

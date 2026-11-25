@@ -18,7 +18,7 @@ struct AboutView: View {
                 .font(.title2)
                 .fontWeight(.medium)
 
-            Text("Version \(appVersion) (\(buildNumber))")
+            Text(L10n.format("Version %@ (%@)", appVersion, buildNumber))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -32,7 +32,8 @@ struct AboutView: View {
                 .frame(width: 240)
 
             Text(
-                "A native macOS remote control for the Transmission BitTorrent daemon."
+                L10n.text(
+                    "A native macOS remote control for the Transmission BitTorrent daemon.")
             )
             .font(.caption)
             .foregroundStyle(.secondary)

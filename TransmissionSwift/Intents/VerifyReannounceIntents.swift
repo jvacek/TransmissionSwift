@@ -32,7 +32,8 @@ struct VerifyTorrentsIntent: AppIntent {
         }
         return .result(
             dialog:
-                "Verifying \(targets.count) torrent\(targets.count == 1 ? "" : "s") on \(profile.label).")
+                "\(targets.count == 1 ? L10n.format("Verifying 1 torrent on %@.", profile.label) : L10n.format("Verifying %lld torrents on %@.", Int64(targets.count), profile.label))"
+        )
     }
 }
 
@@ -63,6 +64,7 @@ struct ReannounceTorrentsIntent: AppIntent {
         }
         return .result(
             dialog:
-                "Re-announced \(targets.count) torrent\(targets.count == 1 ? "" : "s") on \(profile.label).")
+                "\(targets.count == 1 ? L10n.format("Re-announced 1 torrent on %@.", profile.label) : L10n.format("Re-announced %lld torrents on %@.", Int64(targets.count), profile.label))"
+        )
     }
 }

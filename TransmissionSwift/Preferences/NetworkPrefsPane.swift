@@ -16,47 +16,56 @@ struct NetworkPrefsPane: View {
         if store.isConnected {
             Form {
                 Section {
-                    LabeledContent("Peer listening port") {
-                        TextField("Port", value: intBinding(\.peerPort), format: .number.grouping(.never))
-                            .frame(width: 80)
+                    LabeledContent(L10n.text("Peer listening port")) {
+                        TextField(
+                            L10n.text("Port"), value: intBinding(\.peerPort),
+                            format: .number.grouping(.never)
+                        )
+                        .frame(width: 80)
                     }
-                    Toggle("Pick random port on launch", isOn: boolBinding(\.peerPortRandomOnStart))
-                    Toggle("Enable UPnP/NAT-PMP port forwarding", isOn: boolBinding(\.portForwardingEnabled))
-                    LabeledContent("Port status") {
+                    Toggle(
+                        L10n.text("Pick random port on launch"),
+                        isOn: boolBinding(\.peerPortRandomOnStart))
+                    Toggle(
+                        L10n.text("Enable UPnP/NAT-PMP port forwarding"),
+                        isOn: boolBinding(\.portForwardingEnabled))
+                    LabeledContent(L10n.text("Port status")) {
                         portStatusRow
                     }
                 } header: {
-                    Text("Connections")
+                    Text(L10n.text("Connections"))
                 } footer: {
-                    Text("Tests whether the listening port is reachable from the outside.")
+                    Text(L10n.text("Tests whether the listening port is reachable from the outside."))
                 }
 
                 Section {
-                    LabeledContent("Encryption") {
+                    LabeledContent(L10n.text("Encryption")) {
                         Picker("", selection: encryptionBinding) {
-                            Text("Prefer encrypted").tag(EncryptionChoice.preferred)
-                            Text("Require encrypted").tag(EncryptionChoice.required)
-                            Text("Allow unencrypted").tag(EncryptionChoice.tolerated)
+                            Text(L10n.text("Prefer encrypted")).tag(EncryptionChoice.preferred)
+                            Text(L10n.text("Require encrypted")).tag(EncryptionChoice.required)
+                            Text(L10n.text("Allow unencrypted")).tag(EncryptionChoice.tolerated)
                         }
                         .labelsHidden()
                         .frame(maxWidth: .infinity, alignment: .trailing)
                     }
-                    Toggle("Enable blocklist", isOn: boolBinding(\.blocklistEnabled))
+                    Toggle(L10n.text("Enable blocklist"), isOn: boolBinding(\.blocklistEnabled))
                     if store.session.effectiveSessionSettings.blocklistEnabled {
-                        TextField("Blocklist URL", text: stringBinding(\.blocklistURL))
+                        TextField(L10n.text("Blocklist URL"), text: stringBinding(\.blocklistURL))
                             .font(.monospaced(.body)())
                     }
                 } header: {
-                    Text("Privacy")
+                    Text(L10n.text("Privacy"))
                 }
 
                 Section {
-                    Toggle("Enable Peer Exchange (PEX)", isOn: boolBinding(\.pexEnabled))
-                    Toggle("Enable DHT", isOn: boolBinding(\.dhtEnabled))
-                    Toggle("Enable µTP", isOn: boolBinding(\.utpEnabled))
-                    Toggle("Enable Local Peer Discovery (LPD)", isOn: boolBinding(\.lpdEnabled))
+                    Toggle(L10n.text("Enable Peer Exchange (PEX)"), isOn: boolBinding(\.pexEnabled))
+                    Toggle(L10n.text("Enable DHT"), isOn: boolBinding(\.dhtEnabled))
+                    Toggle(L10n.text("Enable µTP"), isOn: boolBinding(\.utpEnabled))
+                    Toggle(
+                        L10n.text("Enable Local Peer Discovery (LPD)"),
+                        isOn: boolBinding(\.lpdEnabled))
                 } header: {
-                    Text("Protocol")
+                    Text(L10n.text("Protocol"))
                 }
             }
             .formStyle(.grouped)
@@ -69,19 +78,19 @@ struct NetworkPrefsPane: View {
         HStack {
             switch store.session.portIsOpen {
             case .some(true):
-                Label("Open", systemImage: "checkmark.circle.fill")
+                Label(L10n.text("Open"), systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
             case .some(false):
-                Label("Closed", systemImage: "xmark.circle.fill")
+                Label(L10n.text("Closed"), systemImage: "xmark.circle.fill")
                     .foregroundStyle(.red)
             case .none:
-                Text("Not tested")
+                Text(L10n.text("Not tested"))
                     .foregroundStyle(.secondary)
             }
             Button {
                 Task { await store.session.testPort() }
             } label: {
-                Label("Test", systemImage: "arrow.clockwise")
+                Label(L10n.text("Test"), systemImage: "arrow.clockwise")
                     .labelStyle(.titleAndIcon)
             }
             .controlSize(.small)

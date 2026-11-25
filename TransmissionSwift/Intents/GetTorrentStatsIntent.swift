@@ -25,9 +25,13 @@ struct TorrentStatsEntity: TransientAppEntity {
     /// Human-readable one-liner for `displayRepresentation` and tests. Not a
     /// `@Property`, so it doesn't duplicate the fields in the variable picker.
     var summary: String {
-        "\(name): \(status) · \(progressPercent)% · "
-            + "↓ \(ColumnFormatters.humanizedSpeed(Int64(downloadSpeed))) "
-            + "↑ \(ColumnFormatters.humanizedSpeed(Int64(uploadSpeed)))"
+        L10n.format(
+            "%@: %@ · %lld%% · ↓ %@ ↑ %@",
+            name,
+            status,
+            Int64(progressPercent),
+            ColumnFormatters.humanizedSpeed(Int64(downloadSpeed)),
+            ColumnFormatters.humanizedSpeed(Int64(uploadSpeed)))
     }
 
     init() {
@@ -43,7 +47,7 @@ struct TorrentStatsEntity: TransientAppEntity {
     init(torrent: Torrent) {
         self.init()
         name = torrent.name
-        status = torrent.status.rawValue.capitalized
+        status = torrent.status.displayLabel
         progressPercent = Int((torrent.progress * 100).rounded())
         downloadSpeed = Int(torrent.downloadSpeed)
         uploadSpeed = Int(torrent.uploadSpeed)
@@ -73,7 +77,7 @@ struct GetTorrentStatsIntent: AppIntent {
         let (profile, service) = try environment.requireService(server)
         let targets = try await TorrentCatalog.targets([torrent], profile: profile, service: service)
         guard let target = targets.first else {
-            throw IntentError(message: "That torrent isn't on \(profile.label).")
+            throw IntentError(message: L10n.format("That torrent isn't on %@.", profile.label))
         }
         let stats = TorrentStatsEntity(torrent: target)
         return .result(value: stats, dialog: "\(stats.summary)")

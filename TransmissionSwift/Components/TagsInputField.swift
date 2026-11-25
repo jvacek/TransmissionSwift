@@ -78,9 +78,9 @@ struct TagsInputField: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(draftIsEmpty)
-                .accessibilityLabel("Add tag")
+                .accessibilityLabel(L10n.text("Add tag"))
 
-                TextField("Add tag…", text: $draft)
+                TextField(L10n.text("Add tag…"), text: $draft)
                     .textFieldStyle(.plain)
                     .focused($fieldFocused)
                     .onSubmit(commit)
@@ -110,7 +110,7 @@ struct TagsInputField: View {
         let rows = displayedSuggestions
         let list = VStack(alignment: .leading, spacing: 0) {
             if draftIsEmpty {
-                Text("Existing tags — type to filter")
+                Text(L10n.text("Existing tags — type to filter"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
@@ -213,7 +213,7 @@ private struct TagChip: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(color?.pillForeground ?? .secondary)
-            .accessibilityLabel("Remove tag \(tag)")
+            .accessibilityLabel(L10n.format("Remove tag %@", tag))
         }
         .font(.callout)
         .padding(.leading, 8)

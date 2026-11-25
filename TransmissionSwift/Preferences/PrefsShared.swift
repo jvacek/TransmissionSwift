@@ -16,9 +16,9 @@ import TransmissionTestSupport
 struct SessionNotConnectedView: View {
     var body: some View {
         ContentUnavailableView {
-            Label("Not Connected", systemImage: "bolt.horizontal")
+            Label(L10n.text("Not Connected"), systemImage: "bolt.horizontal")
         } description: {
-            Text("Connect to a server to change these settings.")
+            Text(L10n.text("Connect to a server to change these settings."))
         }
     }
 }
@@ -31,7 +31,7 @@ struct TurtleTimeRow: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Text("Active window")
+            Text(L10n.text("Active window"))
             Spacer()
             HStack(spacing: 2) {
                 TimeField(minutes: $begin)
@@ -73,10 +73,15 @@ struct TimeField: View {
 struct TurtleScheduleDays: View {
     @Binding var mask: Int
 
-    private let weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    private var weekdays: [String] {
+        [
+            L10n.text("Sun"), L10n.text("Mon"), L10n.text("Tue"), L10n.text("Wed"),
+            L10n.text("Thu"), L10n.text("Fri"), L10n.text("Sat"),
+        ]
+    }
 
     var body: some View {
-        LabeledContent("Active days") {
+        LabeledContent(L10n.text("Active days")) {
             HStack(spacing: 4) {
                 ForEach(0..<7) { day in
                     let bit = 1 << day

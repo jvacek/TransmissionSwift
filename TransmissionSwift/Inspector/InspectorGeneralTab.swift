@@ -30,7 +30,7 @@ struct InspectorGeneralTab: View {
 
     private var transferSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Transfer")
+            Text(L10n.text("Transfer"))
                 .font(.headline)
 
             ProgressBar(value: torrent.displayProgress, tint: Color(nsColor: torrent.progressNSColor))
@@ -51,22 +51,22 @@ struct InspectorGeneralTab: View {
 
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
                 GridRow {
-                    Text("State")
+                    Text(L10n.text("State"))
                         .foregroundStyle(.secondary)
                         .gridColumnAlignment(.trailing)
                     statusBadge
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                row("Download", ColumnFormatters.humanizedSpeed(torrent.downloadSpeed))
-                row("Upload", ColumnFormatters.humanizedSpeed(torrent.uploadSpeed))
-                row("Time left", ColumnFormatters.humanizedETA(torrent.eta, status: torrent.status))
-                row("Ratio", ColumnFormatters.ratio(torrent.ratio))
-                row("Peers", peersSummary)
-                row("Downloaded", ColumnFormatters.humanizedSize(torrent.downloadedEver))
-                row("Uploaded", ColumnFormatters.humanizedSize(torrent.uploadedEver))
+                row(L10n.text("Download"), ColumnFormatters.humanizedSpeed(torrent.downloadSpeed))
+                row(L10n.text("Upload"), ColumnFormatters.humanizedSpeed(torrent.uploadSpeed))
+                row(L10n.text("Time left"), ColumnFormatters.humanizedETA(torrent.eta, status: torrent.status))
+                row(L10n.text("Ratio"), ColumnFormatters.ratio(torrent.ratio))
+                row(L10n.text("Peers"), peersSummary)
+                row(L10n.text("Downloaded"), ColumnFormatters.humanizedSize(torrent.downloadedEver))
+                row(L10n.text("Uploaded"), ColumnFormatters.humanizedSize(torrent.uploadedEver))
                 row(
-                    "Last activity",
-                    torrent.lastActivityAt?.formatted(.relative(presentation: .named)) ?? "—")
+                    L10n.text("Last activity"),
+                    torrent.lastActivityAt.map { L10n.relativeDate($0, presentation: .named) } ?? "—")
             }
             .font(.callout)
             .padding(.top, 4)
@@ -76,28 +76,28 @@ struct InspectorGeneralTab: View {
     /// Immutable facts about the torrent itself — what the .torrent encodes.
     private var metadataSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Metadata")
+            Text(L10n.text("Metadata"))
                 .font(.headline)
 
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
                 nameRow
-                row("Size", ColumnFormatters.humanizedSize(torrent.size))
+                row(L10n.text("Size"), ColumnFormatters.humanizedSize(torrent.size))
                 row(
-                    "Pieces",
+                    L10n.text("Pieces"),
                     "\(torrent.pieces.formatted()) × \(ColumnFormatters.humanizedSize(torrent.pieceSize))")
-                row("Added", torrent.addedAt.formatted(date: .abbreviated, time: .shortened))
+                row(L10n.text("Added"), L10n.date(torrent.addedAt, date: .abbreviated, time: .shortened))
                 if let createdAt = torrent.createdAt {
                     row(
-                        "Created",
-                        createdAt.formatted(date: .abbreviated, time: .shortened))
+                        L10n.text("Created"),
+                        L10n.date(createdAt, date: .abbreviated, time: .shortened))
                 }
                 if let creator = torrent.creator {
-                    row("Creator", creator)
+                    row(L10n.text("Creator"), creator)
                 }
                 commentRow
-                row("Private", torrent.isPrivate ? "Yes" : "No")
+                row(L10n.text("Private"), torrent.isPrivate ? L10n.text("Yes") : L10n.text("No"))
                 magnetRow
-                row("Hash", torrent.hash, monospaced: true)
+                row(L10n.text("Hash"), torrent.hash, monospaced: true)
             }
             .font(.callout)
         }
@@ -106,7 +106,7 @@ struct InspectorGeneralTab: View {
     /// Where the data lives and how it's organized — mutable, action-adjacent.
     private var locationSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Location & Labels")
+            Text(L10n.text("Location & Labels"))
                 .font(.headline)
 
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
@@ -122,7 +122,7 @@ struct InspectorGeneralTab: View {
     /// Wraps instead of truncating: the name is the one value worth reading whole.
     private var nameRow: some View {
         GridRow(alignment: .firstTextBaseline) {
-            Text("Name")
+            Text(L10n.text("Name"))
                 .foregroundStyle(.secondary)
                 .gridColumnAlignment(.trailing)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -131,12 +131,12 @@ struct InspectorGeneralTab: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if store.actionsEnabled {
-                    Button("Rename…") {
+                    Button(L10n.text("Rename…")) {
                         store.openRenameTorrent(for: torrent.id)
                     }
                     .buttonStyle(.borderless)
                     .font(.caption)
-                    .accessibilityLabel("Rename torrent")
+                    .accessibilityLabel(L10n.text("Rename torrent"))
                 }
             }
         }
@@ -144,7 +144,7 @@ struct InspectorGeneralTab: View {
 
     private var locationRow: some View {
         GridRow {
-            Text("Location")
+            Text(L10n.text("Location"))
                 .foregroundStyle(.secondary)
                 .gridColumnAlignment(.trailing)
             HStack(spacing: 4) {
@@ -158,12 +158,12 @@ struct InspectorGeneralTab: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if store.actionsEnabled {
                     Spacer()
-                    Button("Set Location…") {
+                    Button(L10n.text("Set Location…")) {
                         store.openSetLocation(for: [torrent.id])
                     }
                     .buttonStyle(.borderless)
                     .font(.caption)
-                    .accessibilityLabel("Set location")
+                    .accessibilityLabel(L10n.text("Set location"))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -189,18 +189,25 @@ struct InspectorGeneralTab: View {
 
     private var progressCaption: String {
         let downloaded = Int64(Double(torrent.size) * torrent.progress)
-        return "\(ColumnFormatters.humanizedSize(downloaded)) of \(ColumnFormatters.humanizedSize(torrent.size))"
-            + " · \(torrent.havePieces.formatted()) of \(torrent.pieces.formatted()) pieces"
+        return L10n.format(
+            "%@ of %@ · %@ of %@ pieces",
+            ColumnFormatters.humanizedSize(downloaded),
+            ColumnFormatters.humanizedSize(torrent.size),
+            torrent.havePieces.formatted(),
+            torrent.pieces.formatted())
     }
 
     private var peersSummary: String {
-        "\(torrent.connectedPeerCount) connected of \(torrent.availablePeerCount)"
-            + " · \(torrent.seedCount) seeds"
+        L10n.format(
+            "%@ connected of %@ · %@ seeds",
+            torrent.connectedPeerCount.formatted(),
+            torrent.availablePeerCount.formatted(),
+            torrent.seedCount.formatted())
     }
 
     private var trackerRow: some View {
         GridRow {
-            Text("Tracker")
+            Text(L10n.text("Tracker"))
                 .foregroundStyle(.secondary)
                 .gridColumnAlignment(.trailing)
             LinkableText(text: torrent.primaryTracker)
@@ -215,7 +222,7 @@ struct InspectorGeneralTab: View {
 
     private var commentRow: some View {
         GridRow {
-            Text("Comment")
+            Text(L10n.text("Comment"))
                 .foregroundStyle(.secondary)
                 .gridColumnAlignment(.trailing)
             if let comment = torrent.comment, !comment.isEmpty {
@@ -234,7 +241,7 @@ struct InspectorGeneralTab: View {
 
     private var magnetRow: some View {
         GridRow {
-            Text("Magnet")
+            Text(L10n.text("Magnet"))
                 .foregroundStyle(.secondary)
                 .gridColumnAlignment(.trailing)
             if let magnet = torrent.magnetLink {
@@ -255,7 +262,7 @@ struct InspectorGeneralTab: View {
 
     private var labelsRow: some View {
         GridRow {
-            Text("Labels")
+            Text(L10n.text("Labels"))
                 .foregroundStyle(.secondary)
                 .gridColumnAlignment(.trailing)
             HStack(spacing: 4) {
@@ -269,12 +276,12 @@ struct InspectorGeneralTab: View {
                 }
                 if store.actionsEnabled && store.session.supportsLabels {
                     Spacer()
-                    Button("Edit…") {
+                    Button(L10n.text("Edit…")) {
                         store.openEditLabels(for: [torrent.id])
                     }
                     .buttonStyle(.borderless)
                     .font(.caption)
-                    .accessibilityLabel("Edit labels")
+                    .accessibilityLabel(L10n.text("Edit labels"))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -283,13 +290,13 @@ struct InspectorGeneralTab: View {
 
     private var priorityRow: some View {
         GridRow {
-            Text("Priority")
+            Text(L10n.text("Priority"))
                 .foregroundStyle(.secondary)
                 .gridColumnAlignment(.trailing)
             HStack(spacing: 6) {
                 Image(systemName: torrent.priority.systemImage)
                     .foregroundStyle(torrent.priority.displayColor)
-                Picker("Priority", selection: priorityBinding) {
+                Picker(L10n.text("Priority"), selection: priorityBinding) {
                     ForEach(TorrentPriority.allCases, id: \.self) { priority in
                         Text(priority.displayLabel).tag(priority)
                     }
@@ -300,7 +307,7 @@ struct InspectorGeneralTab: View {
                 .disabled(!store.actionsEnabled)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityLabel("Priority: \(torrent.priority.displayLabel)")
+            .accessibilityLabel(L10n.format("Priority: %@", torrent.priority.displayLabel))
         }
     }
 

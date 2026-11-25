@@ -26,17 +26,17 @@ struct RenameTorrentSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Rename Torrent")
+            Text(L10n.text("Rename Torrent"))
                 .font(.headline)
             if let current = currentName {
-                Text("“\(current)”")
+                Text(L10n.format("“%@”", current))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .truncationMode(.middle)
             }
 
-            TextField("Name", text: $newName, prompt: Text("New Name"))
+            TextField(L10n.text("Name"), text: $newName, prompt: Text(L10n.text("New Name")))
                 .textFieldStyle(.roundedBorder)
                 .disabled(isSaving)
                 .onSubmit { Task { await apply() } }
@@ -56,8 +56,8 @@ struct RenameTorrentSheet: View {
             }
 
             SheetButtonRow(
-                "Rename",
-                busyTitle: "Renaming…",
+                L10n.text("Rename"),
+                busyTitle: L10n.text("Renaming…"),
                 isBusy: isSaving,
                 canConfirm: canApply,
                 onCancel: { isPresented = false },
@@ -83,7 +83,7 @@ struct RenameTorrentSheet: View {
     /// Only a slash is worth explaining: an empty or unchanged name simply
     /// keeps Rename disabled, the way Finder behaves.
     private var validationError: String? {
-        trimmedName.contains("/") ? "The name can't contain “/”." : nil
+        trimmedName.contains("/") ? L10n.text("The name can't contain “/”.") : nil
     }
 
     private var canApply: Bool {
@@ -100,7 +100,7 @@ struct RenameTorrentSheet: View {
         if succeeded {
             isPresented = false
         } else {
-            saveError = store.lastActionError?.localizedDescription ?? "Failed to rename torrent."
+            saveError = store.lastActionError?.localizedDescription ?? L10n.text("Failed to rename torrent.")
             store.lastActionError = nil
         }
     }

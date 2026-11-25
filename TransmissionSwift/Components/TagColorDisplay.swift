@@ -7,6 +7,18 @@ import SwiftUI
 import TransmissionCore
 
 extension TagColor {
+    var localizedDisplayName: String {
+        switch self {
+        case .red: return L10n.text("Red")
+        case .orange: return L10n.text("Orange")
+        case .yellow: return L10n.text("Yellow")
+        case .green: return L10n.text("Green")
+        case .blue: return L10n.text("Blue")
+        case .purple: return L10n.text("Purple")
+        case .gray: return L10n.text("Gray")
+        }
+    }
+
     /// SwiftUI colour for dots, chips and swatches. System colours adapt to
     /// light/dark and mirror Finder's palette.
     var color: Color {
@@ -62,7 +74,7 @@ struct TagColorPickerMenu: View {
                 onPick(color)
             } label: {
                 Label {
-                    Text(color.displayName)
+                    Text(color.localizedDisplayName)
                 } icon: {
                     Image(nsImage: TagColorMenuImage.make(color: color, selected: current == color))
                 }
@@ -70,7 +82,7 @@ struct TagColorPickerMenu: View {
         }
         if current != nil {
             Divider()
-            Button("No Colour") { onPick(nil) }
+            Button(L10n.text("No Colour")) { onPick(nil) }
         }
     }
 }

@@ -104,15 +104,15 @@ struct AddTorrentSheet: View {
     /// known-folders list expand the sheet dynamically.
     private var sheetContent: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Add Torrent")
+            Text(L10n.text("Add Torrent"))
                 .font(.headline)
             modePicker
             sourceSection
             filesSection
             optionsSection
             SheetButtonRow(
-                "Add",
-                busyTitle: "Adding…",
+                L10n.text("Add"),
+                busyTitle: L10n.text("Adding…"),
                 isBusy: isAdding,
                 canConfirm: isValid,
                 onCancel: { isPresented = false },
@@ -167,7 +167,7 @@ struct AddTorrentSheet: View {
 
     private var fileSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            sourceLabel("Torrent File", systemImage: "doc.fill")
+            sourceLabel(L10n.text("Torrent File"), systemImage: "doc.fill")
             sourceBox(
                 HStack(spacing: 10) {
                     if let url = fileURL {
@@ -175,16 +175,16 @@ struct AddTorrentSheet: View {
                             .lineLimit(1)
                             .truncationMode(.middle)
                     } else {
-                        Label("No file selected", systemImage: "doc")
+                        Label(L10n.text("No file selected"), systemImage: "doc")
                             .foregroundStyle(.secondary)
                     }
                     if isLoadingFile {
                         ProgressView()
                             .controlSize(.small)
-                            .accessibilityLabel("Reading torrent file")
+                            .accessibilityLabel(L10n.text("Reading torrent file"))
                     }
                     Spacer()
-                    Button("Choose…") { showFileImporter = true }
+                    Button(L10n.text("Choose…")) { showFileImporter = true }
                         .buttonStyle(.glass)
                         .buttonBorderShape(.capsule)
                 }
@@ -194,9 +194,9 @@ struct AddTorrentSheet: View {
 
     private var linkSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            sourceLabel("Magnet Link or URL", systemImage: "link")
+            sourceLabel(L10n.text("Magnet Link or URL"), systemImage: "link")
             sourceBox(
-                TextField("magnet:… or https://…", text: $linkString)
+                TextField(L10n.text("magnet:… or https://…"), text: $linkString)
                     .textFieldStyle(.plain)
                     .monospaced()
                     .focused($focusedField, equals: .link)
@@ -221,7 +221,7 @@ struct AddTorrentSheet: View {
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
                             .rotationEffect(.degrees(filesExpanded ? 90 : 0))
-                        sourceLabel("Files", systemImage: "doc.on.doc")
+                        sourceLabel(L10n.text("Files"), systemImage: "doc.on.doc")
                         Spacer()
                         Text(selectionSummary)
                             .font(.caption)
@@ -230,18 +230,18 @@ struct AddTorrentSheet: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(filesExpanded ? "Hide files" : "Show files")
-                .accessibilityValue(filesExpanded ? "Expanded" : "Collapsed")
-                .help(filesExpanded ? "Hide the file list" : "Show the file list")
+                .accessibilityLabel(filesExpanded ? L10n.text("Hide files") : L10n.text("Show files"))
+                .accessibilityValue(filesExpanded ? L10n.text("Expanded") : L10n.text("Collapsed"))
+                .help(filesExpanded ? L10n.text("Hide the file list") : L10n.text("Show the file list"))
 
                 if filesExpanded {
                     VStack(spacing: 6) {
                         HStack(spacing: 8) {
                             fileFilterField
                             HStack(spacing: 6) {
-                                Button("Download All") { setAllWanted(true) }
+                                Button(L10n.text("Download All")) { setAllWanted(true) }
                                 Divider().frame(height: 12)
-                                Button("None") { setAllWanted(false) }
+                                Button(L10n.text("None")) { setAllWanted(false) }
                             }
                             .buttonStyle(.borderless)
                             .controlSize(.small)
@@ -252,7 +252,7 @@ struct AddTorrentSheet: View {
                         }
 
                         if filteredFileIndices.isEmpty {
-                            Text("No files match the filter.")
+                            Text(L10n.text("No files match the filter."))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity)
@@ -269,7 +269,7 @@ struct AddTorrentSheet: View {
                     }
 
                     if !addFiles.isEmpty, wantedFiles.isEmpty {
-                        Text("No files selected. The torrent will be added with every file skipped.")
+                        Text(L10n.text("No files selected. The torrent will be added with every file skipped."))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -369,15 +369,15 @@ struct AddTorrentSheet: View {
     /// selected, so the checkbox and priority are the primary per-file controls.
     private var fileBulkActions: some View {
         HStack(spacing: 8) {
-            Text("\(selectedTargetFileIndices.count) files selected")
+            Text(L10n.format("%lld files selected", Int64(selectedTargetFileIndices.count)))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
             Spacer()
             HStack(spacing: 6) {
-                Button("Download") { setWanted(true, for: selectedTargetFileIndices) }
+                Button(L10n.text("Download")) { setWanted(true, for: selectedTargetFileIndices) }
                 Divider().frame(height: 12)
-                Button("Skip") { setWanted(false, for: selectedTargetFileIndices) }
-                Menu("Priority") {
+                Button(L10n.text("Skip")) { setWanted(false, for: selectedTargetFileIndices) }
+                Menu(L10n.text("Priority")) {
                     priorityMenuItems(ids: selectedTargetFileIndices)
                 }
                 .menuStyle(.borderlessButton)
@@ -392,7 +392,7 @@ struct AddTorrentSheet: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Clear selection")
+            .accessibilityLabel(L10n.text("Clear selection"))
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
@@ -421,10 +421,10 @@ struct AddTorrentSheet: View {
         let ids =
             selectedNodeIDs.contains(node.id)
             ? selectedTargetFileIndices : Set(node.fileIndices)
-        Button("Download") { setWanted(true, for: ids) }
-        Button("Skip") { setWanted(false, for: ids) }
+        Button(L10n.text("Download")) { setWanted(true, for: ids) }
+        Button(L10n.text("Skip")) { setWanted(false, for: ids) }
         Divider()
-        Menu("Priority") {
+        Menu(L10n.text("Priority")) {
             priorityMenuItems(ids: ids)
         }
     }
@@ -433,7 +433,7 @@ struct AddTorrentSheet: View {
     /// rounded field has no clear affordance on macOS.
     private var fileFilterField: some View {
         HStack(spacing: 4) {
-            TextField("Filter Files", text: $fileFilter)
+            TextField(L10n.text("Filter Files"), text: $fileFilter)
                 .textFieldStyle(.roundedBorder)
             if !fileFilter.isEmpty {
                 Button {
@@ -443,7 +443,7 @@ struct AddTorrentSheet: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Clear file filter")
+                .accessibilityLabel(L10n.text("Clear file filter"))
             }
         }
     }
@@ -472,7 +472,7 @@ struct AddTorrentSheet: View {
         VStack(alignment: .leading, spacing: 10) {
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
                 GridRow(alignment: .top) {
-                    Text("Destination")
+                    Text(L10n.text("Destination"))
                     ServerPathField(
                         path: $destination,
                         defaultDirectory: store.list.downloadDirectory,
@@ -482,25 +482,27 @@ struct AddTorrentSheet: View {
                 }
                 Divider().gridCellColumns(2)
                 GridRow {
-                    Text("Tags")
+                    Text(L10n.text("Tags"))
                     TagsInputField(tags: $tags, suggestions: store.list.facets.labels.map(\.name))
                         .help(
-                            "Type a tag and press Return to add it, or pick an existing one from the list that appears."
+                            L10n.text(
+                                "Type a tag and press Return to add it, or pick an existing one from the list that appears."
+                            )
                         )
                 }
                 Divider().gridCellColumns(2)
                 GridRow {
-                    Text("Priority")
+                    Text(L10n.text("Priority"))
                     prioritySegments
                 }
             }
             Divider()
-            fullWidthToggle("Start when added", isOn: $startWhenAdded)
+            fullWidthToggle(L10n.text("Start when added"), isOn: $startWhenAdded)
             // Links have no local file, so the cleanup option only makes
             // sense (and only shows) for file adds.
             if mode == .file {
                 Divider()
-                fullWidthToggle("Delete .torrent file after adding", isOn: $deleteSourceFile)
+                fullWidthToggle(L10n.text("Delete .torrent file after adding"), isOn: $deleteSourceFile)
             }
             if let saveError {
                 Divider()
@@ -615,7 +617,7 @@ struct AddTorrentSheet: View {
 
     private var selectionSummary: String {
         let size = ColumnFormatters.humanizedSize(wantedFiles.reduce(0) { $0 + $1.length })
-        return "\(wantedFiles.count) of \(addFiles.count) files, \(size)"
+        return L10n.format("%lld of %lld files, %@", Int64(wantedFiles.count), Int64(addFiles.count), size)
     }
 
     private func setAllWanted(_ wanted: Bool) {
@@ -646,7 +648,7 @@ struct AddTorrentSheet: View {
     }
 
     private static func priorityAccessibilityLabel(_ level: TorrentPriority) -> String {
-        "Priority \(level.displayLabel)"
+        L10n.format("Priority %@", level.displayLabel)
     }
 
     /// Priority, keeping its glyphs visible.
@@ -711,7 +713,7 @@ struct AddTorrentSheet: View {
         if succeeded {
             isPresented = false
         } else {
-            saveError = store.lastActionError?.localizedDescription ?? "Failed to add torrent."
+            saveError = store.lastActionError?.localizedDescription ?? L10n.text("Failed to add torrent.")
             store.lastActionError = nil
         }
     }
@@ -724,8 +726,8 @@ extension UTType {
 extension AddTorrentInputMode {
     fileprivate var label: String {
         switch self {
-        case .file: "File"
-        case .link: "Magnet / URL"
+        case .file: L10n.text("File")
+        case .link: L10n.text("Magnet / URL")
         }
     }
 }

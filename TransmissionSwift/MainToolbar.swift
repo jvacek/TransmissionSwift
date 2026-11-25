@@ -38,19 +38,19 @@ private struct AddToolbarGroup: ToolbarContent {
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
-            Button("Add", systemImage: "plus") {
+            Button(L10n.text("Add"), systemImage: "plus") {
                 store.openAddSheet()
             }
             .disabled(!store.actionsEnabled)
-            .help("Add torrent file")
+            .help(L10n.text("Add torrent file"))
             .accessibilityIdentifier("toolbar.add")
         }
         ToolbarItem(placement: .primaryAction) {
-            Button("Add Link", systemImage: "link") {
+            Button(L10n.text("Add Link"), systemImage: "link") {
                 store.openAddSheet(mode: .link)
             }
             .disabled(!store.actionsEnabled)
-            .help("Add magnet link or URL")
+            .help(L10n.text("Add magnet link or URL"))
             .accessibilityIdentifier("toolbar.addLink")
         }
     }
@@ -64,38 +64,38 @@ private struct SelectionToolbarGroup: ToolbarContent {
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
-            Button("Resume", systemImage: "play.fill") {
+            Button(L10n.text("Resume"), systemImage: "play.fill") {
                 Task { await store.actions.start(Array(store.list.selectedTorrentIDs)) }
             }
             .disabled(!store.actionsEnabled || !store.list.selectionStartStop.canStart)
-            .help("Resume selected torrents")
+            .help(L10n.text("Resume selected torrents"))
             .accessibilityIdentifier("toolbar.resume")
         }
         .visibilityPriority(.low)
         ToolbarItem(placement: .primaryAction) {
-            Button("Pause", systemImage: "pause.fill") {
+            Button(L10n.text("Pause"), systemImage: "pause.fill") {
                 Task { await store.actions.stop(Array(store.list.selectedTorrentIDs)) }
             }
             .disabled(!store.actionsEnabled || !store.list.selectionStartStop.canStop)
-            .help("Pause selected torrents")
+            .help(L10n.text("Pause selected torrents"))
             .accessibilityIdentifier("toolbar.pause")
         }
         .visibilityPriority(.low)
         ToolbarItem(placement: .primaryAction) {
-            Button("Remove", systemImage: "trash", role: .destructive) {
+            Button(L10n.text("Remove"), systemImage: "trash", role: .destructive) {
                 store.actions.requestRemove(Array(store.list.selectedTorrentIDs))
             }
             .disabled(!store.actionsEnabled || store.list.selectedTorrentIDs.isEmpty)
-            .help("Remove selected torrents")
+            .help(L10n.text("Remove selected torrents"))
             .accessibilityIdentifier("toolbar.remove")
         }
         .visibilityPriority(.low)
         ToolbarItem(placement: .primaryAction) {
-            Button("Set Location", systemImage: "folder") {
+            Button(L10n.text("Set Location"), systemImage: "folder") {
                 store.openSetLocation(for: Array(store.list.selectedTorrentIDs))
             }
             .disabled(!store.actionsEnabled || store.list.selectedTorrentIDs.isEmpty)
-            .help("Set download location for selected torrents")
+            .help(L10n.text("Set download location for selected torrents"))
             .accessibilityIdentifier("toolbar.setLocation")
         }
         .visibilityPriority(.low)
@@ -115,7 +115,9 @@ struct InspectorToggle: ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             if shows {
                 // Same wording as the View menu item.
-                let title = store.inspector.isVisible ? "Hide Inspector" : "Show Inspector"
+                let title =
+                    store.inspector.isVisible
+                    ? L10n.text("Hide Inspector") : L10n.text("Show Inspector")
                 Button(title, systemImage: "sidebar.right") {
                     store.inspector.isVisible.toggle()
                 }
@@ -157,8 +159,8 @@ private struct ToolbarSearchField: View {
                 }
                 .frame(width: 220)
             } else {
-                Button("Search", systemImage: "magnifyingglass") { open() }
-                    .help("Search torrents")
+                Button(L10n.text("Search"), systemImage: "magnifyingglass") { open() }
+                    .help(L10n.text("Search torrents"))
                     .accessibilityIdentifier("toolbar.searchButton")
             }
         }
@@ -187,7 +189,7 @@ private struct SearchFieldView: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSSearchField {
         let field = NSSearchField()
-        field.placeholderString = "Search torrents"
+        field.placeholderString = L10n.text("Search torrents")
         field.sendsSearchStringImmediately = true
         field.delegate = context.coordinator
         field.setAccessibilityIdentifier("toolbar.search")

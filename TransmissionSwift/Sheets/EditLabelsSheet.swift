@@ -26,7 +26,7 @@ struct EditLabelsSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Edit Labels")
+            Text(L10n.text("Edit Labels"))
                 .font(.headline)
             Text(subtitle)
                 .font(.caption)
@@ -44,8 +44,8 @@ struct EditLabelsSheet: View {
             }
 
             SheetButtonRow(
-                "Apply",
-                busyTitle: "Applying…",
+                L10n.text("Apply"),
+                busyTitle: L10n.text("Applying…"),
                 isBusy: isSaving,
                 canConfirm: canApply,
                 onCancel: { isPresented = false },
@@ -108,7 +108,9 @@ struct EditLabelsSheet: View {
     }
 
     private var subtitle: String {
-        ids.count == 1 ? "1 torrent selected" : "\(ids.count) torrents selected"
+        ids.count == 1
+            ? L10n.text("1 torrent selected")
+            : L10n.format("%lld torrents selected", Int64(ids.count))
     }
 
     private func apply() async {
@@ -121,7 +123,7 @@ struct EditLabelsSheet: View {
         for update in updates {
             let succeeded = await store.actions.setLabels(update.ids, labels: update.labels)
             if !succeeded {
-                saveError = store.lastActionError?.localizedDescription ?? "Failed to update labels."
+                saveError = store.lastActionError?.localizedDescription ?? L10n.text("Failed to update labels.")
                 store.lastActionError = nil
                 return
             }

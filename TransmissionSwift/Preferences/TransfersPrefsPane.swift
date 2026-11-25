@@ -15,62 +15,73 @@ struct TransfersPrefsPane: View {
         if store.isConnected {
             Form {
                 Section {
-                    LabeledContent("Default folder") {
+                    LabeledContent(L10n.text("Default folder")) {
                         TextField("", text: stringBinding(\.downloadDirectory))
                             .monospaced()
                             .multilineTextAlignment(.trailing)
                     }
                 } header: {
-                    Text("Downloads")
+                    Text(L10n.text("Downloads"))
                 } footer: {
-                    Text("On the server's disk — where new torrents land unless given another destination.")
+                    Text(
+                        L10n.text(
+                            "On the server's disk — where new torrents land unless given another destination."))
                 }
 
                 Section {
-                    Toggle("Honour seeding ratio by default", isOn: boolBinding(\.seedRatioLimited))
+                    Toggle(
+                        L10n.text("Honour seeding ratio by default"),
+                        isOn: boolBinding(\.seedRatioLimited))
                     if store.session.effectiveSessionSettings.seedRatioLimited {
-                        LabeledContent("Stop at ratio") {
+                        LabeledContent(L10n.text("Stop at ratio")) {
                             plainCell(
                                 TextField(
                                     "", value: ratioBinding,
                                     format: .number.precision(.fractionLength(1))))
                         }
                     }
-                    Toggle("Honour idle seeding by default", isOn: boolBinding(\.idleSeedingLimitEnabled))
+                    Toggle(
+                        L10n.text("Honour idle seeding by default"),
+                        isOn: boolBinding(\.idleSeedingLimitEnabled))
                     if store.session.effectiveSessionSettings.idleSeedingLimitEnabled {
-                        LabeledContent("Stop after") {
+                        LabeledContent(L10n.text("Stop after")) {
                             unitCell(
                                 TextField("", value: intBinding(\.idleSeedingLimitMinutes), format: .number),
-                                unit: "min")
+                                unit: L10n.text("min"))
                         }
                     }
                 } header: {
-                    Text("Global Seeding Defaults")
+                    Text(L10n.text("Global Seeding Defaults"))
                 } footer: {
-                    Text("The defaults applied to torrents set to “use global”.")
+                    Text(L10n.text("The defaults applied to torrents set to “use global”."))
                 }
 
                 Section {
-                    Toggle("Limit simultaneous downloads", isOn: boolBinding(\.downloadQueueEnabled))
+                    Toggle(
+                        L10n.text("Limit simultaneous downloads"),
+                        isOn: boolBinding(\.downloadQueueEnabled))
                     if store.session.effectiveSessionSettings.downloadQueueEnabled {
-                        queueSizeRow(label: "Download queue", keyPath: \.downloadQueueSize)
+                        queueSizeRow(
+                            label: L10n.text("Download queue"), keyPath: \.downloadQueueSize)
                     }
-                    Toggle("Limit simultaneous seeds", isOn: boolBinding(\.seedQueueEnabled))
+                    Toggle(L10n.text("Limit simultaneous seeds"), isOn: boolBinding(\.seedQueueEnabled))
                     if store.session.effectiveSessionSettings.seedQueueEnabled {
-                        queueSizeRow(label: "Seed queue", keyPath: \.seedQueueSize)
+                        queueSizeRow(label: L10n.text("Seed queue"), keyPath: \.seedQueueSize)
                     }
-                    Toggle("Treat idle torrents as stalled", isOn: boolBinding(\.queueStalledEnabled))
+                    Toggle(
+                        L10n.text("Treat idle torrents as stalled"),
+                        isOn: boolBinding(\.queueStalledEnabled))
                     if store.session.effectiveSessionSettings.queueStalledEnabled {
-                        LabeledContent("Stalled after") {
+                        LabeledContent(L10n.text("Stalled after")) {
                             unitCell(
                                 TextField("", value: intBinding(\.queueStalledMinutes), format: .number),
-                                unit: "min")
+                                unit: L10n.text("min"))
                         }
                     }
                 } header: {
-                    Text("Queue")
+                    Text(L10n.text("Queue"))
                 } footer: {
-                    Text("How many torrents transfer at once; stalled ones don't use a slot.")
+                    Text(L10n.text("How many torrents transfer at once; stalled ones don't use a slot."))
                 }
             }
             .formStyle(.grouped)

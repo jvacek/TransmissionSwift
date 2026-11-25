@@ -12,90 +12,99 @@ enum OpenMappingPlaceholders {
     /// Single source of truth for the template placeholders: drives both the
     /// "Insert placeholder" menu and the reference popover, so the two can't
     /// drift apart.
-    static let groups: [PlaceholderGroup] = [
-        PlaceholderGroup(
-            title: "File",
-            items: [
-                PlaceholderItem(
-                    token: "{file}",
-                    summary:
-                        "The file or folder being opened, relative to the folder the torrent is saved under."
-                ),
-                PlaceholderItem(
-                    token: "{fileAbsolute}",
-                    summary:
-                        "Same as {file}, but prefixed with the torrent's full download folder (absolute path)."
-                ),
-            ]
-        ),
-        PlaceholderGroup(
-            title: "Torrent",
-            items: [
-                PlaceholderItem(
-                    token: "{folder}",
-                    summary:
-                        "The folder the torrent is saved under, relative to the daemon's default download folder."
-                ),
-                PlaceholderItem(token: "{path}", summary: "The torrent's full download folder."),
-            ]
-        ),
-        PlaceholderGroup(
-            title: "Server",
-            items: [
-                PlaceholderItem(token: "{host}", summary: "Server host."),
-                PlaceholderItem(token: "{port}", summary: "Server port."),
-                PlaceholderItem(token: "{user}", summary: "Server username (empty when unset)."),
-                PlaceholderItem(
-                    token: "{password}",
-                    summary:
-                        "Raw password; avoid when it can contain / or %. Prefer {password-encoded}."),
-                PlaceholderItem(
-                    token: "{password-encoded}",
-                    summary: "Percent-encoded password, safe to embed for basic auth."),
-                PlaceholderItem(
-                    token: "{download-dir}", summary: "The daemon's default download folder."),
-            ]
-        ),
-    ]
-
-    static let presets:
-        [(label: String, defaultName: String, template: String, action: OpenMappingAction, explanation: String)] = [
-            (
-                "Reveal in Finder (from local daemon)",
-                "Finder",
-                "file:///{download-dir}/{folder}/{file}",
-                .finder,
-                "The daemon runs on this Mac — reveal the torrent's file or folder in Finder."
+    static var groups: [PlaceholderGroup] {
+        [
+            PlaceholderGroup(
+                title: L10n.text("File"),
+                items: [
+                    PlaceholderItem(
+                        token: "{file}",
+                        summary:
+                            L10n.text(
+                                "The file or folder being opened, relative to the folder the torrent is saved under.")
+                    ),
+                    PlaceholderItem(
+                        token: "{fileAbsolute}",
+                        summary:
+                            L10n.text(
+                                "Same as {file}, but prefixed with the torrent's full download folder (absolute path).")
+                    ),
+                ]
             ),
-            (
-                "Reveal in Finder (mounted volume)",
-                "Finder",
-                "file:///Volumes/transmission/{folder}/{file}",
-                .finder,
-                "The daemon's download folder is mounted on this Mac — reveal the file or folder in Finder."
+            PlaceholderGroup(
+                title: L10n.text("Torrent"),
+                items: [
+                    PlaceholderItem(
+                        token: "{folder}",
+                        summary:
+                            L10n.text(
+                                "The folder the torrent is saved under, relative to the daemon's default download folder."
+                            )
+                    ),
+                    PlaceholderItem(token: "{path}", summary: L10n.text("The torrent's full download folder.")),
+                ]
             ),
-            (
-                "Open with default app",
-                "Default app",
-                "file:///{fileAbsolute}",
-                .open,
-                "Open the file with its default macOS app (e.g. Music for mp3, TextEdit for txt)."
-            ),
-            (
-                "Open in Cyberduck",
-                "Cyberduck",
-                "sftp://{user}@{host}/{fileAbsolute}",
-                .open,
-                "Open the file or download folder over SFTP in Cyberduck."
-            ),
-            (
-                "Open in Swizzin web",
-                "Swizzin Web",
-                "https://{user}:{password-encoded}@{host}/transmission.downloads/{folder}/{file}",
-                .open,
-                "Open the file in swizzin's web downloads view (basic auth)."
+            PlaceholderGroup(
+                title: L10n.text("Server"),
+                items: [
+                    PlaceholderItem(token: "{host}", summary: L10n.text("Server host.")),
+                    PlaceholderItem(token: "{port}", summary: L10n.text("Server port.")),
+                    PlaceholderItem(token: "{user}", summary: L10n.text("Server username (empty when unset).")),
+                    PlaceholderItem(
+                        token: "{password}",
+                        summary:
+                            L10n.text("Raw password; avoid when it can contain / or %. Prefer {password-encoded}.")),
+                    PlaceholderItem(
+                        token: "{password-encoded}",
+                        summary: L10n.text("Percent-encoded password, safe to embed for basic auth.")),
+                    PlaceholderItem(
+                        token: "{download-dir}", summary: L10n.text("The daemon's default download folder.")),
+                ]
             ),
         ]
+    }
+
+    static var presets:
+        [(label: String, defaultName: String, template: String, action: OpenMappingAction, explanation: String)]
+    {
+        [
+            (
+                L10n.text("Reveal in Finder (from local daemon)"),
+                L10n.text("Finder"),
+                "file:///{download-dir}/{folder}/{file}",
+                .finder,
+                L10n.text("The daemon runs on this Mac — reveal the torrent's file or folder in Finder.")
+            ),
+            (
+                L10n.text("Reveal in Finder (mounted volume)"),
+                L10n.text("Finder"),
+                "file:///Volumes/transmission/{folder}/{file}",
+                .finder,
+                L10n.text("The daemon's download folder is mounted on this Mac — reveal the file or folder in Finder.")
+            ),
+            (
+                L10n.text("Open with default app"),
+                L10n.text("Default app"),
+                "file:///{fileAbsolute}",
+                .open,
+                L10n.text("Open the file with its default macOS app (e.g. Music for mp3, TextEdit for txt).")
+            ),
+            (
+                L10n.text("Open in Cyberduck"),
+                L10n.text("Cyberduck"),
+                "sftp://{user}@{host}/{fileAbsolute}",
+                .open,
+                L10n.text("Open the file or download folder over SFTP in Cyberduck.")
+            ),
+            (
+                L10n.text("Open in Swizzin web"),
+                L10n.text("Swizzin Web"),
+                "https://{user}:{password-encoded}@{host}/transmission.downloads/{folder}/{file}",
+                .open,
+                L10n.text("Open the file in swizzin's web downloads view (basic auth).")
+            ),
+        ]
+    }
 }
 
 /// One selectable template placeholder with its one-line documentation.
@@ -140,13 +149,13 @@ struct PlaceholderReferenceView: View {
                 }
                 Divider()
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("How {file} resolves")
+                    Text(L10n.text("How {file} resolves"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    Text("Torrent list · single file → the file itself, e.g. myfile.txt")
-                    Text("Torrent list · multi-file → the torrent's folder, e.g. Series1/")
-                    Text("Files tab · one file selected → that file, e.g. Series1/Episode1")
-                    Text("{fileAbsolute} is the same path, prefixed with the torrent's download folder.")
+                    Text(L10n.text("Torrent list · single file → the file itself, e.g. myfile.txt"))
+                    Text(L10n.text("Torrent list · multi-file → the torrent's folder, e.g. Series1/"))
+                    Text(L10n.text("Files tab · one file selected → that file, e.g. Series1/Episode1"))
+                    Text(L10n.text("{fileAbsolute} is the same path, prefixed with the torrent's download folder."))
                 }
                 .font(.caption)
             }

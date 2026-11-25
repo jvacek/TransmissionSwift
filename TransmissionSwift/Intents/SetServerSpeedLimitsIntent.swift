@@ -34,7 +34,7 @@ struct SetServerSpeedLimitsIntent: AppIntent {
         let environment = try AppEnvironment.require()
         let (profile, service) = try environment.requireService(server)
         guard let mutations = service.mutations else {
-            throw IntentError(message: "This server is read-only.")
+            throw IntentError(message: L10n.text("This server is read-only."))
         }
 
         var patch = SessionSettingsPatch()
@@ -43,15 +43,15 @@ struct SetServerSpeedLimitsIntent: AppIntent {
         patch.upLimited = uploadLimited
         patch.upLimitKBps = uploadLimitKBps
         guard !patch.isEmpty else {
-            throw IntentError(message: "No speed-limit changes were specified.")
+            throw IntentError(message: L10n.text("No speed-limit changes were specified."))
         }
         // Enabling a limit without a value would leave the daemon at 0 KB/s
         // (blocked, not unlimited), so require the value.
         if downloadLimited == true, downloadLimitKBps == nil {
-            throw IntentError(message: "Set a download limit value, or turn the download limit off.")
+            throw IntentError(message: L10n.text("Set a download limit value, or turn the download limit off."))
         }
         if uploadLimited == true, uploadLimitKBps == nil {
-            throw IntentError(message: "Set an upload limit value, or turn the upload limit off.")
+            throw IntentError(message: L10n.text("Set an upload limit value, or turn the upload limit off."))
         }
 
         do {
@@ -59,6 +59,6 @@ struct SetServerSpeedLimitsIntent: AppIntent {
         } catch {
             throw IntentError(message: error.localizedDescription)
         }
-        return .result(dialog: "Updated speed limits on \(profile.label).")
+        return .result(dialog: "\(L10n.format("Updated speed limits on %@.", profile.label))")
     }
 }

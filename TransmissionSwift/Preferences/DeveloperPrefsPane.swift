@@ -47,9 +47,11 @@ struct DeveloperPrefsPane: View {
         Form {
             Section {
                 VStack(alignment: .leading, spacing: 6) {
-                    Label("Snapshots", systemImage: "camera")
+                    Label(L10n.text("Snapshots"), systemImage: "camera")
                     Text(
-                        "Snapshot the connected daemon's state into one JSON file for bug reports or AI agents. Torrent names are kept so you can refer to specific torrents; tracker hosts, peer IPs, paths, and timestamps are scrubbed by default."
+                        L10n.text(
+                            "Snapshot the connected daemon's state into one JSON file for bug reports or AI agents. Torrent names are kept so you can refer to specific torrents; tracker hosts, peer IPs, paths, and timestamps are scrubbed by default."
+                        )
                     )
                     .foregroundStyle(.secondary)
                     .font(.callout)
@@ -58,31 +60,35 @@ struct DeveloperPrefsPane: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             Section {
-                Toggle("Only capture torrents visible with current filters", isOn: $respectFilters)
-                Toggle("Limit torrent count", isOn: $limitEnabled)
+                Toggle(L10n.text("Only capture torrents visible with current filters"), isOn: $respectFilters)
+                Toggle(L10n.text("Limit torrent count"), isOn: $limitEnabled)
                 if limitEnabled {
-                    LabeledContent("Max torrents") {
+                    LabeledContent(L10n.text("Max torrents")) {
                         TextField("", value: $limitValue, format: .number)
                             .frame(width: 52)
                     }
                 }
             } header: {
-                Text("Scope")
+                Text(L10n.text("Scope"))
             } footer: {
                 Text(
-                    "Defaults capture the 10 torrents you're currently looking at (filters + sort order). Turn both off to capture everything."
+                    L10n.text(
+                        "Defaults capture the 10 torrents you're currently looking at (filters + sort order). Turn both off to capture everything."
+                    )
                 )
             }
             Section {
-                Toggle("Include torrent names", isOn: $includeNames)
-                Toggle("Anonymize tracker names", isOn: $anonymizeTrackers)
-                Toggle("Include infohashes", isOn: $includeHashes)
-                Toggle("Preserve timestamps", isOn: $preserveTimestamps)
+                Toggle(L10n.text("Include torrent names"), isOn: $includeNames)
+                Toggle(L10n.text("Anonymize tracker names"), isOn: $anonymizeTrackers)
+                Toggle(L10n.text("Include infohashes"), isOn: $includeHashes)
+                Toggle(L10n.text("Preserve timestamps"), isOn: $preserveTimestamps)
             } header: {
-                Text("Anonymization")
+                Text(L10n.text("Anonymization"))
             } footer: {
                 Text(
-                    "Names are kept so you can point at a specific torrent. Tracker hosts are fuzzed by default — turn off to keep them real (passkeys are always stripped). Infohashes and timestamps are fuzzed/shifted unless enabled."
+                    L10n.text(
+                        "Names are kept so you can point at a specific torrent. Tracker hosts are fuzzed by default — turn off to keep them real (passkeys are always stripped). Infohashes and timestamps are fuzzed/shifted unless enabled."
+                    )
                 )
             }
             Section {
@@ -96,7 +102,7 @@ struct DeveloperPrefsPane: View {
                         } else {
                             Image(systemName: "camera.fill")
                         }
-                        Text(isCapturing ? "Capturing…" : "Capture Snapshot…")
+                        Text(isCapturing ? L10n.text("Capturing…") : L10n.text("Capture Snapshot…"))
                     }
                 }
                 .disabled(isCapturing || !isConnected)
@@ -104,8 +110,8 @@ struct DeveloperPrefsPane: View {
             } footer: {
                 Text(
                     isConnected
-                        ? "Captures the currently connected server's state."
-                        : "Connect to a server first — capture needs a live connection."
+                        ? L10n.text("Captures the currently connected server's state.")
+                        : L10n.text("Connect to a server first — capture needs a live connection.")
                 )
             }
         }
@@ -115,13 +121,17 @@ struct DeveloperPrefsPane: View {
             switch result {
             case .saved(let url, let capture):
                 Alert(
-                    title: Text("Snapshot Saved"),
+                    title: Text(L10n.text("Snapshot Saved")),
                     message: Text(
-                        "Captured \(capture.torrentCount) of \(torrentStore.list.torrents.count) torrents from \(torrentStore.list.downloadDirectory ?? "the connected server").\n\(capture.summary.summaryText)\n\n\(url.path)"
+                        L10n.format(
+                            "Captured %lld of %lld torrents from %@.\n%@\n\n%@", Int64(capture.torrentCount),
+                            Int64(torrentStore.list.torrents.count),
+                            torrentStore.list.downloadDirectory ?? L10n.text("the connected server"),
+                            capture.summary.summaryText, url.path)
                     )
                 )
             case .failed(let message):
-                Alert(title: Text("Capture Failed"), message: Text(message))
+                Alert(title: Text(L10n.text("Capture Failed")), message: Text(message))
             }
         }
     }
@@ -133,7 +143,7 @@ struct DeveloperPrefsPane: View {
 
     private func captureSnapshot() {
         let panel = NSSavePanel()
-        panel.title = "Save Snapshot"
+        panel.title = L10n.text("Save Snapshot")
         panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = Self.defaultSnapshotName()
         panel.canCreateDirectories = true

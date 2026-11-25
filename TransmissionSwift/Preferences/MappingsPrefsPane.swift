@@ -24,7 +24,7 @@ struct MappingsPrefsPane: View {
         Form {
             Section {
                 if mappingStore.mappings.isEmpty {
-                    Text("No mappings yet.")
+                    Text(L10n.text("No mappings yet."))
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(mappingStore.mappings) { mapping in
@@ -35,22 +35,22 @@ struct MappingsPrefsPane: View {
                 Button {
                     editingModel = MappingEditorModel(existing: nil)
                 } label: {
-                    Label("Add Mapping…", systemImage: "plus")
+                    Label(L10n.text("Add Mapping…"), systemImage: "plus")
                 }
                 .buttonStyle(.borderless)
             } header: {
-                Text("File Mappings")
+                Text(L10n.text("File Mappings"))
             }
         }
         .formStyle(.grouped)
         .alert(
-            "Couldn't Update Mappings",
+            L10n.text("Couldn't Update Mappings"),
             isPresented: Binding(
                 get: { saveError != nil },
                 set: { if !$0 { saveError = nil } }
             )
         ) {
-            Button("OK") { saveError = nil }
+            Button(L10n.text("OK")) { saveError = nil }
         } message: {
             Text(saveError ?? "")
         }
@@ -89,17 +89,17 @@ struct MappingsPrefsPane: View {
                 })
         }
         .confirmationDialog(
-            "Remove Mapping?",
+            L10n.text("Remove Mapping?"),
             isPresented: Binding(
                 get: { pendingRemoval != nil },
                 set: { if !$0 { pendingRemoval = nil } }
             ),
             presenting: pendingRemoval
         ) { mapping in
-            Button("Remove", role: .destructive) { remove(mapping) }
-            Button("Cancel", role: .cancel) {}
+            Button(L10n.text("Remove"), role: .destructive) { remove(mapping) }
+            Button(L10n.text("Cancel"), role: .cancel) {}
         } message: { mapping in
-            Text("“\(mapping.name)” will be deleted. This can't be undone.")
+            Text(L10n.format("“%@” will be deleted. This can't be undone.", mapping.name))
         }
     }
 
@@ -125,16 +125,16 @@ struct MappingsPrefsPane: View {
                 Image(systemName: "info.circle")
             }
             .buttonStyle(.borderless)
-            .help("Mapping Details")
-            .accessibilityLabel("Details for \(mapping.name)")
+            .help(L10n.text("Mapping Details"))
+            .accessibilityLabel(L10n.format("Details for %@", mapping.name))
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { edit(mapping) }
         .contextMenu {
-            Button("Edit…") { edit(mapping) }
-            Button("Duplicate") { duplicate(mapping) }
+            Button(L10n.text("Edit…")) { edit(mapping) }
+            Button(L10n.text("Duplicate")) { duplicate(mapping) }
             Divider()
-            Button("Remove…", role: .destructive) { pendingRemoval = mapping }
+            Button(L10n.text("Remove…"), role: .destructive) { pendingRemoval = mapping }
         }
     }
 
@@ -146,7 +146,7 @@ struct MappingsPrefsPane: View {
     private func duplicate(_ mapping: OpenMapping) -> OpenMapping? {
         var copy = mapping
         copy.id = UUID()
-        copy.name = "\(mapping.name) (Copy)"
+        copy.name = L10n.format("%@ (Copy)", mapping.name)
         do {
             try mappingStore.add(copy)
             return copy
@@ -167,17 +167,17 @@ struct MappingsPrefsPane: View {
     private func scopeLabel(_ scope: MappingServerScope) -> String {
         switch scope {
         case .all:
-            return "All Servers"
+            return L10n.text("All Servers")
         case .local:
-            return "All Local Servers"
+            return L10n.text("All Local Servers")
         case .remote:
-            return "All Remote Servers"
+            return L10n.text("All Remote Servers")
         case .only(let ids):
             let labels = profileStore.profiles.filter { ids.contains($0.id) }.map(\.label)
             switch labels.count {
-            case 0: return "No servers"
+            case 0: return L10n.text("No servers")
             case 1: return labels[0]
-            default: return "\(labels[0]) +\(labels.count - 1)"
+            default: return L10n.format("%@ +%lld", labels[0], Int64(labels.count - 1))
             }
         }
     }

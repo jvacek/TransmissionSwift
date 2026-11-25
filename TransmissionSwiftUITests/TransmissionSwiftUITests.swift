@@ -31,7 +31,9 @@ final class TransmissionSwiftUITests: XCTestCase {
             "Set TEST_RUNNER_TRANSMISSION_E2E=1 and run a local transmission-daemon to enable")
 
         let app = XCUIApplication()
-        app.launchArguments = ["--ephemeral-profiles"]
+        app.launchArguments = [
+            "--ephemeral-profiles", "-interfaceLanguage", "en", "-AppleLanguages", "(en)",
+        ]
         app.launch()
 
         // Host defaults to localhost and port to 9091; only credentials needed.
@@ -619,6 +621,7 @@ final class TransmissionSwiftUITests: XCTestCase {
         app.launchArguments = [
             "--snapshot", fixture.path, "-ApplePersistenceIgnoreState", "YES",
             "-NSWindow Frame main", "0 63 1000 652 0 0 1024 768",
+            "-interfaceLanguage", "en", "-AppleLanguages", "(en)",
         ]
         app.launch()
         fitWindowToScreen(app)

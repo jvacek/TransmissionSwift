@@ -52,7 +52,7 @@ struct TorrentEntity: AppEntity, URLRepresentableEntity, Identifiable, Hashable,
         self.torrentID = torrent.id
         self.id = "\(serverID)/\(torrent.id)"
         name = torrent.name
-        status = torrent.status.rawValue.capitalized
+        status = torrent.status.displayLabel
         progressPercent = Int((torrent.progress * 100).rounded())
         size = Measurement(value: Double(torrent.size), unit: .bytes)
         downloadSpeed = Int(torrent.downloadSpeed)
@@ -123,7 +123,7 @@ enum TorrentCatalog {
         do {
             return try await service.torrents()
         } catch {
-            throw IntentError(message: "Couldn't reach “\(profile.label)”.")
+            throw IntentError(message: L10n.format("Couldn't reach “%@”.", profile.label))
         }
     }
 

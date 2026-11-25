@@ -31,7 +31,7 @@ struct PreferencesView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
             List(selection: $selection) {
-                Section("Application") {
+                Section(L10n.text("Application")) {
                     ForEach(PrefsTab.applicationTabs) { tab in
                         Label(tab.title, systemImage: tab.systemImage)
                             .tag(tab)
@@ -111,9 +111,9 @@ struct PreferencesView: View {
     /// "Server (Home NAS)" — the server panes act on the active profile.
     private var serverSectionTitle: String {
         if let label = profileStore.activeProfile?.label, !label.isEmpty {
-            return "Server (\(label))"
+            return L10n.format("Server (%@)", label)
         }
-        return "Server"
+        return L10n.text("Server")
     }
 }
 
@@ -136,8 +136,9 @@ enum PrefsTab: String, Hashable, CaseIterable, Identifiable {
     var help: String? {
         switch self {
         case .mappings:
-            return
+            return L10n.text(
                 "A mapping describes how a server's download folders are reachable from this Mac, so a torrent's context menu can open them in an external app. Mappings are app-wide; each one lists the servers it applies to."
+            )
         default:
             return nil
         }
@@ -145,15 +146,15 @@ enum PrefsTab: String, Hashable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .general: return "General"
-        case .servers: return "Servers"
-        case .speed: return "Speed"
-        case .transfers: return "Transfers"
-        case .network: return "Network"
-        case .updates: return "Updates"
-        case .developer: return "Developer"
-        case .tags: return "Tags"
-        case .mappings: return "Mappings"
+        case .general: return L10n.text("General")
+        case .servers: return L10n.text("Servers")
+        case .speed: return L10n.text("Speed")
+        case .transfers: return L10n.text("Transfers")
+        case .network: return L10n.text("Network")
+        case .updates: return L10n.text("Updates")
+        case .developer: return L10n.text("Developer")
+        case .tags: return L10n.text("Tags")
+        case .mappings: return L10n.text("Mappings")
         }
     }
 
