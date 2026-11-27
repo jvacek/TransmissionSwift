@@ -19,6 +19,9 @@ private let logger = Logger(subsystem: "net.jvacek.TransmissionSwift", category:
 
 @main
 struct TransmissionSwiftApp: App {
+    /// The main scene's id, and the name AppKit autosaves its frame under.
+    static let mainWindowID = "main"
+
     @State private var profileStore: ServerProfileStore
     @State private var mappingStore: OpenMappingStore
     @State private var torrentStore: TorrentStore
@@ -43,6 +46,11 @@ struct TransmissionSwiftApp: App {
         #if PRERELEASE
         UserDefaults.standard.register(defaults: [PreferenceKeys.includePrereleases: true])
         #endif
+
+        // A frame saved on a display that is gone, or before a resolution
+        // change, comes back on every launch; macOS 27 can throw while placing
+        // one that no longer fits, killing the app during its first layout.
+        RestoredWindowFrame.clampToDisplays(named: Self.mainWindowID)
 
         let args = CommandLine.arguments
 
@@ -201,7 +209,7 @@ struct TransmissionSwiftApp: App {
     }
 
     var body: some Scene {
-        Window("TransmissionSwift", id: "main") {
+        Window("TransmissionSwift", id: Self.mainWindowID) {
             ContentView(
                 connection: connection,
                 snapshotMode: snapshotPath != nil,

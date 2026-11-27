@@ -21,6 +21,78 @@ private enum Layout {
     static let contentIdeal: CGFloat = 640
 }
 
+/// The frame AppKit autosaves for a `Window` scene, repaired before the window
+/// is restored.
+///
+/// A frame saved on a larger display, or before a resolution change, comes back
+/// on every launch. macOS 27 can throw while placing one that no longer fits,
+/// which kills the app during its first layout, and the saved frame puts it back
+/// in the same state next launch. Clamping the stored value before the window
+/// exists leaves AppKit nothing to repair, without touching the frame of a
+/// window that is already visible.
+enum RestoredWindowFrame {
+    /// The default AppKit uses for a scene's window, keyed by its `Window` id.
+    nonisolated static func key(for windowID: String) -> String { "NSWindow Frame \(windowID)" }
+
+    /// Rewrites the saved frame when it no longer fits the current displays.
+    /// Returns the replacement, or nil when nothing needed to change.
+    @discardableResult
+    static func clampToDisplays(
+        named windowID: String, screens: [CGRect]? = nil, defaults: UserDefaults = .standard
+    ) -> String? {
+        let key = key(for: windowID)
+        guard let stored = defaults.string(forKey: key),
+            let clamped = clamped(stored, screens: screens ?? NSScreen.screens.map(\.visibleFrame))
+        else { return nil }
+        defaults.set(clamped, forKey: key)
+        return clamped
+    }
+
+    /// The stored value is eight space-separated numbers: the window frame,
+    /// then the visible frame of the display it was saved on. Nil when the
+    /// value is unreadable or already fits a current display.
+    nonisolated static func clamped(_ stored: String, screens: [CGRect]) -> String? {
+        let values = stored.split(whereSeparator: \.isWhitespace).compactMap { Double($0) }
+        guard values.count == 8, values.allSatisfy(\.isFinite), !screens.isEmpty else { return nil }
+        let frame = CGRect(x: values[0], y: values[1], width: values[2], height: values[3])
+        guard frame.width > 0, frame.height > 0 else { return nil }
+
+        let visible = screens.filter { $0.intersects(frame) }
+        let fitted: CGRect
+        let screen: CGRect
+        if visible.isEmpty {
+            // The display it was saved on is gone: centre it on the primary one.
+            guard let primary = screens.first else { return nil }
+            fitted = centred(frame, in: primary)
+            screen = primary
+        } else if visible.count == 1,
+            frame.width > visible[0].width || frame.height > visible[0].height
+        {
+            // Too big for the display it sits on: shrink it back into view. A
+            // frame spanning two displays is a placement the user chose; leave
+            // it alone.
+            fitted = centred(frame, in: visible[0])
+            screen = visible[0]
+        } else {
+            return nil
+        }
+
+        return [
+            fitted.minX, fitted.minY, fitted.width, fitted.height,
+            screen.minX, screen.minY, screen.width, screen.height,
+        ].map { String(format: "%g", $0) }.joined(separator: " ")
+    }
+
+    /// `frame` shrunk to `screen` if needed and centred inside it.
+    nonisolated private static func centred(_ frame: CGRect, in screen: CGRect) -> CGRect {
+        let size = CGSize(
+            width: min(frame.width, screen.width), height: min(frame.height, screen.height))
+        return CGRect(
+            x: screen.midX - size.width / 2, y: screen.midY - size.height / 2,
+            width: size.width, height: size.height)
+    }
+}
+
 struct MainWindow: View {
     @Environment(TorrentStore.self) private var store
     @Environment(ServerProfileStore.self) private var profileStore

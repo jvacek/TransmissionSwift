@@ -97,6 +97,9 @@ enum CrashReporting {
             // never send. Keep reports to actual crashes only.
             options.enableCaptureFailedRequests = false
             options.enableNetworkTracking = false
+            // AppKit rethrows an exception raised in layout as a C++ exception,
+            // so without this the report has no NSException name or reason.
+            options.enableUncaughtNSExceptionReporting = true
             options.environment = environment
             if let release = releaseName { options.releaseName = release }
         }

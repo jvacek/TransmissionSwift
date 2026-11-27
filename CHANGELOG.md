@@ -2,6 +2,13 @@
 
 Special shoutout to my new sponsors! Thank you very much. [Feel free to join them ;)](https://transmissionswift.jvacek.eu/donate/)
 
+## 0.8.2
+
+27th November 2026
+
+- Fix crash-loop on launch when a window is restored into a display it no longer fits
+  - Just a note: This issue was raised via the opt-in crash reports. Thank you for turning it on, whoever in Romania with an M1 Max you are.
+
 ## 0.8.1
 
 24th November 2026
