@@ -97,12 +97,28 @@ enum CrashReporting {
             // never send. Keep reports to actual crashes only.
             options.enableCaptureFailedRequests = false
             options.enableNetworkTracking = false
+            // Only report stalls a user would notice. The 2s default fires on
+            // ordinary main-thread work and buries real errors in the stream.
+            options.appHangTimeoutInterval = 5
+            options.beforeSend = groupAppHangs
             // AppKit rethrows an exception raised in layout as a C++ exception,
             // so without this the report has no NSException name or reason.
             options.enableUncaughtNSExceptionReporting = true
             options.environment = environment
             if let release = releaseName { options.releaseName = release }
         }
+    }
+
+    /// Sentry fingerprints an app hang by whichever frame the watchdog sampled,
+    /// so one slow redraw path becomes a new issue every time the sample lands
+    /// somewhere else. Collapse them: the stack still rides on each event, and
+    /// the `app.load` context says how loaded the app was.
+    nonisolated static func groupAppHangs(_ event: Event) -> Event? {
+        guard
+            event.exceptions?.contains(where: { $0.mechanism?.type == "AppHang" }) == true
+        else { return event }
+        event.fingerprint = ["app-hang"]
+        return event
     }
 
     /// A debug build reports into its own Sentry environment, so a developer's

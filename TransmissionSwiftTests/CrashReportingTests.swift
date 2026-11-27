@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import Foundation
+import Sentry
 import Testing
 
 @testable import TransmissionSwift
@@ -76,6 +77,25 @@ struct CrashReportingTests {
         #expect(context["app_active"] as? Bool == true)
         #expect(context["window_visible"] as? Bool == false)
         #expect(context.values.allSatisfy { $0 is Int || $0 is Double || $0 is Bool })
+    }
+
+    /// App hangs arrive with whichever frame the watchdog sampled, so the same
+    /// slow path used to become a new issue per sample. They must all share one
+    /// fingerprint, while ordinary errors keep Sentry's default grouping.
+    @Test func appHangsShareOneFingerprint() {
+        let hang = Event()
+        let hangException = Exception(value: "App hanging for at least 5000 ms.", type: "App Hanging")
+        hangException.mechanism = Mechanism(type: "AppHang")
+        hang.exceptions = [hangException]
+
+        #expect(CrashReporting.groupAppHangs(hang)?.fingerprint == ["app-hang"])
+
+        let crash = Event()
+        let crashException = Exception(value: "boom", type: "SwiftError")
+        crashException.mechanism = Mechanism(type: "NSError")
+        crash.exceptions = [crashException]
+
+        #expect(CrashReporting.groupAppHangs(crash)?.fingerprint == nil)
     }
 
     private func restore(_ defaults: UserDefaults, key: String, value: Any?) {
