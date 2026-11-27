@@ -83,9 +83,32 @@ nonisolated enum ColumnFormatters {
 
     // A Sendable FormatStyle rather than a shared RelativeDateTimeFormatter: Swift 6
     // rejects non-Sendable statics, and Foundation caches the locale data itself.
+    /// Memoised per minute: formatting builds ICU formatters, which made every
+    /// repaint of the visible rows expensive, and the text is minute-granular
+    /// above five minutes. Entries are dropped when the minute rolls over, so
+    /// the cache stays the size of one repaint's distinct dates.
+    @MainActor
     static func relativeDate(_ date: Date) -> String {
+        let now = Date.now
+        // Under five minutes the text counts seconds; caching would freeze it.
+        guard now.timeIntervalSince(date) >= 300 else { return formatRelative(date) }
+        let minute = Int(now.timeIntervalSince1970 / 60)
+        if minute != relativeDateCacheMinute {
+            relativeDateCache.removeAll(keepingCapacity: true)
+            relativeDateCacheMinute = minute
+        }
+        if let cached = relativeDateCache[date] { return cached }
+        let text = formatRelative(date)
+        relativeDateCache[date] = text
+        return text
+    }
+
+    private static func formatRelative(_ date: Date) -> String {
         date.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated))
     }
+
+    @MainActor private static var relativeDateCache: [Date: String] = [:]
+    @MainActor private static var relativeDateCacheMinute: Int?
 
     static func queuePosition(_ position: Int?) -> String {
         position.map { "#\($0)" } ?? "\u{2014}"

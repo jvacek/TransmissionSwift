@@ -39,12 +39,13 @@ final class TorrentTableCellView: NSTableCellView {
     }
 
     func configure(content: TorrentCellContent) {
-        // AX guard: only touch the label when it actually changed.
-        if accessibilityLabel() != content.accessibilityLabel {
-            setAccessibilityLabel(content.accessibilityLabel)
-        }
+        // The content carries its own accessibility label, so equal content
+        // means the label is already right. Reading it back through
+        // `accessibilityLabel()` costs an AppKit accessibility lookup per cell
+        // per poll, which showed up in the hang stacks.
         guard content != self.content else { return }
         self.content = content
+        setAccessibilityLabel(content.accessibilityLabel)
         toolTip = content.toolTip
         render(content)
     }

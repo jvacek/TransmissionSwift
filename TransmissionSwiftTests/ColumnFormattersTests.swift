@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import Foundation
 import Testing
 
 @testable import TransmissionSwift
@@ -31,5 +32,15 @@ struct ColumnFormattersTests {
     @Test func ratio_positiveIsTwoDecimals() {
         #expect(ColumnFormatters.ratio(1.755) == "1.75")
         #expect(ColumnFormatters.ratio(0.4) == "0.40")
+    }
+
+    /// The table repaints every visible cell each poll, so minutes-old dates are
+    /// memoised per minute; fresh ones keep counting seconds.
+    @Test @MainActor func relativeDate_formatsOldAndFreshDates() {
+        let old = Date.now.addingTimeInterval(-90 * 60)
+        let first = ColumnFormatters.relativeDate(old)
+        #expect(!first.isEmpty)
+        #expect(ColumnFormatters.relativeDate(old) == first)
+        #expect(!ColumnFormatters.relativeDate(Date.now.addingTimeInterval(-5)).isEmpty)
     }
 }

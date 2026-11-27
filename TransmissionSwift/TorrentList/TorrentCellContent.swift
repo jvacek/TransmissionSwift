@@ -62,6 +62,7 @@ extension TorrentCellContent {
     /// `tagColors` feeds the Finder-style tag dots and coloured label pills;
     /// it is external to the torrent (a local preference), so it is passed in
     /// rather than folded into `TorrentRowDisplay`.
+    @MainActor
     static func make(
         for column: TransmissionCore.TableColumn,
         row: TorrentRowDisplay,
