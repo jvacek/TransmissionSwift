@@ -64,9 +64,13 @@ struct InspectorGeneralTab: View {
                 row("Peers", peersSummary)
                 row("Downloaded", ColumnFormatters.humanizedSize(torrent.downloadedEver))
                 row("Uploaded", ColumnFormatters.humanizedSize(torrent.uploadedEver))
-                row(
-                    "Last activity",
-                    torrent.lastActivityAt?.formatted(.relative(presentation: .named)) ?? "—")
+                row("Last activity") {
+                    // Re-evaluated every minute: an idle torrent's poll data stops
+                    // changing, so without the timeline "Just now" would never age.
+                    TimelineView(.everyMinute) { context in
+                        valueText(ColumnFormatters.lastActivity(torrent.lastActivityAt, now: context.date))
+                    }
+                }
             }
             .font(.callout)
             .padding(.top, 4)
@@ -319,18 +323,26 @@ struct InspectorGeneralTab: View {
     }
 
     private func row(_ label: String, _ value: String, monospaced: Bool = false) -> some View {
+        row(label) { valueText(value, monospaced: monospaced) }
+    }
+
+    private func row(_ label: String, @ViewBuilder value: () -> some View) -> some View {
         GridRow {
             Text(label)
                 .foregroundStyle(.secondary)
                 .gridColumnAlignment(.trailing)
-            Text(value)
-                .font(monospaced ? .callout.monospaced() : .callout)
-                .monospacedDigit()
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            value()
         }
+    }
+
+    private func valueText(_ value: String, monospaced: Bool = false) -> some View {
+        Text(value)
+            .font(monospaced ? .callout.monospaced() : .callout)
+            .monospacedDigit()
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

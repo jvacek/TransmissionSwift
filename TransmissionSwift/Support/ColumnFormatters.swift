@@ -87,6 +87,18 @@ nonisolated enum ColumnFormatters {
         date.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated))
     }
 
+    /// "Last activity" text. The daemon bumps `activityDate` on every transfer, so
+    /// second-level relative text changed on each incremental poll and the row
+    /// jittered ("now", "1 sec. ago", "2 sec. ago"). Anything under a minute —
+    /// including a daemon clock running slightly ahead of this Mac, which would
+    /// otherwise read "in 1 sec." — collapses into one stable value. `now` only
+    /// drives that threshold; older dates use the system relative style.
+    static func lastActivity(_ date: Date?, now: Date = .now) -> String {
+        guard let date else { return "\u{2014}" }
+        if now.timeIntervalSince(date) < 60 { return "Just now" }
+        return date.formatted(.relative(presentation: .named))
+    }
+
     static func queuePosition(_ position: Int?) -> String {
         position.map { "#\($0)" } ?? "\u{2014}"
     }
