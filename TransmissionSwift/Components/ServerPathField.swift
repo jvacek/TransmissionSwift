@@ -154,7 +154,7 @@ struct ServerPathField: View {
     let defaultDirectory: String?
     let folders: [String]
     var serverName: String? = nil
-    var placeholder: String = "ISOs or /media/torrents"
+    var placeholder: String = L10n.text("ISOs or /media/torrents")
     /// Torrent name appended to the "Full path" line so it reads as the complete
     /// path the torrent will be created at. Nil omits it (e.g. bulk Set
     /// Location).
@@ -203,20 +203,20 @@ struct ServerPathField: View {
         let base = defaultDirectory?.trimmingCharacters(in: .whitespaces)
         if baseKnown, let base, !base.isEmpty {
             return [
-                "Paths are on \(serverScope)'s disk, not on this Mac.",
-                "Names without a leading / go under \(base).",
-                "A leading / starts from the server's root.",
+                L10n.format("Paths are on %@'s disk, not on this Mac.", serverScope),
+                L10n.format("Names without a leading / go under %@.", base),
+                L10n.text("A leading / starts from the server's root."),
             ]
         }
         return [
-            "Paths are on \(serverScope)'s disk, not on this Mac.",
-            "The default folder is unknown — use an absolute path.",
+            L10n.format("Paths are on %@'s disk, not on this Mac.", serverScope),
+            L10n.text("The default folder is unknown — use an absolute path."),
         ]
     }
 
     private var serverScope: String {
         if let serverName, !serverName.isEmpty { return serverName }
-        return "the server"
+        return L10n.text("the server")
     }
 
     private var climbsAboveBase: Bool {
@@ -245,18 +245,18 @@ struct ServerPathField: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     if baseKnown {
-                        Text("Leave it empty to use the default folder itself.")
+                        Text(L10n.text("Leave it empty to use the default folder itself."))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    Text("The folder must already exist and be writable by the daemon.")
+                    Text(L10n.text("The folder must already exist and be writable by the daemon."))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(nil)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    Text("Preview: \(wrappedPathDisplay)")
+                    Text(L10n.format("Preview: %@", wrappedPathDisplay))
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
@@ -268,29 +268,35 @@ struct ServerPathField: View {
                 Button {
                     withAnimation { helpExpanded.toggle() }
                 } label: {
-                    Text("Learn more")
+                    Text(L10n.text("Learn more"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(helpExpanded ? "Hide path help" : "Learn more about paths")
+                .accessibilityLabel(
+                    helpExpanded
+                        ? L10n.text("Hide path help") : L10n.text("Learn more about paths"))
             }
             if climbsAboveBase {
-                Text("⚠ “..” climbs above the default folder — clamped to \(wrappedPathDisplay)")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .lineLimit(nil)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(
+                    L10n.format(
+                        "⚠ “..” climbs above the default folder — clamped to %@",
+                        wrappedPathDisplay)
+                )
+                .font(.caption)
+                .foregroundStyle(.orange)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             if isRootTarget {
-                Text("⚠ The filesystem root is an unusual location.")
+                Text(L10n.text("⚠ The filesystem root is an unusual location."))
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else if isNewFolder {
-                Text("New folder — it must exist and be writable by the daemon.")
+                Text(L10n.text("New folder — it must exist and be writable by the daemon."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -310,7 +316,11 @@ struct ServerPathField: View {
                 knownFoldersMenu
             }
         }
-        .help("Paths are relative to the default download dir. Start with “/” for an absolute path.")
+        .help(
+            L10n.text(
+                "Paths are relative to the default download dir. Start with “/” for an absolute path."
+            )
+        )
         .padding(.leading, 8)
         .padding(.trailing, 4)
         .padding(.vertical, 4)
@@ -336,7 +346,7 @@ struct ServerPathField: View {
         } label: {
             HStack(spacing: 3) {
                 Image(systemName: "folder")
-                Text("Known folders")
+                Text(L10n.text("Known folders"))
             }
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -344,8 +354,8 @@ struct ServerPathField: View {
         .menuStyle(.borderlessButton)
         .fixedSize()
         .disabled(isDisabled)
-        .help("Jump to a folder the daemon already uses")
-        .accessibilityLabel("Known folders")
+        .help(L10n.text("Jump to a folder the daemon already uses"))
+        .accessibilityLabel(L10n.text("Known folders"))
     }
 }
 

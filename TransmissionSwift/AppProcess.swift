@@ -13,4 +13,10 @@ nonisolated enum AppProcess {
         let env = ProcessInfo.processInfo.environment
         return env["XCTestConfigurationFilePath"] != nil || env["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
     }
+
+    /// True only under XCTest (not previews). Unit-test assertions expect
+    /// English regardless of the machine's persisted language preference.
+    static var isTestRunner: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
 }

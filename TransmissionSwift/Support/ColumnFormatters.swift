@@ -51,13 +51,13 @@ nonisolated enum ColumnFormatters {
         let minutes = (totalSeconds % 3600) / 60
         let seconds = totalSeconds % 60
         if days > 0 {
-            return "\(days)d \(hours)h"
+            return L10n.format("%lldd %lldh", Int64(days), Int64(hours))
         } else if hours > 0 {
-            return "\(hours)h \(minutes)m"
+            return L10n.format("%lldh %lldm", Int64(hours), Int64(minutes))
         } else if minutes > 0 {
-            return "\(minutes)m \(seconds)s"
+            return L10n.format("%lldm %llds", Int64(minutes), Int64(seconds))
         }
-        return "\(seconds)s"
+        return L10n.format("%llds", Int64(seconds))
     }
 
     static func humanizedETA(_ eta: TimeInterval?, status: TorrentStatus) -> String {
@@ -68,16 +68,16 @@ nonisolated enum ColumnFormatters {
             default: return "\u{2014}"
             }
         }
-        if eta <= 0 { return "0s" }
+        if eta <= 0 { return L10n.format("%llds", 0) }
         let hours = Int(eta) / 3600
         let minutes = (Int(eta) % 3600) / 60
         let seconds = Int(eta) % 60
         if hours > 0 {
-            return "\(hours)h \(minutes)m"
+            return L10n.format("%lldh %lldm", Int64(hours), Int64(minutes))
         } else if minutes > 0 {
-            return "\(minutes)m \(seconds)s"
+            return L10n.format("%lldm %llds", Int64(minutes), Int64(seconds))
         } else {
-            return "\(seconds)s"
+            return L10n.format("%llds", Int64(seconds))
         }
     }
 
@@ -104,7 +104,7 @@ nonisolated enum ColumnFormatters {
     }
 
     private static func formatRelative(_ date: Date) -> String {
-        date.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated))
+        L10n.relativeDate(date, unitsStyle: .abbreviated)
     }
 
     @MainActor private static var relativeDateCache: [Date: String] = [:]

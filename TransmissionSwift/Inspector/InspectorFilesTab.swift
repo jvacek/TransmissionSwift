@@ -69,31 +69,31 @@ struct InspectorFilesTab: View {
     /// direction to that key's natural one (largest and most complete first).
     private var headerRow: some View {
         HStack {
-            Text(torrent.files.count == 1 ? "1 file" : "\(torrent.files.count) files")
+            Text(torrent.files.count == 1 ? L10n.text("1 file") : L10n.format("%lld files", Int64(torrent.files.count)))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
             Spacer()
             Menu {
-                Picker("Sort By", selection: sortKeyBinding) {
+                Picker(L10n.text("Sort By"), selection: sortKeyBinding) {
                     ForEach(FileSortKey.allCases) { key in
                         Text(key.displayLabel).tag(key)
                     }
                 }
                 .pickerStyle(.inline)
-                Picker("Order", selection: $sortAscending) {
-                    Text("Ascending").tag(true)
-                    Text("Descending").tag(false)
+                Picker(L10n.text("Order"), selection: $sortAscending) {
+                    Text(L10n.text("Ascending")).tag(true)
+                    Text(L10n.text("Descending")).tag(false)
                 }
                 .pickerStyle(.inline)
             } label: {
-                Text("Sort by \(sortKey.displayLabel)")
+                Text(L10n.format("Sort by %@", sortKey.displayLabel))
             }
             .menuStyle(.button)
             .buttonStyle(.borderless)
             .controlSize(.small)
             .fixedSize()
-            .help("Sort files")
+            .help(L10n.text("Sort files"))
             .accessibilityIdentifier("inspector.files.sort")
         }
         .padding(.horizontal, 8)
@@ -134,11 +134,11 @@ struct InspectorFilesTab: View {
     @ViewBuilder
     private func fileMenu(for file: TorrentFile) -> some View {
         let ids = fileTargetIDs(selected: selectedFiles, clicked: file.id)
-        Button("Download Selected") { setWanted(true, for: ids) }
+        Button(L10n.text("Download Selected")) { setWanted(true, for: ids) }
             .disabled(!store.actionsEnabled)
-        Button("Don't Download Selected") { setWanted(false, for: ids) }
+        Button(L10n.text("Don't Download Selected")) { setWanted(false, for: ids) }
             .disabled(!store.actionsEnabled)
-        Menu("Priority") {
+        Menu(L10n.text("Priority")) {
             ForEach(FilePriorityChoice.allCases, id: \.self) { choice in
                 Button {
                     setPriority(choice, for: ids)
@@ -157,7 +157,7 @@ struct InspectorFilesTab: View {
         let profile = profileStore.activeProfile
         let mappings = profile.map { mappingStore.mappings(for: $0) } ?? []
         if mappings.isEmpty {
-            Button("No file mappings configured") {}.disabled(true)
+            Button(L10n.text("No file mappings configured")) {}.disabled(true)
         } else {
             ForEach(mappings) { mapping in
                 Button {
@@ -170,7 +170,7 @@ struct InspectorFilesTab: View {
                 } label: {
                     Label(
                         mapping.action == .finder
-                            ? "Reveal in \(mapping.name)" : "Open with \(mapping.name)",
+                            ? L10n.format("Reveal in %@", mapping.name) : L10n.format("Open with %@", mapping.name),
                         systemImage: mapping.action == .finder ? "folder" : "arrow.up.right.square")
                 }
                 .disabled(!store.actionsEnabled)
@@ -259,10 +259,10 @@ private struct FileRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .top, spacing: 7) {
-                Toggle("Download", isOn: $wanted)
+                Toggle(L10n.text("Download"), isOn: $wanted)
                     .toggleStyle(.checkbox)
                     .labelsHidden()
-                    .accessibilityLabel("Download \(file.displayName)")
+                    .accessibilityLabel(L10n.format("Download %@", file.displayName))
                     .disabled(!actionsEnabled)
                     .focusable(false)
                     .padding(.top, 2)
@@ -276,7 +276,7 @@ private struct FileRow: View {
                 FilePriorityPicker(
                     choice: $priority,
                     isEnabled: actionsEnabled,
-                    label: "Priority for \(file.displayName)"
+                    label: L10n.format("Priority for %@", file.displayName)
                 )
                 .focusable(false)
                 .padding(.top, 1)
@@ -310,10 +310,10 @@ private enum FileSortKey: CaseIterable, Identifiable {
 
     var displayLabel: String {
         switch self {
-        case .name: return "Name"
-        case .size: return "Size"
-        case .priority: return "Priority"
-        case .progress: return "Progress"
+        case .name: return L10n.text("Name")
+        case .size: return L10n.text("Size")
+        case .priority: return L10n.text("Priority")
+        case .progress: return L10n.text("Progress")
         }
     }
 

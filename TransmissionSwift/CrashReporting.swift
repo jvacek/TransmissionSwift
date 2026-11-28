@@ -33,8 +33,11 @@ enum CrashReporting {
     /// first launch. Presence of the key (not its value) is the signal.
     nonisolated static let consentKey = "crashReportingConsentAnswered"
     /// One-line privacy statement shared by the splash and the settings footer.
-    nonisolated static let privacySummary =
-        "Reports carry a backtrace, the app version, and load counters: torrent count, CPU and memory use, poll intervals. Never torrent names, tracker hosts, or server addresses."
+    nonisolated static var privacySummary: String {
+        L10n.text(
+            "Reports carry a backtrace, the app version, and load counters: torrent count, CPU and memory use, poll intervals. Never torrent names, tracker hosts, or server addresses."
+        )
+    }
 
     /// Whether this build was shipped with a DSN (see `Info.plist`). Without one
     /// there is nothing to report and no reason to ask.

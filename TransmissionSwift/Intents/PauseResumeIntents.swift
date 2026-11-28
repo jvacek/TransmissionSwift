@@ -31,7 +31,8 @@ struct PauseTorrentsIntent: AppIntent {
         }
         return .result(
             dialog:
-                "Paused \(targets.count) torrent\(targets.count == 1 ? "" : "s") on \(profile.label).")
+                "\(targets.count == 1 ? L10n.format("Paused 1 torrent on %@.", profile.label) : L10n.format("Paused %lld torrents on %@.", Int64(targets.count), profile.label))"
+        )
     }
 }
 
@@ -61,6 +62,7 @@ struct ResumeTorrentsIntent: AppIntent {
         }
         return .result(
             dialog:
-                "Resumed \(targets.count) torrent\(targets.count == 1 ? "" : "s") on \(profile.label).")
+                "\(targets.count == 1 ? L10n.format("Resumed 1 torrent on %@.", profile.label) : L10n.format("Resumed %lld torrents on %@.", Int64(targets.count), profile.label))"
+        )
     }
 }

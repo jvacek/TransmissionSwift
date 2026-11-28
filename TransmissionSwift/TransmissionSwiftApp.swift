@@ -29,6 +29,7 @@ struct TransmissionSwiftApp: App {
     @State private var faviconStore = FaviconStore()
     @State private var geoipStore = GeoIPStore()
     @State private var tagColorStore: TagColorStore
+    @AppStorage(PreferenceKeys.interfaceLanguage) private var interfaceLanguage = InterfaceLanguage.system
     private let snapshotPath: String?
     private let disableOnboarding: Bool
     private let updateService = UpdateService()
@@ -221,6 +222,8 @@ struct TransmissionSwiftApp: App {
             .environment(faviconStore)
             .environment(geoipStore)
             .environment(tagColorStore)
+            .environment(\.locale, interfaceLanguage.locale)
+            .id(interfaceLanguage)
             .onOpenURL { url in
                 // transmissionswift://<serverUUID>/<torrentID> opens the app on a
                 // torrent (the URL form of TorrentEntity); magnet: links and
@@ -244,8 +247,10 @@ struct TransmissionSwiftApp: App {
             HelpCommands(torrentStore: torrentStore)
         }
 
-        Window("About TransmissionSwift", id: "about") {
+        Window(L10n.text("About TransmissionSwift"), id: "about") {
             AboutView()
+                .environment(\.locale, interfaceLanguage.locale)
+                .id(interfaceLanguage)
         }
         .windowResizability(.contentSize)
         .defaultPosition(.center)
@@ -264,6 +269,8 @@ struct TransmissionSwiftApp: App {
                 .environment(geoipStore)
                 .environment(torrentStore)
                 .environment(tagColorStore)
+                .environment(\.locale, interfaceLanguage.locale)
+                .id(interfaceLanguage)
         }
         // Compact: the toolbar row collapses to a slim lights-only strip (the
         // title is blank and there are no items), instead of a tall empty bar
@@ -280,12 +287,12 @@ private struct FileCommands: Commands {
 
     var body: some Commands {
         CommandGroup(before: .newItem) {
-            Button("Add Torrent…") {
+            Button(L10n.text("Add Torrent…")) {
                 torrentStore.openAddSheet()
             }
             .keyboardShortcut("o", modifiers: .command)
 
-            Button("Add Link…") {
+            Button(L10n.text("Add Link…")) {
                 torrentStore.openAddSheet(mode: .link)
             }
             .keyboardShortcut("o", modifiers: [.command, .shift])
@@ -304,14 +311,14 @@ private struct EditCommands: Commands {
 
     var body: some Commands {
         CommandGroup(after: .pasteboard) {
-            Button("Find…") {
+            Button(L10n.text("Find…")) {
                 torrentStore.ui.focusSearch()
             }
             .keyboardShortcut("f", modifiers: .command)
 
             Divider()
 
-            Button("Copy Magnet Link") {
+            Button(L10n.text("Copy Magnet Link")) {
                 torrentStore.copyMagnetLinks()
             }
             .keyboardShortcut("c", modifiers: [.command, .shift])
@@ -328,12 +335,15 @@ private struct ViewCommands: Commands {
 
     var body: some Commands {
         CommandGroup(after: .sidebar) {
-            Button(sidebarVisible ? "Hide Sidebar" : "Show Sidebar") {
+            Button(sidebarVisible ? L10n.text("Hide Sidebar") : L10n.text("Show Sidebar")) {
                 sidebarVisible.toggle()
             }
             .keyboardShortcut("s", modifiers: [.command, .control])
 
-            Button(torrentStore.inspector.isVisible ? "Hide Inspector" : "Show Inspector") {
+            Button(
+                torrentStore.inspector.isVisible
+                    ? L10n.text("Hide Inspector") : L10n.text("Show Inspector")
+            ) {
                 torrentStore.inspector.isVisible.toggle()
             }
             .keyboardShortcut("i", modifiers: .command)
@@ -354,14 +364,14 @@ private struct TorrentCommands: Commands {
     private var canRename: Bool { canAct && ids.count == 1 }
 
     var body: some Commands {
-        CommandMenu("Torrent") {
-            Button("Resume") {
+        CommandMenu(L10n.text("Torrent")) {
+            Button(L10n.text("Resume")) {
                 torrentStore.perform(.resume, ids: ids)
             }
             .keyboardShortcut("r", modifiers: .command)
             .disabled(!canAct || !torrentStore.list.selectionStartStop.canStart)
 
-            Button("Pause") {
+            Button(L10n.text("Pause")) {
                 torrentStore.perform(.pause, ids: ids)
             }
             .keyboardShortcut("p", modifiers: .command)
@@ -370,31 +380,31 @@ private struct TorrentCommands: Commands {
             // Same submenu the row context menu shows. No checkmarks: reading a
             // torrent's live priority here would rebuild the menu bar on every
             // poll. Shortcuts follow the canonical high → normal → low order.
-            Menu("Priority") {
-                Button("High") {
+            Menu(L10n.text("Priority")) {
+                Button(L10n.text("High")) {
                     torrentStore.perform(.setPriority(.high), ids: ids)
                 }
                 .keyboardShortcut("1", modifiers: [.command, .option])
 
-                Button("Normal") {
+                Button(L10n.text("Normal")) {
                     torrentStore.perform(.setPriority(.normal), ids: ids)
                 }
                 .keyboardShortcut("2", modifiers: [.command, .option])
 
-                Button("Low") {
+                Button(L10n.text("Low")) {
                     torrentStore.perform(.setPriority(.low), ids: ids)
                 }
                 .keyboardShortcut("3", modifiers: [.command, .option])
             }
             .disabled(!canAct)
 
-            Button("Start or Stop Selected") {
+            Button(L10n.text("Start or Stop Selected")) {
                 toggle(ids)
             }
             .keyboardShortcut("s", modifiers: .command)
             .disabled(!canAct)
 
-            Button("Start or Stop All") {
+            Button(L10n.text("Start or Stop All")) {
                 toggle(torrentStore.list.torrents.map(\.id))
             }
             .keyboardShortcut("s", modifiers: [.command, .shift])
@@ -402,31 +412,31 @@ private struct TorrentCommands: Commands {
 
             Divider()
 
-            Button("Verify Local Data") {
+            Button(L10n.text("Verify Local Data")) {
                 torrentStore.perform(.verify, ids: ids)
             }
             .disabled(!canAct)
 
-            Button("Update Tracker") {
+            Button(L10n.text("Update Tracker")) {
                 torrentStore.perform(.reannounce, ids: ids)
             }
             .disabled(!canAct)
 
             Divider()
 
-            Button("Edit Labels…") {
+            Button(L10n.text("Edit Labels…")) {
                 torrentStore.perform(.editLabels, ids: ids)
             }
             .keyboardShortcut("l", modifiers: [.command, .shift])
             .disabled(!canAct || !torrentStore.session.supportsLabels)
 
-            Button("Set Location…") {
+            Button(L10n.text("Set Location…")) {
                 torrentStore.perform(.setLocation, ids: ids)
             }
             .keyboardShortcut("g", modifiers: [.command, .shift])
             .disabled(!canAct)
 
-            Button("Rename…") {
+            Button(L10n.text("Rename…")) {
                 torrentStore.perform(.rename, ids: ids)
             }
             // F2 is the AppKit function-key scalar (NSF2FunctionKey); SwiftUI
@@ -436,13 +446,13 @@ private struct TorrentCommands: Commands {
 
             Divider()
 
-            Button("Remove…") {
+            Button(L10n.text("Remove…")) {
                 torrentStore.perform(.remove, ids: ids)
             }
             .keyboardShortcut(.delete, modifiers: .command)
             .disabled(!canAct)
 
-            Button("Remove and Delete Data…") {
+            Button(L10n.text("Remove and Delete Data…")) {
                 torrentStore.perform(.removeAndDeleteData, ids: ids)
             }
             .keyboardShortcut(.delete, modifiers: [.command, .option])
@@ -509,10 +519,10 @@ private struct AboutCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .appInfo) {
-            Button("About TransmissionSwift") {
+            Button(L10n.text("About TransmissionSwift")) {
                 openWindow(id: "about")
             }
-            Button("Check for Updates…") {
+            Button(L10n.text("Check for Updates…")) {
                 updateService.checkForUpdates(nil)
             }
         }
@@ -528,7 +538,7 @@ private struct PreferencesCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .appSettings) {
-            Button("Preferences…") {
+            Button(L10n.text("Preferences…")) {
                 openWindow(id: "preferences")
             }
             .keyboardShortcut(",", modifiers: .command)
@@ -578,7 +588,7 @@ private struct HelpCommands: Commands {
 
     var body: some Commands {
         CommandGroup(after: .help) {
-            Button("Report Bug…") {
+            Button(L10n.text("Report Bug…")) {
                 if let url = BugReport.url(daemonVersion: torrentStore.session.daemonVersion) {
                     openURL(url)
                 }
@@ -595,9 +605,9 @@ private struct ServerCommands: Commands {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
-        CommandMenu("Server") {
+        CommandMenu(L10n.text("Server")) {
             if profileStore.profiles.isEmpty {
-                Text("No servers configured")
+                Text(L10n.text("No servers configured"))
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(Array(profileStore.profiles.enumerated()), id: \.element.id) {
@@ -618,7 +628,7 @@ private struct ServerCommands: Commands {
                 }
             }
             Divider()
-            Button("Server Settings…") {
+            Button(L10n.text("Server Settings…")) {
                 UserDefaults.standard.set(PrefsTab.servers.rawValue, forKey: PreferenceKeys.prefsPendingNavTab)
                 openWindow(id: "preferences")
             }

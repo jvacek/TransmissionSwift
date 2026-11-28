@@ -40,9 +40,9 @@ struct InspectorView: View {
             }
         } else {
             ContentUnavailableView(
-                "No Selection",
+                L10n.text("No Selection"),
                 systemImage: "info.circle",
-                description: Text("Select a torrent to see its details.")
+                description: Text(L10n.text("Select a torrent to see its details."))
             )
         }
     }

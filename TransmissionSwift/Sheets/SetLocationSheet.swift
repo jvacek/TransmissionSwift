@@ -29,14 +29,14 @@ struct SetLocationSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Set Location")
+            Text(L10n.text("Set Location"))
                 .font(.headline)
             Text(subtitle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
             if isMixed {
-                Text("They are in different folders. Applying sets all to the same location.")
+                Text(L10n.text("They are in different folders. Applying sets all to the same location."))
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .lineLimit(nil)
@@ -55,7 +55,7 @@ struct SetLocationSheet: View {
             )
 
             VStack(alignment: .leading, spacing: 4) {
-                Toggle("Move data to the new location", isOn: $moveData)
+                Toggle(L10n.text("Move data to the new location"), isOn: $moveData)
                     .disabled(isSaving)
                 Text(moveCaption)
                     .font(.caption)
@@ -65,7 +65,7 @@ struct SetLocationSheet: View {
             }
 
             if isNoOp {
-                Text("Already at this location.")
+                Text(L10n.text("Already at this location."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -79,8 +79,8 @@ struct SetLocationSheet: View {
             }
 
             SheetButtonRow(
-                "Apply",
-                busyTitle: "Applying…",
+                L10n.text("Apply"),
+                busyTitle: L10n.text("Applying…"),
                 isBusy: isSaving,
                 canConfirm: canApply,
                 onCancel: { isPresented = false },
@@ -103,18 +103,26 @@ struct SetLocationSheet: View {
 
     private var subtitle: String {
         if isMixed {
-            let torrents = ids.count == 1 ? "1 torrent" : "\(ids.count) torrents"
-            return "\(torrents) selected · in \(distinctCount) different folders"
+            let torrents =
+                ids.count == 1
+                ? L10n.text("1 torrent")
+                : L10n.format("%lld torrents", Int64(ids.count))
+            return L10n.format(
+                "%@ selected · in %lld different folders", torrents, Int64(distinctCount))
         }
-        return ids.count == 1 ? "1 torrent selected" : "\(ids.count) torrents selected"
+        return ids.count == 1
+            ? L10n.text("1 torrent selected")
+            : L10n.format("%lld torrents selected", Int64(ids.count))
     }
 
     private var moveCaption: String {
         if moveData {
-            return "Transmission moves the existing files for you."
+            return L10n.text("Transmission moves the existing files for you.")
         }
         return
-            "Only use this if you already moved the files yourself (e.g. via SSH). Otherwise the torrents will error."
+            L10n.text(
+                "Only use this if you already moved the files yourself (e.g. via SSH). Otherwise the torrents will error."
+            )
     }
 
     private var resolvedLocation: String {
@@ -148,7 +156,7 @@ struct SetLocationSheet: View {
         if succeeded {
             isPresented = false
         } else {
-            saveError = store.lastActionError?.localizedDescription ?? "Failed to set location."
+            saveError = store.lastActionError?.localizedDescription ?? L10n.text("Failed to set location.")
             store.lastActionError = nil
         }
     }

@@ -12,36 +12,40 @@ struct SpeedPrefsPane: View {
         if store.isConnected {
             Form {
                 Section {
-                    Toggle("Enable global download limit", isOn: boolBinding(\.downLimited))
+                    Toggle(L10n.text("Enable global download limit"), isOn: boolBinding(\.downLimited))
                     if store.session.effectiveSessionSettings.downLimited {
-                        limitRow(label: "Download limit", keyPath: \.downLimitKBps)
+                        limitRow(label: L10n.text("Download limit"), keyPath: \.downLimitKBps)
                     }
-                    Toggle("Enable global upload limit", isOn: boolBinding(\.upLimited))
+                    Toggle(L10n.text("Enable global upload limit"), isOn: boolBinding(\.upLimited))
                     if store.session.effectiveSessionSettings.upLimited {
-                        limitRow(label: "Upload limit", keyPath: \.upLimitKBps)
+                        limitRow(label: L10n.text("Upload limit"), keyPath: \.upLimitKBps)
                     }
                 } header: {
-                    Text("Global Limits")
+                    Text(L10n.text("Global Limits"))
                 } footer: {
-                    Text("Applied to every torrent unless it overrides them.")
+                    Text(L10n.text("Applied to every torrent unless it overrides them."))
                 }
 
                 Section {
-                    Toggle("Enable alternative (turtle) speed limits", isOn: boolBinding(\.altSpeedEnabled))
+                    Toggle(
+                        L10n.text("Enable alternative (turtle) speed limits"),
+                        isOn: boolBinding(\.altSpeedEnabled))
                     if store.session.effectiveSessionSettings.altSpeedEnabled {
-                        limitRow(label: "Turtle download", keyPath: \.altSpeedDownKBps)
-                        limitRow(label: "Turtle upload", keyPath: \.altSpeedUpKBps)
+                        limitRow(label: L10n.text("Turtle download"), keyPath: \.altSpeedDownKBps)
+                        limitRow(label: L10n.text("Turtle upload"), keyPath: \.altSpeedUpKBps)
                     }
-                    Toggle("Enable scheduled turtle times", isOn: boolBinding(\.altSpeedTimeEnabled))
+                    Toggle(
+                        L10n.text("Enable scheduled turtle times"),
+                        isOn: boolBinding(\.altSpeedTimeEnabled))
                     if store.session.effectiveSessionSettings.altSpeedTimeEnabled {
                         TurtleTimeRow(
                             begin: intBinding(\.altSpeedTimeBeginMinutes), end: intBinding(\.altSpeedTimeEndMinutes))
                         TurtleScheduleDays(mask: intBinding(\.altSpeedTimeDayMask))
                     }
                 } header: {
-                    Text("Turtle Schedule")
+                    Text(L10n.text("Turtle Schedule"))
                 } footer: {
-                    Text("Turtle speed limits override the global limits while active.")
+                    Text(L10n.text("Turtle speed limits override the global limits while active."))
                 }
             }
             .formStyle(.grouped)

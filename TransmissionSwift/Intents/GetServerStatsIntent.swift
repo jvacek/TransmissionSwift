@@ -37,11 +37,16 @@ struct ServerStatsEntity: TransientAppEntity {
     /// variable picker.
     var summary: String {
         let free = ColumnFormatters.humanizedSize(Int64(freeSpace.value))
-        let base =
-            "\(server): \(torrentCount) torrents · \(activeCount) active · "
-            + "\(pausedCount) paused · ↓ \(ColumnFormatters.humanizedSpeed(Int64(downloadSpeed))) "
-            + "↑ \(ColumnFormatters.humanizedSpeed(Int64(uploadSpeed))) · \(free) free"
-        return turtleModeActive ? base + " · turtle on" : base
+        let base = L10n.format(
+            "%@: %lld torrents · %lld active · %lld paused · ↓ %@ ↑ %@ · %@ free",
+            server,
+            Int64(torrentCount),
+            Int64(activeCount),
+            Int64(pausedCount),
+            ColumnFormatters.humanizedSpeed(Int64(downloadSpeed)),
+            ColumnFormatters.humanizedSpeed(Int64(uploadSpeed)),
+            free)
+        return turtleModeActive ? L10n.format("%@ · turtle on", base) : base
     }
 
     init() {
@@ -133,7 +138,7 @@ struct GetServerStatsIntent: AppIntent {
                 torrents: torrents, server: profile.label, serverID: profile.id.uuidString,
                 freeSpaceBytes: freeSpaceBytes, turtleModeActive: turtleModeActive)
         } else {
-            throw IntentError(message: "Couldn't reach “\(profile.label)”.")
+            throw IntentError(message: L10n.format("Couldn't reach “%@”.", profile.label))
         }
         return .result(value: stats, dialog: "\(stats.summary)")
     }

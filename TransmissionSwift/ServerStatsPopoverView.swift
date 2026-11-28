@@ -14,13 +14,13 @@ struct ServerStatsPopoverView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let stats = store.session.sessionStats {
-                section("Current session", stats.currentStats)
+                section(L10n.text("Current session"), stats.currentStats, showsSessions: false)
                 Divider()
-                section("All time", stats.cumulativeStats)
+                section(L10n.text("All time"), stats.cumulativeStats, showsSessions: true)
             } else {
-                Text("Statistics unavailable")
+                Text(L10n.text("Statistics unavailable"))
                     .foregroundStyle(.secondary)
-                Text("The server did not report its transfer statistics.")
+                Text(L10n.text("The server did not report its transfer statistics."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -30,17 +30,19 @@ struct ServerStatsPopoverView: View {
         .task { await store.session.refreshSessionStats() }
     }
 
-    private func section(_ title: String, _ stats: SessionStats.Stats) -> some View {
+    private func section(
+        _ title: String, _ stats: SessionStats.Stats, showsSessions: Bool
+    ) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
                 .font(.headline)
-            row("Downloaded", ColumnFormatters.humanizedSize(stats.downloadedBytes))
-            row("Uploaded", ColumnFormatters.humanizedSize(stats.uploadedBytes))
-            row("Ratio", ratioText(stats))
-            row("Files added", "\(stats.filesAdded)")
-            row("Active time", ColumnFormatters.humanizedDuration(stats.secondsActive))
-            if title == "All time" {
-                row("Sessions", "\(stats.sessionCount)")
+            row(L10n.text("Downloaded"), ColumnFormatters.humanizedSize(stats.downloadedBytes))
+            row(L10n.text("Uploaded"), ColumnFormatters.humanizedSize(stats.uploadedBytes))
+            row(L10n.text("Ratio"), ratioText(stats))
+            row(L10n.text("Files added"), "\(stats.filesAdded)")
+            row(L10n.text("Active time"), ColumnFormatters.humanizedDuration(stats.secondsActive))
+            if showsSessions {
+                row(L10n.text("Sessions"), "\(stats.sessionCount)")
             }
         }
     }

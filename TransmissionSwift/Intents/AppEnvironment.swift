@@ -106,16 +106,16 @@ nonisolated final class AppEnvironment: Sendable {
     /// not be silently replaced by the active profile.
     private static func missingServerMessage(_ server: ServerEntity?) -> String {
         if server != nil {
-            return "That server is no longer configured. Pick another one in the shortcut."
+            return L10n.text("That server is no longer configured. Pick another one in the shortcut.")
         }
-        return "No Transmission servers are configured. Add one in TransmissionSwift first."
+        return L10n.text("No Transmission servers are configured. Add one in TransmissionSwift first.")
     }
 
     /// The mutation half of a resolved service, or a user-facing error when the
     /// source is read-only (snapshot replay).
     func requireMutations(_ service: any TorrentReading) throws -> any TorrentMutating {
         guard let mutations = service.mutations else {
-            throw IntentError(message: "This server is read-only.")
+            throw IntentError(message: L10n.text("This server is read-only."))
         }
         return mutations
     }
@@ -132,7 +132,7 @@ nonisolated final class AppEnvironment: Sendable {
         let mutations = try requireMutations(service)
         let targets = try await TorrentCatalog.targets(torrents, profile: profile, service: service)
         guard !targets.isEmpty else {
-            throw IntentError(message: "No matching torrents on \(profile.label).")
+            throw IntentError(message: L10n.format("No matching torrents on %@.", profile.label))
         }
         return (profile, mutations, targets)
     }
@@ -152,7 +152,7 @@ nonisolated final class AppEnvironment: Sendable {
         }
         if mode == .snapshot, let snapshotFileURL {
             guard let service = try? SnapshotTorrentService(fileURL: snapshotFileURL) else {
-                throw IntentError(message: "Couldn't read the snapshot file.")
+                throw IntentError(message: L10n.text("Couldn't read the snapshot file."))
             }
             return service
         }
@@ -166,11 +166,11 @@ nonisolated final class AppEnvironment: Sendable {
     private static func serviceFailureMessage(_ error: any Error, server: String) -> String {
         switch error {
         case TransmissionServiceFactory.Failure.invalidRPCURL:
-            return "The server “\(server)” has an invalid RPC address."
+            return L10n.format("The server “%@” has an invalid RPC address.", server)
         case TransmissionServiceFactory.Failure.keychain:
-            return "Couldn't read the saved password for “\(server)”. Unlock your Keychain and try again."
+            return L10n.format("Couldn't read the saved password for “%@”. Unlock your Keychain and try again.", server)
         default:
-            return "Couldn't connect to “\(server)”."
+            return L10n.format("Couldn't connect to “%@”.", server)
         }
     }
 }
@@ -193,7 +193,7 @@ nonisolated extension AppEnvironment {
     /// `current`, or a user-facing error when the app hasn't registered yet.
     static func require() throws -> AppEnvironment {
         guard let environment = current else {
-            throw IntentError(message: "TransmissionSwift isn't ready. Open the app and try again.")
+            throw IntentError(message: L10n.text("TransmissionSwift isn't ready. Open the app and try again."))
         }
         return environment
     }

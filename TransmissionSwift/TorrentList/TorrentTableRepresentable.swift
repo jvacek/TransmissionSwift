@@ -388,7 +388,8 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             let openItem = { (mapping: OpenMapping) in
                 let title =
                     mapping.action == .finder
-                    ? "Reveal in \(mapping.name)" : "Open with \(mapping.name)"
+                    ? L10n.format("Reveal in %@", mapping.name)
+                    : L10n.format("Open with %@", mapping.name)
                 let symbol: String =
                     mapping.action == .finder ? "folder" : "arrow.up.right.square"
                 let item = NSMenuItem(
@@ -422,10 +423,10 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                         submenu.addItem(priorityItem)
                         index += 1
                     }
-                    let container = NSMenuItem(title: "Priority", action: nil, keyEquivalent: "")
+                    let container = NSMenuItem(title: L10n.text("Priority"), action: nil, keyEquivalent: "")
                     container.image = NSImage(
                         systemSymbolName: "arrow.up.arrow.down",
-                        accessibilityDescription: "Priority")
+                        accessibilityDescription: L10n.text("Priority"))
                     container.submenu = submenu
                     // Every priority entry shares one enablement, so the first
                     // is representative of the whole submenu.
@@ -433,21 +434,21 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                     menu.addItem(container)
                     continue
                 case .resume:
-                    let item = actionItem("Resume", "play.fill", .resume)
+                    let item = actionItem(L10n.text("Resume"), "play.fill", .resume)
                     item.isEnabled = spec.isEnabled
                     menu.addItem(item)
                 case .pause:
-                    let item = actionItem("Pause", "pause.fill", .pause)
+                    let item = actionItem(L10n.text("Pause"), "pause.fill", .pause)
                     item.isEnabled = spec.isEnabled
                     menu.addItem(item)
                 case .separator:
                     menu.addItem(.separator())
                 case .verify:
-                    let item = actionItem("Verify Local Data", "checkmark.shield", .verify)
+                    let item = actionItem(L10n.text("Verify Local Data"), "checkmark.shield", .verify)
                     item.isEnabled = spec.isEnabled
                     menu.addItem(item)
                 case .reannounce:
-                    let item = actionItem("Update Tracker", "megaphone", .reannounce)
+                    let item = actionItem(L10n.text("Update Tracker"), "megaphone", .reannounce)
                     item.isEnabled = spec.isEnabled
                     menu.addItem(item)
                 case .mapping(let mapping):
@@ -455,27 +456,27 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                     item.isEnabled = spec.isEnabled
                     menu.addItem(item)
                 case .editLabels:
-                    let item = actionItem("Edit Labels…", "tag", .editLabels)
+                    let item = actionItem(L10n.text("Edit Labels…"), "tag", .editLabels)
                     item.tag = Self.editLabelsItemTag
                     item.isEnabled = spec.isEnabled
                     menu.addItem(item)
                 case .setLocation:
-                    let item = actionItem("Set Location…", "folder", .setLocation)
+                    let item = actionItem(L10n.text("Set Location…"), "folder", .setLocation)
                     item.tag = Self.setLocationItemTag
                     item.isEnabled = spec.isEnabled
                     menu.addItem(item)
                 case .rename:
-                    let item = actionItem("Rename…", "pencil", .rename)
+                    let item = actionItem(L10n.text("Rename…"), "pencil", .rename)
                     item.tag = Self.renameItemTag
                     item.isEnabled = spec.isEnabled
                     menu.addItem(item)
                 case .remove:
                     menu.addItem(
-                        destructiveItem("Remove\u{2026}", "trash", .remove, spec.isEnabled))
+                        destructiveItem(L10n.text("Remove…"), "trash", .remove, spec.isEnabled))
                 case .removeAndDeleteData:
                     menu.addItem(
                         destructiveItem(
-                            "Remove and Delete Data\u{2026}", "trash.fill", .removeAndDeleteData,
+                            L10n.text("Remove and Delete Data…"), "trash.fill", .removeAndDeleteData,
                             spec.isEnabled))
                 }
                 index += 1
@@ -540,20 +541,20 @@ struct TorrentTableRepresentable: NSViewRepresentable {
                     item.representedObject = spec.column.rawValue
                     submenu.addItem(item)
                 }
-                let groupItem = NSMenuItem(title: group.rawValue, action: nil, keyEquivalent: "")
+                let groupItem = NSMenuItem(title: group.displayLabel, action: nil, keyEquivalent: "")
                 groupItem.submenu = submenu
                 menu.addItem(groupItem)
             }
             menu.addItem(.separator())
             let hideItem = NSMenuItem(
-                title: "Hide This Column",
+                title: L10n.text("Hide This Column"),
                 action: #selector(TorrentTableRepresentable.Coordinator.hideClickedColumn(_:)),
                 keyEquivalent: "")
             hideItem.target = self
             hideItem.tag = Self.hideColumnItemTag
             menu.addItem(hideItem)
             let resetItem = NSMenuItem(
-                title: "Reset Columns",
+                title: L10n.text("Reset Columns"),
                 action: #selector(TorrentTableRepresentable.Coordinator.resetColumnsToDefaults(_:)),
                 keyEquivalent: "")
             resetItem.target = self
@@ -628,7 +629,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             }
             guard let hideItem = menu.items.first(where: { $0.tag == Self.hideColumnItemTag }) else { return }
             guard let index = invokedHeaderColumnIndex(in: tableView) else {
-                hideItem.title = "Hide This Column"
+                hideItem.title = L10n.text("Hide This Column")
                 hideItem.representedObject = nil
                 hideItem.isEnabled = false
                 return
@@ -637,7 +638,7 @@ struct TorrentTableRepresentable: NSViewRepresentable {
             let title =
                 TorrentTableColumns.all.first(where: { $0.identifier == column.identifier })?.title
                 ?? column.identifier.rawValue
-            hideItem.title = "Hide “\(title)”"
+            hideItem.title = L10n.format("Hide “%@”", title)
             hideItem.representedObject = column.identifier.rawValue
             hideItem.isEnabled = !column.isHidden && visibleCount > 1
         }

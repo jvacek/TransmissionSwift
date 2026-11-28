@@ -24,20 +24,20 @@ struct StatusBarView: View {
             supportButtons
             switch store.connection {
             case .connecting:
-                let name = profileStore.activeProfile?.label ?? "server"
-                Text("Connecting to \(name)…")
+                let name = profileStore.activeProfile?.label ?? L10n.text("server")
+                Text(L10n.format("Connecting to %@…", name))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                 Spacer(minLength: 8)
             case .awaitingKeychain:
-                Text("Waiting for keychain access…")
+                Text(L10n.text("Waiting for keychain access…"))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                 Spacer(minLength: 8)
             case .disconnected:
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
-                Text("Disconnected")
+                Text(L10n.text("Disconnected"))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 8)
             case .connected:
@@ -78,7 +78,7 @@ struct StatusBarView: View {
         }
         .buttonStyle(.borderless)
         .controlSize(.small)
-        .help("Report a bug on GitHub")
+        .help(L10n.text("Report a bug on GitHub"))
         .foregroundStyle(Color(NSColor.secondaryLabelColor))
         .accessibilityIdentifier("statusBar.reportBug")
     }
@@ -93,7 +93,7 @@ struct StatusBarView: View {
         }
         .buttonStyle(.borderless)
         .controlSize(.small)
-        .help("Support TransmissionSwift")
+        .help(L10n.text("Support TransmissionSwift"))
         .foregroundStyle(.pink)
         .accessibilityIdentifier("statusBar.donate")
     }
@@ -107,21 +107,25 @@ struct StatusBarView: View {
             }
             .buttonStyle(.borderless)
             .controlSize(.small)
-            .help("Server statistics")
+            .help(L10n.text("Server statistics"))
             .foregroundStyle(Color(NSColor.secondaryLabelColor))
             .accessibilityIdentifier("statusBar.serverStats")
             .popover(isPresented: $showServerStats, arrowEdge: .bottom) {
                 ServerStatsPopoverView()
             }
-            Text("\(store.list.torrents.count) torrents · \(activeCount) active")
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .accessibilityIdentifier("statusBar.count")
+            Text(
+                L10n.format(
+                    "%lld torrents · %lld active",
+                    Int64(store.list.torrents.count), Int64(activeCount))
+            )
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
+            .accessibilityIdentifier("statusBar.count")
             if store.isReconnecting {
-                Label("Reconnecting…", systemImage: "arrow.triangle.2.circlepath")
+                Label(L10n.text("Reconnecting…"), systemImage: "arrow.triangle.2.circlepath")
                     .font(.caption)
                     .foregroundStyle(.orange)
-                    .help("The server isn't answering. Retrying automatically.")
+                    .help(L10n.text("The server isn't answering. Retrying automatically."))
                     .accessibilityIdentifier("statusBar.reconnecting")
             }
         }
@@ -138,7 +142,7 @@ struct StatusBarView: View {
             }
             .buttonStyle(.borderless)
             .disabled(!store.actionsEnabled)
-            .help("Alternative speed limits")
+            .help(L10n.text("Alternative speed limits"))
             .foregroundStyle(
                 store.session.isAlternativeSpeedEnabled
                     ? Color(NSColor.controlAccentColor) : Color(NSColor.secondaryLabelColor)
@@ -148,13 +152,16 @@ struct StatusBarView: View {
                 Button {
                     Task { await store.session.refreshFreeSpace() }
                 } label: {
-                    Label(ColumnFormatters.humanizedSize(freeSpace) + " free", systemImage: "internaldrive")
-                        .foregroundStyle(.secondary)
+                    Label(
+                        L10n.format("%@ free", ColumnFormatters.humanizedSize(freeSpace)),
+                        systemImage: "internaldrive"
+                    )
+                    .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.borderless)
-                .help("Click to refresh free space")
+                .help(L10n.text("Click to refresh free space"))
             }
-            Text("Ratio \(overallRatio, format: .number.precision(.fractionLength(2)))")
+            Text(L10n.format("Ratio %.2f", overallRatio))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }

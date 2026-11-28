@@ -23,8 +23,10 @@ struct GetServersIntent: AppIntent {
         await SpotlightIndexer.indexServers(profiles)
         let dialog =
             servers.isEmpty
-            ? "No Transmission servers are configured."
-            : "\(servers.count) server\(servers.count == 1 ? "" : "s")."
+            ? L10n.text("No Transmission servers are configured.")
+            : servers.count == 1
+                ? L10n.text("1 server.")
+                : L10n.format("%lld servers.", Int64(servers.count))
         return .result(value: servers, dialog: "\(dialog)")
     }
 }

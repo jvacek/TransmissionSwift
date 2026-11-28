@@ -121,7 +121,9 @@ final class AppIntentsUITests: XCTestCase {
             throw XCTSkip("Missing committed snapshot fixture")
         }
         let app = XCUIApplication()
-        app.launchArguments = ["--snapshot", fixture.path]
+        app.launchArguments = [
+            "--snapshot", fixture.path, "-interfaceLanguage", "en", "-AppleLanguages", "(en)",
+        ]
         app.launch()
     }
 

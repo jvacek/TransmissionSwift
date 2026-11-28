@@ -198,32 +198,32 @@ struct MainWindow: View {
                 ),
                 presenting: store.actions.pendingRemoval
             ) { _ in
-                Button("Remove", role: .destructive) { store.actions.confirmPendingRemoval() }
-                Button("Cancel", role: .cancel) { store.actions.cancelPendingRemoval() }
+                Button(L10n.text("Remove"), role: .destructive) { store.actions.confirmPendingRemoval() }
+                Button(L10n.text("Cancel"), role: .cancel) { store.actions.cancelPendingRemoval() }
             } message: { pending in
                 Text(removeDialogMessage(for: pending))
             }
             .alert(
-                store.lastActionError?.title ?? "Action Failed",
+                store.lastActionError?.displayTitle ?? L10n.text("Action Failed"),
                 isPresented: Binding(
                     get: { store.lastActionError != nil },
                     set: { if !$0 { store.lastActionError = nil } }
                 ),
                 presenting: store.lastActionError
             ) { _ in
-                Button("OK", role: .cancel) { store.lastActionError = nil }
+                Button(L10n.text("OK"), role: .cancel) { store.lastActionError = nil }
             } message: { error in
-                Text(error.localizedDescription)
+                Text(error.displayMessage)
             }
             .alert(
-                "Server List Not Loaded",
+                L10n.text("Server List Not Loaded"),
                 isPresented: Binding(
                     get: { profileStore.loadError != nil },
                     set: { if !$0 { profileStore.acknowledgeLoadError() } }
                 ),
                 presenting: profileStore.loadError
             ) { _ in
-                Button("OK", role: .cancel) { profileStore.acknowledgeLoadError() }
+                Button(L10n.text("OK"), role: .cancel) { profileStore.acknowledgeLoadError() }
             } message: { error in
                 Text(error.localizedDescription)
             }
@@ -261,7 +261,9 @@ struct MainWindow: View {
                     // toolbar section, which in Icon and Text mode can't fit
                     // its caption and sends it to the overflow menu.
                     ToolbarItem(placement: .navigation) {
-                        let title = columnVisibility == .detailOnly ? "Show Sidebar" : "Hide Sidebar"
+                        let title =
+                            columnVisibility == .detailOnly
+                            ? L10n.text("Show Sidebar") : L10n.text("Hide Sidebar")
                         Button(title, systemImage: "sidebar.left") { sidebarVisible.toggle() }
                             .help(title)
                             .accessibilityIdentifier("toolbar.sidebar")
@@ -315,15 +317,17 @@ struct MainWindow: View {
 
     /// Title / message for the remove confirmation dialog.
     private var removeDialogTitle: String {
-        guard let pending = store.actions.pendingRemoval else { return "Remove Torrents" }
-        return pending.ids.count == 1 ? "Remove Torrent?" : "Remove \(pending.ids.count) Torrents?"
+        guard let pending = store.actions.pendingRemoval else { return L10n.text("Remove Torrents") }
+        if pending.ids.count == 1 { return L10n.text("Remove Torrent?") }
+        return L10n.format("Remove %lld Torrents?", Int64(pending.ids.count))
     }
 
     private func removeDialogMessage(for pending: PendingRemoval) -> String {
         if pending.deleteLocalData {
-            return "The torrents and their downloaded data will be deleted from the server."
+            return L10n.text("The torrents and their downloaded data will be deleted from the server.")
         }
-        return "The torrents will be removed from the list. Downloaded data stays on the server."
+        return L10n.text(
+            "The torrents will be removed from the list. Downloaded data stays on the server.")
     }
 
     /// Applies a pending "open torrent" request from an App Intent: switch to
@@ -360,21 +364,22 @@ struct MainWindow: View {
                 }
             }
             Divider()
-            Button("Server Settings…") {
+            Button(L10n.text("Server Settings…")) {
                 openServerSettings()
             }
         } label: {
             // Titled "Server" for the toolbar's Icon and Text caption, but drawn
             // with the server's name: the only place the window shows it, as
             // the title is kept out of the toolbar (see `navigationTitle`).
-            Label("Server", systemImage: "server.rack")
+            Label(L10n.text("Server"), systemImage: "server.rack")
                 .labelStyle(
-                    ServerSwitcherLabelStyle(name: profileStore.activeProfile?.label ?? "No Server"))
+                    ServerSwitcherLabelStyle(
+                        name: profileStore.activeProfile?.label ?? L10n.text("No Server")))
         }
         // Capped so a long name truncates instead of widening the window.
         .frame(maxWidth: 180)
-        .help(profileStore.activeProfile?.label ?? "Server")
-        .accessibilityLabel(profileStore.activeProfile?.label ?? "No Server")
+        .help(profileStore.activeProfile?.label ?? L10n.text("Server"))
+        .accessibilityLabel(profileStore.activeProfile?.label ?? L10n.text("No Server"))
         .accessibilityIdentifier("toolbar.serverSwitcher")
     }
 
@@ -390,20 +395,25 @@ struct MainWindow: View {
         } else {
             switch store.connection {
             case .connecting:
-                connectingPlaceholder(message: "Connecting to \(profileStore.activeProfile?.label ?? "server")…")
+                connectingPlaceholder(
+                    message: L10n.format(
+                        "Connecting to %@…",
+                        profileStore.activeProfile?.label ?? L10n.text("server")))
             case .awaitingKeychain:
-                connectingPlaceholder(message: "Waiting for keychain access…")
+                connectingPlaceholder(message: L10n.text("Waiting for keychain access…"))
             case .disconnected(let reason):
                 disconnectedView(reason: reason)
             case .connected:
                 if !store.list.searchQuery.isEmpty && store.list.visibleTorrents.isEmpty {
                     ContentUnavailableView {
-                        Label("No Results for “\(store.list.searchQuery)”", systemImage: "magnifyingglass")
+                        Label(
+                            L10n.format("No Results for “%@”", store.list.searchQuery),
+                            systemImage: "magnifyingglass")
                     } description: {
-                        Text("Check the spelling or try a new search.")
+                        Text(L10n.text("Check the spelling or try a new search."))
                     } actions: {
-                        Button("Clear Search") { store.list.searchQuery = "" }
-                        Button("Reset Filters") {
+                        Button(L10n.text("Clear Search")) { store.list.searchQuery = "" }
+                        Button(L10n.text("Reset Filters")) {
                             store.list.searchQuery = ""
                             store.list.resetFilters()
                         }
@@ -427,26 +437,26 @@ struct MainWindow: View {
         } description: {
             Text(message)
         } actions: {
-            Button("Cancel") {
-                store.simulateConnection(.disconnected(reason: "Cancelled by user"))
+            Button(L10n.text("Cancel")) {
+                store.simulateConnection(.disconnected(reason: L10n.text("Cancelled by user")))
             }
         }
     }
 
     private func disconnectedView(reason: String) -> some View {
         let profile = profileStore.activeProfile
-        let address = profile.map { "\($0.host):\($0.port)" } ?? "unknown host"
+        let address = profile.map { "\($0.host):\($0.port)" } ?? L10n.text("unknown host")
         return ContentUnavailableView {
-            Label("Connection Lost", systemImage: "network.slash")
+            Label(L10n.text("Connection Lost"), systemImage: "network.slash")
         } description: {
-            Text("Could not connect to \(address).\n\(reason)")
+            Text(L10n.format("Could not connect to %@.\n%@", address, reason))
         } actions: {
-            Button("Reconnect") {
+            Button(L10n.text("Reconnect")) {
                 guard let profile else { return }
                 Task { await connection.connect(to: profile) }
             }
             .buttonStyle(.glassProminent)
-            Button("Server Settings…") {
+            Button(L10n.text("Server Settings…")) {
                 openServerSettings()
             }
         }
@@ -454,23 +464,25 @@ struct MainWindow: View {
 
     private var noTorrentsView: some View {
         ContentUnavailableView {
-            Label("No Torrents Yet", systemImage: "arrow.down.circle")
+            Label(L10n.text("No Torrents Yet"), systemImage: "arrow.down.circle")
         } description: {
-            Text("Add a torrent file, magnet link, or URL to get started.")
+            Text(L10n.text("Add a torrent file, magnet link, or URL to get started."))
         } actions: {
-            Button("Add Torrent…") { store.openAddSheet() }
+            Button(L10n.text("Add Torrent…")) { store.openAddSheet() }
                 .buttonStyle(.glassProminent)
-            Button("Add Link…") { store.openAddSheet(mode: .link) }
+            Button(L10n.text("Add Link…")) { store.openAddSheet(mode: .link) }
         }
     }
 
     private var noServersView: some View {
         ContentUnavailableView {
-            Label("No Servers", systemImage: "server.rack")
+            Label(L10n.text("No Servers"), systemImage: "server.rack")
         } description: {
-            Text("Add a Transmission server in Settings to connect and start managing torrents.")
+            Text(
+                L10n.text(
+                    "Add a Transmission server in Settings to connect and start managing torrents."))
         } actions: {
-            Button("Add Server…") {
+            Button(L10n.text("Add Server…")) {
                 openServerSettings()
             }
             .buttonStyle(.glassProminent)

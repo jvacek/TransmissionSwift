@@ -39,10 +39,10 @@ enum FilePriorityChoice: CaseIterable, Hashable {
 
     var displayLabel: String {
         switch self {
-        case .high: return "High"
-        case .normal: return "Normal"
-        case .low: return "Low"
-        case .skip: return "Skip"
+        case .high: return L10n.text("High")
+        case .normal: return L10n.text("Normal")
+        case .low: return L10n.text("Low")
+        case .skip: return L10n.text("Skip")
         }
     }
 
@@ -87,7 +87,7 @@ struct FilePriorityPicker: View {
     /// Folder rows show a shared priority only when every descendant agrees;
     /// otherwise the chip shows a mixed glyph and the menu applies to all.
     var isMixed: Bool = false
-    var label: String = "File priority"
+    var label: String = L10n.text("File priority")
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -123,7 +123,7 @@ struct FilePriorityPicker: View {
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.4)
         .accessibilityLabel(label)
-        .accessibilityValue(isMixed ? "Mixed" : choice.displayLabel)
+        .accessibilityValue(isMixed ? L10n.text("Mixed") : choice.displayLabel)
     }
 
     private var chip: NSImage {

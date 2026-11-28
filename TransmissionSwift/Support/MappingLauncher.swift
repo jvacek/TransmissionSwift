@@ -36,13 +36,13 @@ enum MappingLauncher {
             if NSWorkspace.shared.open(url) {
                 completion(.opened)
             } else {
-                completion(.failed(message: "No app handles \(url.scheme ?? "this") links."))
+                completion(.failed(message: L10n.format("No app handles %@ links.", url.scheme ?? "this")))
             }
             return
         }
         guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
         else {
-            completion(.failed(message: "Could not find the app for “\(bundleID)”."))
+            completion(.failed(message: L10n.format("Could not find the app for “%@”.", bundleID)))
             return
         }
         NSWorkspace.shared.open(

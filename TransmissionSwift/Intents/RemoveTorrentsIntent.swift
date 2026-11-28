@@ -32,8 +32,12 @@ struct RemoveTorrentsIntent: AppIntent {
 
         let delete = deleteData ?? false
         let message =
-            "Remove \(targets.count) torrent\(targets.count == 1 ? "" : "s") from \(profile.label)"
-            + (delete ? " and delete their data?" : "?")
+            targets.count == 1
+            ? L10n.format(
+                "Remove 1 torrent from %@%@", profile.label, delete ? L10n.text(" and delete its data?") : "?")
+            : L10n.format(
+                "Remove %lld torrents from %@%@", Int64(targets.count), profile.label,
+                delete ? L10n.text(" and delete their data?") : "?")
         try await requestConfirmation(dialog: "\(message)")
 
         do {
@@ -46,6 +50,7 @@ struct RemoveTorrentsIntent: AppIntent {
             serverID: profile.id.uuidString)
         return .result(
             dialog:
-                "Removed \(targets.count) torrent\(targets.count == 1 ? "" : "s") from \(profile.label).")
+                "\(targets.count == 1 ? L10n.format("Removed 1 torrent from %@.", profile.label) : L10n.format("Removed %lld torrents from %@.", Int64(targets.count), profile.label))"
+        )
     }
 }

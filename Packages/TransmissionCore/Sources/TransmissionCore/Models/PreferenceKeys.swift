@@ -17,6 +17,7 @@ public enum PreferenceKeys {
     public static let addTorrentFilesExpanded = "addTorrentFilesExpanded"
 
     // General
+    public static let interfaceLanguage = "interfaceLanguage"
     public static let startMinimized = "startMinimized"
     public static let badgeAppIcon = "badgeAppIcon"
     public static let confirmRemove = "confirmRemove"

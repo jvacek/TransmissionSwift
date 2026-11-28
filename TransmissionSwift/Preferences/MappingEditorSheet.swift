@@ -197,7 +197,9 @@ struct MappingEditorSheet: View {
         let effectiveBundleID = model.applicationBundleID ?? defaultHandlerBundleIDCache
         guard effectiveBundleID == "com.apple.Safari" else { return nil }
         return
-            "Safari doesn't handle basic-auth URLs correctly and will re-prompt for credentials. Pick a different app (e.g. Chrome)."
+            L10n.text(
+                "Safari doesn't handle basic-auth URLs correctly and will re-prompt for credentials. Pick a different app (e.g. Chrome)."
+            )
     }
 
     private var trimmedName: String {
@@ -280,13 +282,13 @@ struct MappingEditorSheet: View {
     private var scopeSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Applies to")
+                Text(L10n.text("Applies to"))
                 Spacer()
-                Picker("Applies to", selection: scopeChoice) {
-                    Text("All Servers").tag(ScopeChoice.all)
-                    Text("All Remote Servers").tag(ScopeChoice.remote)
-                    Text("All Local Servers").tag(ScopeChoice.local)
-                    Text("Selected Servers").tag(ScopeChoice.selected)
+                Picker(L10n.text("Applies to"), selection: scopeChoice) {
+                    Text(L10n.text("All Servers")).tag(ScopeChoice.all)
+                    Text(L10n.text("All Remote Servers")).tag(ScopeChoice.remote)
+                    Text(L10n.text("All Local Servers")).tag(ScopeChoice.local)
+                    Text(L10n.text("Selected Servers")).tag(ScopeChoice.selected)
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
@@ -299,7 +301,7 @@ struct MappingEditorSheet: View {
 
             if case .only = model.scope {
                 if profileStore.profiles.isEmpty {
-                    Text("No servers configured yet.")
+                    Text(L10n.text("No servers configured yet."))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
@@ -318,7 +320,7 @@ struct MappingEditorSheet: View {
                         }
                     }
                     if !scopeIsValid {
-                        Text("Select at least one server.")
+                        Text(L10n.text("Select at least one server."))
                             .font(.caption)
                             .foregroundStyle(.red)
                     }
@@ -332,31 +334,35 @@ struct MappingEditorSheet: View {
     private var scopeHelp: String {
         switch model.scope {
         case .all:
-            return "Matches every server, including servers you add later."
+            return L10n.text("Matches every server, including servers you add later.")
         case .remote:
             return
-                "Matches servers outside your local network, such as a seedbox or a public address. Includes servers you add later."
+                L10n.text(
+                    "Matches servers outside your local network, such as a seedbox or a public address. Includes servers you add later."
+                )
         case .local:
             return
-                "Matches localhost and your local network: private addresses (10.x, 172.16–31.x, 192.168.x), link-local addresses, and .local names. Includes servers you add later."
+                L10n.text(
+                    "Matches localhost and your local network: private addresses (10.x, 172.16–31.x, 192.168.x), link-local addresses, and .local names. Includes servers you add later."
+                )
         case .only:
-            return "Matches only the servers you tick below."
+            return L10n.text("Matches only the servers you tick below.")
         }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(model.existing == nil ? "Add Mapping" : "Edit Mapping")
+            Text(model.existing == nil ? L10n.text("Add Mapping") : L10n.text("Edit Mapping"))
                 .font(.headline)
 
-            TextField("Name", text: $model.name, prompt: Text("e.g. Finder"))
+            TextField(L10n.text("Name"), text: $model.name, prompt: Text(L10n.text("e.g. Finder")))
                 .textFieldStyle(.roundedBorder)
 
             VStack(alignment: .leading, spacing: 6) {
                 TextField(
-                    "Template",
+                    L10n.text("Template"),
                     text: $model.template,
-                    prompt: Text("e.g. file:///Volumes/transmission/{folder}")
+                    prompt: Text(L10n.text("e.g. file:///Volumes/transmission/{folder}"))
                 )
                 .textFieldStyle(.roundedBorder)
                 .font(.system(.body, design: .monospaced))
@@ -377,11 +383,11 @@ struct MappingEditorSheet: View {
                             }
                         }
                     } label: {
-                        Text("Presets")
+                        Text(L10n.text("Presets"))
                     }
                     .controlSize(.small)
 
-                    Menu("Insert placeholder") {
+                    Menu(L10n.text("Insert placeholder")) {
                         ForEach(Array(OpenMappingPlaceholders.groups.enumerated()), id: \.element.id) {
                             index, group in
                             if index > 0 { Divider() }
@@ -401,7 +407,7 @@ struct MappingEditorSheet: View {
                     }
                     .buttonStyle(.borderless)
                     .controlSize(.small)
-                    .help("Placeholder reference")
+                    .help(L10n.text("Placeholder reference"))
                     .popover(isPresented: $showPlaceholderHelp, arrowEdge: .top) {
                         PlaceholderReferenceView(groups: OpenMappingPlaceholders.groups)
                     }
@@ -412,16 +418,16 @@ struct MappingEditorSheet: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("Preview")
+                    Text(L10n.text("Preview"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button("Test") { test() }
+                    Button(L10n.text("Test")) { test() }
                         // previewURL is password-free and already computed for the
                         // preview text, so this does not read the Keychain.
                         .disabled(trimmedTemplate.isEmpty || previewURL == nil)
                         .controlSize(.small)
-                        .help("Opens the preview URL in the chosen app")
+                        .help(L10n.text("Opens the preview URL in the chosen app"))
                 }
                 if let url = previewURL {
                     Text(previewDisplayString ?? url.absoluteString)
@@ -431,12 +437,14 @@ struct MappingEditorSheet: View {
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                 } else if trimmedTemplate.isEmpty {
-                    Text("Enter a template to see a preview.")
+                    Text(L10n.text("Enter a template to see a preview."))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
                     Text(
-                        "This template can't form a valid URL. Check the placeholders and the scheme (e.g. \("{host}") is required for \("https://")."
+                        L10n.format(
+                            "This template can't form a valid URL. Check the placeholders and the scheme (e.g. %@ is required for %@).",
+                            "{host}", "https://")
                     )
                     .font(.caption)
                     .foregroundStyle(.red)
@@ -450,25 +458,27 @@ struct MappingEditorSheet: View {
             }
 
             HStack {
-                Text("Action")
+                Text(L10n.text("Action"))
                 Spacer()
-                Picker("Action", selection: $model.action) {
-                    Text("Reveal in Finder").tag(OpenMappingAction.finder)
-                    Text("Open").tag(OpenMappingAction.open)
+                Picker(L10n.text("Action"), selection: $model.action) {
+                    Text(L10n.text("Reveal in Finder")).tag(OpenMappingAction.finder)
+                    Text(L10n.text("Open")).tag(OpenMappingAction.open)
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
                 .help(
-                    "Reveal selects the item in Finder; Open hands the URL to the system's protocol handler or a chosen app"
+                    L10n.text(
+                        "Reveal selects the item in Finder; Open hands the URL to the system's protocol handler or a chosen app"
+                    )
                 )
             }
 
             if model.action == .open {
                 HStack {
-                    Text("Open with")
+                    Text(L10n.text("Open with"))
                     Spacer()
-                    Picker("Open with", selection: $model.applicationBundleID) {
-                        Text("Let the system handle it").tag(String?.none)
+                    Picker(L10n.text("Open with"), selection: $model.applicationBundleID) {
+                        Text(L10n.text("Let the system handle it")).tag(String?.none)
                         if !handlerAppsCache.isEmpty {
                             Divider()
                             ForEach(handlerAppsCache) { app in
@@ -478,31 +488,34 @@ struct MappingEditorSheet: View {
                     }
                     .pickerStyle(.menu)
                     .labelsHidden()
-                    .help("Which app receives the URL; the system default for the scheme when unset")
-                    Button("Choose App…") { chooseApp() }
+                    .help(L10n.text("Which app receives the URL; the system default for the scheme when unset"))
+                    Button(L10n.text("Choose App…")) { chooseApp() }
                         .controlSize(.small)
                 }
                 if model.action == .open && templateScheme == "file" {
                     HStack(alignment: .top, spacing: 10) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("File access")
+                            Text(L10n.text("File access"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             let paths = model.accessGrantedPaths
                             if paths.isEmpty {
-                                Text("macOS needs permission to hand local files to another app.")
+                                Text(L10n.text("macOS needs permission to hand local files to another app."))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             } else {
                                 ForEach(paths, id: \.self) { path in
-                                    Text("Access granted to \(path)")
+                                    Text(L10n.format("Access granted to %@", path))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                             }
                         }
                         Spacer()
-                        Button(model.accessBookmarks.isEmpty ? "Pre-approve directory…" : "Add directory…") {
+                        Button(
+                            model.accessBookmarks.isEmpty
+                                ? L10n.text("Pre-approve directory…") : L10n.text("Add directory…")
+                        ) {
                             chooseAccessFolder()
                         }
                         .controlSize(.small)
@@ -526,42 +539,45 @@ struct MappingEditorSheet: View {
             }
 
             SheetButtonRow(
-                model.existing == nil ? "Add" : "Save",
+                model.existing == nil ? L10n.text("Add") : L10n.text("Save"),
                 canConfirm: canSave,
                 onCancel: onCancel,
                 onConfirm: save
             ) {
                 if let onDuplicate {
-                    Button("Duplicate", action: onDuplicate)
+                    Button(L10n.text("Duplicate"), action: onDuplicate)
                         .disabled(isDirty)
-                        .help(isDirty ? "Save or cancel your changes first" : "Make a copy of this mapping")
+                        .help(
+                            isDirty
+                                ? L10n.text("Save or cancel your changes first")
+                                : L10n.text("Make a copy of this mapping"))
                 }
                 if onRemove != nil {
-                    Button("Remove…", role: .destructive) { confirmingRemoval = true }
+                    Button(L10n.text("Remove…"), role: .destructive) { confirmingRemoval = true }
                 }
             }
         }
         .padding(20)
         .frame(width: 460)
-        .confirmationDialog("Remove Mapping?", isPresented: $confirmingRemoval) {
-            Button("Remove", role: .destructive) { onRemove?() }
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog(L10n.text("Remove Mapping?"), isPresented: $confirmingRemoval) {
+            Button(L10n.text("Remove"), role: .destructive) { onRemove?() }
+            Button(L10n.text("Cancel"), role: .cancel) {}
         } message: {
-            Text("“\(model.existing?.name ?? model.name)” will be deleted. This can't be undone.")
+            Text(L10n.format("“%@” will be deleted. This can't be undone.", model.existing?.name ?? model.name))
         }
         .task(id: handlerRefreshKey) {
             refreshHandlerCache()
         }
-        .alert("Allow access to local files?", isPresented: $showAccessAlert) {
-            Button("Pre-approve directory…") {
+        .alert(L10n.text("Allow access to local files?"), isPresented: $showAccessAlert) {
+            Button(L10n.text("Pre-approve directory…")) {
                 chooseAccessFolder { stored in
                     if stored { commitSave() }
                 }
             }
-            Button("Save without access") {
+            Button(L10n.text("Save without access")) {
                 commitSave()
             }
-            Button("Cancel", role: .cancel) {}
+            Button(L10n.text("Cancel"), role: .cancel) {}
         } message: {
             Text(accessPromptMessage)
         }
@@ -598,8 +614,8 @@ struct MappingEditorSheet: View {
     /// (ENABLE_USER_SELECTED_FILES) covers reading the app's bundle ID.
     private func chooseApp() {
         let panel = NSOpenPanel()
-        panel.title = "Choose an App"
-        panel.prompt = "Choose"
+        panel.title = L10n.text("Choose an App")
+        panel.prompt = L10n.text("Choose")
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
@@ -621,10 +637,12 @@ struct MappingEditorSheet: View {
     /// bookmark recorded.
     private func chooseAccessFolder(then completion: ((Bool) -> Void)? = nil) {
         let panel = NSOpenPanel()
-        panel.title = "Allow Access"
+        panel.title = L10n.text("Allow Access")
         panel.message =
-            "Choose a folder that “\(model.name)” may open files from. Pre-approving it now means no prompt when you open a file."
-        panel.prompt = "Allow"
+            L10n.format(
+                "Choose a folder that “%@” may open files from. Pre-approving it now means no prompt when you open a file.",
+                model.name)
+        panel.prompt = L10n.text("Allow")
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
@@ -646,7 +664,7 @@ struct MappingEditorSheet: View {
                 }
                 completion?(true)
             } catch {
-                model.testMessage = "Could not save access permission: \(error.localizedDescription)"
+                model.testMessage = L10n.format("Could not save access permission: %@", error.localizedDescription)
                 model.testFailed = true
                 completion?(false)
             }
@@ -663,10 +681,14 @@ struct MappingEditorSheet: View {
     private var accessPromptMessage: String {
         if let dir = sampleDownloadDir, !dir.isEmpty {
             return
-                "This mapping opens local files. Allow access to the download folder \(dir) so macOS can hand files to another app? You can pre-approve a different folder, or skip and the app will ask on first use."
+                L10n.format(
+                    "This mapping opens local files. Allow access to the download folder %@ so macOS can hand files to another app? You can pre-approve a different folder, or skip and the app will ask on first use.",
+                    dir)
         }
         return
-            "This mapping opens local files. macOS needs permission to hand them to another app. You can pre-approve a folder now, or the app will ask on first use."
+            L10n.text(
+                "This mapping opens local files. macOS needs permission to hand them to another app. You can pre-approve a folder now, or the app will ask on first use."
+            )
     }
 
     private func test() {
@@ -676,12 +698,14 @@ struct MappingEditorSheet: View {
         case .finder:
             guard url.scheme == "file", FileManager.default.fileExists(atPath: url.path) else {
                 model.testMessage =
-                    "Nothing to reveal at \(url.path). Reveal in Finder only works for files that exist on this Mac (a local daemon or mounted volume)."
+                    L10n.format(
+                        "Nothing to reveal at %@. Reveal in Finder only works for files that exist on this Mac (a local daemon or mounted volume).",
+                        url.path)
                 model.testFailed = true
                 return
             }
             MappingLauncher.revealInFinder(url)
-            model.testMessage = "Revealed in Finder."
+            model.testMessage = L10n.text("Revealed in Finder.")
             model.testFailed = false
         case .open:
             let hasApp = !(model.applicationBundleID ?? "").isEmpty
@@ -689,10 +713,10 @@ struct MappingEditorSheet: View {
                 outcome in
                 switch outcome {
                 case .opened:
-                    model.testMessage = hasApp ? "Opened." : "Opened in the default app."
+                    model.testMessage = hasApp ? L10n.text("Opened.") : L10n.text("Opened in the default app.")
                     model.testFailed = false
                 case .failed(let message):
-                    model.testMessage = "Could not open: \(message)"
+                    model.testMessage = L10n.format("Could not open: %@", message)
                     model.testFailed = true
                 }
             }

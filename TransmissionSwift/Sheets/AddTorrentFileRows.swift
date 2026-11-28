@@ -120,7 +120,7 @@ struct AddTorrentFileRow: View {
             NativeCheckbox(
                 state: file.wanted ? true : false,
                 allowsMixedState: false,
-                label: "Download \(file.pathString)",
+                label: L10n.format("Download %@", file.pathString),
                 action: { file.wanted.toggle() }
             )
             .frame(width: 18, height: 18)
@@ -153,7 +153,7 @@ struct AddTorrentFileRow: View {
                             file.wanted = false
                         }
                     }),
-                label: "Priority for \(file.pathString)"
+                label: L10n.format("Priority for %@", file.pathString)
             )
         }
         .padding(.horizontal, 0)
@@ -192,12 +192,14 @@ struct AddTorrentFolderRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(
-                isExpanded ? "Collapse folder \(name)" : "Expand folder \(name)")
+                isExpanded
+                    ? L10n.format("Collapse folder %@", name)
+                    : L10n.format("Expand folder %@", name))
 
             NativeCheckbox(
                 state: allWanted ? true : (anyWanted ? nil : false),
                 allowsMixedState: true,
-                label: "Download folder \(name)",
+                label: L10n.format("Download folder %@", name),
                 action: onToggle
             )
             .frame(width: 18, height: 18)
@@ -224,7 +226,7 @@ struct AddTorrentFolderRow: View {
                     get: { choice ?? .normal },
                     set: { onPriority($0) }),
                 isMixed: choice == nil,
-                label: "Priority for folder \(name)")
+                label: L10n.format("Priority for folder %@", name))
         }
         .padding(.horizontal, 0)
         .frame(height: addFileContentHeight)
@@ -265,10 +267,12 @@ private struct NativeCheckbox: NSViewRepresentable {
     }
 
     private var accessibilityValue: String {
-        guard allowsMixedState else { return state == true ? "On" : "Off" }
-        if state == true { return "All files" }
-        if state == nil { return "Some files" }
-        return "No files"
+        guard allowsMixedState else {
+            return state == true ? L10n.text("On") : L10n.text("Off")
+        }
+        if state == true { return L10n.text("All files") }
+        if state == nil { return L10n.text("Some files") }
+        return L10n.text("No files")
     }
 
     @MainActor

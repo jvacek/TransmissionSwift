@@ -107,7 +107,7 @@ extension TorrentCellContent {
                 color: .labelColor,
                 alignment: .left,
                 toolTip: nil,
-                accessibilityLabel: "\(Int((value * 100).rounded())) percent",
+                accessibilityLabel: L10n.format("%lld percent", Int64((value * 100).rounded())),
                 progressValue: value,
                 progressTint: row.torrent.progressNSColor,
                 percentText: percent,
@@ -145,8 +145,8 @@ extension TorrentCellContent {
                 font: monoDigitFont,
                 color: .secondaryLabelColor,
                 alignment: .right,
-                toolTip: row.torrent.addedAt.formatted(date: .abbreviated, time: .complete),
-                accessibilityLabel: row.torrent.addedAt.formatted(date: .abbreviated, time: .shortened))
+                toolTip: L10n.date(row.torrent.addedAt, date: .abbreviated, time: .complete),
+                accessibilityLabel: L10n.date(row.torrent.addedAt, date: .abbreviated, time: .shortened))
         case .completedAt:
             return optionalDateContent(row.torrent.completedAt)
         case .startedAt:
@@ -162,7 +162,7 @@ extension TorrentCellContent {
                     color: .tertiaryLabelColor,
                     alignment: .left,
                     toolTip: nil,
-                    accessibilityLabel: "no tracker")
+                    accessibilityLabel: L10n.text("no tracker"))
             }
             return TorrentCellContent(
                 shape: .text,
@@ -181,7 +181,8 @@ extension TorrentCellContent {
                 color: .secondaryLabelColor,
                 alignment: .right,
                 toolTip: nil,
-                accessibilityLabel: "\(row.torrent.connectedPeerCount) of \(row.torrent.availablePeerCount) peers")
+                accessibilityLabel: L10n.format(
+                    "%lld of %lld peers", Int64(row.torrent.connectedPeerCount), Int64(row.torrent.availablePeerCount)))
         case .availablePeers:
             let text = row.torrent.availablePeerCount > 0 ? "\(row.torrent.availablePeerCount)" : "\u{2014}"
             return TorrentCellContent(
@@ -191,7 +192,7 @@ extension TorrentCellContent {
                 color: row.torrent.availablePeerCount > 0 ? .secondaryLabelColor : .tertiaryLabelColor,
                 alignment: .right,
                 toolTip: nil,
-                accessibilityLabel: "\(row.torrent.availablePeerCount) available")
+                accessibilityLabel: L10n.format("%lld available", Int64(row.torrent.availablePeerCount)))
         case .seeds:
             let text = row.torrent.seedCount > 0 ? "\(row.torrent.seedCount)" : "\u{2014}"
             return TorrentCellContent(
@@ -201,7 +202,7 @@ extension TorrentCellContent {
                 color: row.torrent.seedCount > 0 ? .secondaryLabelColor : .tertiaryLabelColor,
                 alignment: .right,
                 toolTip: nil,
-                accessibilityLabel: "\(row.torrent.seedCount) seeds")
+                accessibilityLabel: L10n.format("%lld seeds", Int64(row.torrent.seedCount)))
         case .status:
             let (color, text) = statusContent(row.torrent.status)
             return TorrentCellContent(
@@ -245,7 +246,7 @@ extension TorrentCellContent {
                 color: .tertiaryLabelColor,
                 alignment: .left,
                 toolTip: nil,
-                accessibilityLabel: "no label")
+                accessibilityLabel: L10n.text("no label"))
         case .priority:
             let priority = row.torrent.priority
             return TorrentCellContent(
@@ -295,7 +296,7 @@ extension TorrentCellContent {
                 color: .tertiaryLabelColor,
                 alignment: .left,
                 toolTip: nil,
-                accessibilityLabel: "no error")
+                accessibilityLabel: L10n.text("no error"))
         case .pieces:
             let text = ColumnFormatters.piecesText(have: row.torrent.havePieces, total: row.torrent.pieces)
             return TorrentCellContent(
@@ -327,9 +328,9 @@ extension TorrentCellContent {
                 toolTip: row.torrent.hash,
                 accessibilityLabel: row.torrent.hash)
         case .downloadedEver:
-            return totalContent(row.torrent.downloadedEver, label: "downloaded")
+            return totalContent(row.torrent.downloadedEver, label: L10n.text("downloaded"))
         case .uploadedEver:
-            return totalContent(row.torrent.uploadedEver, label: "uploaded")
+            return totalContent(row.torrent.uploadedEver, label: L10n.text("uploaded"))
         case .leftUntilDone:
             let text = ColumnFormatters.humanizedSize(row.torrent.leftUntilDone)
             return TorrentCellContent(
@@ -339,7 +340,7 @@ extension TorrentCellContent {
                 color: .secondaryLabelColor,
                 alignment: .right,
                 toolTip: nil,
-                accessibilityLabel: "\(text) remaining")
+                accessibilityLabel: L10n.format("%@ remaining", text))
         case .sizeWhenDone:
             let text = ColumnFormatters.humanizedSize(row.torrent.sizeWhenDone)
             return TorrentCellContent(
@@ -349,35 +350,35 @@ extension TorrentCellContent {
                 color: .secondaryLabelColor,
                 alignment: .right,
                 toolTip: nil,
-                accessibilityLabel: "\(text) when done")
+                accessibilityLabel: L10n.format("%@ when done", text))
         case .secondsDownloading:
-            return durationContent(row.torrent.secondsDownloading, label: "downloading")
+            return durationContent(row.torrent.secondsDownloading, label: L10n.text("downloading"))
         case .secondsSeeding:
-            return durationContent(row.torrent.secondsSeeding, label: "seeding")
+            return durationContent(row.torrent.secondsSeeding, label: L10n.text("seeding"))
         case .downloadLimit:
             return limitContent(
                 limited: row.torrent.options.downloadLimited,
                 text: row.torrent.options.downloadLimited
                     ? ColumnFormatters.humanizedSpeed(Int64(row.torrent.options.downloadLimitKBps) * 1024) : nil,
-                label: "download limit")
+                label: L10n.text("download limit"))
         case .uploadLimit:
             return limitContent(
                 limited: row.torrent.options.uploadLimited,
                 text: row.torrent.options.uploadLimited
                     ? ColumnFormatters.humanizedSpeed(Int64(row.torrent.options.uploadLimitKBps) * 1024) : nil,
-                label: "upload limit")
+                label: L10n.text("upload limit"))
         case .seedRatioLimit:
             return limitContent(
                 limited: row.torrent.options.seedRatioLimited,
                 text: row.torrent.options.seedRatioLimited
                     ? ColumnFormatters.ratio(row.torrent.options.seedRatioLimit) : nil,
-                label: "ratio limit")
+                label: L10n.text("ratio limit"))
         case .seedIdleLimit:
             return limitContent(
                 limited: row.torrent.options.seedIdleLimited,
                 text: row.torrent.options.seedIdleLimited
                     ? "\(row.torrent.options.seedIdleMinutes)m" : nil,
-                label: "idle limit")
+                label: L10n.text("idle limit"))
         case .peerLimit:
             let text = "\(row.torrent.options.peerLimit)"
             return TorrentCellContent(
@@ -387,7 +388,7 @@ extension TorrentCellContent {
                 color: .secondaryLabelColor,
                 alignment: .right,
                 toolTip: nil,
-                accessibilityLabel: "\(text) peers")
+                accessibilityLabel: L10n.format("%@ peers", text))
         }
     }
 
@@ -400,7 +401,7 @@ extension TorrentCellContent {
                 color: .tertiaryLabelColor,
                 alignment: .right,
                 toolTip: nil,
-                accessibilityLabel: "never")
+                accessibilityLabel: L10n.text("never"))
         }
         let text = ColumnFormatters.relativeDate(date)
         return TorrentCellContent(
@@ -409,8 +410,8 @@ extension TorrentCellContent {
             font: monoDigitFont,
             color: .secondaryLabelColor,
             alignment: .right,
-            toolTip: date.formatted(date: .abbreviated, time: .complete),
-            accessibilityLabel: date.formatted(date: .abbreviated, time: .shortened))
+            toolTip: L10n.date(date, date: .abbreviated, time: .complete),
+            accessibilityLabel: L10n.date(date, date: .abbreviated, time: .shortened))
     }
 
     private static func totalContent(_ bytes: Int64, label: String) -> TorrentCellContent {
@@ -422,7 +423,7 @@ extension TorrentCellContent {
             color: .secondaryLabelColor,
             alignment: .right,
             toolTip: nil,
-            accessibilityLabel: "\(text) \(label)")
+            accessibilityLabel: L10n.format("%@ %@", text, label))
     }
 
     private static func durationContent(_ seconds: Int64, label: String) -> TorrentCellContent {
@@ -434,7 +435,7 @@ extension TorrentCellContent {
                 color: .tertiaryLabelColor,
                 alignment: .right,
                 toolTip: nil,
-                accessibilityLabel: "no time \(label)")
+                accessibilityLabel: L10n.format("no time %@", label))
         }
         let text = ColumnFormatters.humanizedDuration(seconds)
         return TorrentCellContent(
@@ -444,7 +445,7 @@ extension TorrentCellContent {
             color: .secondaryLabelColor,
             alignment: .right,
             toolTip: nil,
-            accessibilityLabel: "\(text) \(label)")
+            accessibilityLabel: L10n.format("%@ %@", text, label))
     }
 
     private static func limitContent(limited: Bool, text: String?, label: String) -> TorrentCellContent {
@@ -456,7 +457,7 @@ extension TorrentCellContent {
                 color: .tertiaryLabelColor,
                 alignment: .right,
                 toolTip: nil,
-                accessibilityLabel: "no \(label)")
+                accessibilityLabel: L10n.format("no %@", label))
         }
         return TorrentCellContent(
             shape: .text,
@@ -465,7 +466,7 @@ extension TorrentCellContent {
             color: .secondaryLabelColor,
             alignment: .right,
             toolTip: nil,
-            accessibilityLabel: "\(text) \(label)")
+            accessibilityLabel: L10n.format("%@ %@", text, label))
     }
 
     private static func speedContent(_ bytesPerSecond: Int64, color: NSColor) -> TorrentCellContent {
@@ -521,9 +522,9 @@ extension TorrentCellContent {
 
     private static func priorityAXLabel(_ priority: TorrentPriority) -> String {
         switch priority {
-        case .high: return "high priority"
-        case .low: return "low priority"
-        case .normal: return "normal priority"
+        case .high: return L10n.text("high priority")
+        case .low: return L10n.text("low priority")
+        case .normal: return L10n.text("normal priority")
         }
     }
 }

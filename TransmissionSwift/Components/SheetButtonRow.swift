@@ -38,7 +38,7 @@ struct SheetButtonRow<Leading: View>: View {
         HStack(spacing: 8) {
             leading
             Spacer(minLength: 8)
-            Button("Cancel", action: onCancel)
+            Button(L10n.text("Cancel"), action: onCancel)
                 .keyboardShortcut(.cancelAction)
                 .disabled(isBusy)
             Button(isBusy ? (busyTitle ?? confirmTitle) : confirmTitle, action: onConfirm)

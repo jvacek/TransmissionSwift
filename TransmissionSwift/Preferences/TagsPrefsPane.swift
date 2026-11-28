@@ -26,9 +26,9 @@ struct TagsPrefsPane: View {
     var body: some View {
         if tags.isEmpty {
             ContentUnavailableView(
-                "No Tags",
+                L10n.text("No Tags"),
                 systemImage: "tag",
-                description: Text("Add labels to a torrent to manage their colours here.")
+                description: Text(L10n.text("Add labels to a torrent to manage their colours here."))
             )
         } else {
             Form {
@@ -41,7 +41,7 @@ struct TagsPrefsPane: View {
                         }
                     }
                 } header: {
-                    Text("Tag Colours")
+                    Text(L10n.text("Tag Colours"))
                 }
             }
             .formStyle(.grouped)
@@ -73,7 +73,7 @@ private struct TagColorRadioPicker: View {
                         }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(color.displayName)
+                .accessibilityLabel(color.localizedDisplayName)
             }
 
             Button {
@@ -91,7 +91,7 @@ private struct TagColorRadioPicker: View {
                     }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("No colour")
+            .accessibilityLabel(L10n.text("No colour"))
         }
     }
 }
